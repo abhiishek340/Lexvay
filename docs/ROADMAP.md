@@ -13,13 +13,16 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
 | F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | in progress |
 | F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | in progress |
+| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | queued (ready) |
+| F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | queued (ready) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 3 | Opus 5.5 | queued (after WS-UI, F3a) |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | queued (after WS-UI, F4a) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
-| F6 Production packaging and observability | `ops-packaging` | 6 | Sonnet 5.5 | queued |
-| F7 Matching quality | `match-quality` | 7 | Sonnet 5.5 | queued (after WS-EVAL) |
+| F7 Matching quality | `match-quality` | 3 | Sonnet 5.5 | queued (after WS-EVAL) |
+| F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
+| F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
 
 ---
 
@@ -215,17 +218,75 @@ Migration file name: `V007__evidence_response.sql` (V006 is reserved for WS-PERF
 
 ---
 
-## Queued items (specs are written by the orchestrator when the item is started)
-- **F1 Evidence viewer**: page text in the right pane with the quote highlighted in context, previous and
-  next page, open original file; uses the document page endpoint.
-- **F2 Program setup workspace**: create program, courses, upload documents with ingest status, record
-  program facts by selecting the quote in the document.
-- **F3 Rule workspace**: enter rule text, review and edit the extracted requirement list, approve; requirement
-  level diff between rule versions (match by ref; added, removed, changed, unchanged; word-level diff).
-- **F4 Evidence requests**: "Request evidence" creates a task for contributors; responding with a document
-  re-runs matching for that requirement only.
-- **F5 Administration and audit tools**: user management for admins, audit filters and CSV export.
-- **F6 Production packaging and observability**: container image, structured logs with request ids,
-  metrics, per-assessment cost meter.
-- **F7 Matching quality**: sub-page passages with `ts_headline` context, ranking improvements measured by
-  the evaluation harness, prompt caching for the system prompt.
+## F6 — Production packaging and observability (ready to start; slot 7)
+1. **One image.** Multi-stage `Dockerfile` at the repo root: Node 26 stage builds the Angular production
+   bundle; Maven stage builds the backend with the bundle copied to `static/` and extracts the layered jar;
+   runtime stage on a pinned Temurin 21 JRE image, non-root user, read-only root filesystem compatible
+   (files and temp under `/var/lexvay`), `HEALTHCHECK` on readiness. The backend serves the single-page app
+   with a fallback to `index.html` for every non-`/api`, non-`/actuator` GET that has no file extension.
+   `docker compose --profile app up` runs database plus image; a smoke script proves sign-in through the
+   container. Image size and cold start time recorded in `docs/OPERATIONS.md`.
+2. **Request correlation.** A filter accepts or generates `X-Request-Id` (UUID; accept only
+   `[A-Za-z0-9-]{8,64}` from clients), puts `requestId`, `tenantId` and `userId` in the logging MDC, echoes
+   the header, and adds `requestId` to every problem detail. Job runs get a `jobId` in the MDC.
+3. **Structured logs** under profile `prod` using Spring Boot's built-in structured logging (ECS format);
+   human-readable locally. Never log document text, quotes, rule text, prompts or model output.
+4. **Metrics** with Micrometer and the Prometheus registry on a separate management port
+   (`LEXVAY_MANAGEMENT_PORT`, default 8090, health stays on the main port): `lexvay.llm.calls` (purpose,
+   model, outcome), `lexvay.llm.tokens` (direction), `lexvay.llm.duration`, `lexvay.job.duration` (type,
+   outcome), `lexvay.job.queue.depth` (gauge from one indexed count), `lexvay.quote.verification` (result:
+   verified | rejected), `lexvay.mapping.finding` (finding, method). Metric code lives in one
+   `LexvayMetrics` component; call sites pass facts, not meter names.
+5. **Usage per assessment** `GET /api/v1/assessments/{id}/usage` → model calls by purpose, input and output
+   tokens, wall time, and estimated cost from the configured prices; one SQL aggregate over `llm_call`.
+6. **Graceful shutdown**: `server.shutdown=graceful`; the job poller stops claiming on shutdown and lets the
+   running job finish within the grace period.
+Tests for the SPA fallback (deep link returns index, `/api/unknown` stays a 404 problem detail), request id
+rules, metrics presence after a pipeline run, usage endpoint with tenant isolation. Decisions in
+`docs/decisions/F6.md` (D-140 to D-149).
+
+## F9 — Curriculum search API (ready to start; slot 8)
+Reviewers must be able to look for a passage themselves instead of trusting the shortlist.
+1. `GET /api/v1/programs/{id}/search?q=&limit=&kind=&courseVersionId=` (any authenticated role; `limit`
+   default 20, maximum 50; blank `q` is a 400). Query with `websearch_to_tsquery('english', :q)` so quoted
+   phrases, `OR` and `-term` work. Rank with `ts_rank_cd(tsv, query, 32)`. Select the top rows first, then
+   compute `ts_headline` only for those rows (`MaxFragments=2, MaxWords=40, MinWords=15`,
+   `StartSel` and `StopSel` set to the control characters U+0001 and U+0002).
+2. The server converts each headline into `segments: [{ text, match }]` by splitting on the control
+   characters; the client never receives or renders markup from the database.
+3. Row: `documentId, filename, kind, courseCode, courseRequired, pageNumber, rank, segments`. Rule text
+   documents are excluded. Extend the `PassageSearch` seam with this method; `PostgresPassageSearch`
+   implements both and shares the joins, no copied SQL.
+4. Tests: phrase and negation queries on the seed, ordering by rank, segments reconstruct the headline,
+   filters, limit cap, 400 for blank, tenant isolation, and a latency check (p95 ≤ 40 ms over 200 requests
+   on the seeded tenant) following the pattern of `EndpointLatencyTest` if it exists on `main`.
+Decisions in `docs/decisions/F9.md` (D-150 to D-159).
+
+## Decisions already made for the screen work that follows WS-UI
+The orchestrator writes the full spec when each item starts; these choices are fixed.
+- **F1 Evidence viewer**: one reusable `DocumentViewer` component: page text in serif, the quote
+  highlighted from the stored character offsets (a `mark` element, never string search in the browser),
+  scrolled into view, previous and next page, page fetched from the immutable page endpoint with a small
+  in-memory LRU cache, "Open original" through a new `GET /documents/{id}/file`. Text selection in the
+  viewer yields `{ pageNumber, quote }` for the features that need a human-chosen quote.
+- **F2 Program setup workspace**: PrimeNG Stepper: details → jurisdictions → courses → documents (upload
+  with per-file ingest status from the job) → program facts (pick the number, then select its quote in the
+  `DocumentViewer`) → readiness check (which states lack an approved rule version) → run assessment with
+  job progress. Needs `GET /programs/{id}/documents`.
+- **F3 Rule workspace**: rule versions by state with status (extracting, needs approval, approved,
+  superseded); entry form; editable requirement table backed by the replace endpoint with server
+  validation messages shown per row; approval confirmation; diff view from F3a with inserted and deleted
+  words marked by `ins` and `del` elements plus underline and strike-through, never colour alone.
+- **F4 Evidence request screens**: a contributor inbox of open requests; answering opens the
+  `DocumentViewer` to select the quote; reviewers see supplied evidence, labelled with who provided it,
+  next to the model-proposed evidence.
+- **F5 Administration and audit tools**: user management (create, change role, deactivate; never delete),
+  audit filters, CSV export streamed from the server.
+- **F7 Matching quality** (after WS-EVAL so every change is measured): paragraph-level passages with
+  neighbour context while quotes stay verified against the stored page; a consistency check that asks the
+  model twice with the passages in a different order and downgrades to ambiguous on disagreement; prompt
+  caching for the system prompt; new metric "shortlist recall" in the evaluation table.
+- **F8 Determination register**: export of signed determinations per program and state (outcome, signer,
+  date, rule version, versions hash) as CSV and as a printable page.
+- **F10 Coverage matrix**: courses against requirements for one state, showing which course carries the
+  evidence for which requirement and where a requirement rests on a single elective.
