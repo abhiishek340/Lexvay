@@ -11,10 +11,11 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | in progress |
 | WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | in progress |
 | WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
-| F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | in progress |
-| F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | in progress |
-| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | queued (ready) |
-| F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | queued (ready) |
+| F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | approved, PR #9 merging |
+| F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | approved, PR #8 merging |
+| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | in progress |
+| F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | in progress |
+| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | queued (after WS-PERF) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 3 | Opus 5.5 | queued (after WS-UI, F3a) |
@@ -261,6 +262,27 @@ Reviewers must be able to look for a passage themselves instead of trusting the 
    filters, limit cap, 400 for blank, tenant isolation, and a latency check (p95 ≤ 40 ms over 200 requests
    on the seeded tenant) following the pattern of `EndpointLatencyTest` if it exists on `main`.
 Decisions in `docs/decisions/F9.md` (D-150 to D-159).
+
+## FIX-1 — Requirement order column (after WS-PERF merges; slot 5)
+Defect found in review of F3a: `RuleVersionRepository.requirements` orders by `created_at, ref`; rows of one
+version share a timestamp, so the order is the text order of the ref ("CO-10" before "CO-2").
+1. Migration (next free number; V006 stays unused): inside the migration, `ALTER TABLE requirement NO FORCE
+   ROW LEVEL SECURITY` and disable the `requirement_locked` trigger, add `ordinal integer`, backfill with
+   `row_number() OVER (PARTITION BY rule_version_id ORDER BY created_at, (substring(ref from '(\d+)$'))::int
+   NULLS LAST, ref)`, set `NOT NULL`, add `UNIQUE (rule_version_id, ordinal)`, then re-enable the trigger and
+   `FORCE ROW LEVEL SECURITY`. A migration test loads rows before the migration is applied is not possible
+   with Flyway-on-start, so prove the backfill expression with a SQL-level test on a temporary table.
+2. `RequirementDraft` lists carry their order: extraction and the replace endpoint assign `ordinal` = list
+   position starting at 1. `Requirement` exposes `ordinal`. Every query that lists requirements or mappings
+   orders by `r.ordinal` (search for `r.created_at, r.ref` and `created_at, ref`). The diff's "newer
+   version's order" then follows the rule's own order.
+3. Tests: a rule with twelve requirements lists CO-1 … CO-12 in order through the requirements endpoint,
+   the mappings endpoint and the diff; replace keeps the submitted order; `Rule5` immutability unchanged.
+
+## Follow-ups recorded from reviews
+- F4 screens: an OPEN evidence request on a stale mapping cannot be answered (409). Add `stale` to the
+  evidence request row and show such rows as blocked until the change is re-run.
+- F3 screens: any authenticated role may read a diff; unapproved lists can be diffed (useful before approval).
 
 ## Decisions already made for the screen work that follows WS-UI
 The orchestrator writes the full spec when each item starts; these choices are fixed.
