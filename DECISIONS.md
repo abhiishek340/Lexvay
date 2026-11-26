@@ -385,6 +385,12 @@ checked on the npm registry for Angular 22 peer support on 2026-11-26. Design co
 reviewed and merged by the orchestrator after CI. No `Co-Authored-By` trailers or AI attribution anywhere.
 End-to-end stacks are slot-based (`LEXVAY_E2E_SLOT`) so several checkouts can test at once.
 
+**D-074 — Per-item decision files.** In CTO mode each work item records its decisions in
+`docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
+This file keeps the cross-cutting decisions and this index: F3a D-120–129 (`docs/decisions/F3a.md`), F4a
+D-130–139 (`docs/decisions/F4a.md`), WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL D-100–109, WS-PERF
+D-110–119, F6 D-140–149, F9 D-150–159. Migration number V006 is intentionally unused (D-073 workflow).
+
 ## Spec concerns (section 13, item 5)
 
 - Section 5 vs section 7 on `REOPENED` (D-003, resolved by owner).

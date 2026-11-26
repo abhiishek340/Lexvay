@@ -38,7 +38,7 @@ public class MappingRepository {
      * D-066: a mapping is "current" unless its rule version has a successor whose mappings already exist in
      * the same assessment. After a re-run the new list shows; until then the old list stays reviewable.
      */
-    static final String CURRENT = """
+    public static final String CURRENT = """
              AND NOT EXISTS (
                 SELECT 1 FROM rule_version nv
                 JOIN requirement nr ON nr.rule_version_id = nv.id

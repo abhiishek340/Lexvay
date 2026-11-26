@@ -39,7 +39,7 @@ class Rule7_TenantIsolationRepositoryTest extends AbstractDatabaseTest {
             assertThat(programs.findById(a.programId())).isEmpty();
             assertThat(programs.findAll()).isEmpty();
             for (String table : new String[] {"document", "document_page", "rule_version", "requirement", "assessment",
-                    "evidence_span", "mapping", "review_event", "determination", "audit_log", "llm_call", "app_user"}) {
+                    "evidence_span", "mapping", "review_event", "evidence_response", "determination", "audit_log", "llm_call", "app_user"}) {
                 Long count = jdbc.sql("SELECT count(*) FROM " + table + " WHERE tenant_id = :t")
                         .param("t", a.tenantId()).query(Long.class).single();
                 assertThat(count).as(table).isZero();

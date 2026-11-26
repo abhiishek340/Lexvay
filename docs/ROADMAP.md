@@ -11,13 +11,19 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | in progress |
 | WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | in progress |
 | WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
+| F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | merged (PR #9) |
+| F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | merged (PR #8) |
+| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | in progress |
+| F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | in progress |
+| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | queued (after WS-PERF) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
-| F3 Rule workspace and requirement diff | `feat-rule-workspace` | 3 | Sonnet 5.5 | queued (after WS-UI) |
-| F4 Evidence requests | `feat-evidence-requests` | 4 | Sonnet 5.5 | queued |
+| F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 3 | Opus 5.5 | queued (after WS-UI, F3a) |
+| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | queued (after WS-UI, F4a) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
-| F6 Production packaging and observability | `ops-packaging` | 6 | Sonnet 5.5 | queued |
-| F7 Matching quality | `match-quality` | 7 | Sonnet 5.5 | queued (after WS-EVAL) |
+| F7 Matching quality | `match-quality` | 3 | Sonnet 5.5 | queued (after WS-EVAL) |
+| F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
+| F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
 
 ---
 
@@ -138,19 +144,171 @@ Measure first, then change, then measure again; put both tables in `docs/PERF.md
 Done when: `make perf` meets the budgets, `LEXVAY_E2E_SLOT=4 make test` green, `docs/PERF.md` shows before
 and after, every new endpoint has tenant-isolation and role tests.
 
+## F3a — Rule version diff API (backend only)
+Purpose: when a state revises a rule, the reviewer must see exactly what changed, requirement by
+requirement, before approving the new list and re-running. Slot 5. No migration.
+1. Dependency: `io.github.java-diff-utils:java-diff-utils` (latest stable from Maven Central, pinned) for
+   the Myers sequence diff. Do not hand-write a diff algorithm.
+2. `RequirementComparison` in `com.lexvay.rule`: the single definition of "same requirement" used
+   everywhere. `changes(a, b)` returns the set of changed aspects among `TITLE`, `TEXT`, `TYPE`, `NUMERIC`
+   (text compared after whitespace normalization with `QuoteVerifier.normalizeWhitespace`; numeric compares
+   field, operator and value with `BigDecimal.compareTo`). `RerunChangeHandler.unchanged` must delegate to
+   it (carry-over stays true exactly when the set contains none of `TEXT`, `TYPE`, `NUMERIC`; a title-only
+   change still carries over). Delete the duplicate logic.
+3. `TextDiff` in `com.lexvay.common`: `words(String a, String b)` tokenizes into word and non-word runs
+   (regex `\\w+|\\W+`, so joining tokens reproduces the input exactly), diffs the token lists and returns
+   merged segments `{op: EQUAL | DELETE | INSERT, text}` (adjacent segments with the same op are merged; a
+   replace becomes DELETE then INSERT). `lines(String a, String b)` does the same on lines and, for each
+   replaced block, refines with `words` on the joined block. Property to test: concatenating EQUAL+DELETE
+   segments gives `a`, EQUAL+INSERT gives `b`.
+4. Matching algorithm (`RuleVersionDiffService`): (a) pair requirements by identical `ref`; (b) among the
+   unpaired, compute Jaccard similarity of lower-cased word sets of the texts for every removed × added
+   pair, sort descending, greedily pair those with similarity ≥ 0.80 and mark them `refChanged: true`;
+   (c) what remains is `ADDED` or `REMOVED`. A pair with an empty change set and the same ref is
+   `UNCHANGED`, otherwise `CHANGED`. Order the result by the newer version's order, removed ones last in
+   the older version's order.
+5. `GET /api/v1/rule-versions/{id}/diff?against={otherId}`; `against` defaults to the version this one
+   supersedes (400 problem detail if there is none); both versions must be the same jurisdiction and
+   license type (400 otherwise). Response: `{ from: {id, label, effectiveFrom}, to: {...}, summary: {added,
+   removed, changed, unchanged}, requirements: [{ status, refChanged, before, after, changes, textDiff }],
+   ruleTextDiff: [segments] }` where `textDiff` is `TextDiff.words(before.text, after.text)` for CHANGED
+   rows and `ruleTextDiff` is `TextDiff.lines` over the two rule texts. Read-only, one transaction.
+6. Tests: unit tests for `TextDiff` (including the reconstruction property on several inputs and empty
+   strings), `RequirementComparison`, the matcher (renumbered requirement detected, below-threshold pair not
+   merged); API tests using the seeded Colorado revision (exactly one CHANGED: CO-5 with `NUMERIC` and
+   `TEXT`, eight UNCHANGED), tenant isolation 404, 400 cases. `RuleVersionChangeTest` and
+   `CourseVersionChangeTest` must stay green unmodified.
+
+## F4a — Evidence requests API (backend only)
+Purpose: "Request evidence from program director" must start a real loop: the contributor sees the open
+request, supplies a passage from a program document, and the requirement returns to the reviewer with the
+human-supplied evidence attached. The system's proposed finding is never altered by this. Slot 6.
+Migration file name: `V007__evidence_response.sql` (V006 is reserved for WS-PERF).
+1. Table `evidence_response` (append-only: immutability trigger; `tenant_id` + FORCE RLS + policy exactly
+   like the other tables in V002; listed in the existing schema tests automatically): `id`, `tenant_id`,
+   `mapping_id` → mapping, `review_event_id` → the `EVIDENCE_REQUESTED` event it answers,
+   `evidence_span_id` → evidence_span, `comment` (nullable, ≤ 4000), `created_at`, `created_by` → app_user.
+2. `POST /api/v1/mappings/{id}/evidence-responses` (CONTRIBUTOR, REVIEWER, SIGNER, ADMIN) with
+   `{ documentId, pageNumber, quote, comment }`. Checks in this order: mapping exists in the tenant (404);
+   not stale (409); no SIGNED determination for its assessment and jurisdiction (409, reuse
+   `DeterminationRepository.hasSigned`); the mapping's current decision is `EVIDENCE_REQUESTED` (409 "No
+   open evidence request for this requirement"); the document belongs to the mapping's program and is not
+   rule text (400); the page exists (400); the quote passes `QuoteVerifier` against that page (400 naming
+   the page; product rule 2 applies to people too). Then, in one transaction: insert the `evidence_span`
+   (exact text and page-relative offsets from the verifier), insert `evidence_response`, insert a
+   `REOPENED` review event on the mapping with note `Evidence provided by <display name>` and the
+   contributor as `user_id` so the requirement returns to "needs review", and audit `EVIDENCE_PROVIDED`
+   (mapping id, requirement ref, jurisdiction, document id, page, quote). Returns 201 with the response view.
+3. `GET /api/v1/mappings/{id}/evidence-responses` → newest first: `{ id, reviewEventId, documentId,
+   filename, kind, courseCode, courseRequired, pageNumber, charStart, charEnd, quote, comment, providedBy,
+   providedByName, createdAt }`.
+4. `GET /api/v1/programs/{id}/evidence-requests?status=OPEN|ANSWERED|ALL` (default OPEN) over the
+   program's latest finished assessment, current mappings only (reuse the D-066 filter in
+   `MappingRepository`, do not copy it): OPEN = current decision is `EVIDENCE_REQUESTED`; ANSWERED = the
+   latest event is the `REOPENED` written by a response and no decision since. Each row: mapping id,
+   jurisdiction, requirement ref and title, the request note, who asked and when, response count, latest
+   response summary (who, when, filename, page).
+5. `ReviewService` currently rejects user-sent `REOPENED`; keep that. The response path writes its
+   `REOPENED` through the repository like `RerunChangeHandler` does.
+6. Tests: full loop (reviewer requests → contributor lists OPEN → responds with a real quote → mapping has
+   no decision, request is ANSWERED, response listed with exact offsets that reproduce the quote from the
+   page text → reviewer accepts → request no longer listed); fabricated quote 400 and nothing stored;
+   document from another program 400; no open request 409; stale 409; signed 409; roles; tenant isolation
+   404 on all three endpoints; immutability of `evidence_response` (update and delete rejected);
+   `Rule9_AuditCoverageTest` extended; `Rule7_EveryTableHasPolicyTest` passes with the new table.
+
 ---
 
-## Queued items (specs are written by the orchestrator when the item is started)
-- **F1 Evidence viewer**: page text in the right pane with the quote highlighted in context, previous and
-  next page, open original file; uses the document page endpoint.
-- **F2 Program setup workspace**: create program, courses, upload documents with ingest status, record
-  program facts by selecting the quote in the document.
-- **F3 Rule workspace**: enter rule text, review and edit the extracted requirement list, approve; requirement
-  level diff between rule versions (match by ref; added, removed, changed, unchanged; word-level diff).
-- **F4 Evidence requests**: "Request evidence" creates a task for contributors; responding with a document
-  re-runs matching for that requirement only.
-- **F5 Administration and audit tools**: user management for admins, audit filters and CSV export.
-- **F6 Production packaging and observability**: container image, structured logs with request ids,
-  metrics, per-assessment cost meter.
-- **F7 Matching quality**: sub-page passages with `ts_headline` context, ranking improvements measured by
-  the evaluation harness, prompt caching for the system prompt.
+## F6 — Production packaging and observability (ready to start; slot 7)
+1. **One image.** Multi-stage `Dockerfile` at the repo root: Node 26 stage builds the Angular production
+   bundle; Maven stage builds the backend with the bundle copied to `static/` and extracts the layered jar;
+   runtime stage on a pinned Temurin 21 JRE image, non-root user, read-only root filesystem compatible
+   (files and temp under `/var/lexvay`), `HEALTHCHECK` on readiness. The backend serves the single-page app
+   with a fallback to `index.html` for every non-`/api`, non-`/actuator` GET that has no file extension.
+   `docker compose --profile app up` runs database plus image; a smoke script proves sign-in through the
+   container. Image size and cold start time recorded in `docs/OPERATIONS.md`.
+2. **Request correlation.** A filter accepts or generates `X-Request-Id` (UUID; accept only
+   `[A-Za-z0-9-]{8,64}` from clients), puts `requestId`, `tenantId` and `userId` in the logging MDC, echoes
+   the header, and adds `requestId` to every problem detail. Job runs get a `jobId` in the MDC.
+3. **Structured logs** under profile `prod` using Spring Boot's built-in structured logging (ECS format);
+   human-readable locally. Never log document text, quotes, rule text, prompts or model output.
+4. **Metrics** with Micrometer and the Prometheus registry on a separate management port
+   (`LEXVAY_MANAGEMENT_PORT`, default 8090, health stays on the main port): `lexvay.llm.calls` (purpose,
+   model, outcome), `lexvay.llm.tokens` (direction), `lexvay.llm.duration`, `lexvay.job.duration` (type,
+   outcome), `lexvay.job.queue.depth` (gauge from one indexed count), `lexvay.quote.verification` (result:
+   verified | rejected), `lexvay.mapping.finding` (finding, method). Metric code lives in one
+   `LexvayMetrics` component; call sites pass facts, not meter names.
+5. **Usage per assessment** `GET /api/v1/assessments/{id}/usage` → model calls by purpose, input and output
+   tokens, wall time, and estimated cost from the configured prices; one SQL aggregate over `llm_call`.
+6. **Graceful shutdown**: `server.shutdown=graceful`; the job poller stops claiming on shutdown and lets the
+   running job finish within the grace period.
+Tests for the SPA fallback (deep link returns index, `/api/unknown` stays a 404 problem detail), request id
+rules, metrics presence after a pipeline run, usage endpoint with tenant isolation. Decisions in
+`docs/decisions/F6.md` (D-140 to D-149).
+
+## F9 — Curriculum search API (ready to start; slot 8)
+Reviewers must be able to look for a passage themselves instead of trusting the shortlist.
+1. `GET /api/v1/programs/{id}/search?q=&limit=&kind=&courseVersionId=` (any authenticated role; `limit`
+   default 20, maximum 50; blank `q` is a 400). Query with `websearch_to_tsquery('english', :q)` so quoted
+   phrases, `OR` and `-term` work. Rank with `ts_rank_cd(tsv, query, 32)`. Select the top rows first, then
+   compute `ts_headline` only for those rows (`MaxFragments=2, MaxWords=40, MinWords=15`,
+   `StartSel` and `StopSel` set to the control characters U+0001 and U+0002).
+2. The server converts each headline into `segments: [{ text, match }]` by splitting on the control
+   characters; the client never receives or renders markup from the database.
+3. Row: `documentId, filename, kind, courseCode, courseRequired, pageNumber, rank, segments`. Rule text
+   documents are excluded. Extend the `PassageSearch` seam with this method; `PostgresPassageSearch`
+   implements both and shares the joins, no copied SQL.
+4. Tests: phrase and negation queries on the seed, ordering by rank, segments reconstruct the headline,
+   filters, limit cap, 400 for blank, tenant isolation, and a latency check (p95 ≤ 40 ms over 200 requests
+   on the seeded tenant) following the pattern of `EndpointLatencyTest` if it exists on `main`.
+Decisions in `docs/decisions/F9.md` (D-150 to D-159).
+
+## FIX-1 — Requirement order column (after WS-PERF merges; slot 5)
+Defect found in review of F3a: `RuleVersionRepository.requirements` orders by `created_at, ref`; rows of one
+version share a timestamp, so the order is the text order of the ref ("CO-10" before "CO-2").
+1. Migration (next free number; V006 stays unused): inside the migration, `ALTER TABLE requirement NO FORCE
+   ROW LEVEL SECURITY` and disable the `requirement_locked` trigger, add `ordinal integer`, backfill with
+   `row_number() OVER (PARTITION BY rule_version_id ORDER BY created_at, (substring(ref from '(\d+)$'))::int
+   NULLS LAST, ref)`, set `NOT NULL`, add `UNIQUE (rule_version_id, ordinal)`, then re-enable the trigger and
+   `FORCE ROW LEVEL SECURITY`. A migration test loads rows before the migration is applied is not possible
+   with Flyway-on-start, so prove the backfill expression with a SQL-level test on a temporary table.
+2. `RequirementDraft` lists carry their order: extraction and the replace endpoint assign `ordinal` = list
+   position starting at 1. `Requirement` exposes `ordinal`. Every query that lists requirements or mappings
+   orders by `r.ordinal` (search for `r.created_at, r.ref` and `created_at, ref`). The diff's "newer
+   version's order" then follows the rule's own order.
+3. Tests: a rule with twelve requirements lists CO-1 … CO-12 in order through the requirements endpoint,
+   the mappings endpoint and the diff; replace keeps the submitted order; `Rule5` immutability unchanged.
+
+## Follow-ups recorded from reviews
+- F4 screens: an OPEN evidence request on a stale mapping cannot be answered (409). Add `stale` to the
+  evidence request row and show such rows as blocked until the change is re-run.
+- F3 screens: any authenticated role may read a diff; unapproved lists can be diffed (useful before approval).
+
+## Decisions already made for the screen work that follows WS-UI
+The orchestrator writes the full spec when each item starts; these choices are fixed.
+- **F1 Evidence viewer**: one reusable `DocumentViewer` component: page text in serif, the quote
+  highlighted from the stored character offsets (a `mark` element, never string search in the browser),
+  scrolled into view, previous and next page, page fetched from the immutable page endpoint with a small
+  in-memory LRU cache, "Open original" through a new `GET /documents/{id}/file`. Text selection in the
+  viewer yields `{ pageNumber, quote }` for the features that need a human-chosen quote.
+- **F2 Program setup workspace**: PrimeNG Stepper: details → jurisdictions → courses → documents (upload
+  with per-file ingest status from the job) → program facts (pick the number, then select its quote in the
+  `DocumentViewer`) → readiness check (which states lack an approved rule version) → run assessment with
+  job progress. Needs `GET /programs/{id}/documents`.
+- **F3 Rule workspace**: rule versions by state with status (extracting, needs approval, approved,
+  superseded); entry form; editable requirement table backed by the replace endpoint with server
+  validation messages shown per row; approval confirmation; diff view from F3a with inserted and deleted
+  words marked by `ins` and `del` elements plus underline and strike-through, never colour alone.
+- **F4 Evidence request screens**: a contributor inbox of open requests; answering opens the
+  `DocumentViewer` to select the quote; reviewers see supplied evidence, labelled with who provided it,
+  next to the model-proposed evidence.
+- **F5 Administration and audit tools**: user management (create, change role, deactivate; never delete),
+  audit filters, CSV export streamed from the server.
+- **F7 Matching quality** (after WS-EVAL so every change is measured): paragraph-level passages with
+  neighbour context while quotes stay verified against the stored page; a consistency check that asks the
+  model twice with the passages in a different order and downgrades to ambiguous on disagreement; prompt
+  caching for the system prompt; new metric "shortlist recall" in the evaluation table.
+- **F8 Determination register**: export of signed determinations per program and state (outcome, signer,
+  date, rule version, versions hash) as CSV and as a printable page.
+- **F10 Coverage matrix**: courses against requirements for one state, showing which course carries the
+  evidence for which requirement and where a requirement rests on a single elective.
