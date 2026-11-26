@@ -29,3 +29,20 @@ jobs:
 
       - name: Run every test suite
         run: make test
+
+      - name: Score the pipeline against the golden set
+        run: make eval
+
+  infra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.17.2"
+          terraform_wrapper: false
+
+      - name: Validate Terraform (format, validate, offline tests; never plan or apply)
+        run: make infra-validate
