@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,14 +91,32 @@ public class AssessmentService {
         return new StartResult(id, jobId);
     }
 
+    @Transactional(readOnly = true)
     public Assessment require(UUID id) {
         return assessments.findById(id).orElseThrow(() -> new NotFoundException("Assessment not found"));
     }
 
+    @Transactional(readOnly = true)
     public AssessmentView view(UUID id) {
-        Assessment a = require(id);
+        return view(require(id));
+    }
+
+    /** Newest first. The program must exist in the caller's tenant. */
+    @Transactional(readOnly = true)
+    public List<Assessment> listForProgram(UUID programId) {
+        programs.get(programId);
+        return assessments.findByProgram(programId);
+    }
+
+    /** The assessment the program screens show: the latest FINISHED one, with its per-jurisdiction counts. */
+    @Transactional(readOnly = true)
+    public Optional<AssessmentView> latestFinishedView(UUID programId) {
+        return assessments.latestFinished(programId).map(this::view);
+    }
+
+    private AssessmentView view(Assessment a) {
         Map<String, long[]> counts = new LinkedHashMap<>();
-        for (Map<String, Object> row : assessments.findingCounts(id)) {
+        for (Map<String, Object> row : assessments.findingCounts(a.id())) {
             long[] c = counts.computeIfAbsent((String) row.get("jurisdiction"), k -> new long[4]);
             long n = ((Number) row.get("n")).longValue();
             switch (Finding.valueOf((String) row.get("finding"))) {
@@ -115,6 +134,7 @@ public class AssessmentService {
                 a.promptVersion(), summaries, a.createdAt());
     }
 
+    @Transactional(readOnly = true)
     public MappingsView mappings(UUID assessmentId, String jurisdiction) {
         require(assessmentId);
         if (jurisdiction == null || jurisdiction.isBlank()) {

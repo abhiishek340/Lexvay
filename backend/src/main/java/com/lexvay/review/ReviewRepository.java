@@ -1,5 +1,6 @@
 package com.lexvay.review;
 
+import java.util.List;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -12,6 +13,19 @@ public class ReviewRepository {
 
     public ReviewRepository(JdbcClient jdbc) {
         this.jdbc = jdbc;
+    }
+
+    /** Oldest first; a null user means the system recorded the event. */
+    public List<ReviewEventView> findByMapping(UUID mappingId) {
+        return jdbc.sql("""
+                SELECT re.id, re.kind, re.note, re.user_id, u.display_name AS user_display_name, re.created_at
+                FROM review_event re LEFT JOIN app_user u ON u.id = re.user_id
+                WHERE re.mapping_id = :mappingId ORDER BY re.created_at, re.id
+                """).param("mappingId", mappingId)
+                .query((rs, i) -> new ReviewEventView(rs.getObject("id", UUID.class), ReviewKind.valueOf(rs.getString("kind")),
+                        rs.getString("note"), rs.getObject("user_id", UUID.class), rs.getString("user_display_name"),
+                        rs.getObject("created_at", java.time.OffsetDateTime.class)))
+                .list();
     }
 
     /** {@code clock_timestamp()} so two events in one transaction still order correctly. */
