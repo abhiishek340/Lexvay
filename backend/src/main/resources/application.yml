@@ -41,6 +41,10 @@ lexvay:
 
 server:
   port: ${LEXVAY_PORT:8080}
+  compression:
+    enabled: true
+    mime-types: application/json,application/problem+json
+    min-response-size: 1KB
 
 management:
   endpoint:
