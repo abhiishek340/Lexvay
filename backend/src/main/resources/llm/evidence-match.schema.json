@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["finding", "document_id", "page_number", "quote", "rationale"],
+  "properties": {
+    "finding": { "type": "string", "enum": ["EVIDENCE_FOUND", "EVIDENCE_MISSING", "AMBIGUOUS"] },
+    "document_id": { "type": ["string", "null"], "description": "The document id of the passage quoted, or null" },
+    "page_number": { "type": ["integer", "null"], "description": "The page number of the passage quoted, or null" },
+    "quote": { "type": ["string", "null"], "description": "A verbatim excerpt copied from one passage, or null" },
+    "rationale": { "type": "string", "description": "One or two plain sentences on what the passage does or does not show" }
+  }
+}

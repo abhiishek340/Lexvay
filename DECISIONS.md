@@ -259,6 +259,54 @@ category and explanation after the normal retry budget. No fallback model is con
 different model silently answering a declined request is not what a compliance record should contain.
 Decided.
 
+**D-050 — Assessment start gate.** `POST /programs/{id}/assessments` is refused with `409` unless every
+target jurisdiction has an approved rule version for the program's license type effective today, and
+the problem detail names the jurisdictions that lack one. The run handler re-checks and fails
+permanently if a version disappeared. Rejected: running the jurisdictions that are ready and skipping
+the rest (a partial assessment is easy to mistake for a complete one). Decided.
+
+**D-051 — Passage search query.** The requirement's title and text are split into words of three or
+more letters or digits; the distinct words are joined with ` | ` into `to_tsquery('english', ...)` over
+the program's non-rule pages, ranked by `ts_rank`, top 8. No candidate → `EVIDENCE_MISSING` "No
+candidate passages found" without a model call. Rejected: `websearch_to_tsquery` (ANDs terms and
+returns nothing for most requirements) and sub-page chunking (D-016). Decided.
+
+**D-052 — Per-requirement transactions in a run.** The run handler commits each mapping in its own
+transaction (`REQUIRES_NEW`) and skips requirements that already have a mapping, so a crash keeps the
+finished work and a retry continues. Assessment status is updated in its own transactions
+(RUNNING → FINISHED or FAILED). Decided.
+
+**D-053 — Mapping list shape.** `GET /assessments/{id}/mappings?jurisdiction=XX` returns one object per
+requirement with the requirement (ref, title, text, type, numeric fields), finding, method, rationale,
+stale flag and, when present, the evidence (document, filename, kind, course code, whether the course is
+required, page, page-relative offsets, exact quote). The review decision is added in M5. Decided.
+
+**D-054 — Rejected model output for matching.** Any of: schema failure, a finding outside the three
+values, a document or page not among the offered passages, a non-missing finding without a quote →
+the proposal is discarded and the mapping is `EVIDENCE_MISSING` with rationale "Model output rejected:
+<reason>". No retry (spec section 6: reject). The raw output stays in `llm_call`. Decided.
+
+**D-055 — No review on stale mappings.** A mapping marked stale (it cites a superseded rule or course
+version) returns `409` on review until matching is re-run (M7). Rejected: letting reviewers decide on
+outdated evidence. Decided.
+
+**D-056 — Versions hash recipe.** SHA-256 over `rule_version:<id>` followed by `course_version:<id>` for
+every course version id in sorted order, newline separated. Deterministic and recomputable from the
+stored determination. Decided.
+
+**D-057 — No review after signing.** Once a SIGNED determination exists for the mapping's assessment and
+jurisdiction, new review events are refused with `409`; a rule or course change reopens the
+determination (M7) and with it the mappings. Rejected: allowing late edits that the signed record would
+no longer reflect. Decided.
+
+**D-058 — One signed determination per program and jurisdiction.** Signing again while a SIGNED
+determination exists returns `409`. After a change reopens it, a new determination can be signed; the old
+one stays as history with status REOPENED. The determination snapshots the newest version of every
+course in the program at signing time. Decided.
+
+**D-059 — Who can start an assessment and review.** Any tenant user may start an assessment (it only
+proposes). Reviews need REVIEWER, SIGNER or ADMIN. Signing needs SIGNER only; ADMIN cannot sign. Decided.
+
 ## Spec concerns (section 13, item 5)
 
 - Section 5 vs section 7 on `REOPENED` (D-003, resolved by owner).
