@@ -259,6 +259,33 @@ category and explanation after the normal retry budget. No fallback model is con
 different model silently answering a declined request is not what a compliance record should contain.
 Decided.
 
+**D-050 — Assessment start gate.** `POST /programs/{id}/assessments` is refused with `409` unless every
+target jurisdiction has an approved rule version for the program's license type effective today, and
+the problem detail names the jurisdictions that lack one. The run handler re-checks and fails
+permanently if a version disappeared. Rejected: running the jurisdictions that are ready and skipping
+the rest (a partial assessment is easy to mistake for a complete one). Decided.
+
+**D-051 — Passage search query.** The requirement's title and text are split into words of three or
+more letters or digits; the distinct words are joined with ` | ` into `to_tsquery('english', ...)` over
+the program's non-rule pages, ranked by `ts_rank`, top 8. No candidate → `EVIDENCE_MISSING` "No
+candidate passages found" without a model call. Rejected: `websearch_to_tsquery` (ANDs terms and
+returns nothing for most requirements) and sub-page chunking (D-016). Decided.
+
+**D-052 — Per-requirement transactions in a run.** The run handler commits each mapping in its own
+transaction (`REQUIRES_NEW`) and skips requirements that already have a mapping, so a crash keeps the
+finished work and a retry continues. Assessment status is updated in its own transactions
+(RUNNING → FINISHED or FAILED). Decided.
+
+**D-053 — Mapping list shape.** `GET /assessments/{id}/mappings?jurisdiction=XX` returns one object per
+requirement with the requirement (ref, title, text, type, numeric fields), finding, method, rationale,
+stale flag and, when present, the evidence (document, filename, kind, course code, whether the course is
+required, page, page-relative offsets, exact quote). The review decision is added in M5. Decided.
+
+**D-054 — Rejected model output for matching.** Any of: schema failure, a finding outside the three
+values, a document or page not among the offered passages, a non-missing finding without a quote →
+the proposal is discarded and the mapping is `EVIDENCE_MISSING` with rationale "Model output rejected:
+<reason>". No retry (spec section 6: reject). The raw output stays in `llm_call`. Decided.
+
 ## Spec concerns (section 13, item 5)
 
 - Section 5 vs section 7 on `REOPENED` (D-003, resolved by owner).

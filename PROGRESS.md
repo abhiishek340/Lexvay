@@ -13,7 +13,7 @@ deferred. Never claim a test passed without running it.
 | 1 | Schema, tenancy, auth, audit | Done 2026-11-26 | see git log (M1) |
 | 2 | Documents | Done 2026-11-26 | see git log (M2) |
 | 3 | Rules and requirements | Done 2026-11-26 | see git log (M3) |
-| 4 | Pipeline | Not started | — |
+| 4 | Pipeline | Done 2026-11-26 | see git log (M4) |
 | 5 | Review and signing | Not started | — |
 | 6 | Frontend | Not started | — |
 | 7 | Change tracking and report | Not started | — |
@@ -479,3 +479,118 @@ Found and fixed during the milestone
 
 Deferred
 - Change events for a superseding rule version (M7). The `supersedesId` link is stored and validated now.
+
+## Milestone 4 — Pipeline
+
+### Plan (written 2026-11-26, before building)
+
+Scope
+- `QuoteVerifier` (document package): whitespace-normalized exact substring match with an index map back
+  to the original page offsets (plan section 4.6). Used by evidence matching and by program facts.
+- Program facts (D-006, D-036): `POST /programs/{id}/facts` (CONTRIBUTOR, ADMIN; key, value, documentId,
+  pageNumber, quote → verified quote becomes the fact's evidence span), `GET /programs/{id}/facts` with
+  the current (newest) fact per key flagged. Audited.
+- `com.lexvay.assessment`: `Finding`, `MappingMethod`, `Assessment`, `AssessmentRepository`,
+  `MappingRepository` (upsert keyed on assessment + requirement), `EvidenceSpanRepository`,
+  `AssessmentService` (start: every target jurisdiction must have an approved rule version for the
+  program's license type as of today, else 409 naming the jurisdictions; views), `AssessmentController`
+  (`POST /programs/{id}/assessments` → 202, `GET /assessments/{id}` with per-jurisdiction counts,
+  `GET /assessments/{id}/mappings?jurisdiction=`), `RunAssessmentHandler` (per-requirement
+  transactions so a crash keeps finished work; assessment status RUNNING → FINISHED or FAILED).
+- `assessment.rules.RulesEngine`: pure code, no model dependency; D-011 semantics with a calculation
+  string; `Rule3_ArchitectureTest` scans the package's sources for any `com.lexvay.llm` import.
+- `assessment.match`: `PassageSearch` interface with `PostgresPassageSearch` (OR of the requirement's
+  words as a tsquery over the program's non-rule pages, top 8 by `ts_rank`), `EvidenceMatcher` (prompt
+  `match-v1`, schema `llm/evidence-match.schema.json`; output rejected on schema failure, forbidden
+  finding, unknown document or page → `EVIDENCE_MISSING` "Model output rejected"; quote verified by
+  `QuoteVerifier` else `EVIDENCE_MISSING` "No verifiable passage found"; non-required course →
+  `AMBIGUOUS`; quote shorter than `LEXVAY_MIN_QUOTE_CHARS` (40) → `AMBIGUOUS`; model id, prompt version,
+  inputs and raw output stored per proposal).
+- JaCoCo `check` at 85 % line coverage for `com.lexvay.assessment` packages, bound to `verify`.
+
+Tests to write
+- `Rule2_QuoteVerifierTest` (unit): exact, double spaces, newline wrap, leading/trailing space,
+  fabricated, empty, first of several occurrences, offsets map to original text.
+- `RulesEngineTest` (unit): all five operators true and false, missing fact, calculation string,
+  `60` vs `60.0`.
+- `Rule3_ArchitectureTest`, `Rule3_NoModelCallForNumericTest` (numeric-only rule set: fake call count
+  for MATCH is zero, mappings are RULES_ENGINE with the calculation).
+- `Rule1_FindingValuesTest` (scripted `CONFIRMED_GAP` output → rejected → `EVIDENCE_MISSING`, raw
+  output kept in `llm_call`), `Rule2_FabricatedQuoteDiscardedTest`, `Rule4_ElectiveCourseForcesAmbiguousTest`,
+  `Rule4_ThinQuoteForcesAmbiguousTest`.
+- `AssessmentApiTest`: two jurisdictions; run to FINISHED; summary counts; mappings carry requirement,
+  finding, method, rationale and evidence (filename, course, page, offsets, quote); re-running the
+  handler does not duplicate mappings; 409 when a jurisdiction lacks an approved version; 404 for another
+  tenant; no candidate passages → `EVIDENCE_MISSING`; model names a document outside the shortlist →
+  rejected.
+- `ProgramFactApiTest`: verified quote → 201 with span; fabricated quote → 400; newest fact per key is
+  current; audit; roles.
+- `Rule9_AuditCoverageTest` set extended with two endpoints.
+
+Acceptance evidence to collect
+- `make test` output; the four product-rule test classes; the JaCoCo check line for the assessment
+  packages.
+
+Decisions expected
+- D-050 (assessment start requires an approved version for every target jurisdiction), D-051 (passage
+  search query construction), D-052 (per-requirement transactions in the run), D-053 (mapping list
+  response shape).
+
+### Result (2026-11-26)
+
+Built
+- `QuoteVerifier` (whitespace-normalized exact match with original offsets), program facts
+  (`POST/GET /programs/{id}/facts`, verified quote → evidence span, latest fact per key is current).
+- `com.lexvay.assessment`: `Finding`, `MappingMethod`, `AssessmentStatus`, `Assessment`,
+  `AssessmentRepository`, `MappingRepository` (insert-if-absent, joined read model),
+  `EvidenceSpanRepository`, `AssessmentService` (start gate D-050, per-jurisdiction counts, mapping list
+  D-053), `AssessmentController` (`POST /programs/{id}/assessments` → 202, `GET /assessments/{id}`,
+  `GET /assessments/{id}/mappings?jurisdiction=`), `RunAssessmentHandler` (per-requirement transactions
+  D-052, RUNNING → FINISHED/FAILED, audited).
+- `assessment.rules.RulesEngine` (pure code, D-011), `assessment.match`: `PassageSearch` +
+  `PostgresPassageSearch` (D-051), `EvidenceMatcher` (prompt `match-v1`, schema
+  `evidence-match.schema.json`, rejection D-054, quote verification, elective and thin-quote downgrades),
+  `MatchProposal`, `Passage`.
+- JaCoCo `check` ≥ 85 % line coverage for the three assessment packages, bound to `verify`.
+
+Tests written and run (143 backend, 2 frontend)
+- `Rule2_QuoteVerifierTest` (6), `RulesEngineTest` (13), `Rule3_ArchitectureTest` (1),
+  `Rule3_NoModelCallForNumericTest` (1), `Rule1_FindingValuesTest` (1), `Rule2_FabricatedQuoteDiscardedTest`
+  (1), `Rule4_ElectiveCourseForcesAmbiguousTest` (1), `Rule4_ThinQuoteForcesAmbiguousTest` (1),
+  `AssessmentApiTest` (6), `ProgramFactApiTest` (3); `Rule9_AuditCoverageTest` set extended.
+
+`make test` output (tail, real)
+```
+[INFO] Tests run: 143, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+ Test Files  1 passed (1)
+MAKE TEST EXIT: 0
+```
+JaCoCo line coverage: `com.lexvay.assessment` 91.1 % (175/192), `assessment.match` 91.7 % (100/109),
+`assessment.rules` 95.2 % (20/21).
+
+Acceptance evidence
+- Rules engine and evidence matching run as jobs: `AssessmentApiTest.fullRunProducesMappingsWithEvidence`
+  (202 + job, FINISHED, UT counts 3/2/1, `TOTAL_CREDITS 60 >= 60 → true` with the degree-plan quote,
+  ethics match with document, course, page, offsets that reproduce the quote from the page text,
+  `INTERNSHIP_HOURS 600 >= 700 → false`, telehealth `EVIDENCE_MISSING` without evidence, missing
+  practicum fact rationale, exactly one model call per non-numeric requirement, prompt carries the
+  passage ids, audit `ASSESSMENT_STARTED` by the user and `ASSESSMENT_FINISHED` by the system).
+- Rule 1: `Rule1_FindingValuesTest` (scripted `CONFIRMED_GAP` → rejected → `EVIDENCE_MISSING`, raw
+  output kept in `llm_call`, every stored finding is one of the three values).
+- Rule 2: `Rule2_FabricatedQuoteDiscardedTest` (fabricated quote → "No verifiable passage found", no
+  evidence span created; `AMBIGUOUS` without a quote → rejected), `Rule2_QuoteVerifierTest`.
+- Rule 3: `Rule3_NoModelCallForNumericTest` (zero MATCH calls, all three mappings `RULES_ENGINE` with
+  calculation strings), `Rule3_ArchitectureTest` (rules package has no model import), `RulesEngineTest`.
+- Rule 4: `Rule4_ElectiveCourseForcesAmbiguousTest` (COUN 650 elective → `AMBIGUOUS` with reason),
+  `Rule4_ThinQuoteForcesAmbiguousTest` (18-character quote → `AMBIGUOUS`).
+- Also: idempotent re-run (`rerunningTheJobDoesNotDuplicateMappings`), start gate 409 naming TX only,
+  no candidates → no model call, foreign document rejected, tenant scoping 404s.
+
+Found and fixed during the milestone
+- One test's second requirement shared no vocabulary with the syllabus, so the passage search correctly
+  returned nothing; the test now exercises the intended path.
+
+Deferred
+- Review decision on mappings (M5), stale handling and re-run (M7), eval thresholds (M9).

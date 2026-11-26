@@ -31,6 +31,9 @@ lexvay:
     model: ${LEXVAY_LLM_MODEL:claude-sonnet-5-5}
     effort: ${LEXVAY_LLM_EFFORT:medium}       # low | medium | high | xhigh | max
     max-output-tokens: 16000
+  matching:
+    min-quote-chars: ${LEXVAY_MIN_QUOTE_CHARS:40}
+    shortlist-size: 8
   jobs:
     polling-enabled: true
     poll-interval-ms: 1000
