@@ -29,7 +29,8 @@ public class AssessmentService {
     public record StartResult(UUID assessmentId, UUID jobId) {
     }
 
-    public record JurisdictionSummary(String jurisdiction, long total, long evidenceFound, long evidenceMissing, long ambiguous) {
+    public record JurisdictionSummary(String jurisdiction, long total, long evidenceFound, long evidenceMissing, long ambiguous,
+                                      long decided) {
     }
 
     public record AssessmentView(UUID id, UUID programId, AssessmentStatus status, java.time.OffsetDateTime startedAt,
@@ -97,17 +98,18 @@ public class AssessmentService {
         Assessment a = require(id);
         Map<String, long[]> counts = new LinkedHashMap<>();
         for (Map<String, Object> row : assessments.findingCounts(id)) {
-            long[] c = counts.computeIfAbsent((String) row.get("jurisdiction"), k -> new long[3]);
+            long[] c = counts.computeIfAbsent((String) row.get("jurisdiction"), k -> new long[4]);
             long n = ((Number) row.get("n")).longValue();
             switch (Finding.valueOf((String) row.get("finding"))) {
                 case EVIDENCE_FOUND -> c[0] += n;
                 case EVIDENCE_MISSING -> c[1] += n;
                 case AMBIGUOUS -> c[2] += n;
             }
+            c[3] += ((Number) row.get("decided")).longValue();
         }
         List<JurisdictionSummary> summaries = counts.entrySet().stream()
                 .map(e -> new JurisdictionSummary(e.getKey(), e.getValue()[0] + e.getValue()[1] + e.getValue()[2],
-                        e.getValue()[0], e.getValue()[1], e.getValue()[2]))
+                        e.getValue()[0], e.getValue()[1], e.getValue()[2], e.getValue()[3]))
                 .toList();
         return new AssessmentView(a.id(), a.programId(), a.status(), a.startedAt(), a.finishedAt(), a.llmModel(),
                 a.promptVersion(), summaries, a.createdAt());

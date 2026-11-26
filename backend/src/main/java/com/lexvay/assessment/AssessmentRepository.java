@@ -60,11 +60,14 @@ public class AssessmentRepository {
         jdbc.sql("UPDATE assessment SET status = 'FAILED', finished_at = now() WHERE id = :id").param("id", id).update();
     }
 
-    /** Finding counts per jurisdiction code for the overview. */
+    /** Finding and decision counts per jurisdiction code for the overview. */
     public List<Map<String, Object>> findingCounts(UUID assessmentId) {
         return jdbc.sql("""
-                SELECT j.code AS jurisdiction, m.finding, count(*) AS n
+                SELECT j.code AS jurisdiction, m.finding, count(*) AS n,
+                       count(*) FILTER (WHERE le.kind IS NOT NULL AND le.kind <> 'REOPENED' AND NOT m.stale) AS decided
                 FROM mapping m JOIN jurisdiction j ON j.id = m.jurisdiction_id
+                LEFT JOIN LATERAL (SELECT re.kind FROM review_event re WHERE re.mapping_id = m.id
+                                   ORDER BY re.created_at DESC, re.id DESC LIMIT 1) le ON true
                 WHERE m.assessment_id = :id
                 GROUP BY j.code, m.finding ORDER BY j.code, m.finding
                 """).param("id", assessmentId).query().listOfRows();

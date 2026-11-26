@@ -14,7 +14,7 @@ deferred. Never claim a test passed without running it.
 | 2 | Documents | Done 2026-11-26 | see git log (M2) |
 | 3 | Rules and requirements | Done 2026-11-26 | see git log (M3) |
 | 4 | Pipeline | Done 2026-11-26 | see git log (M4) |
-| 5 | Review and signing | Not started | — |
+| 5 | Review and signing | Done 2026-11-26 | see git log (M5) |
 | 6 | Frontend | Not started | — |
 | 7 | Change tracking and report | Not started | — |
 | 8 | OIDC and hardening | Not started | — |
@@ -594,3 +594,94 @@ Found and fixed during the milestone
 
 Deferred
 - Review decision on mappings (M5), stale handling and re-run (M7), eval thresholds (M9).
+
+## Milestone 5 — Review and signing
+
+### Plan (written 2026-11-26, before building)
+
+Scope
+- `com.lexvay.review`: `ReviewKind`, `ReviewEvent`, `ReviewRepository` (append only; `created_at` from
+  `clock_timestamp()` so order within a transaction is exact), `ReviewService`, `ReviewController`
+  (`POST /mappings/{id}/reviews` for REVIEWER, SIGNER, ADMIN; kinds ACCEPTED, EVIDENCE_REQUESTED,
+  GAP_CONFIRMED; `REOPENED` is system-only → 400; `GAP_CONFIRMED` needs a non-blank note → 400 and the
+  database CHECK; stale mapping → 409 (D-055); mapping under a SIGNED determination → 409 (D-057)).
+  Current decision (D-003) exposed on every mapping as `decision` and counted per jurisdiction on the
+  assessment view (`decided`).
+- `com.lexvay.determination`: `Outcome` (D-004), `Determination`, `DeterminationRepository`,
+  `VersionsHash` (SHA-256 over the rule version id and the sorted course version ids, D-056),
+  `DeterminationService` (SIGNER only; jurisdiction must be a program target; latest FINISHED assessment;
+  every mapping of that jurisdiction non-stale with a current decision else 409 naming the count; no
+  existing SIGNED determination for the pair else 409; snapshot of every course's newest version),
+  `DeterminationController` (`POST /programs/{id}/determinations` → 201, `GET /programs/{id}/determinations`).
+- JaCoCo gate widened to `com.lexvay.review` and `com.lexvay.determination`.
+
+Tests to write
+- `ReviewApiTest`: accept, request evidence, confirm gap with note; gap without note → 400 (API) and
+  rejected by the database; user-sent REOPENED → 400; latest event wins; a REOPENED event removes the
+  decision; stale mapping → 409; contributor → 403; other tenant → 404; audit row.
+- `DeterminationApiTest` with `Rule1_OnlySignerSignsTest` (reviewer, admin, contributor → 403), 409 when
+  undecided with the count in the detail, 409 without a finished assessment, 400 for a jurisdiction the
+  program does not target, success fields (outcome, signer, SIGNED, rule version, assessment, course
+  versions, hash), second signing → 409, review after signing → 409, list newest first, other tenant 404.
+- `Rule6_VersionsHashTest` (unit: deterministic, order-independent, changes with any id) and
+  `Rule6_DeterminationLockTest` (stored hash equals recomputation; outcome change rejected by the
+  database; status change is the only permitted update).
+- `Rule9_AuditCoverageTest` set extended with two endpoints.
+
+Acceptance evidence to collect
+- `make test` output; JaCoCo lines for review and determination; the 409 and lock assertions.
+
+Decisions expected
+- D-055 (no review on stale mappings), D-056 (hash recipe), D-057 (no review after signing),
+  D-058 (one SIGNED determination per program and jurisdiction at a time).
+
+### Result (2026-11-26)
+
+Built
+- `com.lexvay.review`: `ReviewKind`, `ReviewRequest`, `ReviewRepository` (append-only insert with
+  `clock_timestamp()`), `ReviewService` (REOPENED system-only → 400; gap without note → 400; stale → 409
+  D-055; signed → 409 D-057), `ReviewController` (`POST /mappings/{id}/reviews`, REVIEWER/SIGNER/ADMIN).
+- Mapping read model carries `decision` (latest event unless REOPENED, D-003) with user name; assessment
+  view carries `decided` per jurisdiction.
+- `com.lexvay.determination`: `Outcome`, `DeterminationStatus`, `Determination`, `VersionsHash` (D-056),
+  `SignRequest`, `DeterminationRepository` (course-version snapshot), `DeterminationService` (409 gates,
+  D-058), `DeterminationController` (`POST /programs/{id}/determinations` SIGNER only → 201,
+  `GET /programs/{id}/determinations`).
+- JaCoCo gate now covers review and determination packages.
+
+Tests written and run (153 backend, 2 frontend)
+- `ReviewApiTest` (4), `DeterminationApiTest` (3), `Rule1_OnlySignerSignsTest` (1), `Rule6_VersionsHashTest`
+  (1), `Rule6_DeterminationLockTest` (1); `Rule9_AuditCoverageTest` set extended.
+
+`make test` output (tail, real)
+```
+[INFO] Tests run: 153, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+ Test Files  1 passed (1)
+MAKE TEST EXIT: 0
+```
+JaCoCo line coverage: `assessment` 93.6 %, `assessment.match` 91.7 %, `assessment.rules` 95.2 %,
+`review` 97.4 %, `determination` 96.4 %.
+
+Acceptance evidence
+- Review events and current decision logic: `ReviewApiTest.decisionsAreRecordedAndTheLatestWins`
+  (ACCEPTED then GAP_CONFIRMED by a different user → latest wins; `decided` count 1 of 3; two audit rows),
+  `reopenedIsSystemOnlyAndRemovesTheDecision` (user REOPENED → 400; a system REOPENED event clears the
+  decision; a later ACCEPTED restores one).
+- Gap note rule: `confirmingAGapRequiresANoteAtTheApiAndInTheDatabase` (400 for blank and missing; the
+  CHECK constraint rejects a direct insert).
+- Signing with 409 when incomplete: `DeterminationApiTest.signingIsRefusedWith409UntilEveryMappingHasADecision`
+  ("3 of 3 requirements" then "1 of 3 requirements"; UT undecided → 409; TX not targeted → 400).
+- Locked determinations and versions hash: `Rule6_DeterminationLockTest` (stored rule version and course
+  versions reproduce the hash; outcome and hash updates and deletes rejected; status change allowed),
+  `Rule6_VersionsHashTest`, `DeterminationApiTest.signerSignsWhenEveryMappingIsDecided` (hash equals
+  recomputation; second signing 409; review after signing 409; list; other tenant 404).
+- Only SIGNER signs: `Rule1_OnlySignerSignsTest` (reviewer, admin, contributor → 403).
+
+Found and fixed during the milestone
+- `listOfRows()` returns `java.sql.Timestamp`; the determination mapper now uses a typed `RowMapper`.
+- Two unused repository methods and an unused record were removed (they were the only uncovered lines).
+
+Deferred
+- Reopening on change events and stale handling (M7); the Review screen (M6).

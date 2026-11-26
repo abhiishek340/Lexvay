@@ -161,6 +161,8 @@
                     <include>com.lexvay.assessment</include>
                     <include>com.lexvay.assessment.rules</include>
                     <include>com.lexvay.assessment.match</include>
+                    <include>com.lexvay.review</include>
+                    <include>com.lexvay.determination</include>
                   </includes>
                   <limits>
                     <limit>

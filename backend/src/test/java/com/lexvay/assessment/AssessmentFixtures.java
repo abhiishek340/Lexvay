@@ -172,6 +172,10 @@ public class AssessmentFixtures {
         return m;
     }
 
+    public void fakeScript(String key, String... responses) {
+        fake.script(key, responses);
+    }
+
     public String matchOutput(String finding, UUID documentId, Integer page, String quote, String rationale) {
         var m = new HashMap<String, Object>();
         m.put("finding", finding);

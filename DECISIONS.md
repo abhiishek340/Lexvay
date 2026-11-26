@@ -286,6 +286,27 @@ values, a document or page not among the offered passages, a non-missing finding
 the proposal is discarded and the mapping is `EVIDENCE_MISSING` with rationale "Model output rejected:
 <reason>". No retry (spec section 6: reject). The raw output stays in `llm_call`. Decided.
 
+**D-055 — No review on stale mappings.** A mapping marked stale (it cites a superseded rule or course
+version) returns `409` on review until matching is re-run (M7). Rejected: letting reviewers decide on
+outdated evidence. Decided.
+
+**D-056 — Versions hash recipe.** SHA-256 over `rule_version:<id>` followed by `course_version:<id>` for
+every course version id in sorted order, newline separated. Deterministic and recomputable from the
+stored determination. Decided.
+
+**D-057 — No review after signing.** Once a SIGNED determination exists for the mapping's assessment and
+jurisdiction, new review events are refused with `409`; a rule or course change reopens the
+determination (M7) and with it the mappings. Rejected: allowing late edits that the signed record would
+no longer reflect. Decided.
+
+**D-058 — One signed determination per program and jurisdiction.** Signing again while a SIGNED
+determination exists returns `409`. After a change reopens it, a new determination can be signed; the old
+one stays as history with status REOPENED. The determination snapshots the newest version of every
+course in the program at signing time. Decided.
+
+**D-059 — Who can start an assessment and review.** Any tenant user may start an assessment (it only
+proposes). Reviews need REVIEWER, SIGNER or ADMIN. Signing needs SIGNER only; ADMIN cannot sign. Decided.
+
 ## Spec concerns (section 13, item 5)
 
 - Section 5 vs section 7 on `REOPENED` (D-003, resolved by owner).
