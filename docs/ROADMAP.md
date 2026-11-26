@@ -9,7 +9,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 |---|---|---|---|---|
 | WS-UI Design system and screen rebuild | `ui-foundation` | 1 | Opus 5.5 | in progress |
 | WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | in progress |
-| WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | in progress |
+| WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | approved, PR #11 merging |
 | WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
 | F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | merged (PR #9) |
 | F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | merged (PR #8) |
@@ -22,7 +22,8 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 3 | Opus 5.5 | queued (after WS-UI, F3a) |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | queued (after WS-UI, F4a) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
-| F7 Matching quality | `match-quality` | 3 | Sonnet 5.5 | queued (after WS-EVAL) |
+| F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | starts when PR #11 merges |
+| F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
 
@@ -321,7 +322,63 @@ reliable than a text layer, so it is stored with its source and confidence and i
 Decisions in `docs/decisions/F11.md` (D-160 to D-169). If a `Dockerfile` exists on `main` when you finish,
 add Tesseract to the runtime stage and set `LEXVAY_OCR=tesseract` there; otherwise say so in the report.
 
+## F7 — Retrieval quality (slot 3; no schema change)
+Today the shortlist is the top 8 whole pages by `ts_rank` over an OR of the requirement's words. Two
+weaknesses on real documents: `ts_rank` has no notion of how common a word is in this program's corpus, so
+boilerplate ("course", "students", "counseling") dominates; and whole pages are long, which costs tokens and
+dilutes the model's attention. Everything below is measured before and after with the evaluation harness.
+1. **Retrieval corpus** in `eval/retrieval/`: fictional, labeled like the seed. At least 12 additional
+   syllabi of 3 to 5 pages each with realistic sections (description, outcomes, weekly schedule, assignments)
+   and identical policy boilerplate on every syllabus (academic integrity, accommodations, grading scale),
+   plus the 14 seed documents. `queries.yml`: at least 30 requirement-style queries, each with the expected
+   file, page and a substring of the passage that carries the evidence; at least 6 of them marked
+   `lexicalGap: true`, where the document uses different vocabulary from the requirement (for example
+   "psychopathology" against "diagnosis of mental and emotional disorders"). Lexical-gap queries are reported
+   separately and never count toward thresholds; they quantify what lexical search cannot do.
+2. **Metrics** (new `RetrievalScorer`, pure like `EvalScorer`; printed by `make eval` in a second table and
+   written to `docs/RETRIEVAL.md`): recall@8, recall@3 and mean reciprocal rank of the expected page, and
+   excerpt coverage (the expected substring is inside the excerpt that would be sent to the model, among
+   recalled queries). Report each for the baseline ranker and the new one.
+3. **BM25 ranking in SQL** inside `PostgresPassageSearch` (extend the shared SQL template; the reviewer
+   search keeps `ts_rank_cd`). Query lexemes come from PostgreSQL itself:
+   `tsvector_to_array(to_tsvector('english', title))` with boost 2.0 and the same for the text with boost
+   1.0 (a lexeme in both takes 2.0). Corpus = the program's non-rule pages. `N` = page count, `df(t)` = pages
+   containing lexeme `t`, `len(p)` = `length(tsv)` of the page, `avglen` = its corpus mean, `tf(t,p)` = number
+   of positions of `t` in the page's `tsv`. Score(p) = Σ over query lexemes present in p of
+   `boost(t) · ln(1 + (N − df(t) + 0.5)/(df(t) + 0.5)) · tf·(k1+1) / (tf + k1·(1 − b + b·len(p)/avglen))` with
+   `k1 = 1.2`, `b = 0.75`. Candidates are pages matching the OR of the lexemes, built as a `tsquery` from
+   quoted lexemes inside SQL (never string-built from user text). Ties break by document creation time, page
+   number, document id, as today. One statement per requirement; budget p95 ≤ 30 ms on a synthetic
+   500-page program (add that to the perf-tagged tests). Keep the old ranker selectable
+   (`lexvay.matching.ranker` = `bm25` default | `ts_rank`) so the harness can compare them.
+4. **Excerpts** (new `PassageExcerpter` in `assessment.match`): a page of at most 2 500 characters is sent
+   whole. A longer page is sent as: its first lines up to 300 characters (the header that names the course),
+   then up to three fragments chosen by `ts_headline` for the same lexeme query (`MaxFragments=3,
+   MaxWords=120, MinWords=60`, fragment delimiter U+0003, start and stop selectors empty), each located in
+   the stored page text with `QuoteVerifier.find`, expanded to the enclosing line boundaries, merged when they
+   touch, emitted in page order and separated by a line containing only `[...]`. If any fragment cannot be
+   located, send the first 2 500 characters instead. `Passage` gains `excerpt` (what the model sees) while
+   `text` stays the full page; the quote is still verified against the full stored page.
+5. **Prompt** `match-v2`: same rules as `match-v1` plus: passages may be excerpts; `[...]` marks omitted text;
+   a quote must be copied from within one excerpt and must not span `[...]`. The assessment records
+   `match-v2`. Keep `match-v1` on disk for history.
+6. **Thresholds** in `eval/thresholds.yml` (non-gap queries, BM25): recall@8 ≥ 0.95 and not below the
+   baseline, recall@3 not below the baseline, excerpt coverage = 1.00. `make eval` fails otherwise. The
+   existing pipeline metrics on the seed must stay exactly as they are (0 % false evidence found).
+7. Tests: scorer unit tests; BM25 ordering on a tiny hand-computed corpus (assert the scores to 1e-6
+   against values computed by hand in the test); excerpter cases (short page, long page, fragment not
+   found, merging); the prompt contains the excerpt and not the full long page; quote from an excerpt
+   verifies; quote spanning `[...]` is rejected by the verifier because it is not in the page.
+Decisions in `docs/decisions/F7.md` (D-170 to D-179).
+
 ## Follow-ups recorded from reviews
+- WS-EVAL: the live thresholds in `eval/thresholds.yml` (recall 0.80, extraction 0.90, evidence agreement
+  0.80) are unmeasured first values; set them from the first `make eval-live` run once a model key exists.
+  Terraform still needs a remote state backend, WAF and flow logs before any real deployment, and the
+  database roles must be bootstrapped with `db/initdb/01-roles.sh` after RDS is created.
+- `scripts/eval.sh` repeats the slot and cleanup lines of `scripts/e2e.sh`; extract `scripts/lib/stack.sh`
+  and source it from both (do this inside F7, which already touches the evaluation scripts).
+- The old Review screen logs `TypeError ... reading 'id'` at `review.ts:82`; verify it is gone after WS-UI.
 - Tests that need the seeded demo data currently use three different approaches (`SeedLoaderTest` loads the
   shared tenants; F3a copies the manifest under another tenant name; F9 ingests the PDFs through the upload
   API). After WS-EVAL makes `SeedLoader` load into a uniquely named tenant, give tests one shared fixture
