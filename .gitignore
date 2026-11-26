@@ -1,0 +1,26 @@
+# env and secrets
+.env
+*.pem
+*.key
+
+# backend
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+data/
+
+# frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/test-results/
+frontend/playwright-report/
+
+# infra
+infra/.terraform/
+infra/*.tfstate*
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.iml

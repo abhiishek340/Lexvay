@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: lexvay
+  datasource:
+    # The service connects as the application role, which cannot bypass row-level security.
+    url: ${LEXVAY_DB_URL:jdbc:postgresql://localhost:5432/lexvay}
+    username: ${LEXVAY_DB_APP_USER:lexvay_app}
+    password: ${LEXVAY_DB_APP_PASSWORD:lexvay-app-dev}
+  flyway:
+    # Migrations run as the schema owner so RLS can be forced on tables the app role does not own.
+    user: ${LEXVAY_DB_OWNER_USER:lexvay_owner}
+    password: ${LEXVAY_DB_OWNER_PASSWORD:lexvay-owner-dev}
+    locations: classpath:db/migration
+
+server:
+  port: ${LEXVAY_PORT:8080}
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true

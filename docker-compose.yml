@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:18.7
+    container_name: lexvay-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${LEXVAY_DB_SUPERUSER_PASSWORD:-postgres-dev}
+      LEXVAY_DB_NAME: ${LEXVAY_DB_NAME:-lexvay}
+      LEXVAY_DB_OWNER_USER: ${LEXVAY_DB_OWNER_USER:-lexvay_owner}
+      LEXVAY_DB_OWNER_PASSWORD: ${LEXVAY_DB_OWNER_PASSWORD:-lexvay-owner-dev}
+      LEXVAY_DB_APP_USER: ${LEXVAY_DB_APP_USER:-lexvay_app}
+      LEXVAY_DB_APP_PASSWORD: ${LEXVAY_DB_APP_PASSWORD:-lexvay-app-dev}
+    ports:
+      - "${LEXVAY_DB_PORT:-5432}:5432"
+    volumes:
+      - lexvay-db-data:/var/lib/postgresql
+      - ./db/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  lexvay-db-data:
