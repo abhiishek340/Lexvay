@@ -307,6 +307,37 @@ course in the program at signing time. Decided.
 **D-059 — Who can start an assessment and review.** Any tenant user may start an assessment (it only
 proposes). Reviews need REVIEWER, SIGNER or ADMIN. Signing needs SIGNER only; ADMIN cannot sign. Decided.
 
+**D-060 — Seed as a Spring profile.** `make seed` runs the backend with profile `seed` (no web server,
+no polling), loads `seed/manifest.yml` through the real services with a programmatic security context for
+the seeded users, and exits. It requires `LEXVAY_LLM_PROVIDER=fake` and scripts the fake model from
+`seed/fake-llm.yml`. A tenant whose admin email already exists is skipped, so the command is idempotent.
+Rejected: SQL fixtures (would bypass validation, audit and the pipeline). Decided.
+
+**D-061 — Documents by file name in scripted outputs.** `seed/fake-llm.yml` names documents by file; the
+loader resolves them to the uploaded document ids before scripting the fake model. A unit test checks
+every scripted quote exists verbatim on the named page of the committed PDF, so seed drift fails the
+build before anyone sees a demo. Decided.
+
+**D-062 — Overview counts computed in the client.** The four counts and the jurisdiction table derive
+from `GET /programs/{id}`, `GET /assessments/{id}` (per-jurisdiction finding and decision counts) and
+`GET /programs/{id}/determinations`. The latest finished assessment is found from the audit trail's
+ASSESSMENT_STARTED/FINISHED entries. Rejected: a dedicated overview endpoint (one more surface for the
+same data). Decided.
+
+**D-063 — Change events: read in M6, write in M7.** `GET /change-events` ships with the Changes screen;
+creating events and the re-run action arrive with change tracking in M7. Decided.
+
+**D-064 — Demo banner flag.** `GET /auth/session` returns `tenantName` and `demo`, true when the tenant
+name is in `lexvay.demo-tenant-names` (default "Northfield University"). The permanent fictional-data
+banner shows whenever `demo` is true. Rejected: a column on `tenant` (schema change for a demo concern).
+Decided.
+
+**D-065 — Isolated end-to-end stack.** `scripts/e2e.sh` starts its own compose project (`lexvay-e2e`,
+PostgreSQL on 5433), seeds it, runs the packaged backend on 8081 and the Angular dev server on 4300 with a
+proxy to 8081, runs Playwright with axe, and tears everything down. The developer database on 5432 and
+servers on 8080/4200 are never touched. `make test` runs backend, frontend unit and end-to-end suites.
+Decided.
+
 ## Spec concerns (section 13, item 5)
 
 - Section 5 vs section 7 on `REOPENED` (D-003, resolved by owner).

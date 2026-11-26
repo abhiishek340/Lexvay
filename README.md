@@ -39,5 +39,23 @@ make seed              # demo tenant (from milestone 6)
 make eval              # evaluation harness (from milestone 9)
 ```
 
+## Demo tenant
+
+`make seed` loads **Northfield University** (fictional) with the M.S. Clinical Mental Health Counseling
+program, 13 documents, five "Demo rule set" rule versions (42 requirements) and a finished assessment, plus
+a second tenant used only by isolation tests. Sign in at http://localhost:4200 with the password from
+`LEXVAY_DEMO_PASSWORD` (default `lexvay-demo`):
+
+| User | Role |
+|---|---|
+| dana.whitfield@northfield.example | Signer |
+| priya.raman@northfield.example | Reviewer |
+| jordan.ellis@northfield.example | Contributor |
+| admin@northfield.example | Admin |
+
+`make e2e` runs the Playwright end-to-end tests (with axe accessibility checks) against an isolated,
+freshly seeded stack on ports 5433, 8081 and 4300. `make seed-pdfs` regenerates the seed PDFs from
+`seed/docs`.
+
 Backend tests start their own PostgreSQL container. The Makefile resolves the Docker socket from the
 active Docker context, so Colima and OrbStack work without setting `DOCKER_HOST`.

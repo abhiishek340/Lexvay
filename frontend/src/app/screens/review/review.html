@@ -1,0 +1,83 @@
+<header class="page-header">
+  <h1>Review</h1>
+  @if (program(); as p) { <p class="muted">{{ p.name }}</p> }
+</header>
+@if (error(); as e) { <p class="error" role="alert">{{ e }}</p> }
+@if (message(); as msg) { <p class="status" role="status" data-testid="message">{{ msg }}</p> }
+
+@if (program(); as p) {
+  <div class="tabs" role="tablist" aria-label="Jurisdictions">
+    @for (code of p.jurisdictions; track code; let i = $index) {
+      <button type="button" role="tab" [id]="'tab-' + code" [attr.aria-selected]="jurisdiction() === code" [attr.tabindex]="jurisdiction() === code ? 0 : -1"
+              [class.active]="jurisdiction() === code" (click)="selectJurisdiction(code)" (keydown)="onTabKey($event, i)">{{ code }}</button>
+    }
+  </div>
+}
+
+@if (assessment()) {
+  <div class="review-grid" role="tabpanel" [attr.aria-labelledby]="'tab-' + jurisdiction()">
+    <section class="list" aria-label="Requirements">
+      <p class="muted progress">{{ decidedCount() }} of {{ mappings().length }} reviewed</p>
+      <ul>
+        @for (m of mappings(); track m.id) {
+          <li>
+            <button type="button" class="req" [class.selected]="m.id === selectedId()" [attr.aria-current]="m.id === selectedId() ? 'true' : null" (click)="select(m.id)">
+              <span class="ref">{{ m.requirement.ref }}</span>
+              <span class="title">{{ m.requirement.title }}</span>
+              <span class="finding" [class]="'finding ' + m.finding"><span aria-hidden="true">{{ glyph[m.finding] }}</span> {{ findingLabel[m.finding] }}</span>
+              <span class="decision">{{ m.decision ? decisionLabel[m.decision.kind] : (m.stale ? 'Outdated' : 'Needs review') }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+      <div class="sign">
+        @if (signed(); as d) {
+          <p><strong>Signed</strong> by {{ d.signedByName }}: {{ outcomeLabel[d.outcome] }}</p>
+        } @else {
+          <button type="button" class="primary" [disabled]="!canSign() || busy()" (click)="openSignDialog()">Sign determination</button>
+          @if (!session.isSigner()) { <p class="muted">Only a signer can sign.</p> }
+          @else if (!allDecided()) { <p class="muted">Enabled when every requirement has a decision.</p> }
+        }
+      </div>
+    </section>
+
+    <section class="detail" aria-label="Requirement detail">
+      @if (selected(); as m) {
+        <h2>{{ m.requirement.ref }} · {{ m.requirement.title }}</h2>
+        <h3>Rule text</h3>
+        <blockquote class="rule">{{ m.requirement.text }}</blockquote>
+        @if (ruleVersion(); as rv) { <p class="muted">{{ rv.label }} · effective {{ rv.effectiveFrom }} · <a [href]="rv.sourceUrl" rel="noopener">source</a></p> }
+
+        <h3>Proposed finding</h3>
+        <p class="finding big" [class]="'finding big ' + m.finding"><span aria-hidden="true">{{ glyph[m.finding] }}</span> {{ findingLabel[m.finding] }}</p>
+
+        <h3>Evidence</h3>
+        @if (m.evidence; as ev) {
+          <blockquote class="quote">“{{ ev.quote }}”</blockquote>
+          <p class="cite">{{ ev.filename }}@if (ev.courseCode) { · {{ ev.courseCode }}{{ ev.courseRequired === false ? ' (elective)' : '' }}} · page {{ ev.pageNumber }} · characters {{ ev.charStart }}–{{ ev.charEnd }}</p>
+        } @else {
+          <p class="muted">No quoted evidence.</p>
+        }
+
+        <h3>How it was checked</h3>
+        <p>{{ howChecked(m) }}</p>
+
+        @if (m.decision; as d) {
+          <p class="status current-decision">Current decision: <strong>{{ decisionLabel[d.kind] }}</strong> by {{ d.userDisplayName }}@if (d.note) { — “{{ d.note }}”}</p>
+        }
+
+        @if (session.canReview()) {
+          <label for="note">Note</label>
+          <textarea id="note" rows="3" [ngModel]="note()" (ngModelChange)="note.set($event)" placeholder="Required when confirming a gap"></textarea>
+          <div class="actions">
+            <button type="button" class="primary" [disabled]="busy()" (click)="decide('ACCEPTED')">Accept evidence</button>
+            <button type="button" [disabled]="busy()" (click)="decide('EVIDENCE_REQUESTED')">Request evidence from program director</button>
+            <button type="button" class="danger" [disabled]="busy()" (click)="decide('GAP_CONFIRMED')">Confirm gap</button>
+          </div>
+        }
+      } @else {
+        <p class="muted">Select a requirement.</p>
+      }
+    </section>
+  </div>
+}

@@ -15,7 +15,7 @@ deferred. Never claim a test passed without running it.
 | 3 | Rules and requirements | Done 2026-11-26 | see git log (M3) |
 | 4 | Pipeline | Done 2026-11-26 | see git log (M4) |
 | 5 | Review and signing | Done 2026-11-26 | see git log (M5) |
-| 6 | Frontend | Not started | — |
+| 6 | Frontend | Done 2026-11-26 | PR #6 |
 | 7 | Change tracking and report | Not started | — |
 | 8 | OIDC and hardening | Not started | — |
 | 9 | Evaluation and infrastructure | Not started | — |
@@ -685,3 +685,105 @@ Found and fixed during the milestone
 
 Deferred
 - Reopening on change events and stale handling (M7); the Review screen (M6).
+
+## Milestone 6 — Frontend, seed data, end-to-end test
+
+### Plan (written 2026-11-26, before building)
+
+Scope, in build order
+1. Seed content (`seed/`): `manifest.yml` (tenant Northfield University, users Dana Whitfield SIGNER /
+   Dr. Priya Raman REVIEWER / Jordan Ellis CONTRIBUTOR, program, 11 courses incl. COUN 660 without a
+   syllabus, 14 documents, 3 facts, 5 "Demo rule set" rule versions with 42 requirements, Colorado v2 at
+   700 hours, COUN 625 syllabus v2; second tenant Westbrook College with one program), document sources
+   `seed/docs/*.md` rendered to text PDFs in `seed/pdf/` by a PDFBox generator (`make seed-pdfs`,
+   PDFs committed), rule texts `seed/rules/*.md`, `seed/fake-llm.yml` (scripted extraction per label and
+   match per requirement ref; documents named by filename and resolved to ids at load time).
+2. Seed loader (`com.lexvay.seed`, Spring profile `seed`, `make seed`): runs through the real services
+   with a programmatic security context for the seeded users, refuses to run twice for the same tenant
+   name, runs ingest, extraction, approval and the assessment with `FakeLlmClient` scripted from the YAML.
+   Target mix: 10 rules-engine, about 24 EVIDENCE_FOUND, about 5 AMBIGUOUS, 3 EVIDENCE_MISSING
+   (state law UT and TX, telehealth CA).
+3. Backend read endpoints the screens need: `GET /jurisdictions` (codes and names),
+   `GET /change-events` (the `change` module's read side; events are created in M7).
+4. Angular app: login page; left navigation with five screens; **Program overview** (header, four
+   counts, jurisdiction table with stacked findings bar + text legend); **Review** (jurisdiction tabs,
+   requirement list with finding and review status, detail with rule text, quote with citation, how it was
+   checked, note, three actions, auto-advance, "Sign determination" enabled only when all decided and the
+   user is a signer, dialog with the three outcomes); **Changes** (list of change events; re-run action
+   wired in M7); **Evidence report** (per jurisdiction, "Draft. Not a determination" until signed;
+   PDF download wired in M7); **Audit trail** (newest first). Permanent fictional-data banner, light and
+   dark themes via tokens, keyboard operable, visible focus, state by icon shape and text, responsive to
+   400 px, no "compliant" or "meets requirements" anywhere.
+5. Tests: Vitest unit tests (decision view model, finding display, overview counts); Playwright
+   end-to-end (`frontend/e2e`): log in as Dana Whitfield, open California, review every requirement
+   (confirm the telehealth gap with a note), sign, open Audit trail and see the entries; `@axe-core/playwright`
+   on every screen with no serious or critical issues; backend `ForbiddenWordsTest` (scans frontend
+   sources and backend strings) and `SeedIsLabeledFictionalTest` (rule labels and PDF page 1).
+6. `make seed`, `make e2e`; `make test` runs backend, frontend unit and end-to-end (starting the stack
+   with the seed); CI updated accordingly.
+
+Acceptance evidence to collect
+- `make seed` output; `make test` output including the Playwright and axe results; screenshots are not
+  required by the spec, so the recorded Playwright trace is the artefact.
+
+Decisions expected
+- D-060 (seed as a Spring profile), D-061 (document placeholders in fake scripts), D-062 (screens
+  compute overview counts client-side), D-063 (change-events read endpoint in M6, writes in M7).
+
+### Result (2026-11-26)
+
+Built
+- Seed: `seed/manifest.yml`, 14 document sources in `seed/docs` rendered to `seed/pdf` by
+  `SeedPdfGenerator` (`make seed-pdfs`), 6 rule texts in `seed/rules`, `seed/fake-llm.yml` (6 extraction
+  scripts, 31 match scripts), `SeedLoader` + `SeedRunner` (profile `seed`, `make seed`). Northfield
+  University loads with 13 documents, 42 requirements and a finished assessment; Westbrook College with one
+  program. Colorado revision 2 and the COUN 625 2027-28 syllabus are in the seed for M7.
+- Backend: `GET /jurisdictions`, `GET /change-events` (read side), session view with `tenantName` and
+  `demo` (D-064).
+- Angular app: `ApiService`, `SessionService`, `ThemeService`, `authGuard`, `Shell` (banner, top bar,
+  theme select, left navigation), `Login`, `Home`, `Overview`, `Review` (+ `SignDialog` on CDK Dialog),
+  `Changes`, `Report`, `Audit`; labels module with glyph-and-text findings and plain outcome wording;
+  tokens for light and dark themes; responsive table layout at 480 px.
+- End-to-end: `playwright.config.ts`, `e2e/review-and-sign.spec.ts` (two tests, axe on every screen),
+  `scripts/e2e.sh` isolated stack (5433/8081/4300), `make e2e`; `make test` = backend + frontend unit +
+  e2e; CI installs the Chromium browser.
+
+Tests written and run (160 backend, 8 frontend unit, 2 end-to-end)
+- Backend: `SeedQuotesExistTest` (3), `SeedIsLabeledFictionalTest` (2), `SeedLoaderTest` (1),
+  `ForbiddenWordsTest` (1). Frontend: `overview.spec.ts` (4), `labels.spec.ts` (3), `app.spec.ts` (1).
+  End-to-end: review-and-sign flow; keyboard tabs and login accessibility.
+
+`make test` output (tail, real)
+```
+[INFO] Tests run: 160, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+  2 passed (6.3s)
+MAKE TEST EXIT: 0
+```
+
+Acceptance evidence
+- All five screens work against the real API with seed data: exercised by the end-to-end test
+  (overview counts and banner, review tabs and detail, changes list, evidence report draft/signed stamp,
+  audit table) and by hand with `make dev` + `make seed` (login as Dana Whitfield through the proxy
+  returned her profile; health 200; page served on :4200).
+- End-to-end test uploads nothing, logs in as the signer, opens California, reviews every requirement
+  (accepts found ones, requests evidence for the elective-based ambiguous one, confirms the telehealth gap
+  with a note), signs "Determined not to meet" in the three-outcome dialog, and sees "Determination
+  signed", "Review decision recorded" and `outcome: DOES_NOT_MEET` in the audit trail. Playwright: 2 passed.
+- Accessibility: `@axe-core/playwright` with WCAG 2.0 A/AA and 2.1 AA tags on Login, Program overview,
+  Review, Changes, Evidence report and Audit trail; zero serious or critical violations.
+- Fictional banner: asserted on the overview after sign-in. Forbidden words: `ForbiddenWordsTest`
+  across frontend sources, backend sources, prompts and seed; the end-to-end test checks rendered text.
+
+Found and fixed during the milestone
+- The seed profile had disabled the web runtime, which removed the `HttpSecurity` bean; it now runs on a
+  random port instead.
+- `container_name` in docker-compose collided with the isolated e2e project; removed.
+- The login POST had no CSRF cookie yet; the session is loaded first so the cookie exists.
+- Test selectors: "Review" also matched "Open review" links; the message locator also matched the
+  "Current decision" paragraph; jurisdictions are alphabetical, not manifest order.
+
+Deferred
+- Change events and re-run action (M7); PDF download on the Evidence report (M7); upload size test (M8).

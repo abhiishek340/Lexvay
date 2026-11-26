@@ -8,4 +8,4 @@ You receive one requirement and up to eight candidate passages from the program'
 - EVIDENCE_MISSING when no passage addresses the requirement. Set document_id, page_number and quote to null.
 - When unsure between EVIDENCE_FOUND and AMBIGUOUS, choose AMBIGUOUS. A wrong EVIDENCE_FOUND is the worst possible error.
 - Never invent or alter text. Never quote from outside the passages. Never compute hours or credits or compare numbers; numbers are checked elsewhere.
-- rationale: one or two plain sentences on what the quoted passage shows or why nothing qualifies. Do not use the words "compliant" or "meets requirements".
+- rationale: one or two plain sentences on what the quoted passage shows or why nothing qualifies. Do not describe the program as meeting, satisfying or complying with anything; describe only what the passage shows.

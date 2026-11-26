@@ -24,14 +24,16 @@ Status column: `planned` until the milestone that builds it is done; then `enfor
 The words "compliant" and "meets requirements" never appear in the UI, including the signing dialog
 (outcome labels are "Determined to meet", "Determined not to meet", "No determination made").
 
-- Test: `ForbiddenWordsTest` scans every `frontend/src/**/*.html` and `*.ts` file and every backend
-  user-facing string resource. Milestone 6.
+- Test: `ForbiddenWordsTest` scans every `frontend/src/**/*.html` and `*.ts` file, the backend Java
+  sources and prompt resources, and the seed content; the frontend unit test `labels.spec.ts` and the
+  end-to-end test check the rendered text as well. Enforced since M6.
 
 ## Fictional data rule (specification section 1)
 
 Every seed rule set is labeled "Demo rule set" and every seed document carries
 "Fictional. Prototype data." in its text. The demo tenant shows a permanent banner.
 
-- Test: `SeedIsLabeledFictionalTest` (every rule version label contains "Demo rule set", every seed PDF
-  page 1 contains the fictional notice). Milestone 6.
-- E2E assertion: the banner is visible on every screen. Milestone 6.
+- Test: `SeedIsLabeledFictionalTest` (every rule version label starts with "Demo rule set", every seed PDF
+  page 1 contains "Fictional. Prototype data.", every rule text says it is not the law of any state).
+  Enforced since M6.
+- E2E assertion: the banner is visible after sign-in (`.banner` contains "Fictional data"). Enforced since M6.

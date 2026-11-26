@@ -1,7 +1,6 @@
 services:
   db:
     image: postgres:18.7
-    container_name: lexvay-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${LEXVAY_DB_SUPERUSER_PASSWORD:-postgres-dev}

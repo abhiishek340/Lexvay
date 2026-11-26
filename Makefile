@@ -10,7 +10,7 @@ DOCKER_HOST ?= $(shell docker context inspect -f '{{(index .Endpoints "docker").
 export DOCKER_HOST
 export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE ?= /var/run/docker.sock
 
-.PHONY: help db-up db-down dev dev-backend dev-frontend test backend-test frontend-test
+.PHONY: help db-up db-down dev dev-backend dev-frontend test backend-test frontend-test e2e seed-pdfs seed
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -33,10 +33,19 @@ dev-backend: db-up ## Run only the backend
 dev-frontend: ## Run only the frontend dev server
 	cd $(FRONTEND) && npm start
 
-test: backend-test frontend-test ## Run every test suite
+test: backend-test frontend-test e2e ## Run every test suite (backend, frontend unit, end-to-end)
 
 backend-test: ## Backend tests (Testcontainers needs a running Docker daemon)
 	cd $(BACKEND) && ./mvnw verify
 
 frontend-test: ## Frontend unit tests
 	cd $(FRONTEND) && npm ci --no-audit --no-fund && npm test -- --watch=false
+
+seed-pdfs: ## Regenerate the fictional seed PDFs in seed/pdf from seed/docs
+	cd $(BACKEND) && ./mvnw -q compile org.codehaus.mojo:exec-maven-plugin:3.7.0:java -Dexec.mainClass=com.lexvay.seed.SeedPdfGenerator -Dexec.args="../seed/docs ../seed/pdf"
+
+seed: db-up ## Load the fictional demo tenants (Northfield University, Westbrook College) once
+	cd $(BACKEND) && ./mvnw -q spring-boot:run -Dspring-boot.run.profiles=seed
+
+e2e: ## End-to-end tests (Playwright + axe) against an isolated seeded stack on ports 5433/8081/4300
+	scripts/e2e.sh
