@@ -14,7 +14,8 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | merged (PR #9) |
 | F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | merged (PR #8) |
 | F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | in progress |
-| F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | in progress |
+| F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | approved, PR #10 merging |
+| F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | in progress |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | queued (after WS-PERF) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
@@ -279,7 +280,56 @@ version share a timestamp, so the order is the text order of the ref ("CO-10" be
 3. Tests: a rule with twelve requirements lists CO-1 … CO-12 in order through the requirements endpoint,
    the mappings endpoint and the diff; replace keeps the submitted order; `Rule5` immutability unchanged.
 
+## F11 — OCR for scanned documents (slot 6; migration `V009__document_page_text_source.sql`)
+Real syllabi and handbooks are often scans. Today a PDF without a text layer is rejected. OCR text is less
+reliable than a text layer, so it is stored with its source and confidence and is treated cautiously.
+1. **Seam** `OcrEngine` in `com.lexvay.document`: `boolean available()`, `Optional<OcrPage>
+   recognize(BufferedImage page)` with `OcrPage(String text, double meanConfidence)` (0–100).
+   `NoOcrEngine` (not available) and `TesseractCliOcrEngine`. Selected by `LEXVAY_OCR` = `off` (default) |
+   `tesseract`; binary from `LEXVAY_OCR_TESSERACT_PATH` (default `tesseract`), language from
+   `LEXVAY_OCR_LANGUAGE` (default `eng`).
+2. **Tesseract call**: write the page image as PNG into a private temporary directory, run
+   `tesseract <png> stdout -l <lang> --psm 3 tsv` with an argument array (never a shell), 60 s timeout,
+   delete the files afterwards. Parse the TSV: words are rows with level 5 and conf ≥ 0; join words of the
+   same (block, paragraph, line) with one space, lines with a line feed, paragraphs with a blank line;
+   mean confidence is the average `conf` of those words. A page whose image exceeds 25 megapixels is
+   rendered at a lower DPI so it stays under the cap.
+3. **Ingest rule** per PDF page: if the text layer has at least 20 non-whitespace characters, keep it
+   (`TEXT_LAYER`). Otherwise, when the engine is available, render the page at 300 DPI in grayscale with
+   PDFBox and recognise it; accept the result when it has at least 20 non-whitespace characters (`OCR`).
+   Otherwise the page text is empty. A document whose pages are all empty still fails with "Document has no
+   extractable text"; append "It looks scanned; OCR is not enabled on this server" when no page had a text
+   layer and the engine is unavailable. At most `lexvay.ocr.max-pages` (default 200) pages per document are
+   sent to OCR; more is a permanent job failure with a clear message.
+4. **Schema** (V009): `document_page.text_source text NOT NULL DEFAULT 'TEXT_LAYER' CHECK (text_source IN
+   ('TEXT_LAYER','OCR'))`, `document_page.ocr_confidence numeric(5,2)`, and `CHECK ((text_source = 'OCR') =
+   (ocr_confidence IS NOT NULL))`.
+5. **Product rule 4**: evidence cited from an OCR page whose confidence is below
+   `lexvay.matching.min-ocr-confidence` (default 80) cannot be `EVIDENCE_FOUND`; it is downgraded to
+   `AMBIGUOUS` with the reason "the cited page was read by OCR with NN % confidence; check the original".
+   `EvidenceMatcher` now has three downgrade rules (elective course, thin quote, low OCR confidence):
+   express them as an ordered list of small rule objects applied in sequence, each appending its reason,
+   instead of a third `if` block. `Passage` carries `textSource` and `ocrConfidence`.
+6. **Read models**: page summaries in `GET /documents/{id}` and the evidence block of a mapping expose
+   `textSource` and `ocrConfidence`. The `DOCUMENT_INGESTED` audit detail counts OCR pages.
+7. **Tests**: TSV parser against a recorded fixture; ingest of an image-only PDF with a fake engine (pages
+   stored as `OCR` with confidence); engine unavailable gives the hint message; page cap; quote
+   verification works against OCR text exactly as against a text layer;
+   `Rule4_LowOcrConfidenceForcesAmbiguousTest`; one test with the real binary guarded by
+   `assumeTrue(engine.available())` that renders known text into an image-only PDF and finds its key words.
+   Install Tesseract locally with Homebrew and in CI with the `tesseract-ocr` apt package so that test runs.
+Decisions in `docs/decisions/F11.md` (D-160 to D-169). If a `Dockerfile` exists on `main` when you finish,
+add Tesseract to the runtime stage and set `LEXVAY_OCR=tesseract` there; otherwise say so in the report.
+
 ## Follow-ups recorded from reviews
+- Tests that need the seeded demo data currently use three different approaches (`SeedLoaderTest` loads the
+  shared tenants; F3a copies the manifest under another tenant name; F9 ingests the PDFs through the upload
+  API). After WS-EVAL makes `SeedLoader` load into a uniquely named tenant, give tests one shared fixture
+  for "a fresh tenant with the demo program" and delete the other two approaches.
+- F9 reported its end-to-end run on backend port 8084 although it was assigned slot 8; check that agents
+  export `LEXVAY_E2E_SLOT` in the same shell as `make test`.
+- F1 viewer: search headlines are computed excerpts and cannot be mapped to character offsets; opening a
+  search hit shows the page and highlights the query words in the browser.
 - F4 screens: an OPEN evidence request on a stale mapping cannot be answered (409). Add `stale` to the
   evidence request row and show such rows as blocked until the change is re-run.
 - F3 screens: any authenticated role may read a diff; unapproved lists can be diffed (useful before approval).
