@@ -32,13 +32,13 @@ class DatabaseConnectsTest extends AbstractDatabaseTest {
     }
 
     @Test
-    void flywayRunsAsOwnerWithNoMigrationsYet() throws Exception {
+    void flywayRunsAsOwner() throws Exception {
         try (var connection = flyway.getConfiguration().getDataSource().getConnection();
              var statement = connection.createStatement();
              var rs = statement.executeQuery("SELECT current_user")) {
             assertThat(rs.next()).isTrue();
             assertThat(rs.getString(1)).isEqualTo(OWNER_USER);
         }
-        assertThat(flyway.info().all()).isEmpty();
+        assertThat(flyway.info().applied()).isNotEmpty();
     }
 }
