@@ -16,6 +16,10 @@
       <p><strong>{{ outcomeLabel[d.outcome] }}</strong></p>
       <p>Signed by {{ d.signedByName }} on {{ d.signedAt | slice:0:10 }}.</p>
       <p class="muted">Rule version: {{ d.ruleVersionLabel }} · versions hash <code>{{ d.versionsHash | slice:0:16 }}…</code> · {{ d.courseVersionIds.length }} course versions locked.</p>
+      <div class="actions">
+        <button type="button" class="primary" [disabled]="generating()" (click)="generatePdf()">{{ generating() ? 'Generating…' : 'Generate PDF' }}</button>
+        @if (reportUrl(); as url) { <a [href]="url" download>Download PDF</a> }
+      </div>
     </section>
   } @else {
     <section class="stamp draft" aria-label="Draft notice">

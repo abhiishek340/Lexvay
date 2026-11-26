@@ -9,6 +9,7 @@ import com.lexvay.document.DocumentService;
 import com.lexvay.job.JobRunner;
 import com.lexvay.llm.FakeLlmClient;
 import com.lexvay.llm.LlmClient;
+import com.lexvay.program.AddCourseVersionRequest;
 import com.lexvay.program.CourseService;
 import com.lexvay.program.CreateCourseRequest;
 import com.lexvay.program.CreateProgramFactRequest;
@@ -167,10 +168,43 @@ public class SeedLoader {
             }
             UUID assessmentId = as(reviewer, () -> assessments.start(programId).assessmentId());
             jobs.runPending();
+            if (t.changes() != null) {
+                applyChanges(t, seedDir, scripts, fake, contributor, reviewer, programId, courseVersionByCode, documentByFile);
+            }
             log.info("Seed: tenant '{}' loaded: program {}, {} documents, {} requirements, assessment {}", t.name(), programId,
                     documentByFile.size(), requirementCount, assessmentId);
             return new Result(t.name(), false, programId, assessmentId, documentByFile.size(), requirementCount);
         });
+    }
+
+    /** Milestone 7 demo: a superseding rule version and a new course version, left as OPEN change events. */
+    private void applyChanges(SeedManifest.Tenant t, Path seedDir, FakeLlmScripts scripts, FakeLlmClient fake, LexvayUser contributor,
+                              LexvayUser reviewer, UUID programId, Map<String, UUID> courseVersionByCode, Map<String, UUID> documentByFile) {
+        SeedManifest.ChangeRuleVersion rv = t.changes().ruleVersion();
+        if (rv != null) {
+            UUID previous = ruleVersions.list().stream().filter(v -> v.label().equals(rv.supersedes())).map(v -> v.id()).findFirst()
+                    .orElseThrow(() -> new IllegalStateException("changes.ruleVersion.supersedes not found: " + rv.supersedes()));
+            var extraction = scripts.extraction().get(rv.label());
+            if (extraction == null) {
+                throw new IllegalStateException("fake-llm.yml has no extraction script for '" + rv.label() + "'");
+            }
+            fake.script("EXTRACT:" + rv.label(), json.writeValueAsString(extraction));
+            String text = readText(seedDir.resolve("rules").resolve(rv.text()));
+            var created = as(contributor, () -> ruleVersions.create(new CreateRuleVersionRequest(rv.jurisdiction(), t.program().licenseType(),
+                    rv.label(), rv.sourceUrl(), rv.effectiveFrom(), previous, text)));
+            jobs.runPending();
+            as(reviewer, () -> ruleVersions.approveRequirements(created.ruleVersionId()));
+        }
+        SeedManifest.ChangeCourseVersion cv = t.changes().courseVersion();
+        if (cv != null) {
+            UUID courseVersionId = courseVersionByCode.get(cv.course());
+            UUID courseId = courses.list(programId).stream().filter(c -> c.code().equals(cv.course())).map(c -> c.id()).findFirst()
+                    .orElseThrow(() -> new IllegalStateException("changes.courseVersion.course not found: " + cv.course()));
+            var course = as(contributor, () -> courses.addVersion(courseId, new AddCourseVersionRequest(cv.catalogYear(), cv.required(), courseVersionId)));
+            UUID newVersionId = course.versions().get(course.versions().size() - 1).id();
+            documentByFile.put(cv.syllabus(), upload(contributor, programId, seedDir, cv.syllabus(), DocumentKind.SYLLABUS, newVersionId));
+            jobs.runPending();
+        }
     }
 
     private UUID upload(LexvayUser as, UUID programId, Path seedDir, String file, DocumentKind kind, UUID courseVersionId) {

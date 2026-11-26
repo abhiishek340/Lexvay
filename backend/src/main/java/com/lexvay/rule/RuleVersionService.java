@@ -1,6 +1,7 @@
 package com.lexvay.rule;
 
 import com.lexvay.audit.AuditService;
+import com.lexvay.change.ChangeService;
 import com.lexvay.auth.CurrentUser;
 import com.lexvay.common.ConflictException;
 import com.lexvay.common.NotFoundException;
@@ -54,10 +55,12 @@ public class RuleVersionService {
     private final JobRepository jobs;
     private final AuditService audit;
     private final RequirementListParser parser;
+    private final ChangeService changes;
 
     public RuleVersionService(RuleVersionRepository ruleVersions, JurisdictionRepository jurisdictions,
                               DocumentRepository documents, FileStore files, JobRepository jobs, AuditService audit,
-                              RequirementListParser parser) {
+                              RequirementListParser parser, ChangeService changes) {
+        this.changes = changes;
         this.ruleVersions = ruleVersions;
         this.jurisdictions = jurisdictions;
         this.documents = documents;
@@ -105,6 +108,9 @@ public class RuleVersionService {
                 "jurisdiction", jurisdiction.code(), "licenseType", licenseType, "label", request.label().trim(),
                 "effectiveFrom", request.effectiveFrom().toString(), "documentId", documentId.toString(),
                 "supersedesId", request.supersedesId() == null ? "" : request.supersedesId().toString()));
+        if (request.supersedesId() != null) {
+            changes.onRuleVersionSuperseded(request.supersedesId(), id, request.label().trim());
+        }
         UUID jobId = jobs.enqueue(JobType.EXTRACT_REQUIREMENTS, Map.of("ruleVersionId", id.toString()));
         return new CreateResult(id, jobId);
     }

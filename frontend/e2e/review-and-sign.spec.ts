@@ -99,3 +99,19 @@ test('the review tabs are keyboard operable and the login page is accessible', a
   await expect(page.getByRole('button', { name: 'Sign determination' })).toBeDisabled();
   await expect(page.getByText('Only a signer can sign.')).toBeVisible();
 });
+
+test('the Changes screen lists the seeded changes and re-runs matching for the new course version', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill('priya.raman@northfield.example');
+  await page.getByLabel('Password').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('link', { name: 'Changes', exact: true }).click();
+  const table = page.getByRole('table', { name: 'Change events' });
+  await expect(table).toContainText('New rule version');
+  await expect(table).toContainText('New course version');
+  await expect(table).toContainText('COUN 625');
+  await expectAccessible(page, 'Changes with events');
+  await page.getByRole('button', { name: 'Re-run matching' }).click();
+  await expect(page.getByTestId('message')).toContainText('handled', { timeout: 60_000 });
+  await expect(table).toContainText('Handled');
+});

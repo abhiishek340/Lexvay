@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, Jurisdiction, Mapping, MappingsView, Outcome, Program, RuleVersionView, SessionView, UserView } from './models';
+import { AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, Jurisdiction, Mapping, MappingsView, Outcome, Program, ReportStatusView, RuleVersionView, SessionView, UserView } from './models';
 
 /** Thin, typed wrapper over /api/v1. Holds no business rules. */
 @Injectable({ providedIn: 'root' })
@@ -35,6 +35,20 @@ export class ApiService {
   }
 
   changeEvents(): Observable<ChangeEvent[]> { return this.http.get<ChangeEvent[]>(`${this.base}/change-events`); }
+  rerunChange(id: string): Observable<{ changeEventId: string; jobId: string }> {
+    return this.http.post<{ changeEventId: string; jobId: string }>(`${this.base}/change-events/${id}/rerun`, null);
+  }
+  requestReport(determinationId: string): Observable<{ reportId: string; jobId: string }> {
+    return this.http.post<{ reportId: string; jobId: string }>(`${this.base}/determinations/${determinationId}/report`, null);
+  }
+  /** 202 with JSON while generating; the PDF itself is downloaded through the browser from reportUrl. */
+  reportStatus(reportId: string): Observable<ReportStatusView> {
+    return this.http.get<ReportStatusView>(`${this.base}/reports/${reportId}`, { headers: { Accept: 'application/json' } });
+  }
+  reportUrl(reportId: string): string { return `${this.base}/reports/${reportId}`; }
+  jobStatus(jobId: string): Observable<{ id: string; status: string; error: string | null }> {
+    return this.http.get<{ id: string; status: string; error: string | null }>(`${this.base}/jobs/${jobId}`);
+  }
   audit(limit = 200): Observable<AuditEntry[]> { return this.http.get<AuditEntry[]>(`${this.base}/audit`, { params: { limit } }); }
 
   /** The latest finished assessment is found through the audit trail's ASSESSMENT_FINISHED entries. */
