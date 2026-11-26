@@ -9,6 +9,7 @@ import com.lexvay.common.TestTenants;
 import com.lexvay.job.JobRunner;
 import com.lexvay.llm.FakeLlmClient;
 import com.lexvay.llm.LlmClient;
+import com.lexvay.seed.ScriptedFakeModel;
 import com.lexvay.seed.SeedLoader;
 import com.lexvay.tenant.AppUserRepository;
 import java.io.IOException;
@@ -61,7 +62,7 @@ class RuleVersionDiffSeedTest extends AbstractDatabaseTest {
         if (!loaded) {
             ((FakeLlmClient) llm).reset();
             runner.runPending();
-            assertThat(loader.load(seedCopy, "demo-pass")).singleElement().satisfies(r -> assertThat(r.skipped()).isFalse());
+            assertThat(loader.load(seedCopy, "demo-pass", ScriptedFakeModel.load(seedCopy, llm, json))).singleElement().satisfies(r -> assertThat(r.skipped()).isFalse());
             loaded = true;
         }
         return users.findForLogin("dana.whitfield@" + EMAIL_DOMAIN).orElseThrow();

@@ -36,7 +36,8 @@ class SeedLoaderTest extends AbstractDatabaseTest {
     void seedLoadsBothTenantsWithTheExpectedFindingMixAndIsIdempotent() throws Exception {
         ((FakeLlmClient) llm).reset();
         runner.runPending();
-        List<SeedLoader.Result> results = loader.load(Path.of("..", "seed"), "demo-pass");
+        ModelStrategy model = ScriptedFakeModel.load(Path.of("..", "seed"), llm, json);
+        List<SeedLoader.Result> results = loader.load(Path.of("..", "seed"), "demo-pass", model);
         assertThat(results).hasSize(2);
         SeedLoader.Result northfield = results.get(0);
         assertThat(northfield.skipped()).isFalse();
@@ -97,7 +98,7 @@ class SeedLoaderTest extends AbstractDatabaseTest {
         assertThat(json.readTree(mvc.get().uri("/api/v1/assessments/" + northfield.assessmentId() + "/mappings?jurisdiction=CO")
                 .with(user(dana)).exchange().getResponse().getContentAsString()).get("mappings")).as("old CO list still shown until re-run").hasSize(9);
 
-        List<SeedLoader.Result> again = loader.load(Path.of("..", "seed"), "demo-pass");
+        List<SeedLoader.Result> again = loader.load(Path.of("..", "seed"), "demo-pass", model);
         assertThat(again).allSatisfy(r -> assertThat(r.skipped()).isTrue());
         UUID id = northfield.programId();
         assertThat(id).isNotNull();
