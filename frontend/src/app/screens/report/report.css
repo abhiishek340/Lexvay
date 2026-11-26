@@ -5,3 +5,4 @@
 .finding.EVIDENCE_FOUND { color: var(--lx-found-fg); }
 .finding.AMBIGUOUS { color: var(--lx-ambiguous-fg); }
 .finding.EVIDENCE_MISSING { color: var(--lx-missing-fg); }
+.actions { display: flex; gap: 1rem; align-items: center; margin-top: .5rem; }

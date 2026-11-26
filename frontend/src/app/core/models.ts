@@ -19,6 +19,12 @@ export interface Mapping { id: string; assessmentId: string; jurisdictionId: str
 export interface MappingsView { assessmentId: string; jurisdiction: string | null; mappings: Mapping[]; }
 
 export interface Determination { id: string; programId: string; jurisdiction: string; ruleVersionId: string; ruleVersionLabel: string; assessmentId: string; outcome: Outcome; signedBy: string; signedByName: string; signedAt: string; status: 'SIGNED' | 'REOPENED'; versionsHash: string; courseVersionIds: string[]; }
-export interface ChangeEvent { id: string; kind: 'RULE_VERSION' | 'COURSE_VERSION'; oldId: string; newId: string; status: 'OPEN' | 'HANDLED'; createdAt: string; }
+export interface ChangeEvent {
+  id: string; kind: 'RULE_VERSION' | 'COURSE_VERSION'; oldId: string; newId: string; status: 'OPEN' | 'HANDLED'; createdAt: string;
+  jurisdiction: string | null; oldLabel: string | null; newLabel: string | null; newApproved: boolean;
+  courseCode: string | null; oldCatalogYear: string | null; newCatalogYear: string | null; newVersionHasDocument: boolean;
+  reopenedDeterminationIds: string[];
+}
+export interface ReportStatusView { id: string; determinationId: string; status: 'QUEUED' | 'READY' | 'FAILED'; }
 export interface AuditEntry { id: string; userId: string | null; action: string; entityType: string; entityId: string | null; detail: Record<string, unknown>; createdAt: string; }
 export interface RuleVersionView { id: string; jurisdiction: string; licenseType: string; label: string; sourceUrl: string; effectiveFrom: string; approval: { by: string; at: string } | null; requirementCount: number; }

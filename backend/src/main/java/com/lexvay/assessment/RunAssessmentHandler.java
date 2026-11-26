@@ -1,6 +1,5 @@
 package com.lexvay.assessment;
 
-import com.lexvay.assessment.match.EvidenceMatcher;
 import com.lexvay.assessment.rules.RulesEngine;
 import com.lexvay.audit.AuditService;
 import com.lexvay.common.TenantContext;
@@ -9,8 +8,6 @@ import com.lexvay.job.JobHandler;
 import com.lexvay.job.JobType;
 import com.lexvay.job.PermanentJobFailure;
 import com.lexvay.program.Program;
-import com.lexvay.program.ProgramFact;
-import com.lexvay.program.ProgramFactRepository;
 import com.lexvay.program.ProgramRepository;
 import com.lexvay.rule.Jurisdiction;
 import com.lexvay.rule.JurisdictionRepository;
@@ -19,7 +16,6 @@ import com.lexvay.rule.Requirement;
 import com.lexvay.rule.RuleVersion;
 import com.lexvay.rule.RuleVersionRepository;
 import java.time.LocalDate;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -39,23 +35,21 @@ public class RunAssessmentHandler implements JobHandler {
     private final AssessmentRepository assessments;
     private final MappingRepository mappings;
     private final ProgramRepository programs;
-    private final ProgramFactRepository facts;
     private final JurisdictionRepository jurisdictions;
     private final RuleVersionRepository ruleVersions;
-    private final EvidenceMatcher matcher;
+    private final MappingProducer producer;
     private final AuditService audit;
     private final TransactionTemplate newTransaction;
 
     public RunAssessmentHandler(AssessmentRepository assessments, MappingRepository mappings, ProgramRepository programs,
-                                ProgramFactRepository facts, JurisdictionRepository jurisdictions, RuleVersionRepository ruleVersions,
-                                EvidenceMatcher matcher, AuditService audit, PlatformTransactionManager transactionManager) {
+                                JurisdictionRepository jurisdictions, RuleVersionRepository ruleVersions,
+                                MappingProducer producer, AuditService audit, PlatformTransactionManager transactionManager) {
         this.assessments = assessments;
         this.mappings = mappings;
         this.programs = programs;
-        this.facts = facts;
         this.jurisdictions = jurisdictions;
         this.ruleVersions = ruleVersions;
-        this.matcher = matcher;
+        this.producer = producer;
         this.audit = audit;
         this.newTransaction = new TransactionTemplate(transactionManager);
         this.newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -78,10 +72,7 @@ public class RunAssessmentHandler implements JobHandler {
                 .orElseThrow(() -> new PermanentJobFailure("Program " + assessment.programId() + " not found"));
         newTransaction.executeWithoutResult(s -> assessments.markRunning(assessmentId));
         try {
-            Map<NumericField, RulesEngine.Fact> currentFacts = new EnumMap<>(NumericField.class);
-            for (ProgramFact fact : facts.currentFacts(program.id())) {
-                currentFacts.put(fact.key(), new RulesEngine.Fact(fact.key(), fact.value(), fact.evidenceSpanId()));
-            }
+            Map<NumericField, RulesEngine.Fact> currentFacts = producer.currentFacts(program.id());
             UUID tenantId = TenantContext.require();
             int produced = 0;
             for (Jurisdiction jurisdiction : jurisdictions.findByCodes(program.jurisdictions())) {
@@ -94,14 +85,9 @@ public class RunAssessmentHandler implements JobHandler {
                         continue;
                     }
                     Boolean inserted = newTransaction.execute(s -> {
-                        if (requirement.type().isNumeric()) {
-                            RulesEngine.Result result = RulesEngine.evaluate(requirement, currentFacts);
-                            return mappings.insertIfAbsent(tenantId, assessmentId, requirement.id(), jurisdiction.id(), result.finding(),
-                                    MappingMethod.RULES_ENGINE, result.rationale(), result.evidenceSpanId(), assessment.createdBy());
-                        }
-                        EvidenceMatcher.Outcome outcome = matcher.match(assessmentId, program.id(), requirement, assessment.createdBy());
-                        return mappings.insertIfAbsent(tenantId, assessmentId, requirement.id(), jurisdiction.id(), outcome.finding(),
-                                MappingMethod.MATCH, outcome.rationale(), outcome.evidenceSpanId(), assessment.createdBy());
+                        MappingProducer.Produced p = producer.produce(assessmentId, program.id(), requirement, currentFacts, assessment.createdBy());
+                        return mappings.insertIfAbsent(tenantId, assessmentId, requirement.id(), jurisdiction.id(), p.finding(),
+                                p.method(), p.rationale(), p.evidenceSpanId(), assessment.createdBy());
                     });
                     if (Boolean.TRUE.equals(inserted)) {
                         produced++;

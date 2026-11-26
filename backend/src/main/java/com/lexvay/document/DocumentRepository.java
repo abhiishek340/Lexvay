@@ -61,6 +61,11 @@ public class DocumentRepository {
                 .param("programId", programId).query(DOCUMENT).list();
     }
 
+    public List<Document> findByCourseVersion(UUID courseVersionId) {
+        return jdbc.sql("SELECT " + COLUMNS + " FROM document WHERE course_version_id = :cv ORDER BY created_at, id")
+                .param("cv", courseVersionId).query(DOCUMENT).list();
+    }
+
     /** Idempotent: a retried ingest does not duplicate or overwrite pages. */
     public int insertPage(UUID tenantId, UUID documentId, ExtractedPage page, UUID createdBy) {
         return jdbc.sql("INSERT INTO document_page (tenant_id, document_id, page_number, text, char_start, char_end, created_by) "

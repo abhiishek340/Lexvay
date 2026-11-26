@@ -40,7 +40,7 @@ class SeedLoaderTest extends AbstractDatabaseTest {
         assertThat(results).hasSize(2);
         SeedLoader.Result northfield = results.get(0);
         assertThat(northfield.skipped()).isFalse();
-        assertThat(northfield.documents()).isEqualTo(13);
+        assertThat(northfield.documents()).isEqualTo(14);
         assertThat(northfield.requirements()).isEqualTo(42);
         assertThat(northfield.assessmentId()).isNotNull();
 
@@ -81,6 +81,21 @@ class SeedLoaderTest extends AbstractDatabaseTest {
         assertThat(programs).hasSize(1);
         assertThat(programs.get(0).get("id").asString()).isNotEqualTo(northfield.programId().toString());
         assertThat(mvc.get().uri("/api/v1/assessments/" + northfield.assessmentId()).with(user(westbrookAdmin)).exchange()).hasStatus(404);
+
+        JsonNode changes = json.readTree(mvc.get().uri("/api/v1/change-events").with(user(dana)).exchange().getResponse().getContentAsString());
+        assertThat(changes).hasSize(2);
+        for (JsonNode c : changes) {
+            assertThat(c.get("status").asString()).isEqualTo("OPEN");
+            if (c.get("kind").asString().equals("RULE_VERSION")) {
+                assertThat(c.get("jurisdiction").asString()).isEqualTo("CO");
+                assertThat(c.get("newApproved").asBoolean()).isTrue();
+            } else {
+                assertThat(c.get("courseCode").asString()).isEqualTo("COUN 625");
+                assertThat(c.get("newVersionHasDocument").asBoolean()).isTrue();
+            }
+        }
+        assertThat(json.readTree(mvc.get().uri("/api/v1/assessments/" + northfield.assessmentId() + "/mappings?jurisdiction=CO")
+                .with(user(dana)).exchange().getResponse().getContentAsString()).get("mappings")).as("old CO list still shown until re-run").hasSize(9);
 
         List<SeedLoader.Result> again = loader.load(Path.of("..", "seed"), "demo-pass");
         assertThat(again).allSatisfy(r -> assertThat(r.skipped()).isTrue());

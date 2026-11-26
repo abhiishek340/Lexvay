@@ -1,20 +1,20 @@
-# Lexvay — rules for working in this repository
+# Lexvay — rules for everyone (human or agent) working in this repository
 
-Lexvay compares a university's curriculum against state professional-licensing requirements and
-produces an evidence-backed record that qualified university staff review and sign. The software
-proposes; people decide. Read `docs/ANALYSIS.md`, `docs/PLAN.md`, `docs/RULES.md` and
-`docs/WORKFLOW.md` before changing anything.
+Lexvay compares a university's curriculum against state professional-licensing requirements and produces
+an evidence-backed record that qualified university staff review and sign. The software proposes; people
+decide. This is a real product, not a demo: build depth, not breadth.
 
-## Order of authority
-1. The specification (the "Licentraz" build prompt; the product is now named Lexvay).
-2. `DECISIONS.md`. 3. `docs/PLAN.md`. 4. The "LicenseGraph" architecture design (context only).
-If the spec conflicts with itself, stop and ask. Do not guess silently.
+## Authority
+1. Owner directives (latest first). On 2026-11-26 the owner put the project in "CTO mode": improve the
+   product continuously, use a real UI library, add real features, keep latency low. These directives
+   override the original build prompt on scope and stack.
+2. The nine product rules below. Nobody may weaken them, including the orchestrator.
+3. `DECISIONS.md`, then `docs/ROADMAP.md` (work items with exact specs), `docs/DESIGN.md` (UI), `docs/PLAN.md`.
+If two sources conflict, the higher one wins. If a work item's spec is wrong or impossible, stop and report;
+do not improvise a different design. Architecture, algorithms and product decisions belong to the
+orchestrator; implement the spec exactly and report disagreement in your final message.
 
-## First principles, in order, for every piece of work
-Question the requirement → delete what no acceptance check needs → simplify (one process, one
-database, plain code) → keep `make test` fast and local → automate only what already works by hand.
-
-## Product rules that must never be broken (each has a test; see docs/RULES.md)
+## Product rules that must never be broken (each has tests; see docs/RULES.md)
 1. The system never determines. Findings are only `EVIDENCE_FOUND`, `EVIDENCE_MISSING`, `AMBIGUOUS`.
    Only a human confirms a gap. Only a `SIGNER` signs.
 2. No evidence without a quote verified in code against stored page text.
@@ -25,28 +25,54 @@ database, plain code) → keep `make test` fast and local → automate only what
 7. Tenants are isolated by PostgreSQL row-level security, fail closed.
 8. No student data. No `student` table or column, ever.
 9. Every action is audited: who, when, what, which record.
+Also: never invent regulatory content (seed data is fictional and labeled), and the UI never says
+"compliant" or "meets requirements" (`ForbiddenWordsTest`).
 
-## Working rules
-- One milestone at a time (`PROGRESS.md`). Plan first, then build with tests, then paste real results.
-- Never start a milestone on a red build. Never claim a test passed without running it.
-- Only `FakeLlmClient` in tests. No test touches the network or needs a key.
-- No stubs, `TODO`s, mocked production paths or fake success responses. If blocked, say so and stop.
-- Pin exact versions from the registry, never from memory; record them in `DECISIONS.md` D-002.
-- Never invent regulatory content. All rule text and curriculum here is fictional and labeled so.
-- No secrets in the repo. `LEXVAY_*` env vars, documented in `.env.example`.
-- Commit at the end of each milestone. Do not push, deploy or create cloud resources.
-- If a command fails twice for the same reason, stop and report what was tried.
-- UI never says "compliant" or "meets requirements". State is shown by text and shape, not colour alone.
+## Engineering bar
+- Write code a staff engineer would sign: small cohesive types, explicit SQL, no dead code, no duplicated
+  logic. Before adding a helper, search for an existing one and reuse or extend it.
+- No stubs, `TODO`s, mocked production paths, fake success responses or sample-only features. If something
+  cannot be finished properly, say so and stop.
+- Tests ship with the code. Only `FakeLlmClient` in tests; no test touches the network or needs a key.
+  Never claim a test passed without running it. `make test` must be green before you open a pull request.
+- Latency is a feature: one transaction per read request, no N+1 queries, indexes for every hot path,
+  budgets in `docs/PERF.md` (p95 under 40 ms for read endpoints on the seeded tenant).
+- Pin exact dependency versions from the registry, never from memory; record them in `DECISIONS.md` D-002.
+- No secrets in the repository. Configuration through `LEXVAY_*` environment variables and `.env.example`.
+- Every mutating endpoint is audited and listed in `Rule9_AuditCoverageTest`.
 
-## Stack (pinned in DECISIONS.md D-002)
+## UI bar (details in docs/DESIGN.md)
+- PrimeNG 22 components with the Lexvay preset. Do not hand-build a component PrimeNG provides.
+- Phosphor icons through `@ng-icons`. No emoji, no Unicode glyphs as icons, no decorative gradients, no
+  "AI look": no sparkle icons, no purple-to-pink anything, no card grids of marketing copy.
+- IBM Plex Sans for UI, IBM Plex Serif for rule text and quoted evidence, IBM Plex Mono for ids and offsets.
+- WCAG 2.1 AA, keyboard operable, visible focus, state by icon and text as well as colour, responsive to
+  400 px, light and dark themes. The end-to-end suite runs axe on every screen: zero serious or critical.
+
+## Git and pull requests
+- One branch per work item, named in `docs/ROADMAP.md`. Commit in logical steps with plain, specific
+  messages. **Never add `Co-Authored-By` trailers or any AI attribution to commits or pull requests.**
+- Push your branch and open a pull request against `main` with `gh pr create` (account `abhiishek340`).
+  Do not merge it: the orchestrator reviews, waits for CI and merges.
+- Do not rewrite history on `main`. Do not touch another work item's files unless your spec says so; if
+  you must, keep the change minimal and call it out in the pull request.
+- No deployments and no cloud resources. Terraform is validated, never applied.
+
+## Local environment (this machine)
+- Node 26 through nvm: `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 26` before any npm command.
+- Docker runs in Colima; the Makefile resolves the socket. If Docker is down: `colima start`.
+- Commands: `make test` (backend + frontend unit + end-to-end), `make backend-test`, `make frontend-test`,
+  `make e2e`, `make dev`, `make seed`, `make seed-pdfs`.
+- Several checkouts run end-to-end tests at the same time. Use the slot assigned to your work item:
+  `LEXVAY_E2E_SLOT=<n> make e2e` (slot n shifts PostgreSQL 5433+n, backend 8081+n, web 4300+n).
+  Slot 0 belongs to the orchestrator. Never use ports 5432, 8080 or 4200 in tests.
+- In a fresh worktree run `cd frontend && npm ci` once before frontend commands.
+
+## Stack (pins in DECISIONS.md D-002)
 Java 21, Spring Boot 4.1.3, Spring JDBC (no ORM), PostgreSQL 18.7 with Flyway and RLS, job table with
 `FOR UPDATE SKIP LOCKED`, PostgreSQL full-text search behind `PassageSearch`, `FileStore` (local | S3),
-`LlmClient` (`FakeLlmClient` | `AnthropicLlmClient`), Angular 22 standalone + CDK only, Playwright +
-axe, Terraform (validate only).
+`LlmClient` (`FakeLlmClient` | `AnthropicLlmClient`), Angular 22 standalone with PrimeNG 22, Playwright + axe.
 
 ## Layout
-`backend/` `frontend/` `eval/` `seed/` `infra/` `docs/` `docker-compose.yml` `Makefile`
-`README.md` `DECISIONS.md` `PROGRESS.md` `.env.example`
-
-## Commands
-`docker compose up -d` · `make dev` · `make test` · `make seed` · `make eval` · `make eval-live`
+`backend/` `frontend/` `seed/` `eval/` `infra/` `scripts/` `docs/` `docker-compose.yml` `Makefile`
+`DECISIONS.md` `PROGRESS.md` `.env.example`

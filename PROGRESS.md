@@ -16,9 +16,9 @@ deferred. Never claim a test passed without running it.
 | 4 | Pipeline | Done 2026-11-26 | see git log (M4) |
 | 5 | Review and signing | Done 2026-11-26 | see git log (M5) |
 | 6 | Frontend | Done 2026-11-26 | PR #6 |
-| 7 | Change tracking and report | Not started | — |
-| 8 | OIDC and hardening | Not started | — |
-| 9 | Evaluation and infrastructure | Not started | — |
+| 7 | Change tracking and report | Done 2026-11-26 | PR #7 |
+| 8 | OIDC and hardening | In progress as WS-SEC (docs/ROADMAP.md) | — |
+| 9 | Evaluation and infrastructure | In progress as WS-EVAL (docs/ROADMAP.md) | — |
 
 ## Prerequisites on this machine (checked 2026-11-26)
 
@@ -787,3 +787,99 @@ Found and fixed during the milestone
 
 Deferred
 - Change events and re-run action (M7); PDF download on the Evidence report (M7); upload size test (M8).
+
+## Milestone 7 — Change tracking and report
+
+### Plan (written 2026-11-26, before building)
+
+Scope
+- Rule version change: `POST /rule-versions` with `supersedesId` creates a `RULE_VERSION` change event
+  (OPEN), sets every SIGNED determination on the old version to REOPENED (audited), and marks the old
+  version's mappings stale. `POST /change-events/{id}/rerun` (REVIEWER, SIGNER, ADMIN) requires the new
+  version to be approved (else 409); for every program assessed against the old version it adds mappings
+  for the new requirements into that program's latest finished assessment: requirements with the same
+  `ref`, text, type and numeric value are carried over (finding, evidence, rationale copied; the current
+  decision replicated as a system review event noting the carry-over); changed or new ones are evaluated
+  fresh (rules engine or matcher) and start undecided; old mappings of changed refs get a REOPENED event
+  (D-015). The event becomes HANDLED.
+- Current mappings: lists, counts and signing consider only mappings whose rule version has no approved
+  successor with mappings in the same assessment, so a jurisdiction shows the new list once re-run and the
+  old list until then (D-066).
+- Course version change: `POST /courses/{id}/versions` (CONTRIBUTOR, ADMIN; catalog year, required,
+  optional `supersedesId` defaulting to the newest version) creates a `COURSE_VERSION` change event, marks
+  mappings citing the old version stale, and reopens determinations locked to it (D-029). Re-run
+  re-verifies each stale mapping's quote against the new version's documents: found → new evidence span
+  cited, `stale = false`; not found → `EVIDENCE_MISSING`, REOPENED event (D-028). 409 until the new version
+  has an ingested document.
+- `GET /change-events` enriched: kind, labels or course codes, old and new ids, status, and the
+  determinations it reopened. Frontend Changes screen gains the re-run action and the affected list.
+- Report: `POST /determinations/{id}/report` → 202 `{reportId, jobId}`; `GENERATE_REPORT` job renders a
+  PDF with PDFBox (program, jurisdiction, outcome, signer, date, rule version, versions hash, course
+  versions, then every requirement with finding, decision and quoted evidence with citation) into the file
+  store; `GET /reports/{id}` streams the PDF when READY, otherwise returns the status as JSON. Evidence
+  report screen gets "Generate PDF" and a download link after signing.
+- Seed applies the manifest's `changes`: Colorado revision 2 (approved, 700 hours) and the COUN 625
+  2027-28 syllabus, leaving two OPEN change events for the demo.
+- JaCoCo gate widened to `com.lexvay.change`.
+
+Tests to write
+- `RuleVersionChangeTest`: event created, old mappings stale, signed determination REOPENED and audited;
+  rerun before approval → 409; rerun: unchanged refs keep finding, evidence and decision via a system
+  event, CO-5 changed → fresh `EVIDENCE_MISSING` without decision, old CO-5 mapping REOPENED; list shows
+  the new version only; signing requires deciding the changed one; event HANDLED; second rerun → 409.
+- `CourseVersionChangeTest`: event, stale marking, determination REOPENED; rerun before upload → 409;
+  rerun with the quote present → new document cited, not stale, decision kept; quote absent →
+  `EVIDENCE_MISSING`, REOPENED, decision gone.
+- `ReportTest`: 202 + job; PDF READY, downloadable with `application/pdf`, text parsed back contains the
+  outcome label, signer, requirement refs and a quote; other tenant 404; unsigned determination rules.
+- `SeedLoaderTest` extended for the two change events; `Rule9_AuditCoverageTest` set extended with three
+  endpoints; end-to-end: Changes screen shows the seeded events and re-runs the course change.
+
+Decisions expected
+- D-066 (current-mappings rule), D-067 (PDF renderer and layout), D-068 (course-version default
+  supersedes), D-069 (report readiness response).
+
+### Result (2026-11-26)
+
+Built
+- `ChangeService` (events, reopen, stale marking, re-run preconditions), `RerunChangeHandler` (rule
+  version: carry over unchanged requirements with their decisions, re-evaluate changed ones; course
+  version: re-verify quotes against the new documents), `ChangeEventView`, `POST /change-events/{id}/rerun`.
+- `MappingProducer` shared by the assessment run and the re-run; current-mappings rule (D-066) in
+  `MappingRepository` and the assessment counts.
+- `POST /courses/{id}/versions` (D-068). Report module: `ReportService`, `GenerateReportHandler`,
+  `PdfTextWriter`, `POST /determinations/{id}/report`, `GET /reports/{id}` (D-067, D-069).
+- Seed applies Colorado revision 2 and the COUN 625 2027-28 syllabus, leaving two OPEN change events.
+- Frontend: Changes screen with affected determinations and re-run action; Evidence report "Generate PDF"
+  and download link. End-to-end stack is slot-based (`LEXVAY_E2E_SLOT`).
+
+Tests written and run (163 backend, 8 frontend unit, 3 end-to-end)
+- `RuleVersionChangeTest`, `CourseVersionChangeTest`, `ReportTest`; `SeedLoaderTest` and
+  `Rule9_AuditCoverageTest` extended; end-to-end test for the Changes screen re-run.
+
+`make test` output (tail, real)
+```
+[INFO] Tests run: 163, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+ Test Files  3 passed (3)
+  3 passed (8.7s)
+MAKE TEST EXIT: 0
+```
+JaCoCo line coverage: assessment 94.2 %, assessment.match 91.7 %, assessment.rules 95.2 %, review 100 %,
+determination 96.4 %, change 97.9 %.
+
+Acceptance evidence
+- New rule version: change event OPEN, signed determination REOPENED and audited, old mappings stale and
+  unreviewable (409), re-run refused until approval (409); after re-run the unchanged requirements keep
+  finding, evidence and decision ("Carried over from ..."), the changed one is `TOTAL_CREDITS 60 >= 66 →
+  false` without a decision, the event is HANDLED, signing needs the new decision, and a new determination
+  can be signed against the new rule version (`RuleVersionChangeTest`).
+- New course version: change event, stale mappings, determination REOPENED; re-run refused until the new
+  syllabus is uploaded; quote still present → re-cited to the new document with the decision kept; quote
+  gone → `EVIDENCE_MISSING`, back to review (`CourseVersionChangeTest`).
+- PDF report generated as a job, downloadable as `application/pdf`; parsed text contains the outcome,
+  signer, requirement refs, decisions, quote and versions hash (`ReportTest`).
+
+Deferred
+- Milestones 8 and 9 continue as work items WS-SEC and WS-EVAL in `docs/ROADMAP.md` (CTO mode, D-071).

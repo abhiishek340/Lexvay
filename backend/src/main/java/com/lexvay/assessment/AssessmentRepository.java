@@ -65,11 +65,11 @@ public class AssessmentRepository {
         return jdbc.sql("""
                 SELECT j.code AS jurisdiction, m.finding, count(*) AS n,
                        count(*) FILTER (WHERE le.kind IS NOT NULL AND le.kind <> 'REOPENED' AND NOT m.stale) AS decided
-                FROM mapping m JOIN jurisdiction j ON j.id = m.jurisdiction_id
+                FROM mapping m JOIN jurisdiction j ON j.id = m.jurisdiction_id JOIN requirement r ON r.id = m.requirement_id
                 LEFT JOIN LATERAL (SELECT re.kind FROM review_event re WHERE re.mapping_id = m.id
                                    ORDER BY re.created_at DESC, re.id DESC LIMIT 1) le ON true
                 WHERE m.assessment_id = :id
-                GROUP BY j.code, m.finding ORDER BY j.code, m.finding
-                """).param("id", assessmentId).query().listOfRows();
+                """ + MappingRepository.CURRENT + " GROUP BY j.code, m.finding ORDER BY j.code, m.finding")
+                .param("id", assessmentId).query().listOfRows();
     }
 }

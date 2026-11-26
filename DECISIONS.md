@@ -338,6 +338,53 @@ proxy to 8081, runs Playwright with axe, and tears everything down. The develope
 servers on 8080/4200 are never touched. `make test` runs backend, frontend unit and end-to-end suites.
 Decided.
 
+**D-066 — Current mappings after a rule change.** Lists, counts and the signing gate consider a mapping
+"current" unless its rule version has a successor whose mappings already exist in the same assessment.
+So a jurisdiction keeps showing the old (stale, unreviewable) list until the new version is approved and
+re-run, and shows only the new list afterwards. The old mappings stay in the database as history.
+Rejected: starting a whole new assessment on re-run (other jurisdictions would lose their decisions).
+Decided.
+
+**D-067 — Report renderer.** PDFBox with a small paginated text writer (`PdfTextWriter`): header fields,
+then one block per requirement with finding, decision, quoted evidence and citation, then a footer saying
+who decides. No second PDF library. Characters outside WinAnsi are replaced. Rejected: OpenPDF (a second
+dependency for tables the report does not need). Decided.
+
+**D-068 — Course versions.** `POST /courses/{id}/versions` (catalog year, required, optional
+`supersedesId`) supersedes the newest version by default and refuses a version that was already
+superseded. It creates the `COURSE_VERSION` change event in the same transaction. Decided.
+
+**D-069 — Report readiness.** `POST /determinations/{id}/report` returns `202 {reportId, jobId}`.
+`GET /reports/{id}` returns the PDF (`application/pdf`, attachment) when READY, and `202` with a JSON
+status while QUEUED (`200` with status FAILED if generation failed). Reports may be generated for
+reopened determinations too; the title says so. Decided.
+
+**D-070 — Re-run preconditions.** `POST /change-events/{id}/rerun` returns `409` when the event is already
+HANDLED, when a rule-version event's new version is not approved, or when a course-version event's new
+version has no ingested document. Otherwise it queues `RERUN_CHANGE` and returns `202`. Carried-over
+decisions are written as review events in the original reviewer's name with a note starting
+"Carried over from <old label>". Decided.
+
+## Owner directives of 2026-11-26 (CTO mode)
+
+**D-071 — CTO mode supersedes the build prompt on scope and stack.** The owner directed continuous
+improvement toward a production-grade product, parallel agent work in separate worktrees, a real UI
+library, low latency, and depth over breadth. Section 1 ("delete", "no extra features") and section 4
+("no UI kit beyond Angular CDK") of the build prompt no longer bind. The nine product rules, the fictional
+labeling of seed data and the forbidden wording remain binding. Work items and their exact specs live in
+`docs/ROADMAP.md`; the orchestrator decides architecture and algorithms, agents implement.
+
+**D-072 — UI stack.** PrimeNG 22.1.5 with `@primeuix/themes` 3.1.1 and a custom `LexvayPreset`; Phosphor
+icons via `@ng-icons/core` 36.1.0; IBM Plex Sans, Serif and Mono self-hosted via `@fontsource` 5.3.0.
+Chosen over Angular Material 22.3.0 (fewer data-dense components: no splitter, stepper-with-content,
+file upload or timeline, and a recognisable stock look), Carbon for Angular 6.0.1 (new major published
+one day earlier), Taiga UI and ng-zorro (weaker token theming for a custom identity). All candidates were
+checked on the npm registry for Angular 22 peer support on 2026-11-26. Design contract: `docs/DESIGN.md`.
+
+**D-073 — Git workflow in CTO mode.** One branch and pull request per work item, opened by the agent,
+reviewed and merged by the orchestrator after CI. No `Co-Authored-By` trailers or AI attribution anywhere.
+End-to-end stacks are slot-based (`LEXVAY_E2E_SLOT`) so several checkouts can test at once.
+
 ## Spec concerns (section 13, item 5)
 
 - Section 5 vs section 7 on `REOPENED` (D-003, resolved by owner).

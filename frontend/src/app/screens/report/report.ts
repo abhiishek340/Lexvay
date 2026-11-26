@@ -28,6 +28,29 @@ export class Report {
   readonly outcomeLabel = OUTCOME_LABEL;
 
   readonly signed = computed(() => this.determinations().find((d) => d.jurisdiction === this.jurisdiction() && d.status === 'SIGNED') ?? null);
+  readonly reportUrl = signal<string | null>(null);
+  readonly generating = signal(false);
+
+  async generatePdf(): Promise<void> {
+    const d = this.signed();
+    if (!d) { return; }
+    this.generating.set(true);
+    this.error.set(null);
+    this.reportUrl.set(null);
+    try {
+      const requested = await firstValueFrom(this.api.requestReport(d.id));
+      for (let i = 0; i < 60; i++) {
+        const status = await firstValueFrom(this.api.reportStatus(requested.reportId));
+        if (status.status === 'READY') { this.reportUrl.set(this.api.reportUrl(requested.reportId)); break; }
+        if (status.status === 'FAILED') { throw new Error('Report generation failed.'); }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    } catch {
+      this.error.set('The PDF could not be generated.');
+    } finally {
+      this.generating.set(false);
+    }
+  }
 
   constructor() {
     this.load();
@@ -56,6 +79,7 @@ export class Report {
 
   async selectJurisdiction(code: string): Promise<void> {
     this.jurisdiction.set(code);
+    this.reportUrl.set(null);
     const view = await firstValueFrom(this.api.mappings(this.assessment()!.id, code));
     this.mappings.set(view.mappings);
   }

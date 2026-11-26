@@ -3,6 +3,7 @@ package com.lexvay.assessment;
 import com.lexvay.rule.NumericField;
 import com.lexvay.rule.RequirementType;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.RowMapper;
@@ -31,6 +32,18 @@ public class MappingRepository {
                 SELECT re.kind, re.note, re.user_id, re.created_at FROM review_event re
                 WHERE re.mapping_id = m.id ORDER BY re.created_at DESC, re.id DESC LIMIT 1) le ON true
             LEFT JOIN app_user u ON u.id = le.user_id
+            """;
+
+    /**
+     * D-066: a mapping is "current" unless its rule version has a successor whose mappings already exist in
+     * the same assessment. After a re-run the new list shows; until then the old list stays reviewable.
+     */
+    static final String CURRENT = """
+             AND NOT EXISTS (
+                SELECT 1 FROM rule_version nv
+                JOIN requirement nr ON nr.rule_version_id = nv.id
+                JOIN mapping nm ON nm.requirement_id = nr.id
+                WHERE nv.supersedes_id = r.rule_version_id AND nm.assessment_id = m.assessment_id)
             """;
 
     private static final RowMapper<Mapping> ROW = (rs, i) -> {
@@ -85,28 +98,72 @@ public class MappingRepository {
     }
 
     public List<Mapping> findByAssessmentAndJurisdiction(UUID assessmentId, String jurisdictionCode) {
-        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a AND j.code = :code ORDER BY r.created_at, r.ref")
+        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a AND j.code = :code" + CURRENT + " ORDER BY r.created_at, r.ref")
                 .param("a", assessmentId).param("code", jurisdictionCode).query(ROW).list();
     }
 
     /** Mappings of one jurisdiction that block signing: stale, or without a current decision. */
     public long countUndecided(UUID assessmentId, UUID jurisdictionId) {
         return jdbc.sql("""
-                SELECT count(*) FROM mapping m
+                SELECT count(*) FROM mapping m JOIN requirement r ON r.id = m.requirement_id
                 LEFT JOIN LATERAL (SELECT re.kind FROM review_event re WHERE re.mapping_id = m.id
                                    ORDER BY re.created_at DESC, re.id DESC LIMIT 1) le ON true
                 WHERE m.assessment_id = :a AND m.jurisdiction_id = :j
                   AND (m.stale OR le.kind IS NULL OR le.kind = 'REOPENED')
-                """).param("a", assessmentId).param("j", jurisdictionId).query(Long.class).single();
+                """ + CURRENT).param("a", assessmentId).param("j", jurisdictionId).query(Long.class).single();
     }
 
     public long countByJurisdiction(UUID assessmentId, UUID jurisdictionId) {
-        return jdbc.sql("SELECT count(*) FROM mapping WHERE assessment_id = :a AND jurisdiction_id = :j")
+        return jdbc.sql("SELECT count(*) FROM mapping m JOIN requirement r ON r.id = m.requirement_id WHERE m.assessment_id = :a AND m.jurisdiction_id = :j" + CURRENT)
                 .param("a", assessmentId).param("j", jurisdictionId).query(Long.class).single();
     }
 
+    /** Lookup without the current-mappings filter, for change handling. */
+    public Optional<Mapping> findByAssessmentAndRequirement(UUID assessmentId, UUID requirementId) {
+        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a AND m.requirement_id = :r")
+                .param("a", assessmentId).param("r", requirementId).query(ROW).optional();
+    }
+
+    public int markStaleByRuleVersion(UUID ruleVersionId) {
+        return jdbc.sql("UPDATE mapping SET stale = true WHERE requirement_id IN (SELECT id FROM requirement WHERE rule_version_id = :rv)")
+                .param("rv", ruleVersionId).update();
+    }
+
+    public int markStaleByCourseVersion(UUID courseVersionId) {
+        return jdbc.sql("""
+                UPDATE mapping SET stale = true WHERE evidence_span_id IN (
+                    SELECT es.id FROM evidence_span es JOIN document d ON d.id = es.document_id WHERE d.course_version_id = :cv)
+                """).param("cv", courseVersionId).update();
+    }
+
+    public List<Mapping> findStaleCitingCourseVersion(UUID courseVersionId) {
+        return jdbc.sql(SELECT + " WHERE m.stale AND d.course_version_id = :cv ORDER BY m.created_at")
+                .param("cv", courseVersionId).query(ROW).list();
+    }
+
+    public void updateEvidence(UUID mappingId, UUID evidenceSpanId) {
+        jdbc.sql("UPDATE mapping SET evidence_span_id = :es, stale = false WHERE id = :id")
+                .param("es", evidenceSpanId).param("id", mappingId).update();
+    }
+
+    public void updateToMissing(UUID mappingId, String rationale) {
+        jdbc.sql("UPDATE mapping SET finding = 'EVIDENCE_MISSING', evidence_span_id = NULL, rationale = :r, stale = false WHERE id = :id")
+                .param("r", rationale).param("id", mappingId).update();
+    }
+
+    /** Latest finished assessment per program that holds mappings for the given rule version. */
+    public List<Map<String, Object>> latestAssessmentsUsing(UUID ruleVersionId) {
+        return jdbc.sql("""
+                SELECT DISTINCT a.id AS assessment_id, a.program_id, a.created_by
+                FROM mapping m JOIN requirement r ON r.id = m.requirement_id JOIN assessment a ON a.id = m.assessment_id
+                WHERE r.rule_version_id = :rv AND a.status = 'FINISHED'
+                  AND a.id = (SELECT a2.id FROM assessment a2 WHERE a2.program_id = a.program_id AND a2.status = 'FINISHED'
+                              ORDER BY a2.finished_at DESC, a2.created_at DESC LIMIT 1)
+                """).param("rv", ruleVersionId).query().listOfRows();
+    }
+
     public List<Mapping> findByAssessment(UUID assessmentId) {
-        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a ORDER BY j.code, r.created_at, r.ref")
+        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a" + CURRENT + " ORDER BY j.code, r.created_at, r.ref")
                 .param("a", assessmentId).query(ROW).list();
     }
 }
