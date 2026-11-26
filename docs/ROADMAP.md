@@ -11,10 +11,12 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | in progress |
 | WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | in progress |
 | WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
+| F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | in progress |
+| F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | in progress |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
-| F3 Rule workspace and requirement diff | `feat-rule-workspace` | 3 | Sonnet 5.5 | queued (after WS-UI) |
-| F4 Evidence requests | `feat-evidence-requests` | 4 | Sonnet 5.5 | queued |
+| F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 3 | Opus 5.5 | queued (after WS-UI, F3a) |
+| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | queued (after WS-UI, F4a) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
 | F6 Production packaging and observability | `ops-packaging` | 6 | Sonnet 5.5 | queued |
 | F7 Matching quality | `match-quality` | 7 | Sonnet 5.5 | queued (after WS-EVAL) |
@@ -137,6 +139,79 @@ Measure first, then change, then measure again; put both tables in `docs/PERF.md
 9. **Compression** for JSON over 1 kB (`server.compression`), and `spring.jackson` settings unchanged.
 Done when: `make perf` meets the budgets, `LEXVAY_E2E_SLOT=4 make test` green, `docs/PERF.md` shows before
 and after, every new endpoint has tenant-isolation and role tests.
+
+## F3a — Rule version diff API (backend only)
+Purpose: when a state revises a rule, the reviewer must see exactly what changed, requirement by
+requirement, before approving the new list and re-running. Slot 5. No migration.
+1. Dependency: `io.github.java-diff-utils:java-diff-utils` (latest stable from Maven Central, pinned) for
+   the Myers sequence diff. Do not hand-write a diff algorithm.
+2. `RequirementComparison` in `com.lexvay.rule`: the single definition of "same requirement" used
+   everywhere. `changes(a, b)` returns the set of changed aspects among `TITLE`, `TEXT`, `TYPE`, `NUMERIC`
+   (text compared after whitespace normalization with `QuoteVerifier.normalizeWhitespace`; numeric compares
+   field, operator and value with `BigDecimal.compareTo`). `RerunChangeHandler.unchanged` must delegate to
+   it (carry-over stays true exactly when the set contains none of `TEXT`, `TYPE`, `NUMERIC`; a title-only
+   change still carries over). Delete the duplicate logic.
+3. `TextDiff` in `com.lexvay.common`: `words(String a, String b)` tokenizes into word and non-word runs
+   (regex `\\w+|\\W+`, so joining tokens reproduces the input exactly), diffs the token lists and returns
+   merged segments `{op: EQUAL | DELETE | INSERT, text}` (adjacent segments with the same op are merged; a
+   replace becomes DELETE then INSERT). `lines(String a, String b)` does the same on lines and, for each
+   replaced block, refines with `words` on the joined block. Property to test: concatenating EQUAL+DELETE
+   segments gives `a`, EQUAL+INSERT gives `b`.
+4. Matching algorithm (`RuleVersionDiffService`): (a) pair requirements by identical `ref`; (b) among the
+   unpaired, compute Jaccard similarity of lower-cased word sets of the texts for every removed × added
+   pair, sort descending, greedily pair those with similarity ≥ 0.80 and mark them `refChanged: true`;
+   (c) what remains is `ADDED` or `REMOVED`. A pair with an empty change set and the same ref is
+   `UNCHANGED`, otherwise `CHANGED`. Order the result by the newer version's order, removed ones last in
+   the older version's order.
+5. `GET /api/v1/rule-versions/{id}/diff?against={otherId}`; `against` defaults to the version this one
+   supersedes (400 problem detail if there is none); both versions must be the same jurisdiction and
+   license type (400 otherwise). Response: `{ from: {id, label, effectiveFrom}, to: {...}, summary: {added,
+   removed, changed, unchanged}, requirements: [{ status, refChanged, before, after, changes, textDiff }],
+   ruleTextDiff: [segments] }` where `textDiff` is `TextDiff.words(before.text, after.text)` for CHANGED
+   rows and `ruleTextDiff` is `TextDiff.lines` over the two rule texts. Read-only, one transaction.
+6. Tests: unit tests for `TextDiff` (including the reconstruction property on several inputs and empty
+   strings), `RequirementComparison`, the matcher (renumbered requirement detected, below-threshold pair not
+   merged); API tests using the seeded Colorado revision (exactly one CHANGED: CO-5 with `NUMERIC` and
+   `TEXT`, eight UNCHANGED), tenant isolation 404, 400 cases. `RuleVersionChangeTest` and
+   `CourseVersionChangeTest` must stay green unmodified.
+
+## F4a — Evidence requests API (backend only)
+Purpose: "Request evidence from program director" must start a real loop: the contributor sees the open
+request, supplies a passage from a program document, and the requirement returns to the reviewer with the
+human-supplied evidence attached. The system's proposed finding is never altered by this. Slot 6.
+Migration file name: `V007__evidence_response.sql` (V006 is reserved for WS-PERF).
+1. Table `evidence_response` (append-only: immutability trigger; `tenant_id` + FORCE RLS + policy exactly
+   like the other tables in V002; listed in the existing schema tests automatically): `id`, `tenant_id`,
+   `mapping_id` → mapping, `review_event_id` → the `EVIDENCE_REQUESTED` event it answers,
+   `evidence_span_id` → evidence_span, `comment` (nullable, ≤ 4000), `created_at`, `created_by` → app_user.
+2. `POST /api/v1/mappings/{id}/evidence-responses` (CONTRIBUTOR, REVIEWER, SIGNER, ADMIN) with
+   `{ documentId, pageNumber, quote, comment }`. Checks in this order: mapping exists in the tenant (404);
+   not stale (409); no SIGNED determination for its assessment and jurisdiction (409, reuse
+   `DeterminationRepository.hasSigned`); the mapping's current decision is `EVIDENCE_REQUESTED` (409 "No
+   open evidence request for this requirement"); the document belongs to the mapping's program and is not
+   rule text (400); the page exists (400); the quote passes `QuoteVerifier` against that page (400 naming
+   the page; product rule 2 applies to people too). Then, in one transaction: insert the `evidence_span`
+   (exact text and page-relative offsets from the verifier), insert `evidence_response`, insert a
+   `REOPENED` review event on the mapping with note `Evidence provided by <display name>` and the
+   contributor as `user_id` so the requirement returns to "needs review", and audit `EVIDENCE_PROVIDED`
+   (mapping id, requirement ref, jurisdiction, document id, page, quote). Returns 201 with the response view.
+3. `GET /api/v1/mappings/{id}/evidence-responses` → newest first: `{ id, reviewEventId, documentId,
+   filename, kind, courseCode, courseRequired, pageNumber, charStart, charEnd, quote, comment, providedBy,
+   providedByName, createdAt }`.
+4. `GET /api/v1/programs/{id}/evidence-requests?status=OPEN|ANSWERED|ALL` (default OPEN) over the
+   program's latest finished assessment, current mappings only (reuse the D-066 filter in
+   `MappingRepository`, do not copy it): OPEN = current decision is `EVIDENCE_REQUESTED`; ANSWERED = the
+   latest event is the `REOPENED` written by a response and no decision since. Each row: mapping id,
+   jurisdiction, requirement ref and title, the request note, who asked and when, response count, latest
+   response summary (who, when, filename, page).
+5. `ReviewService` currently rejects user-sent `REOPENED`; keep that. The response path writes its
+   `REOPENED` through the repository like `RerunChangeHandler` does.
+6. Tests: full loop (reviewer requests → contributor lists OPEN → responds with a real quote → mapping has
+   no decision, request is ANSWERED, response listed with exact offsets that reproduce the quote from the
+   page text → reviewer accepts → request no longer listed); fabricated quote 400 and nothing stored;
+   document from another program 400; no open request 409; stale 409; signed 409; roles; tenant isolation
+   404 on all three endpoints; immutability of `evidence_response` (update and delete rejected);
+   `Rule9_AuditCoverageTest` extended; `Rule7_EveryTableHasPolicyTest` passes with the new table.
 
 ---
 
