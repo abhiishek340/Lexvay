@@ -108,7 +108,7 @@ public class DocumentService {
                 document.sha256(), document.kind(), document.createdAt(), document.createdBy(), pages, ingest.orElse(null));
     }
 
-    static String sha256(byte[] bytes) {
+    public static String sha256(byte[] bytes) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
         } catch (NoSuchAlgorithmException e) {

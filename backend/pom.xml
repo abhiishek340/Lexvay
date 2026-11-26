@@ -22,6 +22,8 @@
     <pdfbox.version>3.0.8</pdfbox.version>
     <poi.version>6.0.0</poi.version>
     <awssdk.version>2.59.10</awssdk.version>
+    <anthropic.version>3.14.0</anthropic.version>
+    <json-schema-validator.version>3.0.9</json-schema-validator.version>
   </properties>
 
   <dependencyManagement>
@@ -83,6 +85,16 @@
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>s3</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.anthropic</groupId>
+      <artifactId>anthropic-java</artifactId>
+      <version>${anthropic.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.networknt</groupId>
+      <artifactId>json-schema-validator</artifactId>
+      <version>${json-schema-validator.version}</version>
     </dependency>
 
     <dependency>

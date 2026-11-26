@@ -12,7 +12,7 @@ deferred. Never claim a test passed without running it.
 | 0 | Scaffold | Done 2026-11-26 | see git log (M0) |
 | 1 | Schema, tenancy, auth, audit | Done 2026-11-26 | see git log (M1) |
 | 2 | Documents | Done 2026-11-26 | see git log (M2) |
-| 3 | Rules and requirements | Not started | — |
+| 3 | Rules and requirements | Done 2026-11-26 | see git log (M3) |
 | 4 | Pipeline | Not started | — |
 | 5 | Review and signing | Not started | — |
 | 6 | Frontend | Not started | — |
@@ -369,3 +369,113 @@ Found and fixed during the milestone
 
 Deferred
 - Nothing from the M2 row. Upload size limit is configured; its test is scheduled for M8 as planned.
+
+## Milestone 3 — Rules and requirements
+
+### Plan (written 2026-11-26, before building)
+
+Scope
+- `com.lexvay.llm`: `LlmClient` interface (`complete(LlmRequest) → LlmResponse`; request carries
+  purpose, a script key, system and user prompts, the JSON schema for the output and max tokens;
+  response carries raw text, model, token counts and duration). `FakeLlmClient` (scripted by key, counts
+  calls, fails loudly when no script exists; the only client tests use). `AnthropicLlmClient` (Anthropic
+  Java SDK 3.14.0, model from `LEXVAY_LLM_MODEL`, effort from `LEXVAY_LLM_EFFORT`, structured output via
+  `output_config.format` with the same schema, written from the SDK documentation). `LlmConfig` selects
+  by `LEXVAY_LLM_PROVIDER`. `LlmCallRepository` stores every call in `llm_call` (D-014).
+  `JsonSchemaValidator` validates model output against the bundled schema.
+- Prompt and schema resources: `llm/extract-v1.system.txt`, `llm/requirement-extraction.schema.json`.
+  Prompt version `extract-v1` is stored with every call.
+- `com.lexvay.rule`: `POST /api/v1/rule-versions` (CONTRIBUTOR, ADMIN; jurisdiction code, license type,
+  label, source URL, effective date, optional `supersedesId`, rule text) stores the text as a `RULE_TEXT`
+  document with its page synchronously (D-044), enqueues `EXTRACT_REQUIREMENTS`, returns 202
+  `{ruleVersionId, jobId}`. `GET /rule-versions`, `GET /rule-versions/{id}` (with extraction job
+  status), `GET /rule-versions/{id}/requirements`, `PUT /rule-versions/{id}/requirements` (D-024;
+  REVIEWER, SIGNER, ADMIN; unapproved only; audited with before and after),
+  `POST /rule-versions/{id}/requirements/approve` (REVIEWER, SIGNER, ADMIN; requires at least one
+  requirement; once).
+- `ExtractRequirementsHandler`: calls the model, validates the JSON (schema plus unique refs and
+  numeric-field consistency), on failure retries once with the validation errors appended, then fails
+  the job permanently. Stores one `llm_call` row per attempt. Inserts requirements unapproved. Audited.
+- Approval gate for M4: `RuleVersionRepository.findApprovedVersion(jurisdictionId, licenseType, date)`
+  returns only approved versions (D-010); tested here, used by the pipeline in M4.
+- `supersedesId` is stored and validated (same jurisdiction and license type); the change event and
+  reopening it triggers are M7 scope and are listed there.
+
+Tests to write
+- `JsonSchemaValidatorTest` (unit): valid output passes; invalid JSON, unknown type, missing numeric
+  fields for a numeric type, extra property, empty list each produce a readable error.
+- `FakeLlmClientTest` (unit): scripted sequence per key, counting, missing script throws.
+- `AnthropicLlmClientTest` (unit, no network): request built from `LlmRequest` carries the configured
+  model, the schema as output format and the prompts; response mapping reads text and usage.
+- `RuleVersionApiTest`: create → 202 and rule-text document with one page; extraction via Fake →
+  requirements listed with types and numeric fields; invalid then valid → requirements present and two
+  `llm_call` rows; invalid twice → job FAILED, no requirements, GET shows FAILED; approve → approved
+  by/at and audit; approve twice → 409; approve with no requirements → 409; PUT before approval → 200
+  with audit before/after; PUT after approval → 409 (`Rule5_ApprovedRequirementsRejectEditsTest`);
+  PUT with duplicate refs or inconsistent numeric fields → 400; CONTRIBUTOR approve → 403; other tenant
+  → 404; unknown jurisdiction → 400; `findApprovedVersion` empty before approval, present after.
+- `Rule9_AuditCoverageTest` set extended with three endpoints.
+
+Acceptance evidence to collect
+- `make test` output; the retry test's two `llm_call` rows; the approval gate assertions.
+
+Decisions expected
+- D-044 (rule text entry as text, stored as a document synchronously), D-045 (schema validator
+  choice given Jackson 3), D-046 (prompt and schema as classpath resources, versioned by name).
+
+### Result (2026-11-26)
+
+Built
+- `com.lexvay.llm`: `LlmClient`, `LlmRequest`, `LlmResponse`, `LlmPurpose`; `FakeLlmClient` (scripted by
+  key, call counting, loud failure when unscripted); `AnthropicLlmClient` (SDK 3.14.0, model and effort
+  from `LEXVAY_LLM_MODEL`/`LEXVAY_LLM_EFFORT`, schema as structured-output format, refusal → exception,
+  usage captured); `LlmConfig`; `JsonSchemaValidator` (networknt 3.0.9, errors prefixed with path);
+  `LlmCallRecorder` (writes `llm_call` in its own transaction so failed jobs keep their raw output);
+  resources `llm/extract-v1.system.txt`, `llm/requirement-extraction.schema.json`.
+- `V005__llm_call_rule_version.sql`.
+- `com.lexvay.rule`: `RuleVersion`, `Requirement`, `RequirementDraft`, `RequirementType`, `NumericField`,
+  `RequirementListParser` (schema + semantic checks), `RuleVersionRepository` (incl.
+  `findApprovedVersion` for D-010), `RuleVersionService`, `RuleVersionController`
+  (`POST /rule-versions` → 202 with job, `GET /rule-versions`, `GET /rule-versions/{id}`,
+  `GET/PUT /rule-versions/{id}/requirements`, `POST /rule-versions/{id}/requirements/approve`),
+  `ExtractRequirementsHandler` (one retry with the validation errors, then permanent failure).
+
+Tests written and run (109 backend, 2 frontend)
+- `JsonSchemaValidatorTest` (5), `FakeLlmClientTest` (3), `AnthropicLlmClientTest` (2, request
+  construction only, mocked client, no network), `RequirementListParserTest` (6), `RuleVersionApiTest`
+  (7), `Rule5_ApprovedRequirementsRejectEditsTest` (1); `Rule9_AuditCoverageTest` set extended;
+  `MigrationsApplyCleanlyTest` now expects 5 migrations.
+
+`make test` output (tail, real)
+```
+[INFO] Tests run: 109, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  1 passed (1)
+MAKE TEST EXIT: 0
+```
+
+Acceptance evidence
+- Rule version entry: `createStoresRuleTextAndExtractsRequirements` (202, RULE_TEXT document with one
+  page containing the rule text, extraction job QUEUED then DONE, 4 requirements with types and numeric
+  fields, prompt contains the rule text and jurisdiction, schema passed to the model, one `llm_call`,
+  audit `RULE_VERSION_CREATED` by the user and `REQUIREMENTS_EXTRACTED` by the system with the job id).
+- Schema validation with one retry: `invalidOutputIsRetriedOnceWithTheErrors` (second prompt contains
+  "previous output was rejected" and the field name; two `llm_call` rows; DONE with 4 requirements).
+  `invalidOutputTwiceFailsTheJobAndKeepsBothCalls` (FAILED with "invalid output twice", zero
+  requirements, two `llm_call` rows survive the rollback, approve → 409).
+- Approval gate: `approvalIsAuditedAndHappensOnce` (`findApprovedVersion` empty before approval and for
+  a date before `effective_from`, present after; second approval 409; audit by the reviewer).
+  Unapproved requirements cannot be assessed: the pipeline in M4 obtains rule versions only through
+  `findApprovedVersion`, which this test proves excludes unapproved versions.
+- D-024: `reviewerCanReplaceRequirementsBeforeApproval` (200, audit with 4 before / 2 after, invalid
+  body 400 naming the field); `Rule5_ApprovedRequirementsRejectEditsTest` (PUT 409 after approval, direct
+  UPDATE and DELETE rejected by trigger, count unchanged).
+
+Found and fixed during the milestone
+- networknt 3.x renamed its API (`SchemaRegistry`/`Schema`/`Error`); written from the jar, not memory.
+- The Anthropic SDK carries free-form JSON as `JsonValue` built on Jackson 2; the schema is converted
+  from the Jackson 3 tree through a `Map`.
+- Validator messages lacked the JSON location; now prefixed with the instance path.
+
+Deferred
+- Change events for a superseding rule version (M7). The `supersedesId` link is stored and validated now.

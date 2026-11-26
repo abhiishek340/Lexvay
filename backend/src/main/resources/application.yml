@@ -26,6 +26,11 @@ lexvay:
     type: ${LEXVAY_FILESTORE:local}      # local | s3
     path: ${LEXVAY_FILESTORE_PATH:./data/files}
     s3-bucket: ${LEXVAY_S3_BUCKET:}
+  llm:
+    provider: ${LEXVAY_LLM_PROVIDER:fake}     # fake | anthropic
+    model: ${LEXVAY_LLM_MODEL:claude-sonnet-5-5}
+    effort: ${LEXVAY_LLM_EFFORT:medium}       # low | medium | high | xhigh | max
+    max-output-tokens: 16000
   jobs:
     polling-enabled: true
     poll-interval-ms: 1000

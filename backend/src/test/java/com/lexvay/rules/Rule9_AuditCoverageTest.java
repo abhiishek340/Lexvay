@@ -21,7 +21,10 @@ class Rule9_AuditCoverageTest extends AbstractDatabaseTest {
     static final Set<String> AUDITED_MUTATING_ENDPOINTS = Set.of(
             "POST /api/v1/programs",                        // ProgramApiTest.createWritesAuditRow
             "POST /api/v1/programs/{programId}/courses",    // CourseApiTest.createWritesAuditRow
-            "POST /api/v1/programs/{programId}/documents"   // DocumentUploadTest.pdfUploadIsIngestedWithOffsetsAndAudited
+            "POST /api/v1/programs/{programId}/documents",  // DocumentUploadTest.pdfUploadIsIngestedWithOffsetsAndAudited
+            "POST /api/v1/rule-versions",                   // RuleVersionApiTest.createStoresRuleTextAndExtractsRequirements
+            "PUT /api/v1/rule-versions/{id}/requirements",  // RuleVersionApiTest.reviewerCanReplaceRequirementsBeforeApproval
+            "POST /api/v1/rule-versions/{id}/requirements/approve" // RuleVersionApiTest.approvalIsAuditedAndHappensOnce
     );
 
     @Autowired @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping;
