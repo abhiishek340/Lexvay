@@ -1,0 +1,29 @@
+package com.lexvay.audit;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import java.util.List;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/v1/audit")
+@Validated
+public class AuditController {
+
+    private final AuditRepository repository;
+
+    public AuditController(AuditRepository repository) {
+        this.repository = repository;
+    }
+
+    /** Newest first. Tenant scoping comes from row-level security, not from this query. */
+    @GetMapping
+    List<AuditEntry> list(@RequestParam(defaultValue = "100") @Min(1) @Max(500) int limit,
+                          @RequestParam(defaultValue = "0") @Min(0) int offset) {
+        return repository.newestFirst(limit, offset);
+    }
+}

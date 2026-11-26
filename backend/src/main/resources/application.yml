@@ -8,9 +8,14 @@ spring:
     password: ${LEXVAY_DB_APP_PASSWORD:lexvay-app-dev}
   flyway:
     # Migrations run as the schema owner so RLS can be forced on tables the app role does not own.
+    url: ${LEXVAY_DB_URL:jdbc:postgresql://localhost:5432/lexvay}
     user: ${LEXVAY_DB_OWNER_USER:lexvay_owner}
     password: ${LEXVAY_DB_OWNER_PASSWORD:lexvay-owner-dev}
     locations: classpath:db/migration
+
+  mvc:
+    problemdetails:
+      enabled: true
 
 server:
   port: ${LEXVAY_PORT:8080}

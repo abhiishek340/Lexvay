@@ -171,7 +171,35 @@ eval-live` reports cost per assessment from token counts stored in `llm_call` mu
 matching the default model). Rejected: `claude-opus-5-5` default (owner asked for lower cost).
 Decided by owner 2026-11-26.
 
-## Spec concerns (section 13, item 5)
+**D-034 — Login before the tenant is known.** Emails are unique across tenants. The login lookup runs
+in a transaction that sets the transaction-local flag `lexvay.auth_lookup = on`; only the `SELECT` policy
+on `app_user` honours it. Nothing else can read across tenants. Rejected: a `SECURITY DEFINER` function
+(the owner is also bound by `FORCE ROW LEVEL SECURITY`, so it would not help) and tenant-qualified
+logins (worse for users). Decided.
+
+**D-035 — Column-restricted updates on otherwise immutable rows.** A generic trigger compares
+`to_jsonb(NEW)` and `to_jsonb(OLD)` minus the allowed columns and rejects any other change:
+`determination.status`, `change_event.status`, and the two approval columns on `rule_version` (which may
+only go from NULL to set, once). `requirement` rows are replaceable until their rule version is approved
+and immutable afterwards. All raise SQLSTATE `LX001`, which the API maps to `409`. Decided.
+
+**D-036 — Program facts are append-only, latest wins.** `program_fact` rows are immutable; re-entering a
+fact adds a row and the rules engine uses the newest row per key. The history stays visible. Rejected:
+a unique constraint on (program, key) with in-place updates. Decided.
+
+**D-037 — Row-level security errors.** PostgreSQL reports a policy violation as SQLSTATE 42501
+(insufficient privilege), which Spring maps to `BadSqlGrammarException`; the message is in the root
+cause. Tests assert on the root cause. No API endpoint can trigger it on purpose because every write
+uses the current tenant, so no special API mapping is added. Decided.
+
+**D-038 — CSRF in tests.** `spring-security-test`'s `csrf()` post-processor swaps the live
+`CsrfFilter`'s repository for an `HttpSessionCsrfTokenRepository` inside the shared application context,
+so later tests (and the real HTTP port) no longer exercise the cookie-based configuration Angular needs.
+Tests therefore use `TestCsrf.csrf()`, which sets the `XSRF-TOKEN` cookie and `X-XSRF-TOKEN` header exactly
+as a browser does, and one test runs the complete session → cookie → login flow over real HTTP. The
+production configuration is explicit (`CookieCsrfTokenRepository` with Angular's names plus the
+documented SPA request handler) rather than `csrf.spa()`, whose internals could not be verified.
+Decided (found in M1).
 
 - Section 5 vs section 7 on `REOPENED` (D-003, resolved by owner).
 - The API has no way to create program facts (D-006) or to correct an extracted requirement list

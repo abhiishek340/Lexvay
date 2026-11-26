@@ -2,6 +2,8 @@ package com.lexvay.common;
 
 import java.nio.file.Path;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -15,6 +17,8 @@ import org.testcontainers.utility.MountableFile;
  * that cannot bypass row-level security, and Flyway runs as the owner.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
+@Import({TestTenants.class, SchemaFixtures.class})
 public abstract class AbstractDatabaseTest {
 
     protected static final String DB_NAME = "lexvay";
@@ -46,6 +50,7 @@ public abstract class AbstractDatabaseTest {
         registry.add("spring.datasource.url", AbstractDatabaseTest::jdbcUrl);
         registry.add("spring.datasource.username", () -> APP_USER);
         registry.add("spring.datasource.password", () -> APP_PASSWORD);
+        registry.add("spring.flyway.url", AbstractDatabaseTest::jdbcUrl);
         registry.add("spring.flyway.user", () -> OWNER_USER);
         registry.add("spring.flyway.password", () -> OWNER_PASSWORD);
     }
