@@ -39,6 +39,7 @@ class Rule5_ImmutabilityTest extends AbstractDatabaseTest {
             case "course_version" -> chain.courseVersionId();
             case "evidence_span" -> chain.evidenceSpanId();
             case "review_event" -> chain.reviewEventId();
+            case "evidence_response" -> chain.evidenceResponseId();
             case "audit_log" -> chain.auditId();
             case "llm_call" -> chain.llmCallId();
             case "rule_version" -> chain.ruleVersionId();
@@ -50,7 +51,7 @@ class Rule5_ImmutabilityTest extends AbstractDatabaseTest {
     @ParameterizedTest(name = "{0}.{1} cannot be updated")
     @CsvSource({
             "document, filename", "document_page, text", "course_version, catalog_year", "evidence_span, quote",
-            "review_event, note", "audit_log, action", "llm_call, model", "rule_version, label", "determination, outcome"
+            "review_event, note", "evidence_response, comment", "audit_log, action", "llm_call, model", "rule_version, label", "determination, outcome"
     })
     void updateIsRejected(String table, String column) {
         String value = table.equals("determination") ? "DOES_NOT_MEET" : "changed";
@@ -62,7 +63,7 @@ class Rule5_ImmutabilityTest extends AbstractDatabaseTest {
     }
 
     @ParameterizedTest(name = "{0} cannot be deleted")
-    @CsvSource({"document_page", "evidence_span", "review_event", "audit_log", "llm_call", "determination", "rule_version"})
+    @CsvSource({"document_page", "evidence_span", "review_event", "evidence_response", "audit_log", "llm_call", "determination", "rule_version"})
     void deleteIsRejected(String table) {
         assertThatThrownBy(() -> TenantContext.runAs(chain.tenantId(), () ->
                 jdbc.sql("DELETE FROM " + table + " WHERE id = :id").param("id", idOf(table)).update()))

@@ -10,7 +10,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * Inserts one complete chain of rows for a tenant so immutability and isolation tests work on real
  * data: program → course → course version → document → page → rule version → requirement →
  * assessment → evidence span → mapping → review event → determination (+ course version link), plus
- * one llm_call and one audit row. All inserts run under the tenant's context through the normal
+ * one evidence response, one llm_call and one audit row. All inserts run under the tenant's context through the normal
  * (RLS-bound) application connection.
  */
 public class SchemaFixtures {
@@ -26,7 +26,7 @@ public class SchemaFixtures {
     public record Chain(UUID tenantId, UUID userId, UUID programId, UUID courseId, UUID courseVersionId, UUID documentId,
                         UUID pageId, UUID jurisdictionId, UUID ruleDocumentId, UUID ruleVersionId, UUID requirementId,
                         UUID assessmentId, UUID evidenceSpanId, UUID mappingId, UUID reviewEventId,
-                        UUID determinationId, UUID llmCallId, UUID auditId) {
+                        UUID determinationId, UUID llmCallId, UUID auditId, UUID evidenceResponseId) {
     }
 
     private static final String SHA = "a".repeat(64);
@@ -106,6 +106,12 @@ public class SchemaFixtures {
                             + "VALUES (:id, :t, :m, 'ACCEPTED', 'Looks right', :u, :u)")
                     .param("id", reviewEventId).param("t", tenantId).param("m", mappingId).param("u", userId).update();
 
+            UUID evidenceResponseId = UUID.randomUUID();
+            jdbc.sql("INSERT INTO evidence_response (id, tenant_id, mapping_id, review_event_id, evidence_span_id, comment, created_by) "
+                            + "VALUES (:id, :t, :m, :e, :es, 'Fixture comment', :u)")
+                    .param("id", evidenceResponseId).param("t", tenantId).param("m", mappingId).param("e", reviewEventId)
+                    .param("es", evidenceSpanId).param("u", userId).update();
+
             UUID determinationId = UUID.randomUUID();
             jdbc.sql("INSERT INTO determination (id, tenant_id, program_id, jurisdiction_id, rule_version_id, assessment_id, outcome, signed_by, versions_hash, created_by) "
                             + "VALUES (:id, :t, :p, :j, :rv, :a, 'MEETS', :u, :hash, :u)")
@@ -127,7 +133,7 @@ public class SchemaFixtures {
 
             return new Chain(tenantId, userId, programId, courseId, courseVersionId, documentId, pageId, jurisdictionId,
                     ruleDocumentId, ruleVersionId, requirementId, assessmentId, evidenceSpanId, mappingId, reviewEventId,
-                    determinationId, llmCallId, auditId);
+                    determinationId, llmCallId, auditId, evidenceResponseId);
         }));
     }
 }

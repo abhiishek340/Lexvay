@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
@@ -20,9 +21,11 @@ import tools.jackson.databind.JsonNode;
 public class RuleVersionController {
 
     private final RuleVersionService service;
+    private final RuleVersionDiffService diffs;
 
-    public RuleVersionController(RuleVersionService service) {
+    public RuleVersionController(RuleVersionService service, RuleVersionDiffService diffs) {
         this.service = service;
+        this.diffs = diffs;
     }
 
     /** Long operation: requirement extraction runs as a job. */
@@ -46,6 +49,12 @@ public class RuleVersionController {
     @GetMapping("/{id}/requirements")
     RuleVersionService.RequirementsView requirements(@PathVariable UUID id) {
         return service.requirements(id);
+    }
+
+    /** What changed from {@code against} (default: the version this one supersedes) to this version. */
+    @GetMapping("/{id}/diff")
+    RuleVersionDiffService.Diff diff(@PathVariable UUID id, @RequestParam(required = false) UUID against) {
+        return diffs.diff(id, against);
     }
 
     @PutMapping("/{id}/requirements")
