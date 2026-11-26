@@ -12,7 +12,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | in progress |
 | WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
 | F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | approved, PR #9 merging |
-| F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | approved, PR #8 merging |
+| F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | merged (PR #8) |
 | F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | in progress |
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | in progress |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | queued (after WS-PERF) |
