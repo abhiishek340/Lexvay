@@ -1,0 +1,46 @@
+<header class="page-header">
+  <h1>Evidence report</h1>
+  @if (program(); as p) { <p class="muted">{{ p.name }} · catalog year {{ p.catalogYear }}</p> }
+</header>
+@if (error(); as e) { <p class="error" role="alert">{{ e }}</p> }
+@if (program(); as p) {
+  <label for="jurisdiction">Jurisdiction</label>
+  <select id="jurisdiction" [value]="jurisdiction()" (change)="selectJurisdiction($any($event.target).value)">
+    @for (code of p.jurisdictions; track code) { <option [value]="code">{{ code }}</option> }
+  </select>
+}
+@if (assessment()) {
+  @if (signed(); as d) {
+    <section class="stamp signed" aria-label="Signed determination">
+      <h2>Signed determination · {{ d.jurisdiction }}</h2>
+      <p><strong>{{ outcomeLabel[d.outcome] }}</strong></p>
+      <p>Signed by {{ d.signedByName }} on {{ d.signedAt | slice:0:10 }}.</p>
+      <p class="muted">Rule version: {{ d.ruleVersionLabel }} · versions hash <code>{{ d.versionsHash | slice:0:16 }}…</code> · {{ d.courseVersionIds.length }} course versions locked.</p>
+    </section>
+  } @else {
+    <section class="stamp draft" aria-label="Draft notice">
+      <h2>Draft. Not a determination.</h2>
+      <p>This report shows proposed findings and review decisions for {{ jurisdiction() }}. It becomes a determination only when a signer signs it.</p>
+    </section>
+  }
+  <table class="table" aria-label="Requirements and evidence">
+    <thead><tr><th scope="col">Ref</th><th scope="col">Requirement</th><th scope="col">Finding</th><th scope="col">Evidence</th><th scope="col">Decision</th></tr></thead>
+    <tbody>
+      @for (m of mappings(); track m.id) {
+        <tr>
+          <th scope="row">{{ m.requirement.ref }}</th>
+          <td><strong>{{ m.requirement.title }}</strong><br /><span class="muted">{{ m.requirement.text }}</span></td>
+          <td><span [class]="'finding ' + m.finding"><span aria-hidden="true">{{ glyph[m.finding] }}</span> {{ findingLabel[m.finding] }}</span></td>
+          <td>
+            @if (m.evidence; as ev) {
+              “{{ ev.quote }}”<br /><span class="muted">{{ ev.filename }} · page {{ ev.pageNumber }}</span>
+            } @else {
+              <span class="muted">{{ m.rationale }}</span>
+            }
+          </td>
+          <td>{{ m.decision ? decisionLabel[m.decision.kind] : 'Not reviewed' }}@if (m.decision?.note) { <br /><span class="muted">{{ m.decision!.note }}</span> }</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

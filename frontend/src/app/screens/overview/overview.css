@@ -1,0 +1,9 @@
+.counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .75rem; margin: 1rem 0 1.5rem; }
+.counts div { background: var(--lx-surface); border: 1px solid var(--lx-border); border-radius: 8px; padding: .75rem 1rem; }
+.counts dt { font-size: .85rem; color: var(--lx-muted); }
+.counts dd { margin: 0; font-size: 1.6rem; font-weight: 700; }
+.bar { display: flex; height: .9rem; width: 100%; max-width: 20rem; border-radius: 4px; overflow: hidden; border: 1px solid var(--lx-border); }
+.seg.EVIDENCE_FOUND { background: var(--lx-found); }
+.seg.AMBIGUOUS { background: var(--lx-ambiguous); background-image: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0,0,0,.25) 4px 6px); }
+.seg.EVIDENCE_MISSING { background: var(--lx-missing); }
+.legend { list-style: none; margin: .35rem 0 0; padding: 0; display: flex; gap: .9rem; flex-wrap: wrap; font-size: .85rem; }

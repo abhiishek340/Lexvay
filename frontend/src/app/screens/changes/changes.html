@@ -1,0 +1,25 @@
+<header class="page-header">
+  <h1>Changes</h1>
+  <p class="muted">A new rule version or course version creates a change event and reopens the signed determinations that depend on it.</p>
+</header>
+@if (error(); as e) { <p class="error" role="alert">{{ e }}</p> }
+@if (events(); as list) {
+  @if (list.length === 0) {
+    <p>No changes recorded. Every signed determination still rests on the versions it was signed against.</p>
+  } @else {
+    <table class="table" aria-label="Change events">
+      <thead><tr><th scope="col">When</th><th scope="col">Change</th><th scope="col">Supersedes</th><th scope="col">New version</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        @for (e of list; track e.id) {
+          <tr>
+            <td>{{ e.createdAt | slice:0:19 }}</td>
+            <td>{{ kindLabel(e.kind) }}</td>
+            <td><code>{{ e.oldId | slice:0:8 }}</code></td>
+            <td><code>{{ e.newId | slice:0:8 }}</code></td>
+            <td>{{ e.status === 'OPEN' ? 'Open' : 'Handled' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+}

@@ -1,0 +1,39 @@
+<a class="skip-link" href="#main">Skip to main content</a>
+@if (session.demo()) {
+  <div class="banner" role="status">
+    <strong>Fictional data.</strong> {{ session.tenantName() }}, its people, courses, rule text and findings are invented for this prototype. Nothing here is licensing guidance.
+  </div>
+}
+<div class="layout">
+  <header class="topbar">
+    <span class="brand">Lexvay</span>
+    <div class="topbar-right">
+      <label class="theme">
+        <span>Theme</span>
+        <select [value]="theme.theme()" (change)="theme.set(($any($event.target)).value)" aria-label="Colour theme">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+      @if (session.user(); as user) {
+        <span class="who">{{ user.displayName }} · {{ user.role | lowercase }}</span>
+        <button type="button" class="link" (click)="signOut()">Sign out</button>
+      }
+    </div>
+  </header>
+  <div class="body">
+    @if (currentProgramId(); as pid) {
+      <nav class="sidenav" aria-label="Screens">
+        <ul>
+          @for (link of links(pid); track link.label) {
+            <li><a [routerLink]="link.path" routerLinkActive="active" ariaCurrentWhenActive="page">{{ link.label }}</a></li>
+          }
+        </ul>
+      </nav>
+    }
+    <main id="main" tabindex="-1">
+      <router-outlet />
+    </main>
+  </div>
+</div>

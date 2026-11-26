@@ -1,0 +1,21 @@
+<header class="page-header">
+  <h1>Audit trail</h1>
+  <p class="muted">Every action, newest first: who, when, what, and on which record.</p>
+</header>
+@if (error(); as e) { <p class="error" role="alert">{{ e }}</p> }
+@if (entries(); as list) {
+  <table class="table" aria-label="Audit trail">
+    <thead><tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">Record</th><th scope="col">Details</th><th scope="col">By</th></tr></thead>
+    <tbody>
+      @for (e of list; track e.id) {
+        <tr>
+          <td><time [attr.datetime]="e.createdAt">{{ e.createdAt | slice:0:19 }}</time></td>
+          <td>{{ label(e.action) }}</td>
+          <td>{{ e.entityType }} <code>{{ (e.entityId ?? '') | slice:0:8 }}</code></td>
+          <td>{{ summary(e) }}</td>
+          <td>{{ e.userId ? (e.userId | slice:0:8) : 'system' }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

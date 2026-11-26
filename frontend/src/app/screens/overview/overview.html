@@ -1,0 +1,55 @@
+@if (program(); as p) {
+  <header class="page-header">
+    <h1>{{ p.name }}</h1>
+    <p class="muted">{{ p.licenseType.replaceAll('_', ' ').toLowerCase() }} · catalog year {{ p.catalogYear }}</p>
+  </header>
+  @if (counts(); as c) {
+    <dl class="counts">
+      <div><dt>Jurisdictions</dt><dd>{{ c.jurisdictions }}</dd></div>
+      <div><dt>Requirements</dt><dd>{{ c.requirements }}</dd></div>
+      <div><dt>Waiting for review</dt><dd>{{ c.waitingForReview }}</dd></div>
+      <div><dt>Determinations signed</dt><dd>{{ c.determinationsSigned }}</dd></div>
+    </dl>
+  }
+  @if (!assessment()) {
+    <p class="muted">No finished assessment yet. Findings appear here after an assessment runs.</p>
+  }
+  <table class="table" aria-label="Jurisdictions">
+    <thead>
+      <tr><th scope="col">Jurisdiction</th><th scope="col">Findings</th><th scope="col">Status</th><th scope="col"></th></tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track row.code) {
+        <tr>
+          <th scope="row">{{ row.code }}</th>
+          <td>
+            @if (row.summary; as s) {
+              <div class="bar" role="img" [attr.aria-label]="s.evidenceFound + ' found, ' + s.ambiguous + ' ambiguous, ' + s.evidenceMissing + ' missing of ' + s.total">
+                @for (seg of segments(s); track seg.finding) {
+                  @if (seg.count > 0) {
+                    <span class="seg" [class]="'seg ' + seg.finding" [style.width.%]="seg.percent"></span>
+                  }
+                }
+              </div>
+              <ul class="legend">
+                @for (seg of segments(s); track seg.finding) {
+                  <li><span class="glyph" [class]="'glyph ' + seg.finding" aria-hidden="true">{{ glyph[seg.finding] }}</span> {{ seg.count }} {{ label[seg.finding].toLowerCase() }}</li>
+                }
+              </ul>
+            } @else {
+              <span class="muted">Not assessed</span>
+            }
+          </td>
+          <td>
+            {{ row.status }}
+            @if (row.signed; as d) {
+              <div class="muted">{{ outcomeLabel[d.outcome] }} · {{ d.signedByName }}</div>
+            }
+          </td>
+          <td><a [routerLink]="['/programs', programId, 'review']" [queryParams]="{ jurisdiction: row.code }">Open review</a></td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
+@if (error(); as e) { <p class="error" role="alert">{{ e }}</p> }

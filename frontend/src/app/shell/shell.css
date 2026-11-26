@@ -1,0 +1,21 @@
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--lx-bg); color: var(--lx-fg); padding: .5rem 1rem; z-index: 10; }
+.skip-link:focus { left: 1rem; }
+.banner { background: var(--lx-banner-bg); color: var(--lx-banner-fg); padding: .6rem 1rem; border-bottom: 2px solid var(--lx-banner-fg); font-size: .95rem; }
+.layout { min-height: 100vh; display: flex; flex-direction: column; }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .6rem 1rem; border-bottom: 1px solid var(--lx-border); flex-wrap: wrap; }
+.brand { font-weight: 700; font-size: 1.15rem; letter-spacing: .02em; }
+.topbar-right { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.theme { display: flex; gap: .4rem; align-items: center; font-size: .9rem; }
+.who { font-size: .9rem; color: var(--lx-muted); }
+.body { display: flex; flex: 1; min-height: 0; }
+.sidenav { width: 14rem; border-right: 1px solid var(--lx-border); padding: 1rem .5rem; flex-shrink: 0; }
+.sidenav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .25rem; }
+.sidenav a { display: block; padding: .5rem .75rem; border-radius: 6px; color: var(--lx-fg); text-decoration: none; border-left: 4px solid transparent; }
+.sidenav a.active { border-left-color: var(--lx-accent); background: var(--lx-surface); font-weight: 600; }
+.sidenav a:hover { background: var(--lx-surface); }
+main { flex: 1; padding: 1.25rem 1rem; min-width: 0; }
+@media (max-width: 720px) {
+  .body { flex-direction: column; }
+  .sidenav { width: auto; border-right: 0; border-bottom: 1px solid var(--lx-border); padding: .5rem; }
+  .sidenav ul { flex-direction: row; flex-wrap: wrap; }
+}

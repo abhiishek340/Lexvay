@@ -47,3 +47,18 @@ management:
     health:
       probes:
         enabled: true
+
+---
+# `make seed`: load the fictional demo tenants once, then exit. No job polling.
+spring:
+  config:
+    activate:
+      on-profile: seed
+server:
+  port: 0   # the security configuration needs the servlet runtime; a random port avoids clashing with a running server
+lexvay:
+  jobs:
+    polling-enabled: false
+  seed:
+    dir: ${LEXVAY_SEED_DIR:../seed}
+    demo-password: ${LEXVAY_DEMO_PASSWORD:lexvay-demo}

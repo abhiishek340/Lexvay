@@ -1,0 +1,7 @@
+.stamp { border: 2px solid var(--lx-border); border-radius: 10px; padding: 1rem 1.25rem; margin: 1rem 0; }
+.stamp.draft { border-style: dashed; }
+.stamp.signed { border-color: var(--lx-accent); }
+.stamp h2 { margin-top: 0; }
+.finding.EVIDENCE_FOUND { color: var(--lx-found-fg); }
+.finding.AMBIGUOUS { color: var(--lx-ambiguous-fg); }
+.finding.EVIDENCE_MISSING { color: var(--lx-missing-fg); }
