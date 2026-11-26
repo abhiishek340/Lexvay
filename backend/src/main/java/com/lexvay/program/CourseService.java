@@ -67,6 +67,7 @@ public class CourseService {
         return courses.findById(courseId).orElseThrow();
     }
 
+    @Transactional(readOnly = true)
     public List<Course> list(UUID programId) {
         programs.get(programId);
         return courses.findByProgram(programId);
