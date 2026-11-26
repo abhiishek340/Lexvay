@@ -32,6 +32,14 @@ class FakeLlmClientTest {
     }
 
     @Test
+    void replaceScriptDropsEarlierResponsesForTheKey() {
+        fake.script("k", "old one", "old two");
+        fake.replaceScript("k", "new");
+        assertThat(fake.complete(request("k")).text()).isEqualTo("new");
+        assertThat(fake.complete(request("k")).text()).isEqualTo("new");
+    }
+
+    @Test
     void resetClearsScriptsAndCalls() {
         fake.script("k", "v");
         fake.complete(request("k"));

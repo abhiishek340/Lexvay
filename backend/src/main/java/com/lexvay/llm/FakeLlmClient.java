@@ -23,6 +23,12 @@ public class FakeLlmClient implements LlmClient {
         return this;
     }
 
+    /** Replaces whatever was scripted for the key, so loading the same data again is not answered with the earlier load's ids. */
+    public FakeLlmClient replaceScript(String key, String response) {
+        scripts.put(key, new ArrayDeque<>(List.of(response)));
+        return this;
+    }
+
     public void reset() {
         scripts.clear();
         calls.clear();
