@@ -10,7 +10,7 @@ DOCKER_HOST ?= $(shell docker context inspect -f '{{(index .Endpoints "docker").
 export DOCKER_HOST
 export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE ?= /var/run/docker.sock
 
-.PHONY: help db-up db-down dev dev-backend dev-frontend test backend-test frontend-test e2e seed-pdfs seed
+.PHONY: help db-up db-down dev dev-backend dev-frontend test backend-test frontend-test e2e perf seed-pdfs seed
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -46,6 +46,9 @@ seed-pdfs: ## Regenerate the fictional seed PDFs in seed/pdf from seed/docs
 
 seed: db-up ## Load the fictional demo tenants (Northfield University, Westbrook College) once
 	cd $(BACKEND) && ./mvnw -q spring-boot:run -Dspring-boot.run.profiles=seed
+
+perf: ## Read-path latency benchmark (Testcontainers); fails when a read endpoint's p95 exceeds 40 ms
+	cd $(BACKEND) && ./mvnw test -Dgroups=perf -DexcludedGroups=none -Djacoco.skip=true
 
 e2e: ## End-to-end tests (Playwright + axe) against an isolated seeded stack on ports 5433/8081/4300
 	scripts/e2e.sh

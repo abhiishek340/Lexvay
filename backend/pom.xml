@@ -24,6 +24,8 @@
     <awssdk.version>2.59.10</awssdk.version>
     <anthropic.version>3.14.0</anthropic.version>
     <json-schema-validator.version>3.0.9</json-schema-validator.version>
+    <!-- The latency benchmark (tag perf) runs only through `make perf`, which overrides this. -->
+    <excludedGroups>perf</excludedGroups>
   </properties>
 
   <dependencyManagement>
