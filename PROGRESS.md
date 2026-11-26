@@ -11,8 +11,8 @@ deferred. Never claim a test passed without running it.
 | — | Analysis, plan, rules, workflow | Done 2026-11-26; owner decisions applied | — |
 | 0 | Scaffold | Done 2026-11-26 | see git log (M0) |
 | 1 | Schema, tenancy, auth, audit | Done 2026-11-26 | see git log (M1) |
-| 2 | Documents | Not started | — |
-| 3 | Rules and requirements | Not started | — |
+| 2 | Documents | Done 2026-11-26 | see git log (M2) |
+| 3 | Rules and requirements | Done 2026-11-26 | see git log (M3) |
 | 4 | Pipeline | Not started | — |
 | 5 | Review and signing | Not started | — |
 | 6 | Frontend | Not started | — |
@@ -259,3 +259,223 @@ Found and fixed during the milestone
 
 Deferred
 - Nothing from the M1 row. `GET /jobs/{id}` arrives with the job runner in M2.
+
+## Milestone 2 — Documents
+
+### Plan (written 2026-11-26, before building)
+
+Scope
+- `FileStore` interface (`put`, `get`, `exists`) with `LocalFileStore` (root from
+  `LEXVAY_FILESTORE_PATH`, keys `tenant/document`, path traversal rejected) and `S3FileStore` (AWS SDK v2,
+  bucket from `LEXVAY_S3_BUCKET`); selected by `LEXVAY_FILESTORE=local|s3`.
+- Job infrastructure (`com.lexvay.job`): `JobRepository` (enqueue, claim with `FOR UPDATE SKIP LOCKED`
+  under the transaction-local worker flag, complete, fail-or-requeue), `JobRunner` (polls on a fixed
+  delay in production, `runPending()` called directly by tests, three attempts, handler runs under the
+  job's tenant in its own transaction), `JobHandler` interface, `GET /api/v1/jobs/{id}`.
+- Courses (D-039, needed so a syllabus can belong to a course version): `POST /api/v1/programs/{id}/courses`
+  (code, title, required) creates the course and its first version for the program's catalog year;
+  `GET /api/v1/programs/{id}/courses`. Course versions with `supersedes_id` arrive in M7.
+- Upload: `POST /api/v1/programs/{id}/documents` multipart (`file`, `kind`, optional `courseVersionId`)
+  for CONTRIBUTOR and ADMIN. Checks: non-empty, size limit (25 MB), kind not `RULE_TEXT`, file type by
+  extension and magic bytes (PDF `%PDF-`, DOCX zip, TXT otherwise with `.txt`), course version belongs to
+  the program. SHA-256 computed; duplicate per tenant and program → `409` naming the existing document.
+  Stores the file, inserts `document`, enqueues `INGEST_DOCUMENT`, returns `202 {documentId, jobId}`.
+- Ingest handler: PDFBox per page (CRLF normalized), POI for DOCX (one page, D-017), UTF-8 for TXT (one
+  page). `document_page.char_start/char_end` are the page's offsets in the concatenated document text
+  (pages joined by a newline); evidence offsets are relative to the page text (D-041). Inserts are
+  `ON CONFLICT DO NOTHING` so a retry is idempotent. All pages blank → job fails "Document has no
+  extractable text"; parser exception → "File could not be parsed". Audited as `DOCUMENT_INGESTED` by the
+  system with the job id.
+- `GET /api/v1/documents/{id}`: metadata, page summaries (number, offsets, length) and the latest
+  ingest job status and error (D-040). Page text is not returned here.
+- Multipart limits configured in `application.yml`; type limit tested now, size limit in M8.
+
+Tests to write
+- `TextExtractorTest` (unit): two-page PDF text and offsets, DOCX single page, TXT, CRLF normalization,
+  blank PDF → empty, garbage bytes → parse error.
+- `LocalFileStoreTest`: round trip, missing key, traversal key rejected.
+- `S3FileStoreTest`: `S3Client` mocked with Mockito; verifies bucket, key and body (no AWS call).
+- `JobRunnerTest`: claim marks RUNNING and increments attempts; a failing handler requeues twice then
+  `FAILED` with the error; handler sees the job's tenant; a job from tenant A is invisible to tenant B via
+  `GET /jobs/{id}`; unknown type fails cleanly.
+- `DocumentUploadTest`: PDF, DOCX, TXT round trips (202, job runs, pages with expected text and offsets,
+  sha256, file present in the store, GET shows pages and `DONE`); duplicate → 409 with existing id; empty
+  file → 400; corrupt PDF → job FAILED "could not be parsed" visible on GET; image-only PDF → FAILED "no
+  extractable text"; unsupported type → 400; `RULE_TEXT` kind → 400; reviewer → 403; other tenant's
+  program → 404; course version from another program → 400; audit rows for upload and ingest.
+- `CourseApiTest`: create, duplicate code → 409, list, 403 for reviewer, audit row.
+- `Rule9_AuditCoverageTest` set extended with the two new endpoints.
+
+Acceptance evidence to collect
+- `make test` output; the upload test assertions for PDF, DOCX and TXT including hash and offsets;
+  duplicate 409; empty and corrupt file results.
+
+Decisions expected
+- D-039 (course endpoints), D-040 (document GET shape and ingest status via job), D-041 (offset
+  conventions), D-042 (S3 test double), AWS SDK pin added to D-002.
+
+### Result (2026-11-26)
+
+Built
+- `com.lexvay.job`: `JobRepository` (enqueue, claim with `FOR UPDATE SKIP LOCKED` under the
+  transaction-local worker flag, done/failed/requeue, latest-by-payload), `JobRunner` (handler runs in
+  its own transaction under the job's tenant; three attempts; `PermanentJobFailure` fails at once;
+  final failures audited as `JOB_FAILED`), `JobPoller` (fixed delay, off in tests), `JobHandler`,
+  `GET /api/v1/jobs/{id}`.
+- `com.lexvay.document`: `FileStore` with `LocalFileStore` (atomic writes, key validation) and
+  `S3FileStore` (AWS SDK v2), `FileStoreConfig`; `FileType` detection by name and magic bytes;
+  `TextExtractor` (PDFBox per page, POI DOCX, UTF-8 TXT; CRLF normalized; blank → empty error);
+  `DocumentRepository` (idempotent page inserts), `DocumentService.upload/get`,
+  `IngestDocumentHandler`, `DocumentController` (`POST /api/v1/programs/{id}/documents` → 202,
+  `GET /api/v1/documents/{id}`), `DuplicateDocumentException` → 409 with `existingDocumentId`.
+- Courses (D-039): `CourseRepository`, `CourseService`, `CourseController`
+  (`POST/GET /api/v1/programs/{id}/courses`); creating a course creates its first version.
+- Multipart limit 25 MB (`LEXVAY_UPLOAD_MAX_MB`), file store and job settings in `application.yml`.
+
+Tests written and run (85 backend, 2 frontend)
+- `TextExtractorTest` (7), `LocalFileStoreTest` (3), `S3FileStoreTest` (4, Mockito), `JobRunnerTest` (5),
+  `CourseApiTest` (4), `DocumentUploadTest` (9: PDF with offsets, hash, file in store and audit rows for
+  upload by user and ingest by system; DOCX and TXT as one page; duplicate → 409 with existing id; empty →
+  400; corrupt PDF → job FAILED "could not be parsed"; blank PDF → FAILED "no extractable text";
+  unsupported type and RULE_TEXT → 400; foreign course version → 400; reviewer 403, other tenant 404).
+- `Rule9_AuditCoverageTest` set extended with the two new endpoints.
+
+`make test` output (tail, real)
+```
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  1 passed (1)
+MAKE TEST EXIT: 0
+```
+
+Acceptance evidence
+- Upload of PDF, DOCX and TXT stores the file (`files.exists(tenant/document)`), the hash
+  (`sha256` equals the test's own digest) and per-page text with offsets (page 2 `charStart` = page 1
+  `charEnd` + 1; page texts contain the written lines): `DocumentUploadTest.pdfUploadIsIngestedWithOffsetsAndAudited`,
+  `docxAndTxtAreIngestedAsOnePage`.
+- Duplicate upload detected by hash: `duplicateUploadIsDetectedByHash` (409, problem detail carries the
+  existing document id, even with a different filename).
+- Empty file: `emptyFileIsRejected` (400 "File is empty"). Corrupt file:
+  `corruptPdfFailsIngestWithClearError` (job FAILED, error "File could not be parsed as a PDF", no pages)
+  and `corruptDocxIsRejectedAsUnparsable`.
+
+Found and fixed during the milestone
+- `ResponseEntityExceptionHandler` already maps `MaxUploadSizeExceededException` (413); a duplicate
+  handler made the context fail to start. Removed.
+- Java text blocks strip trailing spaces, so a `RETURNING ` followed by a concatenated column list became
+  `RETURNINGid`; fixed with an explicit separator.
+- The job queue is shared by all tests in the JVM; job tests now drain the queue first and assert on
+  their own job's state rather than on processed counts.
+
+Deferred
+- Nothing from the M2 row. Upload size limit is configured; its test is scheduled for M8 as planned.
+
+## Milestone 3 — Rules and requirements
+
+### Plan (written 2026-11-26, before building)
+
+Scope
+- `com.lexvay.llm`: `LlmClient` interface (`complete(LlmRequest) → LlmResponse`; request carries
+  purpose, a script key, system and user prompts, the JSON schema for the output and max tokens;
+  response carries raw text, model, token counts and duration). `FakeLlmClient` (scripted by key, counts
+  calls, fails loudly when no script exists; the only client tests use). `AnthropicLlmClient` (Anthropic
+  Java SDK 3.14.0, model from `LEXVAY_LLM_MODEL`, effort from `LEXVAY_LLM_EFFORT`, structured output via
+  `output_config.format` with the same schema, written from the SDK documentation). `LlmConfig` selects
+  by `LEXVAY_LLM_PROVIDER`. `LlmCallRepository` stores every call in `llm_call` (D-014).
+  `JsonSchemaValidator` validates model output against the bundled schema.
+- Prompt and schema resources: `llm/extract-v1.system.txt`, `llm/requirement-extraction.schema.json`.
+  Prompt version `extract-v1` is stored with every call.
+- `com.lexvay.rule`: `POST /api/v1/rule-versions` (CONTRIBUTOR, ADMIN; jurisdiction code, license type,
+  label, source URL, effective date, optional `supersedesId`, rule text) stores the text as a `RULE_TEXT`
+  document with its page synchronously (D-044), enqueues `EXTRACT_REQUIREMENTS`, returns 202
+  `{ruleVersionId, jobId}`. `GET /rule-versions`, `GET /rule-versions/{id}` (with extraction job
+  status), `GET /rule-versions/{id}/requirements`, `PUT /rule-versions/{id}/requirements` (D-024;
+  REVIEWER, SIGNER, ADMIN; unapproved only; audited with before and after),
+  `POST /rule-versions/{id}/requirements/approve` (REVIEWER, SIGNER, ADMIN; requires at least one
+  requirement; once).
+- `ExtractRequirementsHandler`: calls the model, validates the JSON (schema plus unique refs and
+  numeric-field consistency), on failure retries once with the validation errors appended, then fails
+  the job permanently. Stores one `llm_call` row per attempt. Inserts requirements unapproved. Audited.
+- Approval gate for M4: `RuleVersionRepository.findApprovedVersion(jurisdictionId, licenseType, date)`
+  returns only approved versions (D-010); tested here, used by the pipeline in M4.
+- `supersedesId` is stored and validated (same jurisdiction and license type); the change event and
+  reopening it triggers are M7 scope and are listed there.
+
+Tests to write
+- `JsonSchemaValidatorTest` (unit): valid output passes; invalid JSON, unknown type, missing numeric
+  fields for a numeric type, extra property, empty list each produce a readable error.
+- `FakeLlmClientTest` (unit): scripted sequence per key, counting, missing script throws.
+- `AnthropicLlmClientTest` (unit, no network): request built from `LlmRequest` carries the configured
+  model, the schema as output format and the prompts; response mapping reads text and usage.
+- `RuleVersionApiTest`: create → 202 and rule-text document with one page; extraction via Fake →
+  requirements listed with types and numeric fields; invalid then valid → requirements present and two
+  `llm_call` rows; invalid twice → job FAILED, no requirements, GET shows FAILED; approve → approved
+  by/at and audit; approve twice → 409; approve with no requirements → 409; PUT before approval → 200
+  with audit before/after; PUT after approval → 409 (`Rule5_ApprovedRequirementsRejectEditsTest`);
+  PUT with duplicate refs or inconsistent numeric fields → 400; CONTRIBUTOR approve → 403; other tenant
+  → 404; unknown jurisdiction → 400; `findApprovedVersion` empty before approval, present after.
+- `Rule9_AuditCoverageTest` set extended with three endpoints.
+
+Acceptance evidence to collect
+- `make test` output; the retry test's two `llm_call` rows; the approval gate assertions.
+
+Decisions expected
+- D-044 (rule text entry as text, stored as a document synchronously), D-045 (schema validator
+  choice given Jackson 3), D-046 (prompt and schema as classpath resources, versioned by name).
+
+### Result (2026-11-26)
+
+Built
+- `com.lexvay.llm`: `LlmClient`, `LlmRequest`, `LlmResponse`, `LlmPurpose`; `FakeLlmClient` (scripted by
+  key, call counting, loud failure when unscripted); `AnthropicLlmClient` (SDK 3.14.0, model and effort
+  from `LEXVAY_LLM_MODEL`/`LEXVAY_LLM_EFFORT`, schema as structured-output format, refusal → exception,
+  usage captured); `LlmConfig`; `JsonSchemaValidator` (networknt 3.0.9, errors prefixed with path);
+  `LlmCallRecorder` (writes `llm_call` in its own transaction so failed jobs keep their raw output);
+  resources `llm/extract-v1.system.txt`, `llm/requirement-extraction.schema.json`.
+- `V005__llm_call_rule_version.sql`.
+- `com.lexvay.rule`: `RuleVersion`, `Requirement`, `RequirementDraft`, `RequirementType`, `NumericField`,
+  `RequirementListParser` (schema + semantic checks), `RuleVersionRepository` (incl.
+  `findApprovedVersion` for D-010), `RuleVersionService`, `RuleVersionController`
+  (`POST /rule-versions` → 202 with job, `GET /rule-versions`, `GET /rule-versions/{id}`,
+  `GET/PUT /rule-versions/{id}/requirements`, `POST /rule-versions/{id}/requirements/approve`),
+  `ExtractRequirementsHandler` (one retry with the validation errors, then permanent failure).
+
+Tests written and run (109 backend, 2 frontend)
+- `JsonSchemaValidatorTest` (5), `FakeLlmClientTest` (3), `AnthropicLlmClientTest` (2, request
+  construction only, mocked client, no network), `RequirementListParserTest` (6), `RuleVersionApiTest`
+  (7), `Rule5_ApprovedRequirementsRejectEditsTest` (1); `Rule9_AuditCoverageTest` set extended;
+  `MigrationsApplyCleanlyTest` now expects 5 migrations.
+
+`make test` output (tail, real)
+```
+[INFO] Tests run: 109, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  1 passed (1)
+MAKE TEST EXIT: 0
+```
+
+Acceptance evidence
+- Rule version entry: `createStoresRuleTextAndExtractsRequirements` (202, RULE_TEXT document with one
+  page containing the rule text, extraction job QUEUED then DONE, 4 requirements with types and numeric
+  fields, prompt contains the rule text and jurisdiction, schema passed to the model, one `llm_call`,
+  audit `RULE_VERSION_CREATED` by the user and `REQUIREMENTS_EXTRACTED` by the system with the job id).
+- Schema validation with one retry: `invalidOutputIsRetriedOnceWithTheErrors` (second prompt contains
+  "previous output was rejected" and the field name; two `llm_call` rows; DONE with 4 requirements).
+  `invalidOutputTwiceFailsTheJobAndKeepsBothCalls` (FAILED with "invalid output twice", zero
+  requirements, two `llm_call` rows survive the rollback, approve → 409).
+- Approval gate: `approvalIsAuditedAndHappensOnce` (`findApprovedVersion` empty before approval and for
+  a date before `effective_from`, present after; second approval 409; audit by the reviewer).
+  Unapproved requirements cannot be assessed: the pipeline in M4 obtains rule versions only through
+  `findApprovedVersion`, which this test proves excludes unapproved versions.
+- D-024: `reviewerCanReplaceRequirementsBeforeApproval` (200, audit with 4 before / 2 after, invalid
+  body 400 naming the field); `Rule5_ApprovedRequirementsRejectEditsTest` (PUT 409 after approval, direct
+  UPDATE and DELETE rejected by trigger, count unchanged).
+
+Found and fixed during the milestone
+- networknt 3.x renamed its API (`SchemaRegistry`/`Schema`/`Error`); written from the jar, not memory.
+- The Anthropic SDK carries free-form JSON as `JsonValue` built on Jackson 2; the schema is converted
+  from the Jackson 3 tree through a `Map`.
+- Validator messages lacked the JSON location; now prefixed with the instance path.
+
+Deferred
+- Change events for a superseding rule version (M7). The `supersedesId` link is stored and validated now.

@@ -1,0 +1,5 @@
+package com.lexvay.job;
+
+public enum JobType {
+    INGEST_DOCUMENT, EXTRACT_REQUIREMENTS, RUN_ASSESSMENT, RERUN_CHANGE, GENERATE_REPORT
+}

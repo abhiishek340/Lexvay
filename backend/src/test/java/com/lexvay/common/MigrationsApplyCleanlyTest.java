@@ -17,7 +17,7 @@ class MigrationsApplyCleanlyTest extends AbstractDatabaseTest {
     void allMigrationsAppliedAndValid() {
         var info = flyway.info();
         assertThat(info.pending()).isEmpty();
-        assertThat(info.applied()).hasSize(4);
+        assertThat(info.applied()).hasSize(5);
         for (var migration : info.applied()) {
             assertThat(migration.getState()).isEqualTo(MigrationState.SUCCESS);
         }
