@@ -11,7 +11,7 @@ deferred. Never claim a test passed without running it.
 | — | Analysis, plan, rules, workflow | Done 2026-11-26; owner decisions applied | — |
 | 0 | Scaffold | Done 2026-11-26 | see git log (M0) |
 | 1 | Schema, tenancy, auth, audit | Done 2026-11-26 | see git log (M1) |
-| 2 | Documents | Not started | — |
+| 2 | Documents | Done 2026-11-26 | see git log (M2) |
 | 3 | Rules and requirements | Not started | — |
 | 4 | Pipeline | Not started | — |
 | 5 | Review and signing | Not started | — |
@@ -259,3 +259,113 @@ Found and fixed during the milestone
 
 Deferred
 - Nothing from the M1 row. `GET /jobs/{id}` arrives with the job runner in M2.
+
+## Milestone 2 — Documents
+
+### Plan (written 2026-11-26, before building)
+
+Scope
+- `FileStore` interface (`put`, `get`, `exists`) with `LocalFileStore` (root from
+  `LEXVAY_FILESTORE_PATH`, keys `tenant/document`, path traversal rejected) and `S3FileStore` (AWS SDK v2,
+  bucket from `LEXVAY_S3_BUCKET`); selected by `LEXVAY_FILESTORE=local|s3`.
+- Job infrastructure (`com.lexvay.job`): `JobRepository` (enqueue, claim with `FOR UPDATE SKIP LOCKED`
+  under the transaction-local worker flag, complete, fail-or-requeue), `JobRunner` (polls on a fixed
+  delay in production, `runPending()` called directly by tests, three attempts, handler runs under the
+  job's tenant in its own transaction), `JobHandler` interface, `GET /api/v1/jobs/{id}`.
+- Courses (D-039, needed so a syllabus can belong to a course version): `POST /api/v1/programs/{id}/courses`
+  (code, title, required) creates the course and its first version for the program's catalog year;
+  `GET /api/v1/programs/{id}/courses`. Course versions with `supersedes_id` arrive in M7.
+- Upload: `POST /api/v1/programs/{id}/documents` multipart (`file`, `kind`, optional `courseVersionId`)
+  for CONTRIBUTOR and ADMIN. Checks: non-empty, size limit (25 MB), kind not `RULE_TEXT`, file type by
+  extension and magic bytes (PDF `%PDF-`, DOCX zip, TXT otherwise with `.txt`), course version belongs to
+  the program. SHA-256 computed; duplicate per tenant and program → `409` naming the existing document.
+  Stores the file, inserts `document`, enqueues `INGEST_DOCUMENT`, returns `202 {documentId, jobId}`.
+- Ingest handler: PDFBox per page (CRLF normalized), POI for DOCX (one page, D-017), UTF-8 for TXT (one
+  page). `document_page.char_start/char_end` are the page's offsets in the concatenated document text
+  (pages joined by a newline); evidence offsets are relative to the page text (D-041). Inserts are
+  `ON CONFLICT DO NOTHING` so a retry is idempotent. All pages blank → job fails "Document has no
+  extractable text"; parser exception → "File could not be parsed". Audited as `DOCUMENT_INGESTED` by the
+  system with the job id.
+- `GET /api/v1/documents/{id}`: metadata, page summaries (number, offsets, length) and the latest
+  ingest job status and error (D-040). Page text is not returned here.
+- Multipart limits configured in `application.yml`; type limit tested now, size limit in M8.
+
+Tests to write
+- `TextExtractorTest` (unit): two-page PDF text and offsets, DOCX single page, TXT, CRLF normalization,
+  blank PDF → empty, garbage bytes → parse error.
+- `LocalFileStoreTest`: round trip, missing key, traversal key rejected.
+- `S3FileStoreTest`: `S3Client` mocked with Mockito; verifies bucket, key and body (no AWS call).
+- `JobRunnerTest`: claim marks RUNNING and increments attempts; a failing handler requeues twice then
+  `FAILED` with the error; handler sees the job's tenant; a job from tenant A is invisible to tenant B via
+  `GET /jobs/{id}`; unknown type fails cleanly.
+- `DocumentUploadTest`: PDF, DOCX, TXT round trips (202, job runs, pages with expected text and offsets,
+  sha256, file present in the store, GET shows pages and `DONE`); duplicate → 409 with existing id; empty
+  file → 400; corrupt PDF → job FAILED "could not be parsed" visible on GET; image-only PDF → FAILED "no
+  extractable text"; unsupported type → 400; `RULE_TEXT` kind → 400; reviewer → 403; other tenant's
+  program → 404; course version from another program → 400; audit rows for upload and ingest.
+- `CourseApiTest`: create, duplicate code → 409, list, 403 for reviewer, audit row.
+- `Rule9_AuditCoverageTest` set extended with the two new endpoints.
+
+Acceptance evidence to collect
+- `make test` output; the upload test assertions for PDF, DOCX and TXT including hash and offsets;
+  duplicate 409; empty and corrupt file results.
+
+Decisions expected
+- D-039 (course endpoints), D-040 (document GET shape and ingest status via job), D-041 (offset
+  conventions), D-042 (S3 test double), AWS SDK pin added to D-002.
+
+### Result (2026-11-26)
+
+Built
+- `com.lexvay.job`: `JobRepository` (enqueue, claim with `FOR UPDATE SKIP LOCKED` under the
+  transaction-local worker flag, done/failed/requeue, latest-by-payload), `JobRunner` (handler runs in
+  its own transaction under the job's tenant; three attempts; `PermanentJobFailure` fails at once;
+  final failures audited as `JOB_FAILED`), `JobPoller` (fixed delay, off in tests), `JobHandler`,
+  `GET /api/v1/jobs/{id}`.
+- `com.lexvay.document`: `FileStore` with `LocalFileStore` (atomic writes, key validation) and
+  `S3FileStore` (AWS SDK v2), `FileStoreConfig`; `FileType` detection by name and magic bytes;
+  `TextExtractor` (PDFBox per page, POI DOCX, UTF-8 TXT; CRLF normalized; blank → empty error);
+  `DocumentRepository` (idempotent page inserts), `DocumentService.upload/get`,
+  `IngestDocumentHandler`, `DocumentController` (`POST /api/v1/programs/{id}/documents` → 202,
+  `GET /api/v1/documents/{id}`), `DuplicateDocumentException` → 409 with `existingDocumentId`.
+- Courses (D-039): `CourseRepository`, `CourseService`, `CourseController`
+  (`POST/GET /api/v1/programs/{id}/courses`); creating a course creates its first version.
+- Multipart limit 25 MB (`LEXVAY_UPLOAD_MAX_MB`), file store and job settings in `application.yml`.
+
+Tests written and run (85 backend, 2 frontend)
+- `TextExtractorTest` (7), `LocalFileStoreTest` (3), `S3FileStoreTest` (4, Mockito), `JobRunnerTest` (5),
+  `CourseApiTest` (4), `DocumentUploadTest` (9: PDF with offsets, hash, file in store and audit rows for
+  upload by user and ingest by system; DOCX and TXT as one page; duplicate → 409 with existing id; empty →
+  400; corrupt PDF → job FAILED "could not be parsed"; blank PDF → FAILED "no extractable text";
+  unsupported type and RULE_TEXT → 400; foreign course version → 400; reviewer 403, other tenant 404).
+- `Rule9_AuditCoverageTest` set extended with the two new endpoints.
+
+`make test` output (tail, real)
+```
+[INFO] Tests run: 85, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  1 passed (1)
+MAKE TEST EXIT: 0
+```
+
+Acceptance evidence
+- Upload of PDF, DOCX and TXT stores the file (`files.exists(tenant/document)`), the hash
+  (`sha256` equals the test's own digest) and per-page text with offsets (page 2 `charStart` = page 1
+  `charEnd` + 1; page texts contain the written lines): `DocumentUploadTest.pdfUploadIsIngestedWithOffsetsAndAudited`,
+  `docxAndTxtAreIngestedAsOnePage`.
+- Duplicate upload detected by hash: `duplicateUploadIsDetectedByHash` (409, problem detail carries the
+  existing document id, even with a different filename).
+- Empty file: `emptyFileIsRejected` (400 "File is empty"). Corrupt file:
+  `corruptPdfFailsIngestWithClearError` (job FAILED, error "File could not be parsed as a PDF", no pages)
+  and `corruptDocxIsRejectedAsUnparsable`.
+
+Found and fixed during the milestone
+- `ResponseEntityExceptionHandler` already maps `MaxUploadSizeExceededException` (413); a duplicate
+  handler made the context fail to start. Removed.
+- Java text blocks strip trailing spaces, so a `RETURNING ` followed by a concatenated column list became
+  `RETURNINGid`; fixed with an explicit separator.
+- The job queue is shared by all tests in the JVM; job tests now drain the queue first and assert on
+  their own job's state rather than on processed counts.
+
+Deferred
+- Nothing from the M2 row. Upload size limit is configured; its test is scheduled for M8 as planned.

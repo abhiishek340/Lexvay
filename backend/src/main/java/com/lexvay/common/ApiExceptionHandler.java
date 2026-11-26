@@ -32,7 +32,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(ConflictException.class)
     ProblemDetail conflict(ConflictException e) {
-        return problem(HttpStatus.CONFLICT, e.getMessage());
+        ProblemDetail problem = problem(HttpStatus.CONFLICT, e.getMessage());
+        if (e instanceof com.lexvay.document.DuplicateDocumentException duplicate) {
+            problem.setProperty("existingDocumentId", duplicate.existingDocumentId().toString());
+        }
+        return problem;
     }
 
     @ExceptionHandler(DataAccessException.class)

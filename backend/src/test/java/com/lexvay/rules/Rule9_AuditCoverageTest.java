@@ -19,7 +19,9 @@ class Rule9_AuditCoverageTest extends AbstractDatabaseTest {
 
     /** Endpoint → test that asserts its audit row. */
     static final Set<String> AUDITED_MUTATING_ENDPOINTS = Set.of(
-            "POST /api/v1/programs"          // ProgramApiTest.createWritesAuditRow
+            "POST /api/v1/programs",                        // ProgramApiTest.createWritesAuditRow
+            "POST /api/v1/programs/{programId}/courses",    // CourseApiTest.createWritesAuditRow
+            "POST /api/v1/programs/{programId}/documents"   // DocumentUploadTest.pdfUploadIsIngestedWithOffsetsAndAudited
     );
 
     @Autowired @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping;

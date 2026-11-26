@@ -53,5 +53,17 @@ public abstract class AbstractDatabaseTest {
         registry.add("spring.flyway.url", AbstractDatabaseTest::jdbcUrl);
         registry.add("spring.flyway.user", () -> OWNER_USER);
         registry.add("spring.flyway.password", () -> OWNER_PASSWORD);
+        registry.add("lexvay.jobs.polling-enabled", () -> "false");
+        registry.add("lexvay.filestore.path", () -> FILE_STORE_DIR.toString());
+    }
+
+    protected static final Path FILE_STORE_DIR = createTempDir();
+
+    private static Path createTempDir() {
+        try {
+            return java.nio.file.Files.createTempDirectory("lexvay-files-");
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
     }
 }

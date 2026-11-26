@@ -16,6 +16,20 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  servlet:
+    multipart:
+      max-file-size: ${LEXVAY_UPLOAD_MAX_MB:25}MB
+      max-request-size: ${LEXVAY_UPLOAD_MAX_MB:25}MB
+
+lexvay:
+  filestore:
+    type: ${LEXVAY_FILESTORE:local}      # local | s3
+    path: ${LEXVAY_FILESTORE_PATH:./data/files}
+    s3-bucket: ${LEXVAY_S3_BUCKET:}
+  jobs:
+    polling-enabled: true
+    poll-interval-ms: 1000
+    max-attempts: 3
 
 server:
   port: ${LEXVAY_PORT:8080}

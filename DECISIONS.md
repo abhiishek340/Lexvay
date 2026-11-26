@@ -26,7 +26,9 @@ Spring Framework 7.0.11, Spring Security 7.1.3, Flyway 12.4.0 (the BOM's version
 Testcontainers 2.0.5 (new artifact names `testcontainers-postgresql`, `testcontainers-junit-jupiter`),
 Tomcat 11.0.27. Build tooling: Maven 3.10.2 via Maven Wrapper 3.3.4 (only-script), JaCoCo 0.8.16.
 Frontend effective: TypeScript 6.0.3, Vitest 5.1.2, jsdom 31.0.1, rxjs 7.8.2. CI actions:
-checkout v7, setup-java v6, setup-node v7. Decided (owner, 2026-11-26).
+checkout v7, setup-java v6, setup-node v7. Added in M2 (not Boot-managed, checked 2026-11-26): PDFBox
+3.0.8, POI 6.0.0, AWS SDK for Java 2.59.10 (`software.amazon.awssdk:bom`, module `s3`). Decided (owner,
+2026-11-26).
 
 ## Spec ambiguities
 
@@ -200,6 +202,33 @@ as a browser does, and one test runs the complete session → cookie → login f
 production configuration is explicit (`CookieCsrfTokenRepository` with Angular's names plus the
 documented SPA request handler) rather than `csrf.spa()`, whose internals could not be verified.
 Decided (found in M1).
+
+**D-039 — Course endpoints.** The spec's API list has no way to create courses, yet documents cite
+course versions and section 7 adds course versions with `supersedes_id`. Added
+`POST /programs/{id}/courses` (code, title, required; creates the course and its first version for the
+program's catalog year) and `GET /programs/{id}/courses`. `POST /courses/{id}/versions` arrives in M7.
+Rejected: creating courses implicitly from uploaded syllabi (guessing codes from filenames). Decided.
+
+**D-040 — Document read shape and ingest status.** `GET /documents/{id}` returns the document, a summary
+per page (number, offsets, length) and the latest `INGEST_DOCUMENT` job's status and error. Documents
+have no status column (they are immutable); the job carries it. Page text is not returned by this
+endpoint. Rejected: a mutable status column on `document`. Decided.
+
+**D-041 — Offset conventions.** `document_page.char_start/char_end` locate the page in the concatenated
+document text, pages joined by one newline. `evidence_span.char_start/char_end` are relative to the
+page's own text, so a quote is verified and displayed against one page. Text is normalized to `\n` line
+endings with trailing whitespace stripped before storage; verification normalizes whitespace anyway.
+Decided.
+
+**D-042 — S3 test double.** `S3FileStoreTest` uses a Mockito mock of `S3Client` to verify bucket, key
+and body. No test contacts AWS. Rejected: LocalStack via Testcontainers (a second container for one
+adapter class). Decided.
+
+**D-043 — Ingest failures do not retry.** Unparsable or text-less files raise `PermanentJobFailure`, which
+fails the job on the first attempt; infrastructure errors retry up to three times. The document row and
+file remain (immutable) with the failed job visible on the document. Decided.
+
+## Spec concerns (section 13, item 5)
 
 - Section 5 vs section 7 on `REOPENED` (D-003, resolved by owner).
 - The API has no way to create program facts (D-006) or to correct an extracted requirement list
