@@ -14,7 +14,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | merged (PR #9) |
 | F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | merged (PR #8) |
 | F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | in progress |
-| F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | approved, PR #10 merging |
+| F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | in progress |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | queued (after WS-PERF) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
