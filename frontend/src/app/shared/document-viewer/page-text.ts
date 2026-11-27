@@ -14,6 +14,26 @@ export function ocrNote(page: { textSource: TextSource; ocrConfidence: number | 
   return page.textSource === 'OCR' && page.ocrConfidence !== null ? `Read by OCR, ${Math.round(page.ocrConfidence)} % confidence` : null;
 }
 
+/** A line break the PDF put inside a sentence: the next line continues it in lower case, a digit or a parenthesis. */
+const CONTINUES = /[\p{Ll}\p{Nd}(]/u;
+const SENTENCE_END = /[.!?]/;
+
+/**
+ * The page text for reading: a line break that only wraps a sentence (DESIGN.md, UI2-2) shows as a space. A newline
+ * becomes a space when the next character is a lower-case letter, a digit or an opening parenthesis and the previous
+ * one is neither sentence-final punctuation nor another line break (a blank line is a paragraph, not a wrap); every
+ * other character, line breaks included, is kept. One character for one character, so the result has the stored
+ * length and every offset into it is the same offset into the stored text: the highlight, a selection and the stored
+ * evidence keep pointing at the same characters. Display only; nothing derived from it is ever stored or sent.
+ */
+export function softWrap(text: string): string {
+  return text.replace(/\n/g, (newline, i: number) => {
+    const before = text[i - 1] ?? '\n';
+    const after = text[i + 1] ?? '';
+    return CONTINUES.test(after) && before !== '\n' && !SENTENCE_END.test(before) ? ' ' : newline;
+  });
+}
+
 /** The page text cut around the highlighted span. */
 export interface HighlightParts { before: string; quote: string; after: string; }
 

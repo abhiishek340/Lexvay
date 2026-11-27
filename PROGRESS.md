@@ -2313,3 +2313,100 @@ the seal's sentence, the print-only note. `review-and-sign`, `shell` and `screen
 
 ### Bundle
 Initial 605.46 kB raw, 155.80 kB estimated transfer after merging UI2-3 (606.36 kB against 606.77 kB on `origin/main` before it). Budget 680 kB warning.
+
+## UI2-2 — Review and signing in design v2 (PR #37)
+
+Branch `ui2-review`, end-to-end slot 1. Decisions D-330 to D-339 in `docs/decisions/UI2-2.md`.
+
+### What changed
+- **Header**: the states as pills with full names and 20 px rings (decided of total; the numbers are each tab's
+  accessible description), the active pill named `state-<code>` for the overview's shared-element morph, a 40 px ring
+  with "6 of 8", "Sign <state>" once every requirement is decided (one pulse, then still), the Seal and outcome once
+  signed, a Reopened chip, the keyboard button. Under 640 px the signing action has its own row.
+- **List rail** (288 px, `RequirementList`): a segmented icon filter whose segment names and tooltips carry the counts
+  ("7 to review"), rows of ref, title and one StatusIcon, the "evidence provided" marker, the selected row kept in view
+  inside the list only.
+- **Requirement hero** (`RequirementCard`): ref chip, title at Title size, rule text in the Document type in a quiet
+  inset with its version and source, the finding as a large chip with the check method in one line and an InfoTip,
+  the model's rationale clamped, the current decision with who, when and its note, the stale warning.
+- **DecisionBar** (`ui/decision-bar/`): Accept (A), Request (R), Gap (G) on the raised, blurred bar floating at the foot
+  of the centre pane; Gap, G or the note button open the note in place and the third action becomes Confirm gap;
+  Escape closes an empty note. The note opens by itself where a person answered an evidence request.
+- **Decision motion**: the row's ring draws around its new filled icon, the row settles on the spring, the next
+  requirement slides in from the side it comes from, the rings advance. Nothing waits for motion; reduced motion
+  removes it.
+- **Signing** (`SignDialog`): "Sign California", "8 of 8 decided" with an InfoTip, three outcome cards, a faint Seal
+  preview hidden from assistive technology; after the server signs, the recorded Seal stamps down with one ink ring,
+  then Done (focused). `Seal` has a `stamp` input.
+- **DocumentViewer**: `softWrap(text)` shows sentence-wrapping line breaks as spaces, one character for one, so the
+  mark, selections and stored offsets are unchanged; the header is an icon pager with the same accessible names.
+- **Evidence pane** (`EvidencePane`): the viewer on the right, a compact meta line, "Quote only", F4's provided
+  passages, "Show on page" under 1024 px.
+- Every keyboard shortcut (J, K, A, R, G, ?) and the polite live region (`data-testid="message"`) are kept; the live
+  region is visually hidden (the toast and the motion show the result).
+
+### Tests
+- Vitest: `softWrap` (joins, kept breaks, non-ASCII lower case, equal length with only joined newlines differing, a DOM
+  selection over the shown text with the mark mapping back to the stored text exactly); `review-workspace.spec.ts`
+  (filter labels, filter icons equal to the StatusIcon's, travel direction by J, K, click and after a decision, header
+  and pill progress, `checkMethod`); `icons.spec.ts` (a unit for the DecisionBar).
+- End to end: the California review under reduced motion with no running animation after each decision, the gap note,
+  a request with a note, signing through the outcome cards with the preview hidden and the stamped seal named, keys
+  during the card's entrance, G and Escape in the note, the bar in view at 400 px, the pill descriptions, axe in both
+  themes on Review at 1440 and 400 px, the gap note, the signing dialog at 1440 and 400 px with and without an outcome,
+  the signed seal. The viewer suite compares the page with `softWrap` of the stored page and selects across a joined
+  break. `evidence-requests.spec.ts` waits for Review before returning to the inbox (a click during the route's view
+  transition superseded the first navigation, seen once in a full run).
+
+### Bundle
+Initial 609.25 kB raw, 156.79 kB estimated transfer (budget 680 kB warning). Review's chunk is 67.47 kB raw.
+
+### Screenshots (`docs/screens/`, light and dark)
+`ui2-2-review-{1440,400}`, `ui2-2-decided-{1440,400}`, `ui2-2-gap-note-{1440,400}`, `ui2-2-ready-to-sign-{1440,400}`,
+`ui2-2-signing-{1440,400}`, `ui2-2-signed-1440`; the existing `review-*` and `evidence-request-drawer` captures
+regenerated.
+
+### Test tails (2026-11-27, after merging origin/main)
+`LEXVAY_E2E_SLOT=1 make test` (backend and frontend unit green; its end-to-end stage failed once in
+`evidence-requests.spec.ts`, the navigation race fixed above), then `LEXVAY_E2E_SLOT=1 make e2e`:
+```
+[INFO] Tests run: 1044, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  25 passed (25)
+      Tests  277 passed (277)
+  26 passed (3.5m)
+```
+`LEXVAY_SCREENSHOTS=1`, slot 1 (the suite plus the three screenshot tests): `29 passed (4.2m)`.
+
+### Review round 1 (2026-11-27)
+- The DecisionBar sits in flow 24 px under the requirement and sticks to the pane's foot (16 px) only when the
+  requirement is longer than the pane; checked on TX-2 (short) and a lengthened rule text at 1440 and 400 px in both
+  themes. `ui2-2-*` screenshots regenerated.
+- CI on the PR head failed in `shell.spec.ts` (UI2-0's avatar menu at 400 px): the test clicked the avatar right after
+  `setViewportSize`, and PrimeNG's Popover closes itself on a window resize (after a reload the menu is also a deferred
+  chunk), so the menu was not open. The test now waits two animation frames for the resize to pass and opens the menu
+  until it is there. Not the Maven download problem.
+- After merging `origin/main`: `make frontend-test` `Test Files 25 passed (25)`, `Tests 277 passed (277)`;
+  `LEXVAY_SCREENSHOTS=1 LEXVAY_E2E_SLOT=1 make e2e` (the whole suite plus the three screenshot tests) `29 passed (3.8m)`.
+
+### Review round 2 (2026-11-27)
+- Merged UI2-3 (PR #38); `screens.spec.ts` keeps both screenshot tests, `review-and-sign.spec.ts` merged cleanly.
+- CI run 46026619701 failed `review-and-sign.spec.ts:3` with a strict-mode violation: the faint Seal preview in the
+  signing dialog carried the signed-seal sentence ("Signed by Dana Whitfield on ...: determined not to meet") as its
+  `aria-label`, and `getByLabel` matches `aria-label` text, so the chosen outcome's label was not unique. Whether the
+  preview had rendered when the locator resolved decided the result, hence green locally and red on the slower runner.
+  `review-and-sign.spec.ts:150` failed only because California was then never signed. Fix in the product: `Seal` has a
+  `preview` input (no role, no name, `aria-hidden`), used by the dialog; the test asserts the radio is the only element
+  with that label and that no image claims a signature before signing.
+- A local run showed a second race: switching states quickly could pull Review back to the previous state when that
+  state's `?jurisdiction=` landed after the person had moved on (the param effect read it as an external link). Review
+  now ignores the parameters it is writing itself (`ownNavigations`).
+- `make frontend-test`: `Test Files 28 passed (28)`, `Tests 296 passed (296)`. `LEXVAY_E2E_SLOT=1 make e2e` twice in a
+  row: `31 passed (3.4m)`, `31 passed (3.7m)`.
+
+### Merge of UI2-1, FIX-5 and the shell fix (2026-11-27)
+Main's opening overview checks in `review-and-sign.spec.ts` kept with the `stateTab` helper and the Review steps;
+`screens.spec.ts` keeps the UI2-1, UI2-2 and UI2-3 screenshot tests; `evidence-requests.spec.ts` takes main's wait
+(equivalent to this branch's); `initials` imported from `ui/initials.ts`. `make frontend-test`: `Test Files 29 passed
+(29)`, `Tests 312 passed (312)`. `LEXVAY_E2E_SLOT=1 make e2e` twice in a row: `37 passed (4.0m)`, `37 passed (3.7m)`.
+Initial bundle 605.33 kB raw, 155.71 kB transfer.
