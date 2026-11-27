@@ -24,8 +24,8 @@ class RuleSourceSchedulerLoopTest extends AbstractRuleSourceTest {
     @Autowired ApplicationContext context;
 
     private long queuedJobs(UUID sourceId) {
-        return inTenant(() -> jdbc.sql("SELECT count(*) FROM job WHERE type = 'CHECK_RULE_SOURCE' AND payload ->> 'ruleSourceId' = :id")
-                .param("id", sourceId.toString()).query(Long.class).single());
+        return inTenant(() -> jdbc.sql("SELECT count(*) FROM job WHERE type = 'CHECK_RULE_SOURCE' AND entity_id = :id")
+                .param("id", sourceId).query(Long.class).single());
     }
 
     @Test

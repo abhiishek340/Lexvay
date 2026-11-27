@@ -102,7 +102,7 @@ class AssessmentApiTest extends AbstractAssessmentTest {
                 AssessmentFixtures.numeric("NUMERIC", "TOTAL_CREDITS", ">=", 60, "60 hours"))));
         UUID assessmentId = fx.runAssessment(t, programId);
         assertThat(fx.mappings(t, assessmentId, "UT")).hasSize(1);
-        TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.RUN_ASSESSMENT, Map.of("assessmentId", assessmentId.toString())));
+        TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.RUN_ASSESSMENT, assessmentId, Map.of("assessmentId", assessmentId.toString())));
         runner.runPending();
         assertThat(fx.mappings(t, assessmentId, "UT")).hasSize(1);
         assertThat(fx.assessment(t, assessmentId).get("status").asString()).isEqualTo("FINISHED");

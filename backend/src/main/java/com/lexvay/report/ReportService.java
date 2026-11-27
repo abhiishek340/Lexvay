@@ -61,7 +61,7 @@ public class ReportService {
         determinations.findById(determinationId).orElseThrow(() -> new NotFoundException("Determination not found"));
         UUID actor = CurrentUser.require().id();
         UUID reportId = reports.insert(TenantContext.require(), determinationId, actor);
-        UUID jobId = jobs.enqueue(JobType.GENERATE_REPORT, Map.of("reportId", reportId.toString()));
+        UUID jobId = jobs.enqueue(JobType.GENERATE_REPORT, reportId, Map.of("reportId", reportId.toString()));
         audit.record("REPORT_REQUESTED", "report", reportId, Map.of("determinationId", determinationId.toString(), "jobId", jobId.toString()));
         return new RequestResult(reportId, jobId);
     }
