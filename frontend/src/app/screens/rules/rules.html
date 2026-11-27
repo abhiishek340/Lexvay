@@ -42,9 +42,6 @@
                     <ng-template #icon><ng-icon [name]="s.icon" size="14" aria-hidden="true" [class.lx-spin]="option.row.status === 'EXTRACTING'" /></ng-template>
                   </p-tag>
                 </span>
-                @if (option.row.status === 'EXTRACTION_FAILED' && v.extraction?.error; as reason) {
-                  <span class="lx-help lx-version-error">{{ reason }}</span>
-                }
               </div>
             </ng-template>
           </p-listbox>
