@@ -177,6 +177,7 @@ kbd {
 
 @media (max-width: 640px) {
   :root { --lx-gutter: 16px; }
+  .p-datatable-tbody > tr > td { font-size: 13px; }
   .lx-page { padding: var(--lx-space-5) var(--lx-gutter) var(--lx-space-8); }
   .lx-display { font-size: 30px; line-height: 36px; }
 }
