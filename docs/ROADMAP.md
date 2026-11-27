@@ -102,7 +102,8 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F2 Program setup workspace | `feat-setup-workspace` | 3 | Opus 5.5 | folded into UI2-4 (built directly in v2) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | merged (PR #28) |
-| F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
+| F5a User administration and audit export API | `feat-admin-api` | 5 | Sonnet 5.5 | in progress |
+| F5b Administration and audit screens (v2) | `ui2-admin` | — | Opus 5.5 | queued (after F5a, UI2-0) |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
 | F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
 | TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | merged (PR #25) |
@@ -631,6 +632,59 @@ version share a timestamp, so the order is the text order of the ref ("CO-10" be
    version's order" then follows the rule's own order.
 3. Tests: a rule with twelve requirements lists CO-1 … CO-12 in order through the requirements endpoint,
    the mappings endpoint and the diff; replace keeps the submitted order; `Rule5` immutability unchanged.
+
+## F5a — User administration and audit export API (backend only; slot 5; migration `V015__user_administration.sql`)
+Purpose: a tenant's administrator must add colleagues, change their role and remove their access without the seed or
+the database, and must be able to hand an auditor the audit trail as a file. Users are never deleted (product rule 9:
+every action names who did it). The screens come in v2 later (F5b). Decisions D-370 to D-379 in
+`docs/decisions/F5a.md`.
+1. **Schema (V015)**: `app_user` gains `active boolean NOT NULL DEFAULT true` and `security_stamp integer NOT NULL
+   DEFAULT 0` (updates to `app_user` stay ordinary; there is no immutability trigger on it today; keep it that way).
+   New table `user_setup_token` (`id`, `tenant_id`, `user_id` → app_user, `token_hash` text unique (SHA-256 hex),
+   `expires_at`, `used_at`, `created_at`, `created_by`), RLS + FORCE + tenant policy as in V002, immutable except
+   `used_at` (`restrict_update_to_columns('used_at')`), plus a SELECT and UPDATE policy honouring the existing
+   transaction-local `lexvay.auth_lookup` flag so the anonymous setup call can find its token, exactly like
+   `app_user`'s `auth_lookup` policy.
+2. **Create**: `POST /api/v1/users` (ADMIN) `{ email, displayName, role }` → 201 `{ user, setupCode, expiresAt }`. The
+   code is 32 random bytes from `SecureRandom`, base64url, returned once and stored only as its SHA-256; valid 72 hours.
+   Email is lower-cased and unique across tenants (409 "An account with this email exists"). Audited `USER_CREATED`
+   (email, role; never the code). `POST /api/v1/users/{id}/setup-code` (ADMIN) issues a new code and marks every
+   unused earlier code of that user used (audited `USER_SETUP_CODE_ISSUED`).
+3. **Set password**: `POST /api/v1/auth/setup` (anonymous, CSRF as for login, counted against the login rate-limit
+   budget) `{ code, password }`. Look the token up under `auth_lookup` in one statement; unknown, used or expired →
+   400 "This setup code is not valid" (same message for all three). Password 12 to 128 characters and not equal to
+   the email (400 naming the rule). Then, under the token's tenant: hash with the application's existing
+   `PasswordEncoder`, set `password_hash`, increment `security_stamp`, mark the token used, audit `PASSWORD_SET`
+   with the user as actor. Does not sign the user in; the client goes to the sign-in screen.
+4. **Role and access**: `PUT /api/v1/users/{id}/role` `{ role }` and `PUT /api/v1/users/{id}/active` `{ active }`
+   (ADMIN). An administrator cannot change their own role or deactivate themselves (409), and no change may leave
+   the tenant without an active ADMIN (409 "At least one active administrator is required"), checked in the same
+   transaction with `SELECT ... FOR UPDATE` on the tenant's active admins so two concurrent changes cannot both
+   pass. Each change increments `security_stamp` and is audited (`USER_ROLE_CHANGED` with old and new role,
+   `USER_DEACTIVATED`, `USER_REACTIVATED`). `findForLogin` ignores inactive users (the login error stays the generic
+   "Email or password is incorrect"); OIDC login refuses them with the existing 403.
+5. **Session revocation**: the session principal `LexvayUser` carries the stamp it was issued with. A
+   `UserStampCheck` in the existing `TenantContextFilter` path compares it with the current `(active, role,
+   security_stamp)` from a per-instance Caffeine cache (TTL 15 s, max 10 000 users, evicted locally on every change
+   made by this instance). On mismatch or inactive: invalidate the session and answer 401 problem detail "Your access
+   changed. Sign in again." A change made on another instance takes effect within 15 s (record in D-37x and
+   `docs/OPERATIONS.md`). The cache lookup is one statement and at most one extra connection checkout per user per
+   15 s; `ReadPathConnectionsTest` warms the cache first and still asserts one checkout per read.
+6. **Reads**: `GET /api/v1/users` gains `active`, `createdAt` and `passwordSet` (boolean) for ADMIN callers; other
+   roles keep today's fields. Ordered by display name.
+7. **Audit export**: `GET /api/v1/audit.csv` (ADMIN) with the existing audit filters (`action`, `entityType`,
+   `entityId`, `userId`, `from`, `to`), streamed: one read-only transaction, `JdbcClient` query with fetch size 500
+   streamed row by row through F8's `CsvWriter` into the response writer (never the whole log in memory), columns
+   time (ISO 8601 UTC), actor (display name, or "System"), action, record type, record id, details (the JSON as
+   text), `Content-Disposition: attachment; filename="lexvay-audit-<yyyy-mm-dd>.csv"`. Audited `AUDIT_EXPORTED`
+   with the filters and the row count after the stream completes. Test with 20 000 audit rows that heap growth during
+   the export stays under 32 MB (measure with `MemoryMXBean` before and after, after a GC).
+8. **Tests**: every rule above, including concurrency of the last-admin rule (two threads), expired and reused codes,
+   timing-safe comparison of the code hash (`MessageDigest.isEqual`), session revocation over real HTTP (sign in,
+   deactivate from an admin session, next request 401), RLS isolation of `user_setup_token`, immutability, rate limit on
+   `/auth/setup`, rows in `InputValidationTableTest` for every new endpoint, `Rule9_AuditCoverageTest` for every
+   mutating one and the export, `ForbiddenWordsTest` green.
+Done when `make backend-test`, `make perf` and `LEXVAY_E2E_SLOT=5 make e2e` are green.
 
 ## FIX-3 — Work queue and evidence request follow-ups (backend only; slot 9; no migration expected)
 Settles the open points recorded in the F13 and F4 reviews. Decisions D-360 to D-369 in `docs/decisions/FIX-3.md`.
