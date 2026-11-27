@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { JORDAN, PRIYA, apiPost, expect, expectAccessible, nav, openRequirement, signIn, stateTab, switchUser, test } from './support';
+import { JORDAN, PRIYA, apiPost, expect, expectAccessible, goTo, nav, openRequirement, signIn, stateTab, switchUser, test } from './support';
 
 const NOTE = 'Please send the passage that covers clinical supervision for this requirement.';
 
@@ -142,7 +142,7 @@ test('a reviewer asks for evidence, a contributor answers with a verified passag
 
   // The reviewer sees the requirement back in "Needs review" with the provided evidence, and accepts it.
   await switchUser(page, PRIYA);
-  await nav(page, 'Review').click();
+  await goTo(page, 'Review');
   await stateTab(page, 'UT').click();
   await page.getByRole('region', { name: 'Requirements' }).getByRole('button', { name: / to review$/ }).click();
   const listed = page.getByRole('region', { name: 'Requirements' }).getByRole('button').filter({ hasText: new RegExp(`^${ref}(?!\\d)`) });
@@ -162,7 +162,7 @@ test('a reviewer asks for evidence, a contributor answers with a verified passag
   await expect(page.getByTestId('message')).toContainText(`${ref}: Accepted.`);
 
   // Nothing is open any more; the provided evidence stays on the requirement.
-  await nav(page, 'Evidence requests').click();
+  await goTo(page, 'Evidence requests');
   await expect(page.getByTestId('requests-empty')).toContainText('No open evidence requests.');
   await openRequirement(page, 'UT', ref);
   await expect(page.getByTestId('provided-evidence').getByTestId('evidence-mark')).toHaveText(quote);
@@ -178,7 +178,7 @@ test('at 400 px: the inbox, the drawer, a blocked request and the provided evide
   expect((await apiPost(page, `/api/v1/mappings/${ambiguous.id}/reviews`, { kind: 'EVIDENCE_REQUESTED', note: 'Please send the required-course coverage.' })).status()).toBe(201);
 
   await switchUser(page, JORDAN);
-  await nav(page, 'Evidence requests').click();
+  await goTo(page, 'Evidence requests');
   const row = page.getByRole('table', { name: 'Evidence requests' }).locator(`tr[data-ref="${ambiguous.requirement.ref}"]`);
   await expect(row).toContainText('Open');
   // A card has no column headers, so its answer count is said in words.
@@ -217,9 +217,9 @@ test('at 400 px: the inbox, the drawer, a blocked request and the provided evide
     flag = reason;
     // Leave the screen and come back, so it fetches the list again; Review must have opened first, or the second click
     // is a navigation to the screen already shown, which the router ignores.
-    await nav(page, 'Review').click();
+    await goTo(page, 'Review');
     await expect(nav(page, 'Review')).toHaveAttribute('aria-current', 'page');
-    await nav(page, 'Evidence requests').click();
+    await goTo(page, 'Evidence requests');
     await expect(row).toContainText('Blocked');
     await expect(row.getByTestId('blocked-reason')).toContainText(short);
     await expect(row.getByRole('button', { name: /Provide evidence/ })).toHaveCount(0);

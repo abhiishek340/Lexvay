@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { JORDAN, PRIYA, SCREENSHOTS, expect, expectAccessible, nav, shoot, signIn, test } from './support';
+import { JORDAN, PRIYA, SCREENSHOTS, expect, expectAccessible, goTo, nav, shoot, signIn, test } from './support';
 
 /*
  * The rule workspace against the seeded Northfield data. The tests share one database and run in order:
@@ -62,7 +62,7 @@ async function capture(page: Page, name: string): Promise<void> {
 
 test('a reviewer reads the seeded Colorado revision: its list, its rule text and what it changed', async ({ page }) => {
   await signIn(page, PRIYA);
-  await nav(page, 'Rules').click();
+  await goTo(page, 'Rules');
   await expect(page.getByRole('heading', { level: 1, name: 'Rules' })).toBeVisible();
   await expect(nav(page, 'Rules')).toHaveAttribute('aria-current', 'page');
   // Nothing waits for a person, so Rules opens on the newest approved version of the program's first state, in place
@@ -71,7 +71,7 @@ test('a reviewer reads the seeded Colorado revision: its list, its rule text and
   await expect(page.getByRole('heading', { level: 2, name: 'Demo rule set - Utah (fictional) 2026' })).toBeVisible();
   await page.goBack();
   await expect(page).not.toHaveURL(/\/rules$/);
-  await nav(page, 'Rules').click();
+  await goTo(page, 'Rules');
 
   // The seed approves both Colorado versions; the revision supersedes the original.
   const revision = versions(page).getByRole('option', { name: REVISION });
@@ -162,7 +162,7 @@ async function submitVersion(page: Page): Promise<void> {
 
 test('a contributor enters a new rule version and its extraction proposes a list for approval', async ({ page }) => {
   await signIn(page, JORDAN);
-  await nav(page, 'Rules').click();
+  await goTo(page, 'Rules');
   await page.getByRole('button', { name: 'New rule version' }).click();
   const dialog = page.getByRole('dialog', { name: 'New rule version' });
   await expect(dialog.getByLabel('License type')).toHaveValue('CLINICAL_MENTAL_HEALTH_COUNSELING');
@@ -200,7 +200,7 @@ test('a contributor enters a new rule version and its extraction proposes a list
 
 test('a version whose extraction fails says so in words and leaves the list to a reviewer', async ({ page }) => {
   await signIn(page, JORDAN);
-  await nav(page, 'Rules').click();
+  await goTo(page, 'Rules');
   await page.getByRole('button', { name: 'New rule version' }).click();
   await fillVersion(page, { state: 'Oregon', option: 'Oregon (OR)', label: OREGON_LABEL, ruleText: OREGON_TEXT });
   await submitVersion(page);
@@ -227,7 +227,7 @@ test('a version whose extraction fails says so in words and leaves the list to a
 
 test('a reviewer enters the list by hand, corrects it, saves, reloads and approves it', async ({ page }) => {
   await signIn(page, PRIYA);
-  await nav(page, 'Rules').click();
+  await goTo(page, 'Rules');
   await versions(page).getByRole('option', { name: /Oregon \(fictional\) 2027/ }).click();
   await expect(page.getByTestId('version-state')).toContainText('Extraction failed');
 
@@ -331,7 +331,7 @@ test('a reviewer enters the list by hand, corrects it, saves, reloads and approv
   await expect(page.getByText('1 rule version waiting for approval')).toBeAttached();
   await expectAccessible(page, 'Approved version');
 
-  await nav(page, 'Audit trail').click();
+  await goTo(page, 'Audit trail');
   const audit = page.getByRole('main');
   await expect(audit).toContainText(/Dr\. Priya Raman approved \d+ requirements?/);
   await expect(audit).toContainText(/Dr\. Priya Raman edited a requirement list \(\d+ requirements?\)/);
@@ -340,7 +340,7 @@ test('a reviewer enters the list by hand, corrects it, saves, reloads and approv
 test('at 400 px the rule workspace stacks without horizontal page scroll', async ({ page }) => {
   await page.setViewportSize({ width: 400, height: 860 });
   await signIn(page, PRIYA);
-  await nav(page, 'Rules').click();
+  await goTo(page, 'Rules');
   await versions(page).getByRole('option', { name: REVISION }).click();
   await expect(page.getByRole('table', { name: 'Requirements' })).toBeVisible();
   const overflow = await page.evaluate(() => {
@@ -369,7 +369,7 @@ test('a change to search terms alone is its own aspect in Compare', async ({ pag
     await route.fulfill({ response, json: diff });
   });
   await signIn(page, PRIYA);
-  await nav(page, 'Rules').click();
+  await goTo(page, 'Rules');
   await versions(page).getByRole('option', { name: REVISION }).click();
   await page.getByRole('tab', { name: 'Compare' }).click();
   await expect(page.getByTestId('compare-summary')).toHaveText(/2 changed/);

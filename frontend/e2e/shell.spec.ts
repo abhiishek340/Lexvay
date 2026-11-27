@@ -1,4 +1,4 @@
-import { DANA, PRIYA, expect, expectAccessible, nav, signIn, stateTab, test } from './support';
+import { DANA, PRIYA, expect, expectAccessible, goTo, nav, signIn, stateTab, test } from './support';
 
 const story = (page: import('@playwright/test').Page) => page.locator('[data-story]');
 
@@ -66,7 +66,7 @@ test('the command palette opens with the shortcut and jumps to Review for a stat
 
 test('the command palette jumps to a requirement by its ref', async ({ page }) => {
   await signIn(page, PRIYA);
-  await nav(page, 'Review').click();
+  await goTo(page, 'Review');
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^[A-Z]{2}-/);
   await page.keyboard.press('Control+k');
   const palette = page.getByRole('dialog', { name: 'Search or jump to' });

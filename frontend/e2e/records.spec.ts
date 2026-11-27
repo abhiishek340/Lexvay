@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { Page } from '@playwright/test';
-import { ADMIN, DANA, expect, expectAccessible, nav, signIn, test } from './support';
+import { ADMIN, DANA, expect, expectAccessible, goTo, signIn, test } from './support';
 
 /**
  * The record screens of UI2-3: the audit trail's filter chips and CSV export, and the evidence report's PDF. Runs after
@@ -19,7 +19,7 @@ async function noHorizontalScroll(page: Page): Promise<void> {
 
 test('the audit filter chips ask the server, details open in place, and the administrator downloads the same entries as CSV', async ({ page }) => {
   await signIn(page, ADMIN);
-  await nav(page, 'Audit trail').click();
+  await goTo(page, 'Audit trail');
   const entries = page.getByRole('main').getByRole('listitem');
   await expect(entries.nth(1)).toBeVisible();
 
@@ -58,7 +58,7 @@ test('the audit filter chips ask the server, details open in place, and the admi
 
 test('an empty filter result says so with one action that clears it', async ({ page }) => {
   await signIn(page, DANA);
-  await nav(page, 'Audit trail').click();
+  await goTo(page, 'Audit trail');
   await page.getByRole('combobox', { name: 'Action' }).click();
   await page.getByRole('option', { name: 'Access withdrawn' }).click();
   await expect(page.getByText('No entries match these filters.')).toBeVisible();
@@ -68,7 +68,7 @@ test('an empty filter result says so with one action that clears it', async ({ p
 
 test('the signed report carries the seal and downloads its PDF; a draft carries the Draft stamp', async ({ page }) => {
   await signIn(page, DANA);
-  await nav(page, 'Evidence report').click();
+  await goTo(page, 'Evidence report');
   await expect(page.getByRole('note', { name: 'Draft. Not a determination.' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Download PDF' })).toBeDisabled();
 
@@ -93,18 +93,18 @@ for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await page.setViewportSize({ width, height });
     await signIn(page, ADMIN);
 
-    await nav(page, 'Changes').click();
+    await goTo(page, 'Changes');
     const changes = page.getByRole('list', { name: 'Change events' });
     await changes.getByRole('button', { name: 'Details' }).first().click();
     await noHorizontalScroll(page);
     await expectAccessible(page, `Changes at ${width} px`);
 
-    await nav(page, 'Audit trail').click();
+    await goTo(page, 'Audit trail');
     await page.getByRole('main').getByRole('listitem').first().getByRole('button').click();
     await noHorizontalScroll(page);
     await expectAccessible(page, `Audit trail at ${width} px`);
 
-    await nav(page, 'Evidence report').click();
+    await goTo(page, 'Evidence report');
     await expect(page.getByRole('note', { name: 'Draft. Not a determination.' })).toBeVisible();
     await noHorizontalScroll(page);
     await expectAccessible(page, `Draft report at ${width} px`);

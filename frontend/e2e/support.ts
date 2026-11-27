@@ -110,6 +110,19 @@ export function nav(page: Page, name: string) {
   return page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name, exact: true });
 }
 
+/** Opens a screen from the rail, or on a phone from the bottom bar's More menu when the bar has no room for it. */
+export async function goTo(page: Page, name: string): Promise<void> {
+  const link = nav(page, name);
+  const more = page.getByRole('navigation', { name: 'Screens' }).getByRole('button', { name: 'More screens' });
+  await expect(link.or(more).first()).toBeVisible();
+  if (await link.isVisible()) {
+    await link.click();
+    return;
+  }
+  await more.click();
+  await page.getByRole('menu', { name: 'More screens' }).getByRole('menuitem', { name, exact: true }).click();
+}
+
 export interface Evidence { documentId: string; filename: string; pageNumber: number; charStart: number; charEnd: number; quote: string; }
 
 /**
