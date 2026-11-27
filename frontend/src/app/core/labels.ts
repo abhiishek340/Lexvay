@@ -1,4 +1,5 @@
-import { DecisionKind, Finding, Outcome } from './models';
+import type { IconName } from '../theme/icons';
+import { ChangeEvent, DecisionKind, Finding, Outcome, Role } from './models';
 
 /** Plain wording (spec section 9): the two phrases the spec forbids never appear anywhere in the UI. */
 export const FINDING_LABEL: Record<Finding, string> = {
@@ -7,11 +8,11 @@ export const FINDING_LABEL: Record<Finding, string> = {
   AMBIGUOUS: 'Ambiguous',
 };
 
-/** A shape per finding so state never depends on colour alone. */
-export const FINDING_GLYPH: Record<Finding, string> = {
-  EVIDENCE_FOUND: '●',
-  EVIDENCE_MISSING: '✕',
-  AMBIGUOUS: '◐',
+/** A distinct shape per finding (check, question mark, cross) so state never depends on colour alone. */
+export const FINDING_ICON: Record<Finding, IconName> = {
+  EVIDENCE_FOUND: 'phosphorCheckCircleBold',
+  AMBIGUOUS: 'phosphorQuestionBold',
+  EVIDENCE_MISSING: 'phosphorXCircleBold',
 };
 
 export const DECISION_LABEL: Record<DecisionKind, string> = {
@@ -20,10 +21,28 @@ export const DECISION_LABEL: Record<DecisionKind, string> = {
   GAP_CONFIRMED: 'Gap confirmed',
 };
 
+export const DECISION_ICON: Record<DecisionKind, IconName> = {
+  ACCEPTED: 'phosphorSealCheck',
+  EVIDENCE_REQUESTED: 'phosphorPaperPlaneTilt',
+  GAP_CONFIRMED: 'phosphorSealWarning',
+};
+
 export const OUTCOME_LABEL: Record<Outcome, string> = {
   MEETS: 'Determined to meet',
   DOES_NOT_MEET: 'Determined not to meet',
   NOT_DETERMINED: 'No determination made',
+};
+
+export const ROLE_LABEL: Record<Role, string> = {
+  CONTRIBUTOR: 'Contributor',
+  REVIEWER: 'Reviewer',
+  SIGNER: 'Signer',
+  ADMIN: 'Administrator',
+};
+
+export const CHANGE_KIND: Record<ChangeEvent['kind'], { label: string; icon: IconName; action: string }> = {
+  RULE_VERSION: { label: 'New rule version', icon: 'phosphorScales', action: 'Re-run assessment' },
+  COURSE_VERSION: { label: 'New course version', icon: 'phosphorBookOpen', action: 'Re-run matching' },
 };
 
 export const ACTION_LABEL: Record<string, string> = {
@@ -31,6 +50,7 @@ export const ACTION_LABEL: Record<string, string> = {
   LOGOUT: 'Signed out',
   PROGRAM_CREATED: 'Program created',
   COURSE_CREATED: 'Course created',
+  COURSE_VERSION_ADDED: 'Course version added',
   DOCUMENT_UPLOADED: 'Document uploaded',
   DOCUMENT_INGESTED: 'Document text extracted',
   PROGRAM_FACT_RECORDED: 'Program fact recorded',
@@ -42,11 +62,22 @@ export const ACTION_LABEL: Record<string, string> = {
   ASSESSMENT_FINISHED: 'Assessment finished',
   REVIEW_RECORDED: 'Review decision recorded',
   DETERMINATION_SIGNED: 'Determination signed',
+  DETERMINATION_REOPENED: 'Determination reopened',
+  CHANGE_EVENT_CREATED: 'Change recorded',
+  CHANGE_RERUN_REQUESTED: 'Re-run requested',
+  CHANGE_RERUN: 'Change re-run finished',
+  REPORT_REQUESTED: 'Evidence report requested',
+  REPORT_GENERATED: 'Evidence report generated',
   JOB_FAILED: 'Background job failed',
   TENANT_CREATED: 'Tenant created',
   USER_CREATED: 'User created',
 };
 
 export function actionLabel(action: string): string {
-  return ACTION_LABEL[action] ?? action.toLowerCase().replace(/_/g, ' ');
+  return ACTION_LABEL[action] ?? humanize(action);
+}
+
+/** "COURSE_VERSION" and "courseVersion" both become "course version". */
+export function humanize(value: string): string {
+  return value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toLowerCase();
 }
