@@ -36,12 +36,15 @@ recorded. A test that deliberately causes an error declares it with `allowConsol
 matched against the message text and the URL it came from, so it names one response by status and URL. There is no
 global allowlist.
 
-**D-474 — The three declared errors.** Chromium logs every 4xx or 5xx response as "Failed to load resource". Three tests
+**D-474 — The six declared errors.** Chromium logs every 4xx or 5xx response as "Failed to load resource". Six tests
 cause one on purpose:
 - `review-and-sign.spec.ts` (sign-in page): the wrong password is answered with 401 by `/api/v1/auth/login`.
 - `evidence-requests.spec.ts` (answer drawer): a tampered quote submitted through the screen is answered with 400 by
   `/api/v1/mappings/<id>/evidence-responses`.
 - `rules.spec.ts` (hand-entered list): the blank title is answered with 400 by
   `/api/v1/rule-versions/<id>/requirements`.
+- `people.spec.ts` (a used setup link): 400 from `/api/v1/auth/setup`.
+- `people.spec.ts` (own row, last administrator): the stubbed 409 from `/api/v1/users/<id>/role`.
+- `people.spec.ts` (busy sign-in): the stubbed 503 from `/api/v1/auth/login`.
 
 Every other error the suite found was the view-transition `AbortError`; no screen logged anything else.
