@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 /**
  * Measures how well each ranker finds the page that answers a requirement (ROADMAP F7). Loads the demo seed's PDFs and the
  * added syllabi of eval/retrieval into a fresh, uniquely named tenant through {@link SeedLoader}, then puts every query
- * to the production {@link PassageSearch} once per ranker and scores the shortlists and their excerpts.
+ * to the production {@link PassageSearch} once per ranker, and BM25 once more with the query's search terms and scores the shortlists and their excerpts.
  */
 @Service
 public class RetrievalService {
@@ -53,12 +53,15 @@ public class RetrievalService {
         SeedLoader.Corpus loaded = seeds.loadCorpus("Retrieval evaluation " + suffix, "retrieval." + suffix + "@evaluation.example",
                 UUID.randomUUID().toString(), demo.program(), pdfs);
         return TenantContext.runAs(loaded.tenantId(), () -> RetrievalReport.of(loaded.documents(),
-                results(loaded.programId(), queries, Ranker.TS_RANK), results(loaded.programId(), queries, Ranker.BM25), limits));
+                results(loaded.programId(), queries, Ranker.TS_RANK, false), results(loaded.programId(), queries, Ranker.BM25, false),
+                results(loaded.programId(), queries, Ranker.BM25, true), limits));
     }
 
-    private List<RetrievalScorer.Result> results(UUID programId, RetrievalQueries queries, Ranker ranker) {
+    /** The shortlists of every query; the search terms of a query are put to the search only when {@code withTerms}. */
+    private List<RetrievalScorer.Result> results(UUID programId, RetrievalQueries queries, Ranker ranker, boolean withTerms) {
         return queries.queries().stream().map(q -> new RetrievalScorer.Result(q, search
-                .search(programId, q.title(), q.text(), shortlistSize, ranker).stream().map(RetrievalService::page).toList())).toList();
+                .search(programId, q.title(), q.text(), withTerms ? q.searchTerms() : List.of(), shortlistSize, ranker).stream()
+                .map(RetrievalService::page).toList())).toList();
     }
 
     private static RetrievalScorer.Page page(Passage p) {

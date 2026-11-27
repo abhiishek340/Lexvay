@@ -19,7 +19,11 @@ live:
   minExtractionAgreement: 0.9
   minEvidenceAgreement: 0.8
 # retrieval: limits on the BM25 ranker over eval/retrieval/queries.yml, lexical-gap queries excluded. They do not
-#   depend on the model. Beyond these floors BM25 may not fall below the ts_rank baseline in recall@8 or recall@3.
+#   depend on the model. Beyond these floors BM25 may not fall below the ts_rank baseline in recall@8 or recall@3, and BM25
+#   with the requirement's search terms (F7c) may not fall below BM25 alone.
+# minGapRecallAtDeep: the recall@8 BM25 with search terms must reach on the lexical-gap queries: 4 of the 6, so 0.66
+#   (4 / 6 = 0.667 passes, 3 / 6 = 0.5 does not).
 retrieval:
   minRecallAtDeep: 0.95
   minExcerptCoverage: 1.0
+  minGapRecallAtDeep: 0.66

@@ -14,8 +14,12 @@ public record Thresholds(Limits fake, Limits live, Retrieval retrieval) {
                          double minExtractionAgreement, double minEvidenceAgreement) {
     }
 
-    /** Floors for the BM25 ranker on the queries that are not lexical gaps. Beyond them it may not fall below the baseline ranker. */
-    public record Retrieval(double minRecallAtDeep, double minExcerptCoverage) {
+    /**
+     * Floors for the BM25 ranker on the queries that are not lexical gaps. Beyond them it may not fall below the baseline
+     * ranker, and BM25 with search terms may not fall below BM25 alone. {@code minGapRecallAtDeep} is the recall@8 BM25 with
+     * search terms must reach on the lexical-gap queries.
+     */
+    public record Retrieval(double minRecallAtDeep, double minExcerptCoverage, double minGapRecallAtDeep) {
     }
 
     public Limits forMode(EvalReport.Mode mode) {
@@ -45,6 +49,18 @@ public record Thresholds(Limits fake, Limits live, Retrieval retrieval) {
         require(out, "recall@" + RetrievalScorer.DEEP + " against the baseline", bm25.recallAtDeep(), baseline.recallAtDeep().value());
         require(out, "recall@" + RetrievalScorer.SHALLOW + " against the baseline", bm25.recallAtShallow(), baseline.recallAtShallow().value());
         require(out, "excerpt coverage", bm25.excerptCoverage(), limits.minExcerptCoverage());
+        return out;
+    }
+
+    /** Every limit BM25 with search terms breaks: the floors, falling below BM25 alone, and too few lexical gaps recalled. */
+    public static List<String> termsBreaches(Retrieval limits, RetrievalScorer.Score withTerms, RetrievalScorer.Metrics bm25) {
+        List<String> out = new ArrayList<>();
+        RetrievalScorer.Metrics counted = withTerms.counted();
+        require(out, "recall@" + RetrievalScorer.DEEP + " with search terms", counted.recallAtDeep(), limits.minRecallAtDeep());
+        require(out, "recall@" + RetrievalScorer.DEEP + " with search terms against BM25", counted.recallAtDeep(), bm25.recallAtDeep().value());
+        require(out, "recall@" + RetrievalScorer.SHALLOW + " with search terms against BM25", counted.recallAtShallow(), bm25.recallAtShallow().value());
+        require(out, "excerpt coverage with search terms", counted.excerptCoverage(), limits.minExcerptCoverage());
+        require(out, "lexical-gap recall@" + RetrievalScorer.DEEP + " with search terms", withTerms.gap().recallAtDeep(), limits.minGapRecallAtDeep());
         return out;
     }
 
