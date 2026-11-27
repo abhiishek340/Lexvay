@@ -112,7 +112,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI2-1 Overview and register in v2 | `ui2-overview-register` | 2 | Opus 5.5 | in progress |
 | UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | in progress |
 | UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | in progress |
-| UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI2-0, F4) |
+| UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | in progress |
 | FIX-3 Work queue and evidence request follow-ups | `fix-queue-followups` | 9 | Sonnet 5.5 | merged (PR #31) |
 | FIX-4 Rule source backoff, live search terms, PDF page cap at upload | `fix-backoff-terms-pages` | 7 | Sonnet 5.5 | merged (PR #33) |
 | SEC-2 Argon2id passwords and audit list index | `sec-argon2-audit-index` | 5 | Sonnet 5.5 | PR #36 in review (hash concurrency gate) |
