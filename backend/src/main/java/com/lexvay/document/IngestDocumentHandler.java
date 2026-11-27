@@ -17,11 +17,13 @@ public class IngestDocumentHandler implements JobHandler {
 
     private final DocumentRepository documents;
     private final FileStore files;
+    private final TextExtractor extractor;
     private final AuditService audit;
 
-    public IngestDocumentHandler(DocumentRepository documents, FileStore files, AuditService audit) {
+    public IngestDocumentHandler(DocumentRepository documents, FileStore files, TextExtractor extractor, AuditService audit) {
         this.documents = documents;
         this.files = files;
+        this.extractor = extractor;
         this.audit = audit;
     }
 
@@ -38,8 +40,8 @@ public class IngestDocumentHandler implements JobHandler {
         byte[] bytes = files.get(document.storageKey());
         List<ExtractedPage> pages;
         try {
-            pages = TextExtractor.extract(FileType.fromFilename(document.filename()), bytes);
-        } catch (UnparsableDocumentException | EmptyDocumentException | IllegalArgumentException e) {
+            pages = extractor.extract(FileType.fromFilename(document.filename()), bytes);
+        } catch (UnparsableDocumentException | EmptyDocumentException | TooManyScannedPagesException | IllegalArgumentException e) {
             throw new PermanentJobFailure(e.getMessage(), e);
         }
         UUID tenantId = TenantContext.require();
@@ -48,6 +50,7 @@ public class IngestDocumentHandler implements JobHandler {
             inserted += documents.insertPage(tenantId, documentId, page, document.createdBy());
         }
         audit.recordAs(null, "DOCUMENT_INGESTED", "document", documentId, Map.of(
-                "jobId", job.id().toString(), "pages", pages.size(), "pagesInserted", inserted));
+                "jobId", job.id().toString(), "pages", pages.size(), "pagesInserted", inserted,
+                "ocrPages", pages.stream().filter(page -> page.textSource() == TextSource.OCR).count()));
     }
 }

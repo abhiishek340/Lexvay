@@ -171,7 +171,7 @@ class DocumentUploadTest extends AbstractDatabaseTest {
         runner.runPending();
         var doc = getDocument(UUID.fromString(body(result).get("documentId").asString()));
         assertThat(doc.get("ingest").get("status").asString()).isEqualTo("FAILED");
-        assertThat(doc.get("ingest").get("error").asString()).isEqualTo("Document has no extractable text");
+        assertThat(doc.get("ingest").get("error").asString()).isEqualTo("Document has no extractable text. It looks scanned; OCR is not enabled on this server");
     }
 
     @Test

@@ -36,7 +36,13 @@ lexvay:
       output-per-mtok: ${LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK:0}
   matching:
     min-quote-chars: ${LEXVAY_MIN_QUOTE_CHARS:40}
+    min-ocr-confidence: 80
     shortlist-size: 8
+  ocr:
+    engine: ${LEXVAY_OCR:off}                              # off | tesseract
+    tesseract-path: ${LEXVAY_OCR_TESSERACT_PATH:tesseract}
+    language: ${LEXVAY_OCR_LANGUAGE:eng}
+    max-pages: 200
   jobs:
     polling-enabled: true
     poll-interval-ms: 1000

@@ -1,6 +1,9 @@
 package com.lexvay.common;
 
+import com.lexvay.document.FakeOcrEngine;
 import java.nio.file.Path;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
@@ -18,8 +21,16 @@ import org.testcontainers.utility.MountableFile;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-@Import({TestTenants.class, SchemaFixtures.class})
+@Import({TestTenants.class, SchemaFixtures.class, FakeOcrEngine.class})
 public abstract class AbstractDatabaseTest {
+
+    /** Off, like the production default, until a test enables it; reset before every test. */
+    @Autowired protected FakeOcrEngine ocr;
+
+    @BeforeEach
+    void resetOcr() {
+        ocr.reset();
+    }
 
     protected static final String DB_NAME = "lexvay";
     protected static final String OWNER_USER = "lexvay_owner";
