@@ -26,7 +26,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (final merge of main) |
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
-| F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | in progress |
+| F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | PR #21 approved (CI running) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | in progress |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | specified (starts when F1 merges) |
@@ -750,6 +750,10 @@ D-259 in `docs/decisions/F7c.md`.
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
 ## Follow-ups recorded from reviews
+- F1: check by hand that Chrome, Firefox and Safari render a PDF opened through "Open original" while the
+  response carries the app's CSP (`object-src 'none'`); if a browser refuses, give `GET /documents/{id}/file` its own
+  CSP (`default-src 'none'; frame-ancestors 'none'`) in `SecurityHeadersFilter`. The OCR note in the viewer is covered
+  only by unit tests until the seed has a scanned document (add one to `seed/` with F7c or later).
 - F12: a failed check waits a full interval (up to 30 days) before the scheduler retries; a shorter backoff
   needs a `next_check_at` column. No screen lists rule sources yet; add a Sources tab to the F3 rule workspace.
 - F12 deployment note: the SSRF guard resolves the host before connecting and the JDK client resolves it
