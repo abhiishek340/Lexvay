@@ -28,8 +28,9 @@ import org.springframework.stereotype.Component;
  *
  * <p>A PDF page whose text layer has at least {@value #MIN_PAGE_CHARS} non-whitespace characters keeps it. Any
  * other page is rendered and read by the OCR engine when one is available, and kept as OCR text with its mean
- * confidence when that yields {@value #MIN_PAGE_CHARS} characters; otherwise the page is empty (F11). A document
- * whose pages are all empty is rejected.
+ * confidence when that yields {@value #MIN_PAGE_CHARS} characters. In every other case (no engine, or too little
+ * recognised) the page keeps its text layer, however short, as {@code TEXT_LAYER}: a text layer is never discarded
+ * (D-164). A document whose pages all have a blank text layer after that is rejected.
  */
 @Component
 public class TextExtractor {
@@ -99,9 +100,9 @@ public class TextExtractor {
                 if (hasEnoughText(layer)) {
                     pages.add(PageText.textLayer(layer));
                 } else if (recognise) {
-                    pages.add(recogniseScan(renderer, document.getPage(i), i));
+                    pages.add(recogniseScan(renderer, document.getPage(i), i).orElseGet(() -> PageText.textLayer(layer)));
                 } else {
-                    pages.add(PageText.textLayer(""));
+                    pages.add(PageText.textLayer(layer));
                 }
             }
             return pages;
@@ -112,13 +113,12 @@ public class TextExtractor {
         }
     }
 
-    private PageText recogniseScan(PDFRenderer renderer, PDPage page, int index) throws IOException {
+    /** The OCR text of a page, or empty when the engine found too little for the page to count as read. */
+    private Optional<PageText> recogniseScan(PDFRenderer renderer, PDPage page, int index) throws IOException {
         BufferedImage image = renderer.renderImageWithDPI(index, renderDpi(page.getCropBox()), ImageType.GRAY);
-        Optional<OcrPage> recognised = ocr.recognize(image).map(p -> new OcrPage(normalize(p.text()), p.meanConfidence()))
-                .filter(p -> hasEnoughText(p.text()));
-        return recognised
-                .map(p -> new PageText(p.text(), TextSource.OCR, confidence(p.meanConfidence())))
-                .orElseGet(() -> PageText.textLayer(""));
+        return ocr.recognize(image).map(p -> new OcrPage(normalize(p.text()), p.meanConfidence()))
+                .filter(p -> hasEnoughText(p.text()))
+                .map(p -> new PageText(p.text(), TextSource.OCR, confidence(p.meanConfidence())));
     }
 
     /** 300 DPI, or lower for a page so large that its image would exceed {@link #MAX_OCR_PIXELS}. */

@@ -91,10 +91,35 @@ class TextExtractorOcrTest {
     }
 
     @Test
-    void thinTextLayerWithoutAnEngineIsEmptyAndHintsToo() {
-        byte[] thin = TestDocuments.pdf(List.of(List.of("Page 3")));
-        assertThatThrownBy(() -> extractor.extract(FileType.PDF, thin))
-                .isInstanceOf(EmptyDocumentException.class).hasMessageContaining("OCR is not enabled");
+    void aThinTextLayerIsKeptWhenThereIsNoEngine() {
+        byte[] thin = TestDocuments.pdf(List.of(List.of("Page 3"), List.of(LAYER_TEXT)));
+        List<ExtractedPage> pages = extractor.extract(FileType.PDF, thin);
+        assertThat(pages.get(0).text()).isEqualTo("Page 3");
+        assertThat(pages.get(0).textSource()).isEqualTo(TextSource.TEXT_LAYER);
+        assertThat(pages.get(1).text()).isEqualTo(LAYER_TEXT);
+    }
+
+    @Test
+    void aThinTextLayerIsKeptWhenOcrFindsTooLittle() {
+        ocr.enable().page("3", 90);
+        List<ExtractedPage> pages = extractor.extract(FileType.PDF, TestDocuments.pdf(List.of(List.of("Page 3"), List.of(LAYER_TEXT))));
+        assertThat(pages.get(0).text()).isEqualTo("Page 3");
+        assertThat(pages.get(0).textSource()).isEqualTo(TextSource.TEXT_LAYER);
+        assertThat(pages.get(0).ocrConfidence()).isNull();
+        assertThat(ocr.imagesSeen()).hasSize(1);
+    }
+
+    @Test
+    void aThinTextLayerIsReplacedWhenOcrReadsTheScanBetter() {
+        ocr.enable().page(SCANNED_TEXT, 92);
+        List<ExtractedPage> pages = extractor.extract(FileType.PDF, TestDocuments.pdf(List.of(List.of("Page 3"))));
+        assertThat(pages.get(0).text()).isEqualTo(SCANNED_TEXT);
+        assertThat(pages.get(0).textSource()).isEqualTo(TextSource.OCR);
+    }
+
+    @Test
+    void aSingleShortWordIsStillText() {
+        assertThat(extractor.extract(FileType.PDF, TestDocuments.pdf(List.of(List.of("x"))))).hasSize(1);
     }
 
     @Test
