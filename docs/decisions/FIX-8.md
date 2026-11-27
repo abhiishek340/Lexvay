@@ -27,6 +27,12 @@ instead of tolerated:
   `?jurisdiction=` already means the program's first state, as Coverage always read it, so the default is applied when
   reading and the URL changes only when the person picks another state.
 
+- Opening Rules without a version in the address (UI2-4) chose the version to open in a component effect and navigated
+  again once the program had loaded, which aborted the first transition. `openingVersionGuard`
+  (`screens/rules/opening-version.guard.ts`) does the same inside the opening navigation: it awaits the program, then
+  redirects the bare address to the version that opens (the query travels along). `ProgramContext.ruleVersionGroups`
+  is the one place the versions are grouped, for the guard and the list.
+
 The rule workspace's `?new=1` (the command palette's "new rule version") is also followed by a navigation that removes
 the parameter; no test overlaps it, so it is left as it is and noted in the pull request.
 
@@ -36,7 +42,7 @@ recorded. A test that deliberately causes an error declares it with `allowConsol
 matched against the message text and the URL it came from, so it names one response by status and URL. There is no
 global allowlist.
 
-**D-474 — The six declared errors.** Chromium logs every 4xx or 5xx response as "Failed to load resource". Six tests
+**D-474 — The seven declared errors.** Chromium logs every 4xx or 5xx response as "Failed to load resource". Seven tests
 cause one on purpose:
 - `review-and-sign.spec.ts` (sign-in page): the wrong password is answered with 401 by `/api/v1/auth/login`.
 - `evidence-requests.spec.ts` (answer drawer): a tampered quote submitted through the screen is answered with 400 by
@@ -46,5 +52,6 @@ cause one on purpose:
 - `people.spec.ts` (a used setup link): 400 from `/api/v1/auth/setup`.
 - `people.spec.ts` (own row, last administrator): the stubbed 409 from `/api/v1/users/<id>/role`.
 - `people.spec.ts` (busy sign-in): the stubbed 503 from `/api/v1/auth/login`.
+- `setup.spec.ts` (the same syllabus uploaded twice): the 409 from `/api/v1/programs/<id>/documents?kind=SYLLABUS` that refuses the copy.
 
 Every other error the suite found was the view-transition `AbortError`; no screen logged anything else.
