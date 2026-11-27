@@ -6,6 +6,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 import com.lexvay.assessment.AbstractAssessmentTest;
 import com.lexvay.assessment.AssessmentFixtures;
+import com.lexvay.assessment.LegacyCurrentFilter;
+import com.lexvay.assessment.MappingRepository;
 import com.lexvay.audit.AuditRepository;
 import com.lexvay.common.TenantContext;
 import com.lexvay.review.ReviewFixtures;
@@ -16,12 +18,14 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import tools.jackson.databind.JsonNode;
 
 class RuleVersionChangeTest extends AbstractAssessmentTest {
 
     @Autowired AuditRepository audit;
+    @Autowired JdbcClient jdbc;
 
     private MvcTestResult createVersion(String label, String jurisdiction, UUID supersedes, String requirementsJson) {
         fake.script("EXTRACT:" + label, requirementsJson);
@@ -33,6 +37,43 @@ class RuleVersionChangeTest extends AbstractAssessmentTest {
         }
         return mvc.post().uri("/api/v1/rule-versions").with(user(t.contributor())).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(map)).exchange();
+    }
+
+    @Test
+    void aTermsOnlyEditCarriesTheDecisionsOverAndTheDiffReportsIt() throws Exception {
+        var rf = new ReviewFixtures(mvc, json, fx);
+        var s = rf.californiaScenario(t, "terms");
+        rf.decideAll(t, s);
+
+        // The same three requirements; a reviewer or the model gave ethics search terms in the revision.
+        String revised = fx.requirements("CA", List.of(
+                AssessmentFixtures.numeric("NUMERIC", "TOTAL_CREDITS", ">=", 60, "at least 60 semester hours"),
+                AssessmentFixtures.specific("Telehealth", "training in telehealth practice"),
+                AssessmentFixtures.withTerms(AssessmentFixtures.subject("Ethics", "coursework in professional ethics and legal standards"),
+                        "code of ethics", "confidentiality")));
+        UUID newVersion = UUID.fromString(fx.read(createVersion("Demo rule set California terms rev 2", "CA", s.ruleVersionId(), revised))
+                .get("ruleVersionId").asString());
+        runner.runPending();
+
+        var diff = fx.read(mvc.get().uri("/api/v1/rule-versions/" + newVersion + "/diff").with(user(t.reviewer())).exchange());
+        assertThat(diff.get("summary").get("changed").asInt()).isEqualTo(1);
+        assertThat(diff.get("summary").get("unchanged").asInt()).isEqualTo(2);
+        JsonNode ethicsRow = diff.get("requirements").get(2);
+        assertThat(ethicsRow.get("status").asString()).isEqualTo("CHANGED");
+        assertThat(ethicsRow.get("changes")).extracting(JsonNode::asString).containsExactly("SEARCH_TERMS");
+        assertThat(ethicsRow.get("before").get("searchTerms")).isEmpty();
+        assertThat(ethicsRow.get("after").get("searchTerms")).extracting(JsonNode::asString).containsExactly("code of ethics", "confidentiality");
+
+        var eventId = UUID.fromString(fx.read(mvc.get().uri("/api/v1/change-events").with(user(t.reviewer())).exchange()).get(0).get("id").asString());
+        assertThat(mvc.post().uri("/api/v1/rule-versions/" + newVersion + "/requirements/approve").with(user(t.reviewer())).with(csrf()).exchange()).hasStatus(200);
+        assertThat(mvc.post().uri("/api/v1/change-events/" + eventId + "/rerun").with(user(t.reviewer())).with(csrf()).exchange()).hasStatus(202);
+        runner.runPending();
+
+        var newList = fx.mappings(t, s.assessmentId(), "CA");
+        assertThat(newList).allSatisfy(m -> assertThat(m.get("ruleVersionId").asString()).isEqualTo(newVersion.toString()));
+        assertThat(newList).as("every decision carried over: a change of terms is not a change of the requirement")
+                .allSatisfy(m -> assertThat(m.get("decision").get("note").asString()).startsWith("Carried over from"));
+        assertThat(fake.callCount(com.lexvay.llm.LlmPurpose.MATCH_EVIDENCE)).as("no new model call").isEqualTo(2);
     }
 
     @Test
@@ -69,6 +110,7 @@ class RuleVersionChangeTest extends AbstractAssessmentTest {
         assertThat(oldList).as("old list stays visible until the new version is approved and re-run").hasSize(3);
         assertThat(oldList).allSatisfy(m -> assertThat(m.get("stale").asBoolean()).isTrue());
         assertThat(rf.review(t.reviewer(), s.foundMapping(), "ACCEPTED", null)).as("stale mappings cannot be reviewed").hasStatus(409);
+        assertCurrentFilterAgrees(s.assessmentId(), 4, 4);
 
         var tooEarly = mvc.post().uri("/api/v1/change-events/" + eventId + "/rerun").with(user(t.reviewer())).with(csrf()).exchange();
         assertThat(tooEarly).hasStatus(409);
@@ -80,6 +122,7 @@ class RuleVersionChangeTest extends AbstractAssessmentTest {
         assertThat(rerun).hasStatus(202);
         runner.runPending();
 
+        assertCurrentFilterAgrees(s.assessmentId(), 4, 7);
         var newList = fx.mappings(t, s.assessmentId(), "CA");
         assertThat(newList).hasSize(3);
         assertThat(newList).allSatisfy(m -> assertThat(m.get("ruleVersionId").asString()).isEqualTo(newVersion.toString()));
@@ -103,8 +146,41 @@ class RuleVersionChangeTest extends AbstractAssessmentTest {
 
         assertThat(rf.sign(t.signer(), s.programId(), "CA", "DOES_NOT_MEET")).as("the changed requirement is undecided").hasStatus(409);
         assertThat(rf.review(t.reviewer(), UUID.fromString(credits.get("id").asString()), "GAP_CONFIRMED", "60 credits is below the new 66.")).hasStatus(201);
+        assertThat(readyToSign()).as("the superseded mappings no longer block signing in the work queue").contains("CA");
         var resigned = rf.sign(t.signer(), s.programId(), "CA", "DOES_NOT_MEET");
         assertThat(resigned).as("a reopened determination can be replaced by a new signature").hasStatus(201);
         assertThat(fx.read(resigned).get("ruleVersionId").asString()).isEqualTo(newVersion.toString());
+    }
+
+    /**
+     * The set-based filter and its previous per-mapping form return the same mappings of the assessment, for the
+     * assessment's own statement ({@code = :a}) and for the work queue's ({@code IN (SELECT ...)}).
+     * {@code current}: how many mappings are current; {@code all}: how many the assessment holds.
+     */
+    private void assertCurrentFilterAgrees(UUID assessmentId, int current, int all) {
+        String base = "SELECT m.id FROM mapping m JOIN requirement r ON r.id = m.requirement_id WHERE m.assessment_id = :a";
+        List<UUID> previous = TenantContext.runAs(t.tenantId(),
+                () -> jdbc.sql(base + LegacyCurrentFilter.SQL + " ORDER BY m.id").param("a", assessmentId).query(UUID.class).list());
+        List<UUID> single = TenantContext.runAs(t.tenantId(),
+                () -> jdbc.sql(base + MappingRepository.current("= :a") + " ORDER BY m.id").param("a", assessmentId).query(UUID.class).list());
+        List<UUID> several = TenantContext.runAs(t.tenantId(), () -> jdbc.sql(base + MappingRepository.current("IN (SELECT :a)")
+                + " ORDER BY m.id").param("a", assessmentId).query(UUID.class).list());
+        assertThat(previous).hasSize(current);
+        assertThat(single).isEqualTo(previous);
+        assertThat(several).isEqualTo(previous);
+        assertThat(TenantContext.runAs(t.tenantId(), () -> jdbc.sql("SELECT count(*) FROM mapping WHERE assessment_id = :a")
+                .param("a", assessmentId).query(Long.class).single())).isEqualTo(all);
+    }
+
+    /** Jurisdiction codes of the READY_TO_SIGN items the signer sees. */
+    private List<String> readyToSign() {
+        var queue = fx.read(mvc.get().uri("/api/v1/work-queue").with(user(t.signer())).exchange());
+        List<String> codes = new java.util.ArrayList<>();
+        for (JsonNode item : queue.get("items")) {
+            if (item.get("kind").asString().equals("READY_TO_SIGN")) {
+                codes.add(item.get("jurisdictionCode").asString());
+            }
+        }
+        return codes;
     }
 }

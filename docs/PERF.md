@@ -232,8 +232,7 @@ of `mapping`, `review_event` or `job` (plans in `backend/target/perf/work-queue-
 determinations `determination_program_jurisdiction_status_idx`. The only sequential scan is the 51-row `jurisdiction`
 table. No index is needed, so there is no `V014__work_queue_indexes.sql`. A first run before the history volume
 existed showed a sequential scan of `review_event`: the table was empty and the planner ignores indexes on empty
-tables, which is why `PerfSeed.addHistoryVolume` now adds review events. Known cost: `MappingRepository.CURRENT` is
-quadratic in the mappings of one assessment (D-199).
+tables, which is why `PerfSeed.addHistoryVolume` now adds review events. The cost of `MappingRepository.CURRENT` (D-199) was measured and removed in FIX-3, next section.
 
 ## Frontend bundle (PERF-FE-1)
 
@@ -316,6 +315,27 @@ New lazy chunks (raw / transfer): login 51.0 / 13.4 kB, command palette 50.4 / 1
 mostly PrimeNG's Toast, Dialog and Menu code, loaded when the page is idle). The fonts are separate media files (Inter
 latin 48 kB, Source Serif 4 latin 51 kB, each requested only when a glyph in its range is on the page). The budget is now
 680 kB warning and 760 kB error.
+
+## Current-mapping filter (FIX-3)
+
+`GET /assessments/{id}/mappings` and every statement that hides superseded mappings (D-066) ran a correlated
+`NOT EXISTS` per mapping, quadratic in the mappings of one assessment (D-199). `IndexUsageTest` now adds one tenant
+with a rule version v1 (500 requirements), its successor v2 (500) and two assessments (D-363): 500 mappings on v1 with
+no mappings on v2 (the historical case), and 500 on v1 plus 500 on v2 (after a re-run; the first 500 are hidden).
+`EXPLAIN (ANALYZE, BUFFERS)` as the application role under row-level security on about 200 tenants, one run each,
+warm (third execution):
+
+| Statement | Before: execution, buffers | After: execution, buffers | Plan before | Plan after |
+|---|---|---|---|---|
+| mappings, before the re-run (500 rows) | 15.5 ms, 5 192 | 3.2 ms, 3 530 | Nested Loop Anti Join, 250 000 rows removed by join filter | hashed SubPlan, one pass over the assessment |
+| mappings, after the re-run (500 shown, 500 hidden) | 29.6 ms, 4 747 | 3.5 ms, 3 527 | Nested Loop Anti Join, 500 500 rows removed by join filter | same |
+| work queue, signer, same tenant | 275 ms | 5.2 ms | one anti join per mapping of the latest assessment | one hashed set over the latest assessments |
+
+The limits that decide a rewrite were 5 ms and 2 000 buffers; both were exceeded, so the filter was rewritten
+(D-363, D-364). After it the time is under 5 ms; the buffers stay above 2 000 because of per-row work (review event
+lookup 1 000, evidence span 900) plus one pass over the assessment's mappings to build the set; they grow linearly with
+the rows. `IndexUsageTest` fails above 4 000. Plans: `backend/target/perf/mappings-plan.txt` and
+`work-queue-plan.txt` (the work queue plan of the other roles: 2.0 to 3.3 ms).
 
 ## Not covered
 

@@ -172,6 +172,9 @@ spring:
       on-profile: eval
 server:
   port: 0
+management:
+  server:
+    port: -1   # like seed: a running development backend must not block the run
 lexvay:
   jobs:
     polling-enabled: false

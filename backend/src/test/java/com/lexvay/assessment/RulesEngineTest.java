@@ -8,6 +8,7 @@ import com.lexvay.rule.NumericField;
 import com.lexvay.rule.Requirement;
 import com.lexvay.rule.RequirementType;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -20,7 +21,7 @@ class RulesEngineTest {
 
     static Requirement numeric(String operator, String value) {
         return new Requirement(UUID.randomUUID(), UUID.randomUUID(), "X-1", "Credits", "At least " + value + " hours",
-                RequirementType.NUMERIC, NumericField.TOTAL_CREDITS, operator, new BigDecimal(value), 1);
+                RequirementType.NUMERIC, NumericField.TOTAL_CREDITS, operator, new BigDecimal(value), 1, List.of());
     }
 
     static Map<NumericField, RulesEngine.Fact> facts(String credits) {
@@ -58,7 +59,7 @@ class RulesEngineTest {
     @Test
     void engineNeverProducesAmbiguousAndRefusesNonNumericTypes() {
         var subject = new Requirement(UUID.randomUUID(), UUID.randomUUID(), "X-2", "Ethics", "Ethics coursework",
-                RequirementType.SUBJECT, null, null, null, 1);
+                RequirementType.SUBJECT, null, null, null, 1, List.of());
         assertThatThrownBy(() -> RulesEngine.evaluate(subject, Map.of())).isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -26,13 +26,14 @@ public interface PassageSearch {
     }
 
     /**
-     * Candidate pages for a requirement, best first: any word of the title or the text may match, a word of the
-     * title counting double under BM25. Ranked by the configured {@link Ranker}.
+     * Candidate pages for a requirement, best first: any word of the title, the text or the search terms may match, a
+     * word of the title counting double under BM25. Ranked by the configured {@link Ranker}. Each passage says which of
+     * the three found it ({@link Passage#matchedVia()}); a search term is a hint for retrieval, never evidence.
      */
-    List<Passage> search(UUID programId, String title, String text, int limit);
+    List<Passage> search(UUID programId, String title, String text, List<String> searchTerms, int limit);
 
     /** The same with a chosen ranker, so the evaluation can compare the two. */
-    List<Passage> search(UUID programId, String title, String text, int limit, Ranker ranker);
+    List<Passage> search(UUID programId, String title, String text, List<String> searchTerms, int limit, Ranker ranker);
 
     /**
      * Pages matching a person's own query (web search syntax: quoted phrases, OR, -term), best first, each with a

@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -2325,3 +2325,173 @@ anywhere. Because the shell imports it for `SHELL_ICONS`, the icons of every scr
 (26.9 kB for 52 icons; the 17 shell icons are 7.5 kB). Proposed next cut, measured on a scratch build: give the shell
 its own copy of its 17 icons (a generated `theme/shell-icons.ts` of SVG strings, checked against the package by a
 test), which takes the initial bundle to 676.5 kB. Still short of 640 kB; the rest is in the PERF.md breakdown.
+
+### F7c — Search terms proposed at extraction (D-250 to D-259)
+
+**D-250 — Migration `V014__requirement_search_terms.sql`.** `requirement.search_terms text[] NOT NULL DEFAULT '{}'` with
+`CONSTRAINT requirement_search_terms_valid CHECK (search_terms_valid(search_terms))`. `search_terms_valid(text[])` is an `IMMUTABLE`
+`PARALLEL SAFE` SQL function: `cardinality(terms) <= 12` and no element that is null or has `length(btrim(t)) NOT BETWEEN 1 AND 40`. The
+roadmap's V015 is renumbered V014 because F13 needed no migration. Unlike V012 the migration does not lift `FORCE ROW LEVEL SECURITY` or the
+`requirement_locked` trigger: nothing updates an existing row (a constant default is stored without rewriting the table and fires no trigger)
+and the CHECK is validated against the stored rows as an internal scan that row-level security does not filter, so approved requirements stay
+untouched and locked throughout. The lock trigger is unchanged, so `search_terms` is part of the locked row: `Rule5_ApprovedRequirementsRejectEditsTest`
+now also tries `UPDATE requirement SET search_terms`. `RequirementSearchTermsConstraintTest` proves 12 and 13 terms, 40 and 41 characters, empty,
+blank and null elements, and the function called directly. Rejected: a `jsonb` column (no constraint without a function either, and `text[]` goes
+straight into `to_tsvector(array_to_string(...))`); a child table (a join on the hot path for at most 12 short strings); a `bool_and` over `unnest` in the CHECK
+itself (subqueries are not allowed in CHECK constraints, hence the function).
+
+**D-251 — One BM25 statement, three lexeme sources; `Passage.matchedVia` and `matchedTerms`.** The `q` common table expression of D-170 becomes
+`SELECT DISTINCT ON (lexeme) lexeme, boost, source, priority` over three selects: the title (boost 2.0, priority 1), the text (1.0, 2) and
+`to_tsvector('english', array_to_string(CAST(:searchTerms AS text[]), ' '))` (1.0, 3), ordered by `boost DESC, priority`. A lexeme found in several
+sources therefore keeps the highest boost and, on a tie, the requirement's own source (a term that is also in the text counts once, as TEXT).
+Nothing else in the statement changes: `lexq`, `wanted`, `hits`, `df`, `bm25` and the excerpt's `ts_headline` already work from `q`, so the
+excerpt of a page found through a term shows the term's sentence. The `bm25` expression gains
+`(array_agg(q.source ORDER BY q.boost DESC, q.priority))[1] AS matched_via`: the source of the highest-weighted lexeme that matched the page,
+`TERMS` only when no word of the title or the text is on the page. `MatchSource` is `TITLE`, `TEXT`, `TERMS`. `Passage` gains `matchedVia` and
+`matchedTerms`: for a `TERMS` page, the outer select (which only sees the rows that survived `LIMIT`) lists the terms, in their stored order, whose
+lexemes overlap the page's (`tsvector_to_array(to_tsvector('english', term)) && tsvector_to_array(tsv)`); other pages get `{}`. The `ts_rank`
+baseline ORs the terms into its tsquery as the spec says, and has no weights, so for it the title and the text are one source: a page it finds is
+`TEXT` unless only the terms matched. Rejected: a second statement for terms (the filters, the ordering and the limit would be copied, D-172); naming
+the matched terms in Java (it cannot stem); labelling per page in a separate query (a second round trip per requirement).
+
+**D-252 — `SearchTerms` is the one normaliser.** `SearchTerms.normalise(proposed, title, text)`: trim, collapse inner whitespace, lower-case,
+drop duplicates (first wins, order kept), drop empty terms, drop a term with a digit, drop a term that names a US state or the District of
+Columbia (whole words, case-insensitive: `west virginia board` goes, `oregano` stays), and drop a term whose every word is already a word of
+the requirement's title or text (`RequirementMatcher.words`, lower-cased `\w+`; stemming is not available in Java, so `disorder` is kept when the
+text says `disorders`). A phrase with at least one new word is kept whole, because the words are searched as a bag anyway and the phrase is what a
+reviewer reads. The roadmap says "text"; the title is included because its lexemes are in the search too. Limits are constants beside it:
+`MAX_PROPOSED = 8` (what the model is asked for; the extraction schema enforces it), `MAX_STORED = 12` (what a person may keep; the CHECK enforces it),
+`MAX_LENGTH = 40`. `RequirementListParser` calls it for both paths. The model's output is schema-validated first (more than 8 or a term over 40
+characters is a rejected output and the usual single retry applies). The replace endpoint skips the schema, so `search_terms` is optional there
+(absent or null is an empty list) and the parser itself rejects a non-array or a non-string (`requirements[i].search_terms must be an array of
+strings`), more than 12 (`requirements[i].search_terms must contain at most 12 terms`) and a term over 40 (`requirements[i].search_terms[j] must be
+at most 40 characters`), each a 400 naming the row, with the stored list untouched. Abbreviations of states (`CA`) are not recognised; the prompt
+forbids state names and the reviewer reads every term.
+
+**D-253 — Prompt `extract-v2` and the schema.** `llm/extract-v2.system.txt` is v1 plus one rule for `search_terms` (up to 8 single words or two-word
+phrases a syllabus or degree plan would use for the subject, synonyms and course-title vocabulary, none already in the requirement text, no state
+names, no numbers, an empty list when there is nothing to add). v1 stays on disk. `ExtractRequirementsHandler.PROMPT_VERSION` is `extract-v2`, so
+`llm_call` and the `REQUIREMENTS_EXTRACTED` audit entry record it. `requirement-extraction.schema.json` gains `search_terms`: an array of strings,
+`maxItems` 8, items `maxLength` 40, listed in `required` for every requirement (the schema is strict, as the other nullable fields are). Every
+hand-built extraction in the tests now supplies the member; `JsonSchemaValidatorTest` covers nine terms, a 41-character term, a non-string and a missing member.
+
+**D-254 — `RequirementComparison.Aspect.SEARCH_TERMS`.** `affectsEvaluation` is false, like `TITLE`: a terms-only edit is not a change to the
+requirement, so re-run carries decisions over (`sameForEvaluation` is true) and the diff still reports the row. Terms are compared as lists, so
+a changed order is reported too. `RuleVersionDiffService` is unchanged: a row whose only change is `SEARCH_TERMS` is `CHANGED` with
+`changes: ["SEARCH_TERMS"]` and, as for a title change, a word diff of the (identical) text. `Requirement` and `RequirementDraft` gain `searchTerms`
+(last component); `REQUIREMENTS_REPLACED` audits the terms in `before` and `after`. `RuleVersionChangeTest` proves both halves on a real re-run
+(all three decisions carried over, no new model call) and the diff.
+
+**D-255 — Binding the terms.** The terms reach SQL as one `text[]` parameter: `.param("searchTerms", String[])` and `CAST(:searchTerms AS text[])`,
+which pgjdbc sends as an array (a `List` would have been expanded by Spring into an `IN` list). The statement stays prepared once per mode, no
+SQL is built from a term, and quotes and backslashes in a term cannot break the tsquery (`PassageSearchTermsTest`). The three source names are bound
+from `MatchSource`, so the SQL holds no copy of the enum. `PassageSearch.search` takes `List<String> searchTerms` between the text and the limit;
+`EvidenceMatcher` passes the requirement's own, `RetrievalService` passes them only for the third column. The latency test now runs with six terms per
+requirement and its budget (p95 under 30 ms for 500 pages) is unchanged.
+
+**D-256 — The matcher: one sentence, nothing else.** When the cited page was found only through terms, `EvidenceMatcher` appends
+` Found through the search terms: <terms that occur on the page>.` to the model's rationale, before any downgrade text. The terms are not shown to the
+model, the quote is verified against the stored page exactly as before and a page found by terms is subject to the same downgrade rules, so product rules
+1, 2 and 4 are untouched: a term only widens the shortlist. `SearchTermsMatchingTest` covers the sentence, a discarded invented quote on such a page, no
+terms (the page is not a candidate at all), and a page that shares a word with the requirement (no sentence).
+
+**D-257 — Seed and fixtures.** Every requirement scripted in `seed/fake-llm.yml` (55 across six rule sets, Colorado twice) and in
+`frontend/e2e/fixtures/fake-llm.e2e.yml` (4) carries 3 to 5 hand-written fictional terms by subject (credits: `program of study`, `degree plan`;
+ethics: `code of ethics`, `confidentiality`; and so on). CO-5 and every other Colorado requirement have identical terms in both rule sets, so the
+diff between them still shows exactly one `CHANGED` row (`RuleVersionDiffSeedTest` unchanged and green). A term the production normaliser would drop
+(all its words in the title or text) was removed from the file rather than left to be dropped silently: `lifespan development` for the human growth
+requirements, `appraisal` for CA-8, `practice sessions` and `accredited program` in the retrieval queries. `SeedSearchTermsTest` runs both files through the
+real parser and asserts none is dropped, 3 to 8 each, the schema accepts them, and the Colorado terms match.
+
+**D-258 — Evaluation.** `eval/retrieval/queries.yml` gains `searchTerms` (3 to 8, lower-case, normaliser-stable: `RetrievalFileTest` runs them through
+`SearchTerms.normalise`) for all 35 queries. The file header says they were written for the requirement alone, as the extraction prompt asks, and are never to be
+edited to raise a number. Honest limit of that claim: the expected passages' `contains` strings sit in the same file and were visible when the terms
+were written; the terms use the vocabulary any counseling syllabus uses (`psychopathology`, `couples therapy`, `videoconferencing`, `progress notes`), but
+the lexical-gap result below is the result of one author's one pass, not of a model's proposals, and `make eval-live` does not measure it (its live path
+substitutes the golden requirement list, which has no terms). `RetrievalService` runs ts_rank and BM25 without terms and BM25 with them; `RetrievalReport`
+shows three columns in the console and in `docs/RETRIEVAL.md` (and each query's terms). `Thresholds.Retrieval` gains `minGapRecallAtDeep: 0.66` (4 of 6; 4 / 6 passes and
+3 / 6 does not) and `Thresholds.termsBreaches` checks BM25 with terms against the existing recall and coverage floors, against BM25's recall@8 and recall@3,
+and the gap floor. Result (slot 3 run): counted recall@8 28 / 29 for all three columns, recall@3 25, 26 and 27 of 29, mean reciprocal rank 0.796, 0.766 and 0.839, excerpt
+coverage 28 / 28; lexical gaps recall@8 2, 2 and 6 of 6, recall@3 1, 1 and 6 of 6. R13 stays outside the top eight in all three. The pipeline
+on the seed is unchanged: 0 false `EVIDENCE_FOUND`, 33 / 33 recall, 42 / 42 extraction agreement, 39 / 39 evidence agreement, 36 model calls.
+`RetrievalServiceTest` asserts the gap floor and that without the terms the same queries fail it.
+
+**D-259 — Consequences and what was left alone.** (1) The requirement grid does not show the terms yet (UI2-4 adds the cell), so it passes them through: `RequirementView`
+gains `searchTerms`, `RequirementDraft` gains `search_terms`, and `RequirementListEditor` keeps each loaded row's terms (a copy, so a discard returns to the server's list), sends them
+for every row in the PUT body whatever else is edited or moved, and gives a new row none. Without this a save of the grid would have replaced the stored terms with none, since an absent
+`search_terms` means an empty list. Only `core/models.ts` and the editor files changed; the editor spec covers load, edit title, move, change type, save body (terms preserved), discard, and
+a new row (empty terms). Terms are not part of the editor's dirty check because the screen cannot change them. (2) The live evaluation substitutes the golden requirement list through the
+replace path, which has no terms, so live retrieval is measured without them (roadmap follow-up). (3) `matchedTerms` covers terms that share a lexeme with the page. (4) The `eval` profile
+now sets `management.server.port: -1` like `seed`, so `make eval` no longer collides with a development backend on :8090 (checked with one running). (5) The reviewer search, the
+`RULE_TEXT` exclusion and the tenant scoping (row-level security) are untouched; no endpoint was added, so `Rule9_AuditCoverageTest` needs no entry, and the replace endpoint was already audited.
+
+### FIX-3 — Work queue and evidence request follow-ups (D-360 to D-366)
+
+#### D-360 `ASSESSMENTS_FAILED` lists failures after the latest finished assessment
+
+A FAILED assessment is listed when its program has no FINISHED assessment, or when it was created after the creation
+time of the program's latest FINISHED one (the `latest` CTE, D-195, now also exposes that `created_at`). A failure
+followed by a successful run leaves the queue; a failure after a success appears again. Created time, not finished
+time, because a failed run that started before the successful one was superseded by it, whichever ended first.
+Tests: two failures without a success are both listed; a later success clears both; a failure after that success is
+the only one listed (`WorkQueueApiTest`).
+
+#### D-361 One "signed for this assessment and jurisdiction" predicate
+
+`DeterminationRepository.signedFor(assessmentExpr, jurisdictionExpr)` returns the SQL `EXISTS` over SIGNED
+determinations. It is a method, not a constant, because its users name the columns differently (bind parameters in
+`hasSigned`, `m.` columns in the evidence request statement and in the work queue's `current_mappings`). The text of
+the predicate exists once.
+- `hasSigned` is `SELECT <predicate>` (a boolean, no `count`).
+- `EvidenceRequestView.signed` is one more column of the existing statement; the status stays OPEN.
+- Work queue: `current_mappings` gets `request_blocked` = latest event is an evidence request AND (stale OR signed).
+  The `AND` runs the determination lookup only for mappings with an open request. `EVIDENCE_REQUESTS_OPEN` counts
+  `request_blocked` mappings in `ids.blockedCount` and only the others as answerable items; a group with no answerable
+  request is not listed. A signed determination covers every mapping of its assessment and jurisdiction, and a group is
+  exactly that, so a signed group is never listed: `blockedCount` from signing alone is never visible, it only keeps
+  the definition in one place.
+- Answering still returns 409 (`EvidenceRequestService.respond`, unchanged).
+
+#### D-362 One "decided" predicate
+
+`AssessmentRepository.findingCounts` joins `MappingRepository.LATEST_EVENT` and counts `NOT UNDECIDED` as decided
+(`NOT stale AND NOT NEEDS_DECISION`, De Morgan of the signing gate). `FindingCountsParityTest` compares it with the
+previous statement (kept in the test) on the seeded tenant as seeded and after every kind of review history and a
+stale mapping.
+
+#### D-363 Measurement of `MappingRepository.CURRENT`
+
+On the WS-PERF database (about 200 tenants, `IndexUsageTest`) one tenant got rule version v1 with 500 requirements, its
+successor v2 with 500 more, an assessment with 500 mappings on v1 (v2 has no mappings in it: the historical case after
+a rule change) and one with 500 on v1 and 500 on v2 (after the re-run, the 500 on v1 hidden). `EXPLAIN (ANALYZE,
+BUFFERS)` of `GET /assessments/{id}/mappings` (`MappingRepository.BY_ASSESSMENT`) as the application role: 15.5 ms and
+5 192 buffers before the re-run, 29.6 ms and 4 747 buffers after it (limits: 5 ms or 2 000 buffers). The plan is a
+nested loop anti join with 250 000 and 500 500 rows removed by the join filter: quadratic, as D-199 predicted. The work
+queue statement of that tenant took 265 to 285 ms (budget 40 ms). The filter was rewritten.
+
+#### D-364 `MappingRepository.current(assessments)`
+
+`CURRENT` (a correlated `NOT EXISTS` evaluated per mapping) is replaced by `current(String assessments)`:
+`AND (m.assessment_id, r.rule_version_id) NOT IN (SELECT DISTINCT nm.assessment_id, nv.supersedes_id FROM mapping nm
+JOIN requirement nr ... JOIN rule_version nv ... WHERE nv.supersedes_id IS NOT NULL AND nm.assessment_id <assessments>)`.
+The subquery does not depend on the row, so PostgreSQL hashes it once per statement. `assessments` bounds the
+assessments the statement reads: `= :a` for one, `IN (SELECT assessment_id FROM latest)` for the work queue. The result
+set is identical (a mapping is hidden when a successor of its rule version has mappings in its assessment);
+`RuleVersionChangeTest` compares the previous form (`LegacyCurrentFilter`, test only) with both new forms before the
+change, after the successor was created and after the re-run, and the READY_TO_SIGN parity test (D-193) compares the
+queue's form with the signing gate's. Result: the same statement takes 3.2 ms (3 530 buffers) and 3.5 ms (3 527
+buffers); the work queue 2.0 to 5.2 ms. 3 500 buffers is above 2 000 but is per-row work (review events 1 000, evidence
+spans 900, the set 1 500), linear in the rows; `IndexUsageTest` fails above 4 000.
+Rejected: a per-mapping `EXISTS` with index probes (500 probes per mapping when the successor has no mappings: worse);
+a `mapping.rule_version_id` column with an index (a migration for a read cost that is already linear); planner settings.
+
+#### D-365 The manual "already queued?" check may use either job index
+
+Since FIX-2 the planner may choose `job_entity_idx` for the rule source's manual check (one entity) or `job_claim_idx`
+(queued jobs), depending on sampled statistics; both avoid a sequential scan of `job`. `IndexUsageTest` accepts either
+for that statement (`Candidate.eitherOf`) and still fails on `Seq Scan on job`. `job_claim_idx` (V001) stays pinned for
+the scheduler statement. Every V008 and V013 index must still be chosen by some statement.
+
+#### D-366 Perf fixture
+
+`PerfSeed.addLargeAssessments` builds the data of D-363; the plans are written to `target/perf/mappings-plan.txt`.

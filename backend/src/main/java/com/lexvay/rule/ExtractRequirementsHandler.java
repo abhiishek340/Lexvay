@@ -29,7 +29,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ExtractRequirementsHandler implements JobHandler {
 
-    public static final String PROMPT_VERSION = "extract-v1";
+    public static final String PROMPT_VERSION = "extract-v2";
 
     private final RuleVersionService ruleVersions;
     private final RuleVersionRepository repository;
