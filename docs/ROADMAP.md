@@ -125,6 +125,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F10b Coverage matrix screen (v2) | `ui2-coverage` | 7 | Opus 5.5 | in progress |
 | FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | in progress |
 | F12b Rule sources in the Rules workspace (v2) | `ui2-rule-sources` | 1 | Opus 5.5 | queued (after UI2-4) |
+| FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | in progress |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
@@ -1300,6 +1301,33 @@ stop and report.
      - The audit trail shows the three sentences.
    - axe on every state, both themes, and 400 px.
    - Screenshots `f12b-*` in both themes at 1440 and 400 px.
+
+## FIX-7 — One "latest finished assessment" ordering (backend only; slot 6; Sonnet 5.5; no migration; D-450 to D-452)
+`MappingRepository.latestAssessmentsUsing` (called by `RerunChangeHandler`) is the last place with its own copy of the
+"latest finished" ordering, in the correlated subquery aliased `a2`. Every other caller composes
+`AssessmentRepository.LATEST_FINISHED` (D-411). Decided form, the same shape as the work queue's `latest` CTE:
+
+```sql
+SELECT la.id AS assessment_id, p.id AS program_id, la.created_by
+FROM program p
+JOIN LATERAL (SELECT a.id, a.created_by FROM assessment a WHERE a.program_id = p.id AND <LATEST_FINISHED>) la ON true
+WHERE EXISTS (SELECT 1 FROM mapping m JOIN requirement r ON r.id = m.requirement_id
+              WHERE m.assessment_id = la.id AND r.rule_version_id = :rv)
+```
+
+1. Replace the statement with this, built with `.formatted(AssessmentRepository.LATEST_FINISHED)`. Keep the
+   method name, the signature and the result keys.
+2. **Parity test:** on the seeded demo tenant (use the seed fixture that `WorkQueueSeedParityTest` uses),
+   compare the old query (kept inside the test as a literal) with the new method for every rule version in
+   the seed. Do the same for a second program whose newest finished assessment does not use the version, and
+   for a program whose newest assessment is FAILED but whose older finished one uses the version. The results
+   must be equal as sets.
+3. **Index usage:** add the statement to `IndexUsageTest` with the same expectations as the work queue's
+   `latest` (no sequential scan on `mapping` or `assessment` on the perf seed).
+4. **Cleanup:** `grep -rn "finished_at DESC" backend/src/main` must then show only `LATEST_FINISHED` itself.
+   Record that in D-450.
+5. Remove the FIX-5 and F10a lines about this from "Follow-ups recorded from reviews" in `docs/ROADMAP.md`;
+   that is the only ROADMAP edit. Decisions go in `docs/decisions/FIX-7.md`, progress in `docs/progress/FIX-7.md`.
 
 ## Follow-ups recorded from reviews
 - FIX-5: `MappingRepository.latestAssessmentsUsing` still has its own correlated copy of the "latest finished"
