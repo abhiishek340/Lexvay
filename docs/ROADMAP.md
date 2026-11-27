@@ -28,7 +28,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | PR #21 approved (CI running) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
-| F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | in progress |
+| F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | PR #22 in review (layout, error text, dirty guard, viewer) |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | specified (starts when F1 merges) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | PR #17 in review (merges after #14, #13, #16) |
@@ -750,6 +750,10 @@ D-259 in `docs/decisions/F7c.md`.
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
 ## Follow-ups recorded from reviews
+- TEST-1: the end-to-end backend runs FakeLlmClient without the extraction and match scripts that only the seed
+  process loads, so a rule version entered in the browser always ends in "Extraction failed". Load
+  `seed/fake-llm.yml` into the e2e backend (profile `e2e`, same loader as `SeedLoader`) and extend F3's e2e test
+  so a contributor's new version reaches *Needs approval* through extraction.
 - F1: check by hand that Chrome, Firefox and Safari render a PDF opened through "Open original" while the
   response carries the app's CSP (`object-src 'none'`); if a browser refuses, give `GET /documents/{id}/file` its own
   CSP (`default-src 'none'; frame-ancestors 'none'`) in `SecurityHeadersFilter`. The OCR note in the viewer is covered
