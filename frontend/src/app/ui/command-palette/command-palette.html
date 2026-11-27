@@ -1,0 +1,24 @@
+<p-dialog header="Search or jump to" [visible]="visible()" (visibleChange)="visible.set($event)" [modal]="true" [draggable]="false" [resizable]="false"
+          [dismissableMask]="true" position="top" [closable]="false" styleClass="lx-palette" (onShow)="onShow()">
+  <p-commandmenu [model]="model()" [(search)]="search" [filter]="filter" placeholder="Search or jump to" ariaLabel="Search or jump to"
+                 emptyMessage="Nothing matches.">
+    <ng-template #header><ng-icon class="lx-palette-search" name="phosphorMagnifyingGlass" size="20" aria-hidden="true" /></ng-template>
+    <ng-template #item let-item>
+      <a class="p-menu-item-link lx-command">
+        <ng-icon class="lx-command-icon" [name]="item.command$.icon" size="18" aria-hidden="true" />
+        <span class="lx-command-label">{{ item.label }}</span>
+        @if (item.command$.hint) { <span class="lx-command-hint">{{ item.command$.hint }}</span> }
+        <ng-icon class="lx-command-enter" name="phosphorArrowElbowDownLeft" size="14" aria-hidden="true" />
+      </a>
+    </ng-template>
+    <ng-template #emptyMessage>
+      <div class="lx-palette-empty">
+        <ng-icon name="phosphorMagnifyingGlassDuotone" size="32" aria-hidden="true" />
+        <p>Nothing matches.</p>
+      </div>
+    </ng-template>
+    <ng-template #footer>
+      <p class="lx-palette-keys"><kbd>Enter</kbd> open <kbd>Esc</kbd> close</p>
+    </ng-template>
+  </p-commandmenu>
+</p-dialog>
