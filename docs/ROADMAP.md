@@ -123,6 +123,8 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10a Coverage matrix API | `feat-coverage-api` | 8 | Sonnet 5.5 | merged (PR #35) |
 | F10b Coverage matrix screen (v2) | `ui2-coverage` | 7 | Opus 5.5 | in progress |
+| FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | in progress |
+| F12b Rule sources in the Rules workspace (v2) | `ui2-rule-sources` | 1 | Opus 5.5 | queued (after UI2-4) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
@@ -1191,6 +1193,114 @@ D-259 in `docs/decisions/F7c.md`.
    `SEARCH_TERMS`, replace endpoint stores terms and rejects 13, extraction with the fake model stores the
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
+## FIX-6 — OCR checkpoints per page (backend only; slot 5; Sonnet 5.5; migration `V017__document_ocr_page.sql`)
+Problem (F11 follow-up): `IngestDocumentHandler` OCRs every scanned page inside the job's single transaction. A
+failure on page 150 of a 200-page scan rolls everything back, and the retry runs Tesseract on all 200 pages again
+(minutes of CPU each time, three attempts). Decided design: each page's OCR result is checkpointed in its own
+committed transaction, and a retry reuses those checkpoints. No job-per-page, no change to `JobRunner`.
+
+1. **Table** `document_ocr_page` (V017): `tenant_id uuid NOT NULL REFERENCES tenant`, `document_id uuid NOT NULL
+   REFERENCES document`, `page_number int NOT NULL CHECK (page_number > 0)`, `text text NOT NULL` (normalized OCR
+   output, possibly empty), `mean_confidence numeric(5,2)` (NULL when the engine returned nothing), `render_dpi int
+   NOT NULL CHECK (render_dpi > 0)`, `created_at timestamptz NOT NULL DEFAULT now()`, `PRIMARY KEY (document_id,
+   page_number)`. RLS enabled and forced, with the same tenant policy and grants as `document_page`. It is
+   immutable: `forbid_change()` trigger on UPDATE and DELETE (V003 pattern). No other index: the PK serves the
+   one read. Rows stay after ingest; they record how a page's text was obtained (rule 5).
+2. **What is stored:** the raw normalized OCR result of every page that was sent to the engine, including pages
+   whose result is too short to count as read. The "enough text" decision (`TextExtractor.hasEnoughText`) is
+   made in code every time, from the stored text, so a checkpoint never changes the outcome.
+3. **`OcrCheckpoints`** (interface, package `document`): `Optional<OcrPage> find(int pageNumber)` and
+   `void save(int pageNumber, OcrPage page, int renderDpi)`, with `OcrCheckpoints.NONE` (finds nothing, saves
+   nothing). `TextExtractor.extract(FileType, byte[], OcrCheckpoints)` is the full form. `extract(FileType,
+   byte[])` delegates with `NONE` and stays for rule texts, rule sources and tests. In `pdfPages`, a page that
+   needs OCR first asks `find`. On a hit it uses the stored text and confidence, without rendering or calling
+   the engine. On a miss it renders, recognizes and calls `save` before moving to the next page. When the engine
+   returns `Optional.empty()`, save `text = ''` with a NULL confidence. A hit whose `render_dpi` differs from
+   `renderDpi(page)` is ignored and the page is OCR'd again (the DPI rule changed). The insert is still
+   `ON CONFLICT DO NOTHING`, and the in-memory result uses the new OCR.
+4. **`DocumentOcrCheckpoints`** (`@Component`, backed by `DocumentRepository`):
+   `OcrCheckpoints forDocument(UUID tenantId, UUID documentId)`. It loads every checkpoint of the document in one
+   query when created. `save` runs its INSERT ... ON CONFLICT DO NOTHING through a `TransactionTemplate` with
+   `PROPAGATION_REQUIRES_NEW`, so the row commits even when the job's transaction later rolls back.
+   `TenantAwareDataSource` sets `lexvay.tenant_id` on the new connection; prove it with a test, do not assume it.
+   It needs no worker flag: the ingest job already runs as its tenant.
+5. **`IngestDocumentHandler`** passes `forDocument(...)`. The `DOCUMENT_INGESTED` audit details gain
+   `ocrPagesReused` (count of checkpoint hits). This is not a new action, so `audit-sentence.spec.ts` needs no row.
+   No endpoint changes.
+6. **Tests** (no network; Tesseract only where the existing OCR test already uses it):
+   - `TextExtractorTest`: a counting fake `OcrEngine` plus in-memory checkpoints. A second extract performs zero
+     engine calls and returns pages equal to the first, with the same text, offsets, source and confidence. A
+     short-text checkpoint still falls back to the text layer. A DPI mismatch triggers a fresh OCR.
+   - Integration, existing Testcontainers harness: the fake engine throws on page 3 of a 4-page scanned PDF on the
+     first attempt only.
+     - After the failed attempt, rows for pages 1 and 2 exist, committed despite the rollback.
+     - The retry calls the engine for pages 3 and 4 only.
+     - The final `document_page` rows equal those of a clean single run.
+     - The audit shows `ocrPagesReused = 2`.
+   - Rule 7: tenant B cannot see tenant A's checkpoints, and `Rule7_EveryTableHasPolicyTest` covers the table.
+   - Rule 5: UPDATE and DELETE are rejected.
+7. **Docs:** decisions D-436 to D-441 in `docs/decisions/FIX-6.md`, progress in `docs/progress/FIX-6.md`,
+   `docs/OPERATIONS.md` (one sentence: checkpoints make OCR retries resume). Do not edit DECISIONS.md, PROGRESS.md
+   or the ROADMAP board; the orchestrator folds them.
+
+## F12b — Rule sources in the Rules workspace (frontend, v2; slot 1; Opus 5.5; after UI2-4 merges; D-442 to D-449)
+F12 built `/api/v1/rule-sources`: list, create, checks history, check now, pause and resume. No screen shows any of
+it yet, so the only way to see why a draft rule version appeared is the audit trail. Build it as a **Sources** tab
+of the Rules workspace, after UI2-4 has restyled that workspace. No backend change; if one turns out to be needed,
+stop and report.
+
+1. **List** (`GET /rule-sources`): one row per source, grouped by state code in the same order as the target-state
+   pills, with inactive sources at the end of their group.
+   - Each row shows:
+     - the label;
+     - the host of the URL in IBM Plex Mono (the full URL in a tooltip and as a link that opens a new tab with
+       `rel="noopener noreferrer"`);
+     - the latest outcome as StatusIcon plus text;
+     - "Checked 3 h ago" (relative time with an absolute tooltip);
+     - "Next in 21 h", or "Paused" when inactive.
+   - Outcome words:
+     - `UNCHANGED`: "No change".
+     - `CHANGED`: "Changed, draft created", with a link to that rule version in the workspace.
+     - `DRAFT_EXISTS`: "Changed, a draft already waits", with a link to the waiting draft.
+     - `FETCH_FAILED`: "Could not fetch", plus "N in a row" when `consecutiveFailures > 1`. The InfoTip holds the
+       HTTP status and `detail`.
+     - No check yet: "Not checked yet".
+   - The words "compliant", "meets" or "verified" never appear; the ForbiddenWords test covers the new templates.
+2. **History:** expanding a row (PrimeNG Accordion, or a disclosure button with `aria-expanded`) loads
+   `GET /rule-sources/{id}/checks?limit=20` once per expansion and shows a vertical timeline. Reuse UI2-3's
+   changes timeline markup. If it is screen-local, extract it to `ui/` first and keep Changes unchanged
+   (screenshots identical). Show `contentHash` shortened to 12 characters in Plex Mono with a copy button.
+3. **Actions:**
+   - **Check now** (ADMIN and REVIEWER): `POST /rule-sources/{id}/check`. The row shows a running state, and the
+     screen polls `GET /rule-sources` every 2 s until that source's `lastCheckedAt` changes, for up to 60 s. On
+     timeout the row says "Still checking" and offers to refresh. One poller for the whole screen, cancelled on
+     destroy. No N+1: the list endpoint already returns everything.
+   - **Pause / Resume** (ADMIN only): PrimeNG ToggleSwitch, optimistic, reverted with an inline error on failure.
+   - Roles without permission do not see the controls; they are not merely disabled.
+4. **Add source** (ADMIN and REVIEWER): a PrimeNG Dialog with these fields:
+   - state, a Select of the program's target states;
+   - license type;
+   - label;
+   - URL, validated `^https?://\S+$` on the client as on the server;
+   - interval, a SelectButton with Daily (24), Weekly (168) and Monthly (720).
+   A 400 maps field errors inline. On success, the new row enters with `animate.enter` and the dialog closes,
+   returning focus to the Add button.
+5. **Empty state:** a Phosphor duotone `globe` at 32 px, one line ("No sources monitored for this state") and the
+   Add button. Word budget as in DESIGN.md: everything explanatory goes behind an InfoTip.
+6. **Bundle:** the tab is its own lazy chunk with its own icons and token sets (PERF-FE-1 pattern). The initial
+   bundle must not grow by more than 0.5 kB.
+7. **Tests:**
+   - Unit tests for outcome words, grouping and order, poll stop conditions and role gating.
+   - End-to-end, on the seeded stack:
+     - Add a source with an unreachable URL (`https://example.invalid/rules`). Check now. The row ends at
+       "Could not fetch". The SSRF guard or the fetch failing are both acceptable; assert only on the visible
+       outcome.
+     - Pause it.
+     - Open its history.
+     - The audit trail shows the three sentences.
+   - axe on every state, both themes, and 400 px.
+   - Screenshots `f12b-*` in both themes at 1440 and 400 px.
+
 ## Follow-ups recorded from reviews
 - FIX-5: `MappingRepository.latestAssessmentsUsing` still has its own correlated copy of the "latest finished"
   ordering (alias `a2`); give `AssessmentRepository` a correlated form of `LATEST_FINISHED` and use it there.
@@ -1238,7 +1348,7 @@ D-259 in `docs/decisions/F7c.md`.
   CSP (`default-src 'none'; frame-ancestors 'none'`) in `SecurityHeadersFilter`. The OCR note in the viewer is covered
   only by unit tests until the seed has a scanned document (add one to `seed/` with F7c or later).
 - F12: a failed check waits a full interval (up to 30 days) before the scheduler retries; a shorter backoff
-  needs a `next_check_at` column. No screen lists rule sources yet; add a Sources tab to the F3 rule workspace.
+  needs a `next_check_at` column. The Sources tab is scheduled as F12b.
 - F12 deployment note: the SSRF guard resolves the host before connecting and the JDK client resolves it
   again, so a DNS-rebinding window remains; production egress must also block private ranges (Terraform).
 - WS-UI: the overview still finds the latest assessment through the audit log; switch it to the WS-PERF
@@ -1249,8 +1359,8 @@ D-259 in `docs/decisions/F7c.md`.
   RLS because `jsonb ->>` is not leakproof and the payload expression indexes are ignored. FIX-2: add a generated
   `payload_entity_id uuid` column on `job` (from the payload's entity id), index it, and compare with `=`. Decided
   by the orchestrator when scheduled; spec to follow.
-- F11: OCR of a 200-page scan runs inside the job's single transaction and a retry redoes every page. Follow-up:
-  OCR per page in its own transaction (or a job per page) inside `JobRunner`.
+- F11: OCR of a 200-page scan runs inside the job's single transaction and a retry redoes every page. Scheduled as
+  FIX-6 (per-page checkpoints committed in their own transactions).
 - F11 spec change (decided during review): a PDF page's text layer is never discarded; OCR replaces it only when
   the layer is under 20 characters and OCR yields at least 20.
 - WS-SEC: every new endpoint must add a row to `InputValidationTableTest` (its `everyEndpointHasARow` guard fails
