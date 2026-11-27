@@ -1,24 +1,10 @@
-import { Page } from '@playwright/test';
-import { DANA, expect, nav, signIn, test } from './support';
+import { DANA, SCREENSHOTS, expect, nav, shoot, signIn, test } from './support';
 
 /**
  * Screenshots of every screen in both themes for docs/screens. Not part of the regular suite:
  * run with LEXVAY_SCREENSHOTS=1 (for example `LEXVAY_SCREENSHOTS=1 LEXVAY_E2E_SLOT=1 make e2e`).
  */
-test.skip(process.env['LEXVAY_SCREENSHOTS'] !== '1', 'screenshots are taken only on request');
-
-const OUT = '../docs/screens';
-
-async function shoot(page: Page, name: string): Promise<void> {
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
-    await page.mouse.move(0, 0);
-    // Let PrimeNG's colour transitions finish before capturing.
-    await page.waitForTimeout(600);
-    await page.screenshot({ path: `${OUT}/${name}-${theme}.png` });
-  }
-  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
-}
+test.skip(!SCREENSHOTS, 'screenshots are taken only on request');
 
 test('screenshots of every screen in light and dark', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });

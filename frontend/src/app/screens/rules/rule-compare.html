@@ -23,7 +23,7 @@
     <p class="lx-help">From <strong>{{ d.from.label }}</strong> (effective <span class="lx-mono">{{ d.from.effectiveFrom }}</span>) to
       <strong>{{ d.to.label }}</strong> (effective <span class="lx-mono">{{ d.to.effectiveFrom }}</span>).</p>
 
-    <p-table [value]="d.requirements" [scrollable]="true" [tableStyle]="{ 'min-width': '40rem' }" [pt]="{ table: { 'aria-label': 'Requirement changes' } }">
+    <p-table [value]="rows()" [scrollable]="true" [tableStyle]="{ 'min-width': '40rem' }" [pt]="{ table: { 'aria-label': 'Requirement changes' }, tableContainer: { tabindex: '0' } }">
       <ng-template #header>
         <tr>
           <th scope="col">Status</th>

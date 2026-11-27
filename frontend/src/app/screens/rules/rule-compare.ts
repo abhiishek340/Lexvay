@@ -41,6 +41,11 @@ export class RuleCompare {
     const v = this.version();
     return comparableVersions(this.all(), v.jurisdiction, v.licenseType, v.id).map((o) => ({ id: o.id, label: `${o.label} (effective ${o.effectiveFrom})` }));
   });
+  /** Changed rows first, then added, removed and unchanged; the server's list order within each. */
+  readonly rows = computed(() => {
+    const d = this.diff();
+    return d ? SUMMARY_ORDER.flatMap(({ status }) => d.requirements.filter((r) => r.status === status)) : [];
+  });
   readonly summary = computed(() => {
     const d = this.diff();
     return d ? SUMMARY_ORDER.map(({ status, key }) => ({ status, count: d.summary[key], ...DIFF_STATUS[status] })) : [];

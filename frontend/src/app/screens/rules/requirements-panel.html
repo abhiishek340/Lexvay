@@ -32,7 +32,7 @@
     @if (editing()) {
       <form id="requirement-list-form" class="lx-edit" (ngSubmit)="save()" aria-label="Requirement list">
         <p-table [value]="$any(editor.rows())" [rowTrackBy]="trackRow" [scrollable]="true" [tableStyle]="{ 'min-width': '62rem' }"
-                 [pt]="{ table: { 'aria-label': 'Requirements, editable' } }">
+                 [pt]="{ table: { 'aria-label': 'Requirements, editable' }, tableContainer: { tabindex: '0' } }">
           <ng-template #header>
             <tr>
               <th scope="col">Ref</th>
@@ -124,7 +124,7 @@
         }
       </p>
     } @else {
-      <p-table [value]="list" dataKey="id" [scrollable]="true" [tableStyle]="{ 'min-width': '44rem' }" [pt]="{ table: { 'aria-label': 'Requirements' } }">
+      <p-table [value]="list" dataKey="id" [scrollable]="true" [tableStyle]="{ 'min-width': '38rem' }" [pt]="{ table: { 'aria-label': 'Requirements' }, tableContainer: { tabindex: '0' } }">
         <ng-template #header>
           <tr>
             <th scope="col">Ref</th>
@@ -139,7 +139,7 @@
             <td class="lx-mono lx-nowrap">{{ r.ref }}</td>
             <td class="lx-title">{{ r.title }}</td>
             <td><p-tag severity="secondary" [value]="typeName(r)" /></td>
-            <td class="lx-mono">{{ check(r) ?? '' }}</td>
+            <td class="lx-mono lx-nowrap">{{ check(r) ?? '' }}</td>
             <td class="lx-text">
               <p class="lx-serif" lxClamp #clamp="lxClamp" [id]="'text-' + r.id">{{ r.text }}</p>
               @if (clamp.overflowing() || clamp.open()) {

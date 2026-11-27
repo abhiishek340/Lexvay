@@ -4,6 +4,7 @@ import { expect, Page, test as base } from '@playwright/test';
 export const PASSWORD = process.env['LEXVAY_DEMO_PASSWORD'] ?? 'lexvay-demo';
 export const DANA = 'dana.whitfield@northfield.example';
 export const PRIYA = 'priya.raman@northfield.example';
+export const JORDAN = 'jordan.ellis@northfield.example';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
@@ -51,6 +52,21 @@ export async function expectAccessible(page: Page, screen: string): Promise<void
     await axe(page, `${screen} (${theme})`);
   }
   await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t ?? 'light'), original);
+}
+
+/** Screenshots for docs/screens are taken only on request: LEXVAY_SCREENSHOTS=1. */
+export const SCREENSHOTS = process.env['LEXVAY_SCREENSHOTS'] === '1';
+
+/** Saves docs/screens/<name>-light.png and -dark.png of the current page. */
+export async function shoot(page: Page, name: string): Promise<void> {
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+    await page.mouse.move(0, 0);
+    // Let PrimeNG's colour transitions finish before capturing.
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `../docs/screens/${name}-${theme}.png` });
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
 }
 
 export function nav(page: Page, name: string) {

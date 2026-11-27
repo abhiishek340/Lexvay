@@ -26,7 +26,7 @@
         } @else {
           <p-listbox class="lx-version-list" [options]="groups()" [group]="true" optionGroupLabel="label" optionGroupChildren="items" optionLabel="name"
                      optionValue="id" [ngModel]="ruleVersionId() ?? null" (onChange)="open($event.value)" [metaKeySelection]="true"
-                     ariaLabel="Rule versions" [fluid]="true" [pt]="{ list: { 'aria-multiselectable': 'false' } }">
+                     ariaLabel="Rule versions" scrollHeight="none" [fluid]="true" [pt]="{ list: { 'aria-multiselectable': 'false' } }">
             <ng-template #group let-group>
               <span class="lx-group">{{ group.label }}</span>
             </ng-template>
