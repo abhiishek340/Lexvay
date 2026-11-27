@@ -1330,14 +1330,10 @@ WHERE EXISTS (SELECT 1 FROM mapping m JOIN requirement r ON r.id = m.requirement
    that is the only ROADMAP edit. Decisions go in `docs/decisions/FIX-7.md`, progress in `docs/progress/FIX-7.md`.
 
 ## Follow-ups recorded from reviews
-- FIX-5: `MappingRepository.latestAssessmentsUsing` still has its own correlated copy of the "latest finished"
-  ordering (alias `a2`); give `AssessmentRepository` a correlated form of `LATEST_FINISHED` and use it there.
 - FIX-5 (rule 9): `LOGOUT` is audited after the session is cleared, so its audit entry has no actor. Capture the
   user before the logout handler clears the context and record `LOGOUT` with that user as actor and `entity_id`;
   `Rule9_AuditCoverageTest` asserts the actor. UI2-3's `audit-sentence.spec.ts` now fails for any new audited action
   without a sentence and label, so backend items that add an audited action also touch that frontend file.
-- F10a: the work queue's `latest` CTE (F13) still has its own copy of the "latest finished assessment" ordering; switch it
-  to `AssessmentRepository.LATEST_FINISHED` with a parity test.
 - F5a security: any ADMIN can issue a setup code for any user, including a SIGNER, and so could sign in as them; the
   actions are audited (`USER_SETUP_CODE_ISSUED`, `PASSWORD_SET`). Without email delivery this is inherent to
   password accounts. Production deployments should use OIDC for SIGNER and ADMIN accounts; `docs/OPERATIONS.md`
