@@ -1,0 +1,166 @@
+:host { display: block; }
+.lx-coverage { display: block; padding: 28px var(--lx-gutter) 56px; max-width: var(--lx-content-max); box-sizing: border-box; }
+
+/* Header: the title with its InfoTip, then the states as pills. */
+.lx-head { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; margin-bottom: 20px; }
+.lx-title { display: flex; align-items: center; gap: 6px; }
+.lx-pills { flex: 1; min-width: 0; }
+.lx-error { display: block; margin-bottom: 16px; }
+:host ::ng-deep .lx-panels.p-tabpanels { padding: 0; background: transparent; }
+
+/* The legend inside the InfoTip, the only one on the screen. */
+.lx-legend { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.lx-legend > span { display: flex; align-items: center; gap: 10px; }
+.lx-legend .lx-mark { --size: 14px; }
+
+/* Above the matrix: the flag chips (a SelectButton drawn as separate pills) and the rule version. */
+.lx-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px; margin-bottom: 16px; }
+.lx-version { font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
+:host ::ng-deep .lx-chips.p-selectbutton { display: flex; flex-wrap: wrap; gap: 8px; background: transparent; border-radius: 0; }
+:host ::ng-deep .lx-chips .p-togglebutton {
+  height: 34px; padding: 0; border: 0; border-radius: var(--lx-r-pill); background: var(--p-lx-surface); box-shadow: var(--p-lx-e1);
+  transition: background-color var(--lx-t-2) var(--lx-ease-out), box-shadow var(--lx-t-1) var(--lx-ease-out), transform 90ms var(--lx-ease-out);
+}
+:host ::ng-deep .lx-chips .p-togglebutton:not(.p-togglebutton-checked):hover { background: var(--p-lx-surface); box-shadow: var(--p-lx-e2); }
+:host ::ng-deep .lx-chips .p-togglebutton:active { transform: scale(.98); }
+:host ::ng-deep .lx-chips .p-togglebutton-content { height: 100%; padding: 0 6px 0 12px; border-radius: var(--lx-r-pill); background: transparent; box-shadow: none; }
+:host ::ng-deep .lx-chips .p-togglebutton.p-togglebutton-checked { background: var(--p-lx-accent-tint); box-shadow: inset 0 0 0 1.5px var(--p-lx-accent); }
+:host ::ng-deep .lx-chips .p-togglebutton.p-togglebutton-checked .p-togglebutton-content { background: transparent; box-shadow: none; }
+.lx-chip-body { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; line-height: 20px; font-weight: 550; color: var(--p-lx-text); }
+.lx-chip-count {
+  min-width: 22px; height: 22px; padding: 0 6px; box-sizing: border-box; display: inline-grid; place-items: center; border-radius: var(--lx-r-pill);
+  background: var(--p-lx-surface-2); color: var(--p-lx-text-2); font-size: 12px; font-weight: 600;
+}
+.lx-chip-body[data-tone='ambiguous'] ng-icon { color: var(--p-lx-ambiguous); }
+.lx-chip-body[data-tone='missing'] ng-icon { color: var(--p-lx-missing); }
+.lx-chip-body[data-tone='neutral'] ng-icon { color: var(--p-lx-text-2); }
+
+/* The matrix: the hero of the screen. It scrolls sideways inside its own frame; the page never does. */
+.lx-frame { overflow-x: auto; background: var(--p-lx-surface); border-radius: var(--lx-r-hero); box-shadow: var(--p-lx-e1); padding: 4px 0 8px; }
+.lx-matrix { width: 100%; border-collapse: separate; border-spacing: 0; }
+:where(.lx-matrix) :is(th, td) { padding: 0; background: var(--p-lx-surface); transition: background-color var(--lx-t-1) var(--lx-ease-out); }
+.lx-matrix thead th { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-text-2); vertical-align: bottom; }
+.lx-matrix tbody th, .lx-matrix tbody td { height: 52px; border-top: 1px solid var(--p-lx-line); vertical-align: middle; }
+
+/* Sticky edges: the requirement column on the left, the flag column on the right. */
+.lx-req-col { position: sticky; left: 0; z-index: 2; text-align: left; padding: 0 16px 0 20px; min-width: 220px; }
+.lx-flag-col { position: sticky; right: 0; z-index: 2; text-align: left; padding: 0 20px 0 12px; width: 1%; white-space: nowrap; box-shadow: inset 1px 0 0 var(--p-lx-line); }
+thead .lx-req-col, thead .lx-flag-col { padding-bottom: 10px; }
+.lx-ref { display: inline-block; width: 3.25rem; font-family: var(--lx-font-mono); font-size: 12px; line-height: 16px; color: var(--p-lx-text-2); vertical-align: top; padding-top: 3px; }
+.lx-req-title { display: inline-block; max-width: 22rem; font-size: 14px; line-height: 20px; font-weight: 550; color: var(--p-lx-text); vertical-align: top; }
+
+/* Column heads: the course code in mono, wrapped at its space, the title in a tooltip; required and elective under. */
+.lx-col-head { width: 52px; min-width: 52px; padding: 12px 2px 6px; text-align: center; }
+.lx-code { display: inline-block; max-width: 40px; font-family: var(--lx-font-mono); font-size: 12px; line-height: 15px; font-weight: 450; color: var(--p-lx-text); text-align: center; overflow-wrap: anywhere; transition: color var(--lx-t-1) var(--lx-ease-out); }
+.lx-program-head { display: inline-block; padding: 0 8px 10px; transition: color var(--lx-t-1) var(--lx-ease-out); }
+.lx-col-on .lx-code, .lx-col-on .lx-program-head { color: var(--p-lx-accent); }
+.lx-group { padding: 0 3px 10px; }
+.lx-group span {
+  display: block; padding-top: 4px; border-top: 2px solid var(--p-lx-line-strong); font-size: 11px; line-height: 14px; font-weight: 550;
+  color: var(--p-lx-text-2); text-align: center; white-space: nowrap;
+}
+.lx-group[data-required='false'] span { border-top-style: dashed; }
+
+/* Cells: a 20 px mark in a 32 px target. A filled dot is the system's quote, a ring a person's, both a dot in a ring,
+   a dashed ring with a clock evidence on an older version of the course. Shape, never colour alone, says which. */
+.lx-cell { text-align: center; }
+.lx-dot {
+  position: relative; width: 32px; height: 32px; margin: 0; padding: 0; border: 0; border-radius: var(--lx-r-pill); display: inline-grid; place-items: center;
+  background: transparent; cursor: pointer; transition: background-color var(--lx-t-1) var(--lx-ease-out);
+}
+.lx-dot:hover, .lx-dot-open { background: var(--p-lx-accent-tint); }
+.lx-mark {
+  --size: 20px; display: inline-block; flex: none; width: var(--size); height: var(--size); box-sizing: border-box; border-radius: var(--lx-r-pill);
+  transition: transform var(--lx-t-2) var(--lx-spring);
+}
+.lx-dot:hover .lx-mark, .lx-dot-open .lx-mark { transform: scale(1.12); }
+/* An empty cell keeps a faint point, so the eye can follow a row or a column across the matrix. */
+.lx-blank { display: inline-block; width: 4px; height: 4px; border-radius: var(--lx-r-pill); background: var(--p-lx-line-strong); opacity: .5; }
+.lx-mark[data-kind='SYSTEM'] { background: var(--p-lx-accent); }
+.lx-mark[data-kind='PERSON'] { box-shadow: inset 0 0 0 2px var(--p-lx-accent); }
+.lx-mark[data-kind='BOTH'] { background: var(--p-lx-accent); box-shadow: inset 0 0 0 2px var(--p-lx-accent), inset 0 0 0 calc(var(--size) * .25) var(--p-lx-surface); }
+.lx-mark[data-kind='OUTDATED'] { border: 2px dashed var(--p-lx-ambiguous); }
+.lx-clock { position: absolute; right: 2px; bottom: 2px; padding: 1px; border-radius: var(--lx-r-pill); background: var(--p-lx-surface); color: var(--p-lx-ambiguous); }
+
+/* Rows checked by the rules engine carry no cells, ever (D-393). */
+.lx-engine { padding-left: 12px; }
+.lx-engine > span {
+  display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 10px; border-radius: var(--lx-r-pill);
+  background: var(--p-lx-surface-2); color: var(--p-lx-text-2); font-size: 13px; line-height: 20px; font-weight: 500;
+}
+
+/* Flags: icon, colour and words; nothing for a row without one. */
+.lx-flag {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 8px; box-sizing: border-box; border-radius: var(--lx-r-pill);
+  font-size: 13px; line-height: 20px; font-weight: 550;
+}
+.lx-flag[data-tone='ambiguous'] { background: var(--p-lx-ambiguous-tint); color: var(--p-lx-ambiguous); }
+.lx-flag[data-tone='missing'] { background: var(--p-lx-missing-tint); color: var(--p-lx-missing); }
+.lx-flag[data-tone='neutral'] { box-shadow: inset 0 0 0 1px var(--p-lx-line-strong); color: var(--p-lx-text-2); }
+
+/* The pointer or keyboard position: its row and its column light up. */
+tr.lx-row-on > th, tr.lx-row-on > td, .lx-matrix td.lx-col-on { background: var(--p-lx-surface-2); }
+
+/* A chosen flag dims the other rows rather than hiding them, so the matrix keeps its shape. Marks and icons fade to
+   .35; words only step back to the secondary text colour, so every word on the screen still passes AA. */
+.lx-dot, .lx-blank, .lx-matrix ng-icon, .lx-req-title, .lx-engine > span, .lx-flag {
+  transition: opacity var(--lx-t-2) var(--lx-ease-out), color var(--lx-t-2) var(--lx-ease-out), background-color var(--lx-t-2) var(--lx-ease-out), box-shadow var(--lx-t-2) var(--lx-ease-out);
+}
+tr.lx-dim .lx-dot, tr.lx-dim .lx-blank, tr.lx-dim ng-icon { opacity: .35; }
+tr.lx-dim .lx-req-title { color: var(--p-lx-text-2); }
+tr.lx-dim .lx-engine > span, tr.lx-dim .lx-flag { background: transparent; box-shadow: none; color: var(--p-lx-text-2); }
+
+/* First view: the matrix enters column by column, 20 ms apart, and each mark scales in from .6. */
+.lx-enter-col { animation: lx-col-in var(--lx-t-3) var(--lx-ease-out) backwards; animation-delay: calc(var(--lx-c, 0) * 20ms); }
+.lx-cell .lx-mark { animation: lx-mark-in var(--lx-t-3) var(--lx-spring) backwards; animation-delay: calc(var(--lx-c, 0) * 20ms + 80ms); }
+@keyframes lx-col-in { from { opacity: 0; transform: translateY(4px); } }
+@keyframes lx-mark-in { from { opacity: 0; transform: scale(.6); } }
+
+/* The card a cell opens: code and title, each source with its count, one action. */
+.lx-card-body { display: flex; flex-direction: column; gap: 8px; min-width: 15rem; max-width: 20rem; }
+.lx-card-head { display: flex; align-items: center; gap: 8px; }
+.lx-card-code { font-family: var(--lx-font-mono); font-size: 12px; line-height: 16px; color: var(--p-lx-text-2); }
+.lx-card-kind { padding: 0 8px; border-radius: var(--lx-r-pill); background: var(--p-lx-surface-2); font-size: 12px; line-height: 20px; font-weight: 550; color: var(--p-lx-text-2); }
+.lx-card-title { font-size: 15px; line-height: 22px; font-weight: 600; letter-spacing: -0.005em; }
+.lx-card-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lx-card-lines li { display: flex; align-items: center; gap: 10px; font-size: 13px; line-height: 20px; color: var(--p-lx-text); }
+.lx-card-lines .lx-mark { --size: 14px; }
+.lx-card-n { margin-left: auto; color: var(--p-lx-text-2); }
+.lx-card-file { font-family: var(--lx-font-mono); font-size: 12px; word-break: break-all; }
+.lx-card-action { justify-content: center; margin-top: 4px; }
+
+.lx-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 24px; color: var(--p-lx-text-2); }
+.lx-empty ng-icon { color: var(--p-lx-accent); }
+.lx-skeleton { display: flex; flex-direction: column; gap: 20px; padding: 24px 20px; }
+.lx-skeleton-row { display: flex; align-items: center; gap: 28px; }
+
+/* Under 900 px the pills take a row of their own under the title. */
+@media (max-width: 900px) {
+  .lx-pills { flex-basis: 100%; }
+}
+/* Under 640 px: the chips scroll sideways in one row, the requirement column narrows to two lines and the flag column
+   keeps its icon (the chips above carry the words, and each flag keeps them for assistive technology). */
+@media (max-width: 640px) {
+  .lx-coverage { padding: 20px var(--lx-gutter) 40px; }
+  .lx-head { margin-bottom: 12px; gap: 8px; }
+  .lx-toolbar { display: block; margin: 0 calc(-1 * var(--lx-gutter)) 12px; }
+  :host ::ng-deep .lx-chips.p-selectbutton { flex-wrap: nowrap; overflow-x: auto; padding: 2px var(--lx-gutter) 6px; }
+  :host ::ng-deep .lx-chips .p-togglebutton { flex: none; }
+  /* The rules-engine note stays beside the requirement column while the cells scroll under it. */
+  .lx-engine > span { position: sticky; left: 172px; }
+  /* 144 px of text: a word as long as "Psychopharmacology" fits on one line; a longer one breaks (with a hyphen where
+     the browser can hyphenate) rather than being cut. */
+  .lx-req-col { min-width: 164px; width: 164px; max-width: 164px; padding: 0 8px 0 12px; }
+  .lx-ref { display: block; width: auto; padding: 0; }
+  /* Every row is as tall as a two-line title, so rows keep one height; a longer title ends in an ellipsis. */
+  .lx-matrix tbody th, .lx-matrix tbody td { height: 60px; }
+  .lx-req-title {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; max-width: none;
+    font-size: 13px; line-height: 18px; hyphens: auto; overflow-wrap: break-word;
+  }
+  .lx-flag-col { padding: 0 10px 0 8px; }
+  .lx-flag { width: 28px; height: 28px; padding: 0; justify-content: center; }
+  .lx-flag-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .lx-flag-head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .lx-version { display: none; }
+}

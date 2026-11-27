@@ -2,6 +2,7 @@ import { computed, signal } from '@angular/core';
 import { numericCheck } from '../../core/labels';
 import { DecisionKind, Evidence, EvidenceResponse, Finding, JurisdictionSummary, Mapping } from '../../core/models';
 import type { IconName } from '../../theme/icons';
+import type { PillProgress } from '../../ui/state-pills';
 
 export type ReviewFilter = 'ALL' | 'NEEDS_REVIEW' | Finding;
 
@@ -48,11 +49,9 @@ export function checkMethod(m: Mapping): CheckMethod {
   };
 }
 
-/** Decided and total requirements per state of the latest assessment: the mini rings on the state pills. */
-export interface StateProgress { decided: number; total: number; label: string }
-
-export function stateProgress(summaries: readonly JurisdictionSummary[]): ReadonlyMap<string, StateProgress> {
-  return new Map(summaries.map((s) => [s.jurisdiction, { decided: s.decided, total: s.total, label: `${s.decided} of ${s.total} reviewed` }]));
+/** Decided of total requirements per state of the latest assessment: the mini rings on the state pills. */
+export function stateProgress(summaries: readonly JurisdictionSummary[]): ReadonlyMap<string, PillProgress> {
+  return new Map(summaries.map((s) => [s.jurisdiction, { value: s.decided, total: s.total, label: `${s.decided} of ${s.total} reviewed` }]));
 }
 
 /** Which way the requirement card enters: from the right when moving down the list, from the left when moving up. */

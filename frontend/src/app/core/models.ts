@@ -126,3 +126,23 @@ export interface WorkItem {
   ids: { assessmentId?: string; mappingIds?: string[]; blockedCount?: number; ruleVersionIds?: string[]; changeKind?: string; changeEventIds?: string[]; programIds?: string[]; assessmentIds?: string[] };
 }
 export interface WorkQueue { generatedAt: string; counts: Partial<Record<WorkQueueKind, number>>; items: WorkItem[]; }
+
+/** F10a: where the evidence of a requirement sits. SYSTEM is the mapping's own verified span, PERSON an evidence response. */
+export type CoverageSource = 'SYSTEM' | 'PERSON';
+/** Descriptive flags with fixed names (D-392); they say where the evidence sits and never judge it. */
+export type CoverageRisk = 'NONE' | 'OUTDATED_EVIDENCE' | 'NO_EVIDENCE' | 'ELECTIVE_ONLY' | 'SINGLE_COURSE';
+/** A current course version of the program: a column of the matrix. */
+export interface CoverageCourse { courseId: string; courseVersionId: string; code: string; title: string; catalogYear: string; required: boolean; }
+export interface CoverageCell { courseVersionId: string; source: CoverageSource; quoteCount: number; }
+/** Evidence on a superseded course version; `supersededBy` is the current version, a column of `courses` (D-394). */
+export interface CoverageOutdatedCell { courseVersionId: string; code: string; catalogYear: string; supersededBy: string; source: CoverageSource; quoteCount: number; }
+export interface CoverageProgramDocument { documentId: string; filename: string; kind: string; source: CoverageSource; }
+export interface CoverageRequirement {
+  mappingId: string; ref: string; title: string; type: RequirementType; finding: Finding; decision: DecisionKind | null;
+  cells: CoverageCell[]; outdatedCells: CoverageOutdatedCell[]; programLevel: CoverageProgramDocument[]; risk: CoverageRisk;
+}
+/** GET /programs/{id}/coverage?jurisdiction=XX. `assessmentId` and `ruleVersion` are null before the first finished assessment. */
+export interface CoverageMatrix {
+  program: { id: string; name: string }; jurisdiction: { code: string; name: string }; assessmentId: string | null;
+  ruleVersion: { id: string; label: string } | null; courses: CoverageCourse[]; requirements: CoverageRequirement[];
+}

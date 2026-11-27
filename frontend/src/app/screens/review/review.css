@@ -9,17 +9,6 @@
 }
 .lx-head h1 { grid-area: title; }
 .lx-pills { grid-area: pills; min-width: 0; }
-:host ::ng-deep .lx-pills.p-tablist { background: transparent; border: 0; }
-:host ::ng-deep .lx-pills .p-tablist-content { gap: 4px; padding: 3px; }
-:host ::ng-deep .lx-pills .p-tablist-active-bar { display: none; }
-.lx-pill.p-tab {
-  display: inline-flex; align-items: center; gap: 8px; height: 36px; margin: 0; padding: 0 14px 0 8px; border: 0; border-radius: var(--lx-r-pill);
-  background: transparent; color: var(--p-lx-text-2); font-size: 14px; font-weight: 550;
-  transition: background-color var(--lx-t-1) var(--lx-ease-out), color var(--lx-t-1) var(--lx-ease-out), box-shadow var(--lx-t-1) var(--lx-ease-out);
-}
-.lx-pill.p-tab:not(.p-tab-active):hover { background: var(--p-lx-surface-2); color: var(--p-lx-text); }
-.lx-pill.p-tab-active { background: var(--p-lx-surface); color: var(--p-lx-text); box-shadow: var(--p-lx-e1); }
-.lx-pill-ring { display: inline-flex; }
 
 .lx-progress { grid-area: progress; display: flex; align-items: center; gap: 10px; font-size: 15px; line-height: 22px; font-weight: 600; white-space: nowrap; }
 .lx-sign { grid-area: sign; display: flex; align-items: center; gap: 6px; }

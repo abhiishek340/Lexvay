@@ -116,7 +116,8 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; outline: none; }
     background: var(--p-lx-surface); box-shadow: var(--p-lx-e1);
   }
   .lx-rail ul { flex-direction: row; flex: 1; gap: 0; }
-  .lx-rail li { flex: 1 0 44px; }
+  /* Nine screens fit a 400 px window at 40 px each. */
+  .lx-rail li { flex: 1 0 40px; }
   .lx-rail-pill, .lx-rail-toggle { display: none; }
   .lx-rail-tenant { padding: 0; margin: 0; border: 0; }
   .lx-rail a { height: 56px; border-radius: 0; }

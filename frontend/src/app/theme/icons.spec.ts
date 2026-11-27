@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { DOCUMENT_VIEWER_ICONS } from '../shared/document-viewer/document-viewer';
 import { AUDIT_ICONS } from '../screens/audit/audit';
 import { CHANGES_ICONS } from '../screens/changes/changes';
+import { COVERAGE_ICONS } from '../screens/coverage/coverage';
 import { OVERVIEW_ICONS } from '../screens/overview/overview';
 import { REGISTER_ICONS } from '../screens/register/register';
 import { REQUESTS_ICONS } from '../screens/requests/requests';
@@ -39,6 +40,7 @@ const UNITS: Unit[] = [
   { name: 'shell, sign-in and home', entries: ['shell/shell.ts', 'screens/login/login.ts', 'screens/home.ts'], registered: SHELL_ICONS },
   { name: 'overview', entries: ['screens/overview/overview.ts'], registered: OVERVIEW_ICONS },
   { name: 'review', entries: ['screens/review/review.ts'], registered: REVIEW_ICONS },
+  { name: 'coverage', entries: ['screens/coverage/coverage.ts'], registered: COVERAGE_ICONS },
   { name: 'requests', entries: ['screens/requests/requests.ts'], registered: REQUESTS_ICONS },
   { name: 'changes', entries: ['screens/changes/changes.ts'], registered: CHANGES_ICONS },
   { name: 'rules', entries: ['screens/rules/rules.ts'], registered: RULES_ICONS },
