@@ -1,12 +1,13 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, switchMap } from 'rxjs';
 import {
   AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, DeterminationLists, DocumentPage, EvidenceRequest, EvidenceResponse, EvidenceResponseBody,
-  Jurisdiction, Mapping, MappingsView, NewRuleVersion, Outcome, Program, ProgramDocument, ProgramOverview, RegisterFilter, RegisterRow, ReportStatusView,
+  Jurisdiction, Mapping, MappingsView, NewRuleVersion, Outcome, Program, ProgramDocument, ProgramOverview, RegisterFilter, RegisterRow,
   RequirementDraft, RequirementsView, RuleVersionDiff, RuleVersionView, SessionView, UserSummary, UserView, WorkQueue,
 } from './models';
 import { REGISTER_PATH, registerQuery } from './register';
+import { ReportAnswer, readReport } from './report-answer';
 
 /** Thin, typed wrapper over /api/v1. Holds no business rules. */
 @Injectable({ providedIn: 'root' })
@@ -84,11 +85,10 @@ export class ApiService {
   requestReport(determinationId: string): Observable<{ reportId: string; jobId: string }> {
     return this.http.post<{ reportId: string; jobId: string }>(`${this.base}/determinations/${determinationId}/report`, null);
   }
-  /** 202 with JSON while generating; the PDF itself is downloaded through the browser from reportUrl. */
-  reportStatus(reportId: string): Observable<ReportStatusView> {
-    return this.http.get<ReportStatusView>(`${this.base}/reports/${reportId}`, { headers: { Accept: 'application/json' } });
+  /** The status while the PDF is generated, then the PDF itself (D-069, readReport). */
+  report(reportId: string): Observable<ReportAnswer> {
+    return this.http.get(`${this.base}/reports/${reportId}`, { observe: 'response', responseType: 'blob' }).pipe(switchMap(readReport));
   }
-  reportUrl(reportId: string): string { return `${this.base}/reports/${reportId}`; }
   jobStatus(jobId: string): Observable<{ id: string; status: string; error: string | null }> {
     return this.http.get<{ id: string; status: string; error: string | null }>(`${this.base}/jobs/${jobId}`);
   }
