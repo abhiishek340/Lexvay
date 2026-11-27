@@ -14,7 +14,7 @@
 .lx-edit { container-type: inline-size; }
 .lx-fields {
   display: grid; gap: 8px; align-items: end;
-  grid-template-columns: 6rem minmax(6rem, 1fr) 8.5rem auto auto;
+  grid-template-columns: 6rem minmax(6rem, 1fr) 8.5rem 17.75rem auto;
   grid-template-areas: "ref title type check actions";
 }
 .lx-f { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -24,7 +24,7 @@
 .lx-f-check { grid-area: check; }
 .lx-f-actions { grid-area: actions; flex-direction: row; gap: 0; }
 .lx-f-label { font-size: 11px; line-height: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--p-lx-text-secondary); }
-.lx-check-controls { display: grid; grid-template-columns: 8.5rem 4.25rem 4.5rem; gap: 4px; }
+.lx-check-controls { display: grid; grid-template-columns: 8.5rem 4.75rem minmax(0, 1fr); gap: 4px; }
 .lx-line-one td { border-bottom: 0; padding-bottom: 6px; }
 .lx-line-two td { padding-top: 0; }
 .lx-line-two .lx-f-label { display: block; margin-bottom: 2px; }
@@ -34,7 +34,7 @@
 }
 @container (max-width: 479px) {
   .lx-fields { grid-template-columns: minmax(0, 1fr); grid-template-areas: "ref" "title" "type" "check" "actions"; }
-  .lx-check-controls { grid-template-columns: minmax(0, 1fr) 4.25rem 5rem; }
+  .lx-check-controls { grid-template-columns: minmax(0, 1fr) 4.75rem 5rem; }
 }
 .lx-row-problem-list { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
 .lx-row-problem { display: flex; gap: 6px; align-items: center; color: var(--p-lx-missing); font-size: 12px; line-height: 16px; }
