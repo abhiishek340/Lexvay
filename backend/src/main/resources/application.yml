@@ -34,6 +34,12 @@ lexvay:
     price:                                    # USD per million tokens; used only by the evaluation cost report
       input-per-mtok: ${LEXVAY_LLM_PRICE_INPUT_PER_MTOK:0}
       output-per-mtok: ${LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK:0}
+  ratelimit:                              # per instance, per minute (D-092)
+    login-per-minute: ${LEXVAY_RATELIMIT_LOGIN_PER_MINUTE:10}
+    api-per-minute: ${LEXVAY_RATELIMIT_API_PER_MINUTE:600}
+    upload-per-minute: ${LEXVAY_RATELIMIT_UPLOAD_PER_MINUTE:30}
+    max-keys: 10000
+    idle-expiry: 10m
   matching:
     min-quote-chars: ${LEXVAY_MIN_QUOTE_CHARS:40}
     min-ocr-confidence: 80
@@ -50,12 +56,45 @@ lexvay:
 
 server:
   port: ${LEXVAY_PORT:8080}
+  # Behind a load balancer set LEXVAY_FORWARD_HEADERS=native so the client address (rate limits) and the
+  # scheme (HSTS, secure cookies) come from the trusted proxy headers (D-093).
+  forward-headers-strategy: ${LEXVAY_FORWARD_HEADERS:none}
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${LEXVAY_COOKIE_SECURE:false}
 
 management:
   endpoint:
     health:
       probes:
         enabled: true
+
+---
+# Single sign-on (D-090). Roles never come from the provider; see LexvayOidcUserService.
+spring:
+  config:
+    activate:
+      on-profile: oidc
+  security:
+    oauth2:
+      client:
+        registration:
+          lexvay:
+            provider: lexvay
+            client-id: ${LEXVAY_OIDC_CLIENT_ID}
+            client-secret: ${LEXVAY_OIDC_CLIENT_SECRET}
+            scope: openid,email,profile
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          lexvay:
+            issuer-uri: ${LEXVAY_OIDC_ISSUER_URI}
+lexvay:
+  oidc:
+    post-login-url: ${LEXVAY_OIDC_POST_LOGIN_URL:/}
 
 ---
 # `make seed`: load the fictional demo tenants once, then exit. No job polling.

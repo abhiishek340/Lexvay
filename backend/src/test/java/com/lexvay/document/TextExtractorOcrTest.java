@@ -120,6 +120,15 @@ class TextExtractorOcrTest {
     }
 
     @Test
+    void thePdfPageLimitOfContentLimitsAppliesBeforeAnyRecognition() {
+        ocr.enable();
+        byte[] pdf = TestDocuments.pdf(java.util.Collections.nCopies(ContentLimits.MAX_PDF_PAGES + 1, List.of()));
+        assertThatThrownBy(() -> new TextExtractor(ocr, 1000).extract(FileType.PDF, pdf))
+                .isInstanceOf(ContentLimits.ContentLimitException.class).hasMessageContaining("limit is 500");
+        assertThat(ocr.imagesSeen()).isEmpty();
+    }
+
+    @Test
     void textLayerPagesDoNotCountTowardsTheCap() throws IOException {
         byte[] mixed = TestDocuments.merge(TestDocuments.pdf(List.of(List.of(LAYER_TEXT), List.of(LAYER_TEXT + " again"))), scan(1));
         ocr.enable().page(SCANNED_TEXT, 90);

@@ -23,7 +23,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Text extraction per page with character offsets. PDFs keep their pages; DOCX and TXT become one page
- * (D-017). Pages are joined by a single newline when offsets are computed (D-041).
+ * (D-017). Pages are joined by a single newline when offsets are computed (D-041). A document that exceeds
+ * {@link ContentLimits} (a DOCX that inflates too far, a PDF with too many pages) is rejected before any OCR.
  *
  * <p>A PDF page whose text layer has at least {@value #MIN_PAGE_CHARS} non-whitespace characters keeps it. Any
  * other page is rendered and read by the OCR engine when one is available, and kept as OCR text with its mean
@@ -78,6 +79,7 @@ public class TextExtractor {
 
     private List<PageText> pdfPages(byte[] bytes) {
         try (PDDocument document = Loader.loadPDF(bytes)) {
+            ContentLimits.requirePdfPages(document.getNumberOfPages());
             PDFTextStripper stripper = new PDFTextStripper();
             List<String> layers = new ArrayList<>();
             for (int page = 1; page <= document.getNumberOfPages(); page++) {
@@ -103,7 +105,7 @@ public class TextExtractor {
                 }
             }
             return pages;
-        } catch (OcrFailedException | TooManyScannedPagesException e) {
+        } catch (ContentLimits.ContentLimitException | OcrFailedException | TooManyScannedPagesException e) {
             throw e;
         } catch (IOException | RuntimeException e) {
             throw new UnparsableDocumentException("File could not be parsed as a PDF", e);
@@ -139,6 +141,7 @@ public class TextExtractor {
     }
 
     private static String docxText(byte[] bytes) {
+        ContentLimits.requireSafeDocx(bytes);
         try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(bytes));
              XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
             return normalize(extractor.getText());
