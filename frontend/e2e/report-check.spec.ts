@@ -79,7 +79,7 @@ test('a downloaded report matches with its facts, a changed copy does not, and b
   await check(page, modified(pdf));
   await expect(result).toHaveAttribute('data-result', 'none');
   await expect(result.getByRole('heading', { level: 3 })).toHaveText('No report in this workspace has exactly this content');
-  await expect(result.getByRole('button', { name: 'About file fingerprints' })).toBeVisible();
+  await expect(result).toContainText('Any change to the file, even saving it again, changes its fingerprint.');
   await expect(result.getByTestId('check-sha')).toHaveText(sha256(modified(pdf)).slice(0, 16));
 
   await dialog(page).getByRole('button', { name: 'Check another' }).click();
@@ -118,7 +118,7 @@ for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await answerAsReopened(page);
     await check(page, pdf);
     await expect(dialog(page).getByTestId('check-result')).toHaveAttribute('data-result', 'reopened');
-    await expect(dialog(page).getByRole('heading', { level: 3 })).toHaveText('Warning: Matches, but this determination was reopened on 27 November 2026');
+    await expect(dialog(page).getByRole('heading', { level: 3 })).toHaveText('Matches, but this determination was reopened on 27 November 2026');
     await expect(dialog(page).locator('lx-seal')).toHaveCount(0);
     await expectAccessible(page, `Check: reopened at ${width} px`);
   });

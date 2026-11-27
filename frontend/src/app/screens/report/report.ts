@@ -3,7 +3,7 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorFilePdf, phosphorFingerprint } from '@ng-icons/phosphor-icons/regular';
+import { phosphorFilePdf } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -24,7 +24,7 @@ import { ReportCheckDialog } from './report-check-dialog';
 import { REPORT_TOKENS } from './report-theme';
 
 /** The icons the report shows beyond SHELL_ICONS, provided by its route (report.routes.ts). */
-export const REPORT_ICONS = { phosphorFilePdf, phosphorFingerprint };
+export const REPORT_ICONS = { phosphorFilePdf };
 
 const POLL_MS = 1000;
 const POLL_LIMIT = 60;

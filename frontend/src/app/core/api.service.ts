@@ -1,4 +1,4 @@
-import { HttpClient, HttpEvent, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, switchMap } from 'rxjs';
 import {
@@ -99,11 +99,11 @@ export class ApiService {
   report(reportId: string): Observable<ReportAnswer> {
     return this.http.get(`${this.base}/reports/${reportId}`, { observe: 'response', responseType: 'blob' }).pipe(switchMap(readReport));
   }
-  /** Whether a PDF is exactly a report of this workspace; the events carry the upload progress (F14). */
-  checkReport(file: File): Observable<HttpEvent<ReportCheck>> {
+  /** Whether a PDF is exactly a report of this workspace (F14). */
+  checkReport(file: File): Observable<ReportCheck> {
     const body = new FormData();
     body.append('file', file, file.name);
-    return this.http.post<ReportCheck>(`${this.base}/reports/check`, body, { reportProgress: true, observe: 'events' });
+    return this.http.post<ReportCheck>(`${this.base}/reports/check`, body);
   }
   jobStatus(jobId: string): Observable<{ id: string; status: string; error: string | null }> {
     return this.http.get<{ id: string; status: string; error: string | null }>(`${this.base}/jobs/${jobId}`);
