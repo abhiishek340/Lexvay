@@ -17,7 +17,7 @@
       <section class="lx-answer-requirement" aria-labelledby="answer-requirement">
         <p class="lx-label">Requirement</p>
         <h3 id="answer-requirement" class="lx-answer-ref">
-          <span class="lx-mono">{{ row.jurisdiction }}</span> <span class="lx-mono">{{ row.requirementRef }}</span> {{ row.requirementTitle }}
+          <span class="lx-mono">{{ row.requirementRef }}</span>&nbsp;{{ row.requirementTitle }}
         </h3>
         @if (requirement.value(); as r) {
           <blockquote class="lx-answer-rule lx-serif">{{ r.text }}</blockquote>

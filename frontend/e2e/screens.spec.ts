@@ -44,10 +44,10 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await expect(drawer.locator('lx-document-viewer pre')).toBeVisible();
   await drawer.locator('lx-document-viewer pre').evaluate((pre) => {
     const text = Array.from(pre.childNodes).find((n) => n.nodeType === Node.TEXT_NODE)!;
-    const start = text.textContent!.indexOf('This');
+    const sentence = /[A-Z][^.\n]{30,}\./.exec(text.textContent!)!;
     const range = document.createRange();
-    range.setStart(text, start);
-    range.setEnd(text, text.textContent!.indexOf('.', start) + 1);
+    range.setStart(text, sentence.index);
+    range.setEnd(text, sentence.index + sentence[0].length);
     document.getSelection()!.removeAllRanges();
     document.getSelection()!.addRange(range);
     pre.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
