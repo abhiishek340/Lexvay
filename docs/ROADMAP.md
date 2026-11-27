@@ -12,7 +12,82 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
   "LEXVAY_PRIMEUI_LICENSE='<key>'"` (never commit it). Alternative if declined: Angular 21 with PrimeNG 21 (MIT),
   a framework downgrade the orchestrator does not recommend.
 
-## Design system v2 (owner directive 2026-11-26: "world best UI", clean, few words, animation)
+## Design system v3 "Ledger" (owner directive 2026-11-27: "not AI slop", professional, human craft)
+The owner reviewed v2 on the running app and rejected it: yellow and orange accents, icon-heavy pills and cards, a
+palette and card art that look generated. `docs/DESIGN.md` is rewritten as v3 and is the contract. Every screen
+moves to it in four items. UI3-0 goes first. UI3-1, UI3-2 and UI3-3 start when UI3-0 merges and run in parallel.
+F12b and any later screen are built in v3.
+
+### UI3-0 — Foundation, shell, sign-in and overview (slot 1; Opus 5.5; D-480 to D-499)
+1. **Tokens and preset v3:**
+   - The colour table, radius, elevation, spacing and type scale exactly as in DESIGN.md. Remove every v2 token
+     that has no v3 equivalent (`ambiguous`, `accent-tint`, `seal`, e1/e2/e3, `--lx-spring`, `--lx-t-hero`, ...).
+   - Restyle all PrimeNG component tokens the app uses (button, inputtext, select, multiselect, dialog, popover,
+     menu, tabs, datatable, toggleswitch, selectbutton, tooltip, toast, accordion, autocomplete, fileupload,
+     metergroup, confirmdialog) to v3. Keep the per-chunk token-set pattern.
+   - `tokens.spec.ts` proves AA over the new table.
+2. **Source scan:** a unit test that fails on:
+   - any colour literal (hex, `rgb(`, `hsl(`, named colours) in `frontend/src` outside `theme/`;
+   - the retired names (`ProgressRing`, `StateMap`, `lx-stat`, `count-up`, `p-tag`, `p-chip`, `border-radius: 999`,
+     `9999px`, `backdrop-filter`, `duotone`).
+3. **Shared components:**
+   - New: `ui/status-mark.ts` (the mark table), `ui/meter.ts`, `ui/figure.ts`, `ui/label.ts` and `ui/help.ts`
+     (one popover per screen).
+   - Redraw `ui/seal.ts` as line art.
+   - Delete `ui/state-map/`, `progress-ring.ts`, `stat.ts`, `count-up.ts`, `status-icon.ts` and `info-tip.ts` with
+     their tests, after moving every caller. Moving callers is part of this item: every screen must compile and
+     pass its tests with the replacements. Use the plain v3 equivalent (Meter, a mark plus word, Label or plain
+     text, Help), not a redesign of that screen. The full screen passes are UI3-1 to UI3-3.
+   - `DecisionBar`: no blur, no key chips.
+4. **Shell:** top bar, rail, bottom tab bar and More menu exactly as DESIGN.md says. The "Demo data" pill becomes meta
+   text; count pills become `tnum` meta text; the active nav item uses the left rule. Programmatic focus on the page
+   title draws no ring.
+5. **Sign in:** one centred column as DESIGN.md says; the map story and headline panel go.
+6. **Program overview:** the title row, Figure row, States table and Needs you list as DESIGN.md says. This is the
+   reference screen for the others, so its spacing must be exact: 40 px page padding, 40 px between sections with
+   hairlines, 24 px from title row to figures, table rows 40 px.
+7. **Motion:** replace the v2 motion tokens and keyframes with the v3 ones. Delete the staggered entrances, ring
+   sweeps, seal stamp and sign-in story. The route transition becomes the 180 ms fade with a 4 px rise. Keep FIX-8's
+   `data-transition="none"` mechanism if it has merged.
+8. **Tests and evidence:**
+   - Unit tests for StatusMark (every status maps to shape and word), Meter (segments to scale, text) and the source
+     scan.
+   - Update e2e selectors that depended on removed components; axe on every screen in both themes.
+   - Screenshots `ui3-0-*` of sign-in, the overview, the shell with the rail expanded and collapsed, and the 400 px
+     tab bar, all in both themes. Also retake one screenshot of every other screen as it looks after the caller
+     moves, so the orchestrator sees the starting point for UI3-1 to UI3-3.
+   - The initial bundle must shrink; report before and after.
+
+### UI3-1 — Review and Coverage in v3 (slot 2; Opus 5.5; after UI3-0; D-500 to D-509)
+Review as DESIGN.md describes:
+- three hairline columns;
+- the state switcher as an underlined tab row with "3 of 8" text;
+- the filter as a text tab row with counts;
+- the requirement column with the rule text set on a left rule;
+- Finding as a section;
+- the decision footer.
+
+Then the signing dialog: the three outcomes as a radio list with one line each, and the line-art Seal preview.
+Coverage: the matrix on `surface` with the v3 marks, flags as text with marks, the filter as a text tab row.
+Screenshots `ui3-1-*`.
+
+### UI3-2 — Changes, Audit trail, Evidence report, Register and People in v3 (slot 3; Opus 5.5; after UI3-0 and F14; D-510 to D-519)
+- Changes and Audit trail: plain day-grouped lists of one-sentence rows.
+- Evidence report: the 816 px sheet, with actions in the title row; F14's check dialog restyled.
+- Determination register and People: tables under a title row and meta line.
+- The setup-password page in the sign-in column style.
+
+Screenshots `ui3-2-*`.
+
+### UI3-3 — Rules, Requests and Program setup in v3 (slot 4; Opus 5.5; after UI3-0 and UI2-4; D-520 to D-529)
+- Rules: version list and detail with hairlines; the diff in Document type with `found` and `missing` underlines
+  (no tinted blocks).
+- Evidence requests: a table, with the answer drawer as an overlay sheet.
+- Program setup: the numbered text step list on the left and plain forms on the right.
+
+Screenshots `ui3-3-*`.
+
+## Design system v2, superseded by v3 (owner directive 2026-11-26: "world best UI", clean, few words, animation)
 The contract is `docs/DESIGN.md` v2. Built in five items. UI2-0 lands first; UI2-1 to UI2-4 run in parallel on top of
 it. Every item is Opus 5.5, every item's PR carries screenshots of every state it touches in both themes at 1440 and
 400 px, and the orchestrator reviews those screenshots before merge. Word budget, motion rules and the forbidden list
@@ -124,11 +199,15 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F10a Coverage matrix API | `feat-coverage-api` | 8 | Sonnet 5.5 | merged (PR #35) |
 | F10b Coverage matrix screen (v2) | `ui2-coverage` | 7 | Opus 5.5 | merged (#41) |
 | FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | merged (#42) |
-| F12b Rule sources in the Rules workspace (v2) | `ui2-rule-sources` | 1 | Opus 5.5 | queued (after UI2-4) |
+| F12b Rule sources in the Rules workspace (v3) | `ui3-rule-sources` | 5 | Opus 5.5 | queued (after UI3-3) |
 | FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | merged (#45) |
 | F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | in progress |
 | INFRA-2 Remote state, WAF, flow logs, egress | `infra-hardening` | — | Sonnet 5.5 | in progress |
 | FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | in progress |
+| UI3-0 Design v3 foundation, shell, sign-in, overview | `ui3-foundation` | 1 | Opus 5.5 | in progress |
+| UI3-1 Review and Coverage in v3 | `ui3-review-coverage` | 2 | Opus 5.5 | queued (after UI3-0) |
+| UI3-2 Changes, audit, report, register, people in v3 | `ui3-records` | 3 | Opus 5.5 | queued (after UI3-0, F14) |
+| UI3-3 Rules, requests, setup in v3 | `ui3-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI3-0, UI2-4) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
