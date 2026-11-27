@@ -1,6 +1,6 @@
 # F7c — Search terms proposed at extraction: progress and evidence
 
-Branch `search-terms`, slot 3. Backend and evaluation only; the screen cell is UI2-4. Decisions D-250 to D-259 in `docs/decisions/F7c.md`.
+Branch `search-terms`, slot 3. Backend and evaluation, plus a frontend pass-through so the grid keeps the terms; the screen cell is UI2-4. Decisions D-250 to D-259 in `docs/decisions/F7c.md`.
 
 ## What was built
 - **Migration `V014__requirement_search_terms.sql`**: `requirement.search_terms text[] NOT NULL DEFAULT '{}'` and `search_terms_valid(text[])`
@@ -39,9 +39,15 @@ vocabulary is right, not how often a model's proposals will be. R13 is still out
 The pipeline on the seed is unchanged: 0 false EVIDENCE_FOUND (0 / 33), recall 33 / 33, quote verification 31 / 31, numeric accuracy 11 / 11,
 extraction agreement 42 / 42, evidence agreement 39 / 39, 36 model calls.
 
+## Review fixes (after PR review)
+- **No data loss on save**: the grid passes `search_terms` through (`RequirementView.searchTerms`, `RequirementDraft.search_terms`, `RequirementListEditor` keeps each row's terms).
+  `make frontend-test`: 110 passed (17 files), including the new editor tests.
+- **Eval profile** sets `management.server.port: -1`; `make eval` ran with a development backend holding :8090 and passed.
+- `LEXVAY_E2E_SLOT=3 make e2e`: 18 passed, 1 skipped. Re-run after merging `origin/main` again: `make backend-test` 882 tests, 0 failures, BUILD SUCCESS.
+
 ## Tails
 
-`LEXVAY_MANAGEMENT_PORT=9093 LEXVAY_E2E_SLOT=3 make eval` (the variable only because a development backend on this machine holds the default management port 8090; D-259), exit 0:
+`LEXVAY_E2E_SLOT=3 make eval` (the eval profile now has `management.server.port: -1`, so it runs beside a development backend on :8090; D-259), exit 0:
 ```
 Metric                                        Result      Count   Limit        Status
 False EVIDENCE_FOUND rate                      0.0 %     0 / 33   <= 0.0 %     ok

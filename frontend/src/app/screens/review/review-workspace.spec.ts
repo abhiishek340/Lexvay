@@ -7,7 +7,7 @@ const decision: Decision = { kind: 'ACCEPTED', note: null, userId: 'u', userDisp
 function mapping(id: string, finding: Finding, decided = false, stale = false): Mapping {
   return {
     id, assessmentId: 'a', jurisdictionId: 'j', jurisdiction: 'CA', ruleVersionId: 'r',
-    requirement: { id: 'req-' + id, ref: 'CA-' + id, title: 'T' + id, text: '', type: 'SUBJECT', numericField: null, numericOperator: null, numericValue: null },
+    requirement: { id: 'req-' + id, ref: 'CA-' + id, title: 'T' + id, text: '', type: 'SUBJECT', numericField: null, numericOperator: null, numericValue: null, searchTerms: [] },
     finding, method: 'MATCH', rationale: '', stale, evidence: null, decision: decided ? decision : null, responseCount: 0,
   };
 }

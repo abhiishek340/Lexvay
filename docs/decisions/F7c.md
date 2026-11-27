@@ -88,10 +88,11 @@ coverage 28 / 28; lexical gaps recall@8 2, 2 and 6 of 6, recall@3 1, 1 and 6 of 
 on the seed is unchanged: 0 false `EVIDENCE_FOUND`, 33 / 33 recall, 42 / 42 extraction agreement, 39 / 39 evidence agreement, 36 model calls.
 `RetrievalServiceTest` asserts the gap floor and that without the terms the same queries fail it.
 
-**D-259 — Consequences and what was left alone.** (1) The current requirement grid (F3) sends no `search_terms`, so until UI2-4 adds the cell, saving
-the grid replaces the stored terms with none; the API and every other client keep them. (2) The live evaluation substitutes the golden requirement list
-through the replace path, which has no terms, so live retrieval is measured without them. (3) `matchedTerms` covers terms that share a lexeme with the page; a
-term can name a page that the other terms also matched. (4) `scripts/eval.sh` runs the eval profile with the default management port 8090, which fails to
-start when a development backend holds it; the run here set `LEXVAY_MANAGEMENT_PORT=9093`. The profile should set `management.server.port: -1` like `seed`;
-it is not part of this item. (5) The reviewer search, the `RULE_TEXT` exclusion and the tenant scoping (row-level security) are untouched; no endpoint was added,
-so `Rule9_AuditCoverageTest` needs no entry, and the replace endpoint was already audited.
+**D-259 — Consequences and what was left alone.** (1) The requirement grid does not show the terms yet (UI2-4 adds the cell), so it passes them through: `RequirementView`
+gains `searchTerms`, `RequirementDraft` gains `search_terms`, and `RequirementListEditor` keeps each loaded row's terms (a copy, so a discard returns to the server's list), sends them
+for every row in the PUT body whatever else is edited or moved, and gives a new row none. Without this a save of the grid would have replaced the stored terms with none, since an absent
+`search_terms` means an empty list. Only `core/models.ts` and the editor files changed; the editor spec covers load, edit title, move, change type, save body (terms preserved), discard, and
+a new row (empty terms). Terms are not part of the editor's dirty check because the screen cannot change them. (2) The live evaluation substitutes the golden requirement list through the
+replace path, which has no terms, so live retrieval is measured without them (roadmap follow-up). (3) `matchedTerms` covers terms that share a lexeme with the page. (4) The `eval` profile
+now sets `management.server.port: -1` like `seed`, so `make eval` no longer collides with a development backend on :8090 (checked with one running). (5) The reviewer search, the
+`RULE_TEXT` exclusion and the tenant scoping (row-level security) are untouched; no endpoint was added, so `Rule9_AuditCoverageTest` needs no entry, and the replace endpoint was already audited.
