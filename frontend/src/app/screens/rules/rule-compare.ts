@@ -1,0 +1,104 @@
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { NgIcon } from '@ng-icons/core';
+import { Accordion, AccordionContent, AccordionHeader, AccordionPanel } from 'primeng/accordion';
+import { Message } from 'primeng/message';
+import { Select } from 'primeng/select';
+import { Skeleton } from 'primeng/skeleton';
+import { TableModule } from 'primeng/table';
+import { Tag } from 'primeng/tag';
+import { firstValueFrom } from 'rxjs';
+import { ApiService } from '../../core/api.service';
+import { DIFF_STATUS, REQUIREMENT_TYPE_LABEL, numericCheck } from '../../core/labels';
+import { DiffRow, DiffSegment, DiffStatus, RuleVersionDiff, RuleVersionView } from '../../core/models';
+import { problemDetail } from '../../core/problem';
+import { comparableVersions } from '../../core/rules';
+import { DiffText } from '../../ui/diff-text';
+
+const SUMMARY_ORDER: { status: DiffStatus; key: keyof RuleVersionDiff['summary'] }[] = [
+  { status: 'CHANGED', key: 'changed' }, { status: 'ADDED', key: 'added' }, { status: 'REMOVED', key: 'removed' }, { status: 'UNCHANGED', key: 'unchanged' },
+];
+
+/** The Compare tab: this version against the one it supersedes, or another approved version of the same rule. */
+@Component({
+  selector: 'lx-rule-compare',
+  imports: [FormsModule, NgIcon, Accordion, AccordionContent, AccordionHeader, AccordionPanel, Message, Select, Skeleton, TableModule, Tag, DiffText],
+  templateUrl: './rule-compare.html',
+  styleUrl: './rule-compare.css',
+})
+export class RuleCompare {
+  private readonly api = inject(ApiService);
+  readonly version = input.required<RuleVersionView>();
+  readonly all = input.required<readonly RuleVersionView[]>();
+  readonly jurisdictionName = input.required<string>();
+
+  readonly against = signal<string | null>(null);
+  readonly diff = signal<RuleVersionDiff | null>(null);
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
+
+  readonly options = computed(() => {
+    const v = this.version();
+    return comparableVersions(this.all(), v.jurisdiction, v.licenseType, v.id).map((o) => ({ id: o.id, label: `${o.label} (effective ${o.effectiveFrom})` }));
+  });
+  readonly summary = computed(() => {
+    const d = this.diff();
+    return d ? SUMMARY_ORDER.map(({ status, key }) => ({ status, count: d.summary[key], ...DIFF_STATUS[status] })) : [];
+  });
+
+  constructor() {
+    // A newly shown version starts from the version it supersedes.
+    effect(() => {
+      const v = this.version();
+      untracked(() => this.choose(v.supersedesId));
+    });
+  }
+
+  async choose(against: string | null): Promise<void> {
+    const v = this.version();
+    this.against.set(against);
+    this.diff.set(null);
+    this.error.set(null);
+    if (!against) { return; }
+    this.loading.set(true);
+    try {
+      const diff = await firstValueFrom(this.api.ruleVersionDiff(v.id, against));
+      if (this.version().id === v.id && this.against() === against) { this.diff.set(diff); }
+    } catch (e: unknown) {
+      this.error.set(problemDetail(e, 'The comparison could not be loaded.'));
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  statusOf(row: DiffRow): (typeof DIFF_STATUS)[DiffStatus] {
+    return DIFF_STATUS[row.status];
+  }
+
+  ref(row: DiffRow): string {
+    return (row.after ?? row.before)?.ref ?? '';
+  }
+
+  title(row: DiffRow): string {
+    return (row.after ?? row.before)?.title ?? '';
+  }
+
+  text(row: DiffRow): string {
+    return (row.after ?? row.before)?.text ?? '';
+  }
+
+  /** The old and the new value of one aspect, marked as deleted and inserted. */
+  replaced(before: string | null | undefined, after: string | null | undefined): { before: DiffSegment[]; after: DiffSegment[] } {
+    return { before: [{ op: 'DELETE', text: before ?? '' }], after: [{ op: 'INSERT', text: after ?? '' }] };
+  }
+
+  check(row: DiffRow, side: 'before' | 'after'): string {
+    const r = row[side];
+    return (r && numericCheck(r)) ?? 'no number';
+  }
+
+  typeOf(row: DiffRow, side: 'before' | 'after'): string {
+    const r = row[side];
+    return r ? REQUIREMENT_TYPE_LABEL[r.type] : '';
+  }
+}

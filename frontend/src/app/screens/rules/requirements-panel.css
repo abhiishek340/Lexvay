@@ -1,0 +1,34 @@
+:host { display: block; }
+.lx-panel-body { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 12px; }
+.lx-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lx-toolbar button { gap: 6px; }
+.lx-empty { padding: 4px 0; }
+.lx-nowrap { white-space: nowrap; }
+.lx-title { font-weight: 500; min-width: 8rem; }
+.lx-text { min-width: 16rem; }
+.lx-text .lx-serif { max-width: 60ch; }
+.lx-more { padding: 0; margin-top: 2px; }
+.lx-table-skeleton { display: flex; flex-direction: column; gap: 6px; }
+
+/* The edit grid: every cell is a control. */
+.lx-cell-ref { width: 7rem; }
+.lx-cell-title { width: 12rem; }
+.lx-cell-type { width: 11rem; }
+.lx-cell-check { width: 15rem; }
+.lx-cell-actions { width: 7.5rem; white-space: nowrap; }
+.lx-check-controls { display: grid; grid-template-columns: 4.5rem 1fr; gap: 6px; }
+.lx-check-field { grid-column: 1 / -1; }
+:host ::ng-deep .lx-check-value input { width: 100%; }
+:host ::ng-deep .lx-check-value { display: block; }
+.lx-serif-input { font-family: var(--lx-font-serif); font-size: 14px; line-height: 20px; }
+.lx-row-invalid td { border-bottom-color: transparent; }
+.lx-row-problems td { padding-top: 0; }
+.lx-row-problem-list { display: flex; flex-direction: column; gap: 2px; }
+.lx-row-problem { display: flex; gap: 6px; align-items: center; color: var(--p-lx-missing); font-size: 12px; line-height: 16px; }
+.lx-row-problem ng-icon { flex: none; }
+
+.lx-dialog-text { max-width: 60ch; }
+
+@media (max-width: 640px) {
+  .lx-panel-body { padding: 12px 16px 20px; }
+}

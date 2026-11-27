@@ -76,12 +76,6 @@
 
 /* Pane 3 */
 .lx-evidence { padding: 20px 20px 24px; overflow-y: auto; gap: 12px; background: var(--p-lx-ground); }
-.lx-document { margin: 0; background: var(--p-lx-card); border: 1px solid var(--p-lx-hairline); border-radius: 4px; }
-.lx-document-head { padding: 10px 14px; border-bottom: 1px solid var(--p-lx-hairline); display: flex; flex-direction: column; gap: 6px; }
-.lx-document-name { display: flex; gap: 6px; align-items: center; font-weight: 500; word-break: break-word; }
-.lx-document-meta { display: flex; flex-wrap: wrap; gap: 2px 16px; font-size: 12px; line-height: 16px; color: var(--p-lx-text-secondary); }
-.lx-document-meta div { display: flex; gap: 4px; }
-.lx-document-meta dd { color: var(--p-lx-text); }
 .lx-quote { padding: 16px 18px 18px; margin: 0; color: var(--p-lx-text); }
 .lx-no-evidence { padding: 16px; border: 1px dashed var(--p-lx-control); border-radius: 4px; display: flex; flex-direction: column; gap: 4px; background: var(--p-lx-card); }
 

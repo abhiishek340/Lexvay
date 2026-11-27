@@ -1,0 +1,74 @@
+<div class="lx-page lx-rules">
+  <header class="lx-page-header lx-rules-header">
+    <div>
+      <h1>Rules</h1>
+      <p>Each jurisdiction's rule versions. The model proposes a version's requirement list; a reviewer corrects it and approves it, and only an
+        approved list is used in assessments. An approved list is never edited: a revision is entered as a new version.</p>
+    </div>
+    @if (session.canEnterRules()) {
+      <button pButton type="button" #newButton (click)="newOpen.set(true)">
+        <ng-icon name="phosphorPlus" size="16" aria-hidden="true" />
+        <span pButtonLabel>New rule version</span>
+      </button>
+    }
+  </header>
+  <p class="lx-status-line" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
+  @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
+  @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
+
+  @if (context.ready()) {
+    <div class="lx-rules-panes">
+      <section class="lx-versions" aria-labelledby="versions-heading">
+        <h2 id="versions-heading" class="lx-label">Rule versions</h2>
+        @if (groups().length === 0) {
+          <p class="lx-muted lx-empty">No rule versions yet. A contributor enters one with New rule version; the model then proposes its requirement
+            list for a reviewer to correct and approve.</p>
+        } @else {
+          <p-listbox class="lx-version-list" [options]="groups()" [group]="true" optionGroupLabel="label" optionGroupChildren="items" optionLabel="name"
+                     optionValue="id" [ngModel]="ruleVersionId() ?? null" (onChange)="open($event.value)" [metaKeySelection]="true"
+                     ariaLabel="Rule versions" [fluid]="true" [pt]="{ list: { 'aria-multiselectable': 'false' } }">
+            <ng-template #group let-group>
+              <span class="lx-group">{{ group.label }}</span>
+            </ng-template>
+            <ng-template #item let-option>
+              @let v = option.row.view;
+              @let s = statusOf(option.row);
+              <div class="lx-version">
+                <span class="lx-version-code lx-mono">{{ v.jurisdiction }}</span>
+                <span class="lx-version-label">{{ v.label }}</span>
+                <span class="lx-version-meta">
+                  <span class="lx-mono">Effective {{ v.effectiveFrom }}</span>
+                  <p-tag [severity]="s.severity" [value]="s.label">
+                    <ng-template #icon><ng-icon [name]="s.icon" size="14" aria-hidden="true" [class.lx-spin]="option.row.status === 'EXTRACTING'" /></ng-template>
+                  </p-tag>
+                </span>
+                @if (option.row.status === 'EXTRACTION_FAILED' && v.extraction?.error; as reason) {
+                  <span class="lx-help lx-version-error">{{ reason }}</span>
+                }
+              </div>
+            </ng-template>
+          </p-listbox>
+        }
+      </section>
+
+      <section class="lx-version-pane" aria-label="Rule version">
+        @if (selected(); as v) {
+          <lx-rule-version-detail [version]="v" [all]="context.ruleVersions()" [users]="users()" (notice)="notify($event)" (changed)="refresh()" />
+        } @else if (ruleVersionId()) {
+          <p class="lx-muted lx-empty">This rule version does not exist or belongs to another organisation.</p>
+        } @else if (groups().length > 0) {
+          <p class="lx-muted lx-empty">Choose a rule version to see its requirements, its rule text and what changed from the version it replaces.</p>
+        }
+      </section>
+    </div>
+  } @else if (!context.error()) {
+    <div class="lx-rules-skeleton" aria-busy="true" aria-label="Loading rule versions">
+      <div>@for (i of [1, 2, 3, 4, 5]; track i) { <p-skeleton height="3.75rem" /> }</div>
+      <p-skeleton height="24rem" />
+    </div>
+  }
+</div>
+
+@if (session.canEnterRules()) {
+  <lx-new-rule-version [(visible)]="newOpen" (created)="onCreated($event)" (closed)="onNewClosed()" />
+}

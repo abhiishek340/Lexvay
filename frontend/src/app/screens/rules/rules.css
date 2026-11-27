@@ -1,0 +1,41 @@
+:host { display: block; }
+.lx-rules-header { margin-bottom: var(--lx-space-3); }
+.lx-rules-header button { gap: 6px; }
+
+.lx-rules-panes {
+  display: grid; grid-template-columns: 320px minmax(0, 1fr); align-items: start;
+  border: 1px solid var(--p-lx-hairline); border-radius: 4px; background: var(--p-lx-card);
+}
+.lx-versions { border-right: 1px solid var(--p-lx-hairline); position: sticky; top: 0; max-height: calc(100dvh - 120px); overflow-y: auto; }
+.lx-versions h2 { padding: 12px 14px 8px; }
+.lx-version-pane { min-width: 0; }
+.lx-empty { padding: 16px; }
+
+:host ::ng-deep .lx-version-list .p-listbox { border: 0; border-radius: 0; background: transparent; }
+:host ::ng-deep .lx-version-list .p-listbox-list { padding: 0; }
+:host ::ng-deep .lx-version-list .p-listbox-option-group {
+  padding: 12px 14px 4px; font-size: 11px; line-height: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--p-lx-text-secondary); background: transparent;
+}
+:host ::ng-deep .lx-version-list .p-listbox-option {
+  padding: 10px 12px 10px 14px; border-radius: 0; border-bottom: 1px solid var(--p-lx-hairline); position: relative; color: var(--p-lx-text);
+}
+:host ::ng-deep .lx-version-list .p-listbox-option.p-focus { outline: 2px solid var(--p-lx-primary); outline-offset: -2px; }
+:host ::ng-deep .lx-version-list .p-listbox-option-selected { background: var(--p-lx-selected); color: var(--p-lx-text); }
+:host ::ng-deep .lx-version-list .p-listbox-option-selected::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--p-lx-primary);
+}
+.lx-version { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 13px; line-height: 18px; width: 100%; }
+.lx-version-code { color: var(--p-lx-text-secondary); padding-top: 1px; }
+.lx-version-label { font-weight: 500; }
+.lx-version-meta { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--p-lx-text-secondary); }
+.lx-version-error { grid-column: 2; overflow-wrap: anywhere; }
+
+.lx-rules-skeleton { display: grid; grid-template-columns: 320px 1fr; gap: 12px; }
+.lx-rules-skeleton > div { display: flex; flex-direction: column; gap: 8px; }
+
+/* Under 1024 px the list sits above the version. */
+@media (max-width: 1023px) {
+  .lx-rules-panes, .lx-rules-skeleton { grid-template-columns: minmax(0, 1fr); }
+  .lx-versions { position: static; max-height: 22rem; border-right: 0; border-bottom: 1px solid var(--p-lx-hairline); }
+}

@@ -1,0 +1,49 @@
+@let v = version();
+<article class="lx-detail" aria-labelledby="version-heading">
+  <header class="lx-detail-head">
+    <p class="lx-label">{{ jurisdictionName() }} <span class="lx-mono">{{ v.jurisdiction }}</span></p>
+    <h2 id="version-heading" class="lx-detail-title" tabindex="-1">{{ v.label }}</h2>
+    <dl class="lx-facts">
+      <div><dt>License type</dt><dd>{{ license() }}</dd></div>
+      <div><dt>Effective</dt><dd class="lx-mono">{{ v.effectiveFrom }}</dd></div>
+      <div>
+        <dt>Source</dt>
+        <dd><a class="lx-inline" [href]="v.sourceUrl" target="_blank" rel="noopener noreferrer">{{ v.sourceUrl }}<ng-icon name="phosphorArrowSquareOut" size="12" aria-hidden="true" /><span class="lx-sr-only">(opens in a new tab)</span></a></dd>
+      </div>
+    </dl>
+    <p class="lx-state" data-testid="version-state">
+      <p-tag [severity]="statusView().severity" [value]="statusView().label">
+        <ng-template #icon><ng-icon [name]="statusView().icon" size="14" aria-hidden="true" [class.lx-spin]="status() === 'EXTRACTING'" /></ng-template>
+      </p-tag>
+      @if (v.approval; as a) {
+        <span>Approved by {{ approverName() }} on <time class="lx-mono" [attr.datetime]="a.at">{{ a.at | date: 'yyyy-MM-dd' }}</time></span>
+      } @else {
+        <span class="lx-muted">Not approved</span>
+      }
+    </p>
+    @if (status() === 'EXTRACTION_FAILED') {
+      <p-message severity="warn" size="small">
+        Requirement extraction failed{{ v.extraction?.error ? ': ' + v.extraction?.error : '' }}. A reviewer can enter the list by hand with Edit list.
+      </p-message>
+    }
+  </header>
+
+  <p-tabs class="lx-detail-tabs" [value]="tab()" (valueChange)="selectTab($event)">
+    <p-tablist>
+      <p-tab value="requirements">Requirements</p-tab>
+      <p-tab value="text">Rule text</p-tab>
+      <p-tab value="compare">Compare</p-tab>
+    </p-tablist>
+    <p-tabpanels>
+      <p-tabpanel value="requirements">
+        <lx-requirements-panel [version]="v" [status]="status()" [jurisdictionName]="jurisdictionName()" (notice)="notice.emit($event)" (changed)="changed.emit()" />
+      </p-tabpanel>
+      <p-tabpanel value="text">
+        @if (tab() === 'text') { <lx-rule-text [documentId]="v.documentId" /> }
+      </p-tabpanel>
+      <p-tabpanel value="compare">
+        @if (tab() === 'compare') { <lx-rule-compare [version]="v" [all]="all()" [jurisdictionName]="jurisdictionName()" /> }
+      </p-tabpanel>
+    </p-tabpanels>
+  </p-tabs>
+</article>
