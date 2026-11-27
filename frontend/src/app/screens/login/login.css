@@ -1,8 +1,7 @@
-:host { display: block; min-height: 100dvh; background: var(--p-lx-surface); }
-.lx-signin { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); min-height: 100dvh; }
-
-/* Left: the stage. The map spans about three quarters of it (tiles about 52 px in a 1440 px window), the map and the
-   headline sit together in its centre, and the headline grows from 40 to 56 px with the stage. */
+:host { display: block; }
+/* The stage on the left of the shared frame (ui/auth-frame.ts). The map spans about three quarters of it (tiles about
+   52 px in a 1440 px window), the map and the headline sit together in its centre, and the headline grows from 40 to
+   56 px with the stage. */
 .lx-story { container-type: inline-size; display: grid; place-items: center; padding: 56px 0; background: var(--p-lx-ground); }
 .lx-story-inner { width: 76cqi; display: flex; flex-direction: column; gap: 48px; }
 .lx-story-map { --lx-map-max-tile: 56px; }
@@ -11,19 +10,8 @@
   font-size: clamp(40px, 6.6cqi, 56px); line-height: 1.07; font-weight: 650; letter-spacing: -0.025em;
   animation: lx-rise var(--lx-t-hero) var(--lx-ease-out) backwards;
 }
-/* Text rises without fading in: it is the largest paint, so it must be visible in the first frame (LCP). */
-@keyframes lx-rise { from { transform: translateY(12px); } }
 
-/* Right: the form, centred in its column with the mark above it. */
-.lx-form-side { display: grid; place-items: center; padding: 48px 24px; }
-.lx-form-card { width: 100%; max-width: 360px; animation: lx-rise var(--lx-t-3) var(--lx-ease-out) backwards; }
-.lx-form-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 40px; }
-.lx-form-wordmark { font-size: 19px; font-weight: 650; letter-spacing: -0.02em; }
-h1 { margin-bottom: 24px; }
-form { display: flex; flex-direction: column; gap: 20px; }
-.lx-field { display: flex; flex-direction: column; gap: 6px; }
-label { font-weight: 550; font-size: 13px; line-height: 20px; }
-form p-button { margin-top: 4px; }
+.lx-notice { display: block; margin-bottom: 20px; }
 
 /* Demo accounts: one chip per fictional account, filling the email. */
 .lx-demo-accounts { margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--p-lx-line); }
@@ -31,6 +19,5 @@ form p-button { margin-top: 4px; }
 .lx-demo-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
 @media (max-width: 899px) {
-  .lx-signin { grid-template-columns: minmax(0, 1fr); }
   .lx-story { display: none; }
 }

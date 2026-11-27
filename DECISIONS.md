@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14 (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14 (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -3742,3 +3742,213 @@ on the first attempt only, pages 1 and 2 are committed after the rollback, the r
 final `document_page` rows equal those of a clean run in another program, and the audit says `ocrPagesReused = 2`. It
 also covers the rollback-only commit and the keep-first rule. `Rule5_OcrCheckpointImmutabilityTest` and
 `Rule7_OcrCheckpointIsolationTest` cover rules 5 and 7; `Rule7_EveryTableHasPolicyTest` covers the table without a change.
+
+### FIX-7 — One "latest finished assessment" ordering (D-450 to D-452)
+
+#### D-450 `latestAssessmentsUsing` composes `AssessmentRepository.LATEST_FINISHED`
+
+`MappingRepository.latestAssessmentsUsing` (the re-run handler's target list) was the last statement with its own copy of
+"the program's latest finished assessment" (the correlated subquery aliased `a2`). It now reads
+
+```sql
+SELECT la.id AS assessment_id, p.id AS program_id, la.created_by
+FROM program p
+JOIN LATERAL (SELECT a.id, a.created_by FROM assessment a WHERE a.program_id = p.id AND <LATEST_FINISHED>) la ON true
+WHERE EXISTS (SELECT 1 FROM mapping m JOIN requirement r ON r.id = m.requirement_id
+              WHERE m.assessment_id = la.id AND r.rule_version_id = :rv)
+```
+
+the same shape as the work queue's `latest` CTE (D-411). D-411 said the constant did not fit this statement because it was
+written for a correlated subquery over `a2`; the lateral form removes that obstacle, so no second constant is needed. The
+method name, signature and result keys (`assessment_id`, `program_id`, `created_by`) are unchanged. The text is a public
+constant, `MappingRepository.LATEST_ASSESSMENTS_USING`, so the index check explains exactly what runs (as
+`BY_ASSESSMENT` does). The result has one row per program by construction, so the `DISTINCT` is gone.
+
+Cleanup check: `grep -rn "finished_at DESC" backend/src/main` shows only `AssessmentRepository.LATEST_FINISHED` (the index
+definition in migration V008 is not a query). The two follow-up lines about this (FIX-5 and F10a) are removed from the
+ROADMAP.
+
+#### D-451 Parity test: old statement as a literal, compared as sets
+
+`LatestAssessmentsUsingParityTest` loads the seeded Northfield tenant (`SeedCopy`, as `WorkQueueSeedParityTest` does) and
+keeps the old statement as a literal. For every rule version of the seed it asserts that the old statement and the new
+method return equal sets. It adds three programs whose history separates the readings: the newest finished assessment does
+not use the version (the older one does), the newest assessment is FAILED and finished later than the older finished one
+that does use the version, and two finished assessments share a finish time (creation time decides). It then asserts the
+expected assessments by name, so the parity cannot pass because both sides are empty. Fixtures are plain inserts under the
+tenant's row-level security; nothing is mocked.
+
+#### D-452 Index usage: same expectation as the work queue's `latest`
+
+`IndexUsageTest` runs `EXPLAIN (ANALYZE, BUFFERS)` of `MappingRepository.LATEST_ASSESSMENTS_USING` on the perf seed (100
+tenant copies, as the application role) for the first seeded rule version, writes the plan to
+`target/perf/latest-assessments-using-plan.txt`, and fails on a sequential scan of `mapping` or `assessment` that was
+executed. The plan and timings are in `docs/progress/FIX-7.md`.
+
+### F5b — Administration screens (D-426 to D-435)
+
+**D-426 — People: one tenant-wide screen for administrators, filtered in the browser.** `/people` is a tenant-wide
+route like the register (`authGuard`, then `adminGuard` on the route in `people.routes.ts`, loaded with `loadChildren`
+so `PEOPLE_ICONS` stay in its chunk). `adminGuard` sends anyone else to the overview of the program last worked on, or to
+Programs, which opens the only program; the server refuses them in any case. `navLinks(programId, counts, role)` now takes
+the role and lists People (`phosphorUsers`, added to `SHELL_ICONS` because the rail draws it) under the register for
+administrators only; the command palette reads the same list, so "Go to People" follows. The shell shows the rail on any
+tenant-wide link's path instead of naming `/register`. The list is one `GET /users` (the administrator's fields, D-375);
+a tenant has tens of people, not thousands, so search (name or email, anywhere, ignoring case), the role chip and the
+status chip filter in the browser through the pure `filterPeople` (`people-view.ts`, tested), and the count reads "1 of 6
+people". Status: deactivated first, then "Setup pending" while `passwordSet` is false, else Active; each chip a Tag with
+icon and word. The chips are the audit trail's pill Selects: their rules moved from `audit.css` to `styles.css`
+(`.lx-chip`), unchanged, so both screens share one copy. Rows: avatar initials (the audit trail's Avatar set, moved to
+`theme/avatar-tokens.ts`), name with a "You" pill on the administrator's own row, email, role chip, status chip, created
+date, and a row menu (PrimeNG Menu, Phosphor icons through its item template). `personActions` decides the menu: Change
+role, Deactivate or Reactivate, New setup code; the own row offers New setup code only (the server answers 409 to the
+other two, D-375). Under 720 px each row becomes a block (who and the menu, then role, status and date), as the
+register's table does. Rejected: server-side filters (an endpoint change for a list this small); hiding the menu on the
+own row (the reset of one's own password is legitimate, D-375).
+
+**D-427 — Add person and the one-time link live in one dialog, which alone holds the code.** `PersonDialog` has two
+phases: the form (name, email, role; the role Select defaults to Contributor, the least a person can do, with an InfoTip
+"About roles" giving one line per role as the server's permissions stand) and the link view. On 201 the dialog turns into
+the link view: the person, the whole link `<origin>/setup#code=…` (D-435) in mono with "Copy link" (focus moves there), "Valid for
+72 hours, until 30 Nov 15:04" (`expiryText`, local time, hours rounded) and "Shown once. Copy it now and hand it over
+yourself." "New setup code" opens the same view for an existing person, issuing the code from the dialog and adding
+"Earlier links stop working." (D-372). The code exists only in the dialog's private `setup` signal: People's list
+receives the account without it, nothing is written to storage or the console, and closing the dialog (Done, Escape,
+the close button) runs `reset`, which drops it. A 409 ("An account with this email exists") sits under the email field;
+other failures above the form. Rejected: showing the code in a toast or on the row (it would outlive the view); an
+email field the server already validates, checked again only for shape and presence.
+
+**D-428 — Setup page: the sign-in frame without the story; the code leaves the address bar in the constructor.**
+`ui/auth-frame.ts` (`lx-auth-frame`) is what sign-in and setup share: the grid, the form column with the mark and
+wordmark, and the form vocabulary (`lx-auth-field`, labels, heading), with encapsulation off because that content is
+projected; sign-in projects its map story with `lxAuthStory` and `[story]="true"`, setup shows the form alone. Sign-in
+looks as before. `/setup` is anonymous (no guard) and stands alone like sign-in (`beforeSignIn` in `core/navigation.ts`,
+used by the shell's top bar and by the access handling of D-430). The component reads `code` from the fragment
+(`location.hash`, D-435) into a private field and calls `history.replaceState(history.state, '', '/setup')` in its constructor: the router has already
+written the URL by then (it does so before activating the route), so the code is gone from the address bar and from
+history before the first paint. Without a code (a reload after that) the page says "This setup code is not valid." with
+"Ask your administrator for a new link." and "Go to sign in". The POST needs the CSRF cookie, so the session is loaded
+first, as sign-in does. Answers: 204 goes to sign-in with the toast "Password set. Sign in."; a 400 whose detail names a
+password rule ("Password must ...") stays under the form, since the code still works (D-373); every other 400 is the
+invalid-code view (the server's one message for unknown, used and expired codes); a 503 is D-431.
+
+**Deviation: "not the email" is checked as "not an email address".** The page holds only the code; no anonymous endpoint
+turns a code into an email, and adding one is a backend change outside this item. So the live rule refuses any password
+shaped like an email address (`^[^\s@]+@[^\s@]+\.[^\s@]+$`, after trimming), which includes the account's own: the client
+is stricter than the server, never looser, and the server still checks its own rule. Rejected: a rule that shows as met
+without knowing (a check the page cannot make would read as a promise); putting the email in the link (more personal
+data in an address).
+
+**D-429 — Live rules and a strength meter from length and variety.** `password-rules.ts` (pure, tested): the checklist
+"12 to 128 characters" (code points, as the server counts, D-402), "Not an email address", "Both fields match", each
+item an icon (empty circle, then a check in the found colour) and its words, with ", met" or ", not met" for screen
+readers; both fields name it in `aria-describedby`. Submit stays enabled and says "Meet every rule above." when one is
+not met (a disabled button would not say why); it is disabled only while a busy wait counts down. Strength: under 12
+characters "Too short"; fewer than six distinct characters "Weak" whatever the length; otherwise one step at 12, two at
+16, three at 20, plus one for three kinds of character among lower case, upper case, digits and anything else, capped at
+"Strong" (four). Length counts most, so a long passphrase of lower-case words rates "Good". No dictionary library. The
+meter is PrimeNG MeterGroup (role `meter`, named "Password strength" with the word as `aria-valuetext`), its colour going
+with the word, never alone. The two fields are `pInputPassword` (PrimeNG's masking directive) in an IconField with a
+real button in the icon slot ("Show password", `aria-pressed`): PrimeNG Password's own toggle is an SVG with a click
+handler that a keyboard cannot reach.
+
+**D-430 — A session the server ended signs out here: one interceptor in `core/access.ts`.** `accessInterceptor`
+(registered with `withInterceptors` in `app.config.ts`) watches every answer for a 401 whose problem detail is exactly
+"Your access changed. Sign in again." (`ACCESS_CHANGED`; the wrong-password 401 of sign-in has another detail and is left
+alone). It calls `SessionService.end(notice)` (the session state is forgotten, so the next guard asks the server again,
+and the sentence is kept in `notice`), clears the program context and navigates to sign-in, which shows the sentence in
+a warning Message above the form until the next successful sign-in. The error still reaches the caller. It does not
+navigate away from sign-in or the setup page. `SessionService.load()` treats a 401 from `GET /auth/session` as D-374
+says: that answer ended the stale session, so it asks once more and gets the signed-out view, and the guard routes to
+sign-in instead of failing the navigation. Rejected: matching every 401 (a session that timed out is a different story,
+with no sentence to show); a polling check of the session (the next request already finds out).
+
+**D-431 — Busy sign-in and setup: the server's Retry-After, counted down on the button.** `busyRetryAfter(e)` in
+`core/busy.ts` is the seconds of a 503 that carries a numeric `Retry-After` (SEC-2 sends 2), kept between 1 and 60; a 503
+without the header (a proxy without a backend) is not this case and shows the ordinary error. Sign-in and setup then show
+"Sign-in is busy. Try again in a moment." (`BUSY`) under the form and disable the submit button for that many seconds
+with the label "Retry in 2 s", "Retry in 1 s", counted by `Countdown` (a signal and one interval, stopped with the
+component). On setup the code is not used up by a busy refusal (D-407), so the same form is submitted again.
+
+**D-432 — Role change, deactivation and reactivation confirm in a ConfirmDialog that stays open on a refusal.** One
+keyed `p-confirmdialog` with message and footer templates: the person, the new role Select for a role change ("Change
+role" stays disabled until the role differs, since an unchanged role is no change, D-375), and the consequence in one
+sentence with an icon: "Their current session ends." for a role change and a deactivation, "They can sign in again." for
+a reactivation. The footer's buttons call the API themselves instead of ConfirmDialog's accept, so a 409 ("At least one
+active administrator is required", "You cannot change your own role") appears in the dialog and the dialog stays open;
+success closes it, updates the row from the returned account and toasts "Riley Chen is now a reviewer.", "... can no
+longer sign in." or "... can sign in again.". Deactivate is the only danger-coloured button on the screen.
+
+**D-433 — Shared changes.** `ui/auth-frame.ts` from sign-in (D-428); `.lx-chip` from `audit.css` to `styles.css` and the
+Avatar set from `audit-theme.ts` to `theme/avatar-tokens.ts` (D-426, values unchanged); `@keyframes lx-rise` moved from
+`login.css` to `styles.css` for the frame and the sign-in headline; `navLinks` takes the role (D-426); `beforeSignIn`
+replaces the shell's `/login` test; `SessionService` gains `notice`, `end` and the 401 retry (D-430); `ApiService` gains
+`accounts`, `createUser`, `issueSetupCode`, `changeRole`, `setActive` and `setPassword`; `models.ts` gains `Account`,
+`UserSetup` and `NewUser`. No backend change: the F5a actions already have audit sentences (UI2-3, D-341), and the
+backend neither builds nor documents the setup link (it returns the code alone; `docs/OPERATIONS.md` does not mention the
+link). Review round 1 added: `register.html` takes `class="lx-table"` instead of `styleClass`, which `p-table` does not
+have in PrimeNG 22, so the register's narrow-screen table rules (UI2-1) finally apply; `e2e/support.ts` gains `goTo`,
+used where an administrator opens a screen that may sit under "More" at 400 px (`records.spec.ts`, `screens.spec.ts`).
+
+**Bottom tab bar overflow (review round 1).** With F10b's Coverage and People, an administrator has ten screens, and the
+bottom tab bar (under 640 px, 40 px a tab, 4 px padding each side) scrolled sideways at 400 px. Each `NavLink` now has a
+`priority` (how much the screen is used: overview 90, review 85, coverage 80, requests 75, changes 70, register 60, rules
+40, report 30, People 20, audit trail 10). `tabSlots(width)` counts the tabs that fit and `tabBarOverflow(links, slots)`
+(pure, tested) returns the screens that go into a final "More" tab: none when all fit, otherwise all but the `slots - 1`
+of highest priority, kept in rail order. At 400 px an administrator's People and Audit trail move; every other role still
+fits nine. A new screen (UI2-4's Program setup) needs only its priority. The "More" tab is a button (`aria-haspopup`
+menu, `aria-expanded`, the accent underline and "More screens, <screen> open" when the current route is one of its
+screens) opening a PrimeNG Menu in a deferred chunk (`shell/more-menu.ts`), so arrow keys, Enter and Escape work and
+focus returns to the tab. Hidden screens stay in the DOM (`display: none` under 640 px only), so the rail above 640 px
+is unchanged. Rejected: a horizontally scrolling bar (the screens off the edge are invisible and their count unknown);
+dropping labels further below 40 px (targets under 40 px).
+
+**D-434 — What the tests prove.** Vitest: `screens/setup/password-rules.spec.ts` (limits in code points with four-byte
+characters, the email shape, the match, every strength step, the distinct-character cap, case in other alphabets),
+`screens/people/people-view.spec.ts` (status precedence, search, role and status filters and their combination, the
+count, upsert order, the own-row menu, the link, the expiry sentence, the form checks), `core/access.spec.ts` (TestBed
+with the real interceptor: sign-out, context cleared, sign-in route, the error still thrown; a wrong-password 401 left
+alone; no navigation from setup; a 401 session call read as signed out; the notice cleared by a sign-in),
+`core/busy.spec.ts` (header parsing, bounds, the countdown and its stop), `core/navigation.spec.ts` (People for
+administrators only, `beforeSignIn`, the tab slots, which screens overflow into More and a new screen placed by priority), `commands.spec.ts` and `icons.spec.ts` (two new units). End-to-end
+(`e2e/people.spec.ts`): the administrator adds a contributor, copies the link (clipboard read back) and the code is in no
+browser storage; signs out; the link leaves the address bar; the password is set and the toast shown; the new person
+signs in and has no People; the used link is refused with the invalid-code view. A second context signs in as another new
+person; the administrator changes their role and their next request lands on sign-in with "Your access changed. Sign in
+again."; they sign in again as Reviewer; deactivation ends their session and sign-in fails with the generic message;
+reactivation lets them in; a new setup code shows the view with a different link. The own row offers only New setup code.
+Filters and search. A reviewer has no People and `/people` sends them to the overview. axe in both themes at 1440 and
+400 px without horizontal scroll on the list, the add dialog, the link view, the role confirmation and the setup page
+with rules partly met. Two answers are fulfilled by the test instead of the server, because no honest sequence of
+requests produces them on demand: the 409 inside the role confirmation (the last-administrator rule is reachable only
+through a stale session or two administrators at once, D-376) and the 503 of the hashing gate (SEC-2's own tests hold
+the permits in the backend). Both carry the server's exact problem detail and header.
+
+**D-435 — The setup code travels in the fragment; bundle.** The link is `<origin>/setup#code=…` (orchestrator's decision
+in review round 1, replacing point 4's `?code=`). A query string goes to the server with the page request, so any access
+log in front of the application (a load balancer or CDN log, if one is ever enabled; none is in `infra/` today, and the
+application's `ApiAccessLog` logs only `/api` paths and never a query string) would record live codes. A fragment is never
+sent to any server: the page reads it from `location.hash`, removes it with `history.replaceState` in its constructor, and
+the code leaves the browser only in the body of `POST /auth/setup`. One form only: nothing was deployed, so no `?code=`
+link was ever handed over and the page does not read one. The end-to-end test records every request the browser sends
+while the person opens the link and sets the password and requires that none of their URLs (fragment removed, as on the
+wire) carries `code=` or the code. Initial bundle in `docs/progress/F5b.md` (the interceptor, `beforeSignIn`, the rail's
+People and More icons and the More tab are the only initial additions; People, setup and the More menu are lazy chunks).
+
+## Design system v3 (D-479)
+**D-479 — Design v3 "Ledger" replaces v2.** On 2026-11-27 the owner reviewed v2 in the running app and rejected it as
+AI slop. They named yellow and orange accents, icon-heavy cards and a generated-looking palette, and asked for
+professional, human craft. The orchestrator audited every screen and found seven causes, all listed in
+`docs/DESIGN.md`: a stock rainbow palette, pills everywhere, an icon per label, decorative rings and count-ups, a
+gimmick tile map, card soup and undisciplined type. v3 fixes each one:
+- near-monochrome ink on paper, with colour only for found, missing and the accent;
+- hairlines and space instead of cards;
+- status as a small mark plus a word;
+- numbers shown plainly, with to-scale bars only where proportion matters;
+- one type scale on a 4 px grid;
+- 180 ms motion that never performs.
+
+Amber is removed entirely; ambiguous, outdated and demo states are neutral and told apart by shape and words. The
+state map, rings, count-ups, duotone icons and the DecisionBar blur are retired. Rolled out as UI3-0 (foundation,
+shell, sign-in, overview), then UI3-1 to UI3-3 in parallel.
+

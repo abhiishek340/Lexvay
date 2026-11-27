@@ -1,11 +1,12 @@
 import { DOCUMENT } from '@angular/common';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { Router, provideRouter, withComponentInputBinding, withRouterConfig, withViewTransitions } from '@angular/router';
 import { provideIcons } from '@ng-icons/core';
 import { MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 import { routes } from './app.routes';
+import { accessInterceptor } from './core/access';
 import { sameScreen } from './core/navigation';
 import { ThemeService } from './core/theme.service';
 import { SHELL_ICONS } from './theme/icons';
@@ -33,7 +34,8 @@ export const appConfig: ApplicationConfig = {
           }
         },
       })),
-    provideHttpClient(),
+    // A session the server ended (role, access or password changed) signs out here too (core/access.ts).
+    provideHttpClient(withInterceptors([accessInterceptor])),
     providePrimeNG({
       theme: {
         preset: LexvayPreset,

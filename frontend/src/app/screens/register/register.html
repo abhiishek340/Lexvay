@@ -71,7 +71,7 @@
         @if (rowsError(); as e) { <p-message severity="error">{{ e }}</p-message> }
         @if (rows(); as list) {
           <div class="lx-card lx-table-card">
-          <p-table [value]="list" dataKey="determinationId" [rowHover]="true" [pt]="{ table: { 'aria-label': 'Determination register' } }" styleClass="lx-table">
+          <p-table [value]="list" dataKey="determinationId" [rowHover]="true" [pt]="{ table: { 'aria-label': 'Determination register' } }" class="lx-table">
             <ng-template #header>
               <tr>
                 <th scope="col" pSortableColumn="programName">Program <p-sort-icon field="programName" /></th>

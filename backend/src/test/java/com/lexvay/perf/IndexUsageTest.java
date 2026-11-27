@@ -176,6 +176,9 @@ class IndexUsageTest extends AbstractDatabaseTest {
         UUID northfieldProgram = TenantContext.runAs(tenantId, () -> jdbc.sql("SELECT id FROM program ORDER BY created_at LIMIT 1").query(UUID.class).single());
         List<String> coverage = TenantContext.runAs(tenantId, () -> jdbc.sql("EXPLAIN (ANALYZE, BUFFERS) " + CoverageRepository.MATRIX
                 .replace(":program", "'" + northfieldProgram + "'").replace(":jurisdiction", "'CA'")).query(String.class).list());
+        UUID northfieldRuleVersion = TenantContext.runAs(tenantId, () -> jdbc.sql("SELECT id FROM rule_version ORDER BY id LIMIT 1").query(UUID.class).single());
+        List<String> latestUsing = TenantContext.runAs(tenantId, () -> jdbc.sql("EXPLAIN (ANALYZE, BUFFERS) " + MappingRepository.LATEST_ASSESSMENTS_USING
+                .replace(":rv", "'" + northfieldRuleVersion + "'")).query(String.class).list());
         List<String> mappingPlans = new ArrayList<>();
         List<String> mappingsOverBudget = new ArrayList<>();
         for (var assessment : Map.of("before re-run (500 mappings, successor rule version without mappings)", large.beforeRerun(),
@@ -239,6 +242,10 @@ class IndexUsageTest extends AbstractDatabaseTest {
                 .noneMatch(line -> line.matches(".*Seq Scan on (mapping|evidence_span|evidence_response|document)\\b.*") && !line.contains("never executed"));
         assertThat(workQueue).as("the work queue statement scans no hot table sequentially (plan in target/perf/work-queue-plan.txt)")
                 .noneMatch(line -> line.matches(".*Seq Scan on (mapping|review_event|job)\\b.*") && !line.contains("never executed"));
+        Path latestUsingPlan = Path.of("target", "perf", "latest-assessments-using-plan.txt");
+        Files.writeString(latestUsingPlan, String.join("\n", latestUsing) + "\n");
+        assertThat(latestUsing).as("the re-run statement scans neither mapping nor assessment sequentially (plan in target/perf/latest-assessments-using-plan.txt)")
+                .noneMatch(line -> line.matches(".*Seq Scan on (mapping|assessment)\\b.*") && !line.contains("never executed"));
     }
 
     /** The audit list and export with real filters, as the application runs them; the tenant's entries come from row-level security. */

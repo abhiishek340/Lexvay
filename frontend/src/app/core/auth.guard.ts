@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from './api.service';
+import { ProgramContext } from './program-context';
 import { SessionService } from './session.service';
 
 export const authGuard: CanActivateFn = async () => {
@@ -22,4 +23,13 @@ export const landingGuard: CanActivateFn = async () => {
   const router = inject(Router);
   const programs = await firstValueFrom(api.programs()).catch(() => []);
   return programs.length === 1 ? router.createUrlTree(['/programs', programs[0].id, 'overview']) : true;
+};
+
+/**
+ * Screens only administrators use (People), after authGuard. Anyone else goes to the overview of the program last
+ * worked on, or to Programs, which opens the only one; the server refuses them in any case.
+ */
+export const adminGuard: CanActivateFn = () => {
+  const program = inject(ProgramContext).program();
+  return inject(SessionService).isAdmin() ? true : inject(Router).createUrlTree(program ? ['/programs', program.id, 'overview'] : ['/']);
 };

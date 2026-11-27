@@ -1,0 +1,28 @@
+:host { display: block; }
+
+/* The show and hide button sits in IconField's icon slot (16 px) and spreads its 32 px target around it. */
+.lx-reveal {
+  width: 32px; height: 32px; margin: -8px; padding: 0; border: 0; border-radius: var(--lx-r-control);
+  display: grid; place-items: center; background: transparent; color: var(--p-lx-text-2); cursor: pointer;
+  transition: background-color var(--lx-t-1) var(--lx-ease-out), color var(--lx-t-1) var(--lx-ease-out);
+}
+.lx-reveal:hover { background: var(--p-lx-surface-2); color: var(--p-lx-text); }
+:host ::ng-deep .p-inputicon { pointer-events: auto; }
+
+/* Strength: one bar that fills by quarters, with its word; the colour always travels with the word. */
+.lx-strength { display: flex; align-items: center; gap: 12px; margin-top: 4px; min-height: 20px; }
+.lx-meter { flex: 1; }
+:host ::ng-deep .lx-meter .p-metergroup-meters { height: 6px; border-radius: var(--lx-r-pill); background: var(--p-lx-surface-2); }
+.lx-strength-label { min-width: 5em; text-align: right; font-size: 13px; line-height: 20px; font-weight: 550; color: var(--p-lx-text-2); }
+.lx-strength-label[data-level='1'] { color: var(--p-lx-missing); }
+.lx-strength-label[data-level='2'] { color: var(--p-lx-ambiguous); }
+.lx-strength-label[data-level='3'], .lx-strength-label[data-level='4'] { color: var(--p-lx-found); }
+
+/* The rules as a checklist: an empty circle until a rule holds, then a check in the found colour. */
+.lx-rules { list-style: none; margin: -4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
+.lx-rules li { display: flex; align-items: center; gap: 8px; transition: color var(--lx-t-2) var(--lx-ease-out); }
+.lx-rules li.lx-met { color: var(--p-lx-text); }
+.lx-rules li.lx-met ng-icon { color: var(--p-lx-found); }
+.lx-rules ng-icon { flex: none; transition: color var(--lx-t-2) var(--lx-ease-out); }
+
+.lx-invalid { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
