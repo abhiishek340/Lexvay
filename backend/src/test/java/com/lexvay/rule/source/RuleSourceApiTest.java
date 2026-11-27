@@ -48,6 +48,8 @@ class RuleSourceApiTest extends AbstractRuleSourceTest {
         assertThat(listed.get("checkIntervalHours").asInt()).isEqualTo(24);
         assertThat(listed.get("active").asBoolean()).isTrue();
         assertThat(listed.get("lastCheckedAt").isNull()).isTrue();
+        assertThat(listed.get("nextCheckAt").isNull()).as("a new source is due at once").isFalse();
+        assertThat(listed.get("consecutiveFailures").asInt()).isZero();
         assertThat(listed.get("latestCheck").isNull()).isTrue();
 
         var entry = inTenant(() -> audit.forEntity(id)).get(0);

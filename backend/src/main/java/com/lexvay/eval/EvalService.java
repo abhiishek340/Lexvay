@@ -78,8 +78,9 @@ public class EvalService {
         if (assessment.status() != AssessmentStatus.FINISHED) {
             breaches.add("the assessment ended as " + assessment.status() + ", not FINISHED");
         }
+        TermOverlap termOverlap = mode == EvalReport.Mode.LIVE ? TermOverlap.measure(golden, model.proposedTerms()) : null;
         return new EvalReport(mode, llm.modelId(), tenantName, golden.requirements().size(), score.metrics(), limits, usage(assessment),
-                score.mismatches(), breaches);
+                score.mismatches(), breaches, termOverlap);
     }
 
     private EvalReport.Usage usage(Assessment assessment) {

@@ -47,13 +47,14 @@ class Rule5_RuleSourceImmutabilityTest extends AbstractDatabaseTest {
     @ValueSource(strings = {"url = 'https://rules.example.test/b.pdf'", "label = 'Renamed'", "license_type = 'OTHER'", "check_interval_hours = 48"})
     void whatIsMonitoredCannotBeChanged(String assignment) {
         assertThatThrownBy(() -> update("UPDATE rule_source SET " + assignment + " WHERE id = :id"))
-                .hasMessageContaining("only active, last_checked_at, last_content_hash may change");
+                .hasMessageContaining("only active, last_checked_at, last_content_hash, next_check_at, consecutive_failures may change");
     }
 
     @Test
     void howItIsMonitoredCanChange() {
         assertThat(update("UPDATE rule_source SET active = false WHERE id = :id")).isEqualTo(1);
         assertThat(update("UPDATE rule_source SET last_checked_at = now(), last_content_hash = '" + "b".repeat(64) + "' WHERE id = :id")).isEqualTo(1);
+        assertThat(update("UPDATE rule_source SET next_check_at = now() + interval '1 hour', consecutive_failures = 3 WHERE id = :id")).isEqualTo(1);
     }
 
     @Test
