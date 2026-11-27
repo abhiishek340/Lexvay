@@ -166,6 +166,7 @@ kbd {
   .p-button { font-family: var(--lx-font-sans); transition: background-color var(--lx-t-1) var(--lx-ease-out), color var(--lx-t-1), box-shadow var(--lx-t-1), transform 90ms var(--lx-ease-out); }
   .p-button:not(:disabled):active { transform: scale(.98); }
   .p-button-label { font-weight: 550; }
+  a.p-button, a.p-button:hover { text-decoration: none; }
   .p-dialog-title { font-family: var(--lx-font-sans); letter-spacing: -0.01em; }
   .p-message-text { font-size: 13px; line-height: 20px; }
   .p-toast-message-content { padding: var(--lx-space-3) var(--lx-space-4); }
