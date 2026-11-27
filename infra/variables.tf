@@ -274,3 +274,14 @@ variable "cloudfront_price_class" {
     error_message = "cloudfront_price_class must be PriceClass_100, PriceClass_200 or PriceClass_All."
   }
 }
+
+variable "waf_login_rate_limit" {
+  description = "Requests to /api/v1/auth/ that one IP address may send in 5 minutes before the web ACL blocks it. It complements the application's own password-hashing gate; it does not replace it."
+  type        = number
+  default     = 300
+
+  validation {
+    condition     = var.waf_login_rate_limit >= 100 && var.waf_login_rate_limit <= 20000 && floor(var.waf_login_rate_limit) == var.waf_login_rate_limit
+    error_message = "waf_login_rate_limit must be a whole number between 100 and 20000."
+  }
+}
