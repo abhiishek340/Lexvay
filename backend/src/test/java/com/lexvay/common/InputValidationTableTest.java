@@ -300,6 +300,22 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(row("assessments of a program: program id is not a UUID", "GET /api/v1/programs/{programId}/assessments", HttpMethod.GET,
                 "/api/v1/programs/" + BAD_ID + "/assessments", null, null, 400));
 
+        // --- coverage matrix (F10a) ---
+        String coverage = "GET /api/v1/programs/{programId}/coverage";
+        rows.add(row("coverage: program id is not a UUID", coverage, HttpMethod.GET,
+                "/api/v1/programs/" + BAD_ID + "/coverage?jurisdiction=CA", null, null, 400));
+        rows.add(row("coverage: unknown program", coverage, HttpMethod.GET, "/api/v1/programs/" + ID + "/coverage?jurisdiction=CA", null, null, 404));
+        rows.add(row("coverage: jurisdiction missing", coverage, HttpMethod.GET, "/api/v1/programs/" + PROGRAM + "/coverage", null, null, 400));
+        rows.add(row("coverage: jurisdiction is not two capital letters", coverage, HttpMethod.GET,
+                "/api/v1/programs/" + PROGRAM + "/coverage?jurisdiction=" + "x".repeat(5000), null, null, 400));
+        rows.add(row("coverage: control character in jurisdiction", coverage, HttpMethod.GET,
+                "/api/v1/programs/" + PROGRAM + "/coverage?jurisdiction=C%00", null, null, 400));
+        rows.add(row("coverage: jurisdiction is not a target of the program", coverage, HttpMethod.GET,
+                "/api/v1/programs/" + PROGRAM + "/coverage?jurisdiction=TX", null, null, 400));
+        rows.add(row("coverage: hostile extra parameter is ignored", coverage, HttpMethod.GET,
+                "/api/v1/programs/" + PROGRAM + "/coverage?jurisdiction=CA&q=%00%ff", null, null, 200));
+        rows.add(anonymousRow("coverage: no session", coverage, HttpMethod.GET, "/api/v1/programs/" + PROGRAM + "/coverage?jurisdiction=CA", 401));
+
         // --- assessments ---
         rows.add(row("assessment start: program id is not a UUID", "POST /api/v1/programs/{programId}/assessments", HttpMethod.POST,
                 "/api/v1/programs/" + BAD_ID + "/assessments", null, null, 400));

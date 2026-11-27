@@ -6,6 +6,7 @@ import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
 import com.lexvay.assessment.MappingRepository;
 import com.lexvay.auth.Role;
+import com.lexvay.coverage.CoverageRepository;
 import com.lexvay.llm.LlmClient;
 import com.lexvay.rule.source.RuleSourceRepository;
 import com.lexvay.seed.ScriptedFakeModel;
@@ -155,6 +156,9 @@ class IndexUsageTest extends AbstractDatabaseTest {
             workQueue.addAll(TenantContext.runAs(tenantId, () -> jdbc.sql(
                     "EXPLAIN (ANALYZE, BUFFERS) " + WorkQueueRepository.LIST.replace(":role", "'" + role + "'")).query(String.class).list()));
         }
+        UUID northfieldProgram = TenantContext.runAs(tenantId, () -> jdbc.sql("SELECT id FROM program ORDER BY created_at LIMIT 1").query(UUID.class).single());
+        List<String> coverage = TenantContext.runAs(tenantId, () -> jdbc.sql("EXPLAIN (ANALYZE, BUFFERS) " + CoverageRepository.MATRIX
+                .replace(":program", "'" + northfieldProgram + "'").replace(":jurisdiction", "'CA'")).query(String.class).list());
         List<String> mappingPlans = new ArrayList<>();
         List<String> mappingsOverBudget = new ArrayList<>();
         for (var assessment : Map.of("before re-run (500 mappings, successor rule version without mappings)", large.beforeRerun(),
@@ -191,6 +195,10 @@ class IndexUsageTest extends AbstractDatabaseTest {
         assertThat(mappingsOverBudget).as("mappings of a large assessment reading more than " + MAPPINGS_BUFFER_BUDGET
                 + " buffers: the current-mapping filter must not grow with mappings squared").isEmpty();
         assertThat(jobSequentialScans).as("statements that scan the job table sequentially: it only grows").isEmpty();
+        Path coveragePlan = Path.of("target", "perf", "coverage-plan.txt");
+        Files.writeString(coveragePlan, String.join("\n", coverage) + "\n");
+        assertThat(coverage).as("the coverage statement scans no hot table sequentially (plan in target/perf/coverage-plan.txt)")
+                .noneMatch(line -> line.matches(".*Seq Scan on (mapping|evidence_span|evidence_response|document)\\b.*") && !line.contains("never executed"));
         assertThat(workQueue).as("the work queue statement scans no hot table sequentially (plan in target/perf/work-queue-plan.txt)")
                 .noneMatch(line -> line.matches(".*Seq Scan on (mapping|review_event|job)\\b.*") && !line.contains("never executed"));
     }
