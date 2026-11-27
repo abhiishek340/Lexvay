@@ -128,6 +128,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | in progress |
 | F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | in progress |
 | INFRA-2 Remote state, WAF, flow logs, egress | `infra-hardening` | — | Sonnet 5.5 | in progress |
+| FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | in progress |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
@@ -1447,6 +1448,25 @@ check the registry docs for that version, not memory.
    - Variable validation for `waf_login_rate_limit` (100 to 20000).
 6. **Docs:** remove the WS-EVAL Terraform line and the F12 deployment note from "Follow-ups recorded from
    reviews". Decisions go in `docs/decisions/INFRA-2.md`, progress in `docs/progress/INFRA-2.md`.
+
+## FIX-8 — No console errors (frontend; slot 7; Sonnet 5.5; D-471 to D-474)
+Signing in logs `AbortError: Transition was skipped` twice in the browser console. `withViewTransitions` in
+`app.config.ts` calls `skipTransition()` for reduced motion and same-screen changes, and a quick redirect starts a
+new transition. The rejected `ready`/`finished` promises reach `provideBrowserGlobalErrorListeners`. The end-to-end
+suite did not notice, because it only guards against unknown icons.
+
+1. **`app.config.ts`:** in `onViewTransitionCreated`, attach handlers to `transition.ready`, `transition.finished`
+   and `transition.updateCallbackDone`. They ignore a `DOMException` named `AbortError` and rethrow anything else.
+   Put this in one small function (`ignoreSkippedTransition`) with a unit test covering both cases.
+2. **`consoleGuard`:** add an automatic fixture in `e2e/support.ts`, beside `iconGuard`. It collects every
+   `console` message of type `error` and every `pageerror`, and fails the test if any were recorded.
+   - Tests that deliberately produce an error (an expected 4xx or 5xx, which Chromium logs as "Failed to load
+     resource") declare it with `allowConsoleErrors(page, /pattern/)`. The pattern must be specific to that
+     response's URL or status. No global allowlist.
+3. **Run the whole e2e suite.** Fix every real error it finds in application code. If a fix belongs to another
+   item's screen, keep it minimal and list it in the PR.
+4. **Record it:** decisions in `docs/decisions/FIX-8.md`, progress in `docs/progress/FIX-8.md`. List every
+   `allowConsoleErrors` added, with the reason for each.
 
 ## Follow-ups recorded from reviews
 - FIX-5: `MappingRepository.latestAssessmentsUsing` still has its own correlated copy of the "latest finished"
