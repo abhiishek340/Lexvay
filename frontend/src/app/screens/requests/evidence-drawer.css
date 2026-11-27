@@ -1,18 +1,5 @@
-/* Under the drawer (PrimeNG places modal layers from z-index 1100) and over the page. */
-.lx-answer-backdrop { position: fixed; inset: 0; z-index: 1099; background: var(--p-mask-background); }
-
-/* The drawer is appended to the body, outside :host: its width is set on PrimeNG's root by class. */
-::ng-deep .p-drawer.lx-answer-drawer { width: 70%; max-width: none; }
-@media (max-width: 1023.98px) {
-  ::ng-deep .p-drawer.lx-answer-drawer { width: 100%; }
-}
-
-.lx-answer-heading { font-size: 18px; line-height: 26px; }
-.lx-answer-heading:focus { outline: none; }
-.lx-answer-heading:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: 4px; }
-
 /* Wide: the request and the answer on the left, the page on the right; DOM order is the reading order on a phone. */
-.lx-answer { display: grid; gap: 20px 24px; grid-template-columns: minmax(0, 1fr); }
+.lx-answer { display: grid; gap: 24px 28px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 1024px) {
   .lx-answer {
     grid-template-columns: minmax(18rem, 2fr) minmax(0, 3fr);
@@ -29,30 +16,25 @@
   .lx-answer-page lx-document-viewer { --lx-document-max-height: calc(100vh - 12rem); }
 }
 
-section, .lx-answer-comment { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.lx-answer-ref { font-size: 15px; line-height: 22px; }
+section, .lx-answer-comment { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+/* The requirement: ids and title, the rule text in Document type on a quiet inset, then what the reviewer asked. */
+.lx-answer-requirement { padding: 16px; border-radius: var(--lx-r-card); background: var(--p-lx-surface-2); gap: 12px; }
+.lx-answer-ref { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 15px; line-height: 22px; font-weight: 600; }
 .lx-answer-rule {
-  padding: 10px 14px; border-left: 2px solid var(--p-lx-line); background: var(--p-lx-surface);
-  white-space: pre-wrap; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 6px;
+  font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; white-space: pre-wrap; overflow-wrap: anywhere;
+  display: flex; flex-direction: column; gap: 6px; color: var(--p-lx-text);
 }
-.lx-answer-ask { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.lx-answer-ask { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--p-lx-surface); box-shadow: var(--p-lx-e1); display: flex; flex-direction: column; gap: 6px; }
+.lx-answer-asker { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
+.lx-answer-avatar {
+  width: 24px; height: 24px; border-radius: 999px; display: inline-grid; place-items: center; flex: none;
+  background: var(--p-lx-accent-tint); color: var(--p-lx-accent); font-size: 10px; font-weight: 650;
+}
 .lx-answer-note { white-space: pre-wrap; overflow-wrap: anywhere; }
 
-.lx-answer-group { font-size: 12px; font-weight: 600; color: var(--p-lx-text-2); }
-.lx-answer-option { display: flex; flex-direction: column; min-width: 0; }
-.lx-answer-option-meta { font-size: 12px; line-height: 16px; color: var(--p-lx-text-2); }
-.lx-answer-earlier { display: flex; align-items: center; gap: 8px; }
-.lx-answer-earlier label { font-size: 13px; }
 
-.lx-answer-empty {
-  padding: 16px; border: 1px dashed var(--p-lx-line-strong); border-radius: 4px; background: var(--p-lx-surface);
-  color: var(--p-lx-text-2);
-}
 
-.lx-answer-passage blockquote {
-  padding: 10px 14px; border-left: 2px solid var(--p-lx-accent); background: var(--p-lx-surface);
-  white-space: pre-wrap; overflow-wrap: anywhere;
-}
-.lx-answer-comment label { font-weight: 500; }
+.lx-answer-comment label .lx-muted { font-weight: 450; }
 .lx-answer-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .lx-answer-actions button { gap: 6px; }

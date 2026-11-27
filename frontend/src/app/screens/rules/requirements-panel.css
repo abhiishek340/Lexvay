@@ -2,19 +2,34 @@
 .lx-panel-body { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 12px; }
 .lx-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .lx-toolbar button { gap: 6px; }
-.lx-empty { padding: 4px 0; }
+.lx-edit-state { display: inline-flex; align-items: center; gap: 8px; margin-left: 4px; font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
+.lx-edit-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--p-lx-line-strong); transition: background-color var(--lx-t-2) var(--lx-ease-out), transform var(--lx-t-2) var(--lx-spring); }
+.lx-edit-dirty .lx-edit-dot { background: var(--p-lx-ambiguous); transform: scale(1.25); }
+.lx-edit-dirty { color: var(--p-lx-text); }
 .lx-nowrap { white-space: nowrap; }
-.lx-title { font-weight: 500; min-width: 8rem; }
+.lx-title { font-weight: 550; min-width: 8rem; }
 .lx-text { min-width: 14rem; }
-.lx-text .lx-serif { max-width: 60ch; }
+.lx-requirement-text { font-family: var(--lx-font-serif); font-size: 15px; line-height: 24px; max-width: 60ch; }
 .lx-more { padding: 0; margin-top: 2px; }
 .lx-table-skeleton { display: flex; flex-direction: column; gap: 6px; }
 
-/* The edit grid: two lines per requirement (fields, then text), laid out by the width of the pane itself. */
+/* Search terms as quiet pills, the same shape in the table and in the edit grid. */
+.lx-terms-cell { min-width: 11rem; }
+.lx-terms { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; max-width: 18rem; }
+.lx-term {
+  padding: 1px 8px; border-radius: var(--lx-r-pill); background: var(--p-lx-surface-2); color: var(--p-lx-text);
+  font-size: 12px; line-height: 18px; white-space: nowrap;
+}
+
+/*
+ * The edit grid: two lines per requirement (fields; then text and search terms), laid out by the width of the pane
+ * itself. The title takes whatever room the fixed ref, type and check columns leave (at least 10 rem, F3b); one line
+ * needs 50.25 rem (6 + 10 + 8.5 + 17.75 + 6 for the actions, four 0.5 rem gaps), so a narrower pane uses two lines.
+ */
 .lx-edit { container-type: inline-size; }
 .lx-fields {
   display: grid; gap: 8px; align-items: end;
-  grid-template-columns: 6rem minmax(6rem, 1fr) 8.5rem 17.75rem auto;
+  grid-template-columns: 6rem minmax(10rem, 1fr) 8.5rem 17.75rem 6rem;
   grid-template-areas: "ref title type check actions";
 }
 .lx-f { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -22,24 +37,36 @@
 .lx-f-title { grid-area: title; }
 .lx-f-type { grid-area: type; }
 .lx-f-check { grid-area: check; }
-.lx-f-actions { grid-area: actions; flex-direction: row; gap: 0; }
+.lx-f-actions { grid-area: actions; flex-direction: row; gap: 0; justify-content: flex-end; }
 .lx-f-label { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-text-2); }
+.lx-term-count { font-weight: 450; margin-left: 4px; font-variant-numeric: tabular-nums; }
 .lx-check-controls { display: grid; grid-template-columns: 8.5rem 4.75rem minmax(0, 1fr); gap: 4px; }
 .lx-line-one td { border-bottom: 0; padding-bottom: 6px; }
 .lx-line-two td { padding-top: 0; }
-.lx-line-two .lx-f-label { display: block; margin-bottom: 2px; }
-.lx-serif-input { font-family: var(--lx-font-serif); font-size: 14px; line-height: 20px; }
-@container (max-width: 739px) {
-  .lx-fields { grid-template-columns: 8.5rem minmax(0, 1fr) auto; grid-template-areas: "ref title actions" "type check check"; }
+.lx-line-two-fields { display: grid; gap: 8px 12px; grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr); align-items: start; }
+.lx-f-text .lx-f-label, .lx-f-terms .lx-f-label { display: block; margin-bottom: 2px; }
+.lx-serif-input { font-family: var(--lx-font-serif); font-size: 15px; line-height: 22px; }
+:host ::ng-deep .lx-f-terms .p-autocomplete-input-multiple { padding: 0.3125rem 0.5rem; gap: 4px; min-height: 2.5rem; }
+:host ::ng-deep .lx-f-terms .p-autocomplete-chip { font-size: 12px; }
+@container (max-width: 50.25rem) {
+  .lx-fields { grid-template-columns: 8.5rem minmax(10rem, 1fr) auto; grid-template-areas: "ref title actions" "type check check"; }
+  .lx-line-two-fields { grid-template-columns: minmax(0, 1fr); }
+  .lx-check-controls { grid-template-columns: minmax(9rem, 1fr) 5rem 7rem; }
 }
-@container (max-width: 479px) {
+@container (max-width: 30rem) {
   .lx-fields { grid-template-columns: minmax(0, 1fr); grid-template-areas: "ref" "title" "type" "check" "actions"; }
   .lx-check-controls { grid-template-columns: minmax(0, 1fr) 4.75rem 5rem; }
+  .lx-f-actions { justify-content: flex-start; }
 }
 .lx-row-problem-list { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
-.lx-row-problem { display: flex; gap: 6px; align-items: center; color: var(--p-lx-missing); font-size: 12px; line-height: 16px; }
+.lx-row-problem { display: flex; gap: 6px; align-items: center; color: var(--p-lx-missing); font-size: 12px; line-height: 16px; margin-top: 4px; }
 .lx-row-problem ng-icon { flex: none; }
 
+/* The approval: the count that will be locked, said once in large type, then the sentence. */
+.lx-approve { display: flex; flex-direction: column; gap: 12px; }
+.lx-approve-icon { color: var(--p-lx-found); display: inline-flex; }
+.lx-approve-count { display: flex; align-items: baseline; gap: 8px; color: var(--p-lx-text-2); }
+.lx-approve-count .lx-number { color: var(--p-lx-text); }
 .lx-dialog-text { max-width: 60ch; }
 
 @media (max-width: 640px) {

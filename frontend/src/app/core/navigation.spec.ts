@@ -17,7 +17,8 @@ describe('navLinks', () => {
   });
 
   it('puts the program screens after the tenant-wide ones', () => {
-    expect(navLinks('p1', NO_COUNTS, 'ADMIN').map((link) => link.id).slice(0, 3)).toEqual(['register', 'people', 'overview']);
+    expect(navLinks('p1', NO_COUNTS, 'ADMIN').map((link) => link.id)).toEqual(
+      ['register', 'people', 'overview', 'setup', 'review', 'coverage', 'requests', 'changes', 'rules', 'report', 'audit']);
   });
 });
 
@@ -42,27 +43,32 @@ describe('the bottom tab bar', () => {
   });
 
   it('keeps every screen in the bar when they fit', () => {
-    expect(tabBarOverflow(navLinks('p1', NO_COUNTS, 'REVIEWER'), 9)).toEqual([]);
+    expect(tabBarOverflow(navLinks('p1', NO_COUNTS, 'REVIEWER'), 10)).toEqual([]);
   });
 
-  it("moves an administrator's least used screens into More at 400 px", () => {
-    const links = navLinks('p1', NO_COUNTS, 'ADMIN');
-    expect(links).toHaveLength(10);
-    expect(ids(tabBarOverflow(links, tabSlots(400)))).toEqual(['people', 'audit']);
+  it("moves the least used screens into More at 400 px; Program setup, just below Changes, stays on the bar", () => {
+    for (const role of ['CONTRIBUTOR', 'REVIEWER', 'SIGNER'] as const) {
+      const links = navLinks('p1', NO_COUNTS, role);
+      expect(links).toHaveLength(10);
+      expect(ids(tabBarOverflow(links, tabSlots(400)))).toEqual(['report', 'audit']);
+    }
+    const admin = navLinks('p1', NO_COUNTS, 'ADMIN');
+    expect(admin).toHaveLength(11);
+    expect(ids(tabBarOverflow(admin, tabSlots(400)))).toEqual(['people', 'report', 'audit']);
   });
 
   it('moves more as the room shrinks, least used first, keeping the rail order', () => {
     const links = navLinks('p1', NO_COUNTS, 'ADMIN');
-    expect(ids(tabBarOverflow(links, 8))).toEqual(['people', 'report', 'audit']);
-    expect(ids(tabBarOverflow(links, 7))).toEqual(['people', 'rules', 'report', 'audit']);
-    expect(ids(tabBarOverflow(links, 6))).toEqual(['register', 'people', 'rules', 'report', 'audit']);
+    expect(ids(tabBarOverflow(links, 8))).toEqual(['people', 'rules', 'report', 'audit']);
+    expect(ids(tabBarOverflow(links, 7))).toEqual(['register', 'people', 'rules', 'report', 'audit']);
+    expect(ids(tabBarOverflow(links, 6))).toEqual(['register', 'people', 'setup', 'rules', 'report', 'audit']);
   });
 
-  it('places a new screen by its priority alone', () => {
+  it('places Program setup by its priority alone, after Changes and before the register', () => {
     const links = navLinks('p1', NO_COUNTS, 'ADMIN');
-    const setup: NavLink = { ...links[2], id: 'setup', path: ['/programs', 'p1', 'setup'], priority: 50 };
-    expect(ids(tabBarOverflow([...links, setup], 9))).toEqual(['people', 'report', 'audit']);
-    expect(ids(tabBarOverflow([...links, { ...setup, priority: 5 }], 9))).toEqual(['people', 'audit', 'setup']);
+    const priority = (id: string) => links.find((link) => link.id === id)!.priority;
+    expect(priority('changes')).toBeGreaterThan(priority('setup'));
+    expect(priority('setup')).toBeGreaterThan(priority('register'));
   });
 
   it('knows when the screen shown is one of the links, sub-pages included', () => {

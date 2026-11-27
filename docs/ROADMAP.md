@@ -175,7 +175,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | merged (PR #18) |
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | merged (PR #27) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | merged (PR #21) |
-| F2 Program setup workspace | `feat-setup-workspace` | 3 | Opus 5.5 | folded into UI2-4 (built directly in v2) |
+| F2 Program setup workspace | `feat-setup-workspace` | 3 | Opus 5.5 | merged in UI2-4 (#43) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | merged (PR #28) |
 | F5a User administration and audit export API | `feat-admin-api` | 5 | Sonnet 5.5 | merged (PR #32) |
@@ -188,7 +188,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI2-1 Overview and register in v2 | `ui2-overview-register` | 2 | Opus 5.5 | merged (PR #39) |
 | UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | merged (#37) |
 | UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | merged (PR #38) |
-| UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | in progress |
+| UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | merged (#43) |
 | FIX-3 Work queue and evidence request follow-ups | `fix-queue-followups` | 9 | Sonnet 5.5 | merged (PR #31) |
 | FIX-4 Rule source backoff, live search terms, PDF page cap at upload | `fix-backoff-terms-pages` | 7 | Sonnet 5.5 | merged (PR #33) |
 | SEC-2 Argon2id passwords and audit list index | `sec-argon2-audit-index` | 5 | Sonnet 5.5 | merged (PR #36) |
@@ -210,6 +210,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI3-2 Changes, audit, report, register, people in v3 | `ui3-records` | 3 | Opus 5.5 | queued (after UI3-0, F14) |
 | UI3-3 Rules, requests, setup in v3 | `ui3-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI3-0, UI2-4) |
 | SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | in progress |
+| F15 Evidence package | `feat-evidence-package` | 7 | Sonnet 5.5 | in progress |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
@@ -1613,6 +1614,66 @@ commit by every audited write, which serializes the tenant and risks deadlocks.
      queue query uses the `audit_unsealed` primary key and its tenant index.
 8. **Docs:** decisions in `docs/decisions/SEC-3.md`, progress in `docs/progress/SEC-3.md`. The Audit trail screen's
    "Verify" action is built in UI3-2, not here.
+
+## F15 — Evidence package (backend only; slot 7; Sonnet 5.5; migration `V020__evidence_package.sql`; D-540 to D-549)
+When a program is reviewed by an accreditor or a state board, staff must hand over everything behind a signed
+determination: the report, the exact rule and course versions, every quoted passage with its source document, and the
+trail of who decided what. Today that means five downloads and a manual zip. Decided design: one immutable,
+self-verifying ZIP built by a job.
+
+1. **V020** (after SEC-3's V019; if V019 is not on main, number it V020 anyway and say so in the PR):
+   - Columns of `evidence_package`:
+     - `id uuid PK`, `tenant_id`, `determination_id REFERENCES determination`;
+     - `status` (`QUEUED|READY|FAILED`), `storage_key text`, `content_sha256 char(64)`, `size_bytes bigint`;
+     - `created_at`, `created_by`.
+   - Forced RLS. Updates only from QUEUED to READY or FAILED, enforced by a trigger, like `report`.
+   - Index `(determination_id, created_at DESC)`.
+2. **FileStore streaming:** add `void put(String key, Path file)` and `InputStream open(String key)` to `FileStore`,
+   implemented for the local store and S3 (multipart upload above 16 MB, `GetObject` stream). Existing byte-array
+   methods stay. Packages never hold a whole document set in memory.
+3. **API:**
+   - `POST /api/v1/determinations/{id}/package` (any role that can read the determination): 202 with the package
+     id. It requires a SIGNED determination (409 otherwise) and a READY report for it (409 "Generate the report
+     first").
+   - `GET /api/v1/packages/{id}`: status, size and SHA.
+   - `GET /api/v1/packages/{id}/file`: streams `application/zip`. The filename is
+     `lexvay-<program-slug>-<state>-<signed-date>.zip`.
+   - Audited: `PACKAGE_REQUESTED`, `PACKAGE_READY` (actor null, the job) and `PACKAGE_DOWNLOADED`. Add them to
+     `Rule9_AuditCoverageTest`, `InputValidationTableTest` and the frontend `audit-sentence.ts` with its spec.
+4. **Job `BUILD_PACKAGE`:** writes a temporary file with `ZipOutputStream`, then `put(key, path)`, then deletes the
+   temporary file. Entries:
+   - `report.pdf`: the newest READY report's exact bytes.
+   - `determination.json`: id, program, state, outcome, signer, signed time, status, the versions hash, the rule
+     version (id, label, effective date, source URL) and the course versions (code, title, catalog year, id).
+   - `requirements.csv`: one row per requirement with ref, title, kind, check, finding, final decision, decided by,
+     decided at and note.
+   - `quotes.csv`: for every quoted evidence span, the requirement ref, document filename, page, `char_start`,
+     `char_end`, the quote text and the SHA-256 of that page's stored text.
+   - `documents/<filename>`: the original bytes of every document a quote cites, deduplicated, streamed through
+     `open`.
+   - `audit.csv`: the audit entries whose entity is the determination, its mappings, its report or this package, in
+     the F5a export format. Include `seq` and `row_hash` if SEC-3 has merged.
+   - `manifest.json`: every other entry with its size and SHA-256, plus `generatedAt`, the Lexvay version and the
+     package id.
+   - `README.txt`: four plain sentences on what the package is and how to check `manifest.json`. It contains no
+     forbidden words; `ForbiddenWordsTest` must scan it.
+
+   Rules:
+   - The ZIP is deterministic for the same inputs: entries in a fixed order, a fixed timestamp equal to
+     `generatedAt`, and no extra fields. `content_sha256` is computed over the stored ZIP.
+   - Above `lexvay.package.max-bytes` (default 512 MB) the job fails with a clear message. No partial ZIP is stored.
+5. **Tests:**
+   - Package a seeded signed determination; unzip it in the test; every manifest hash matches its entry.
+   - `report.pdf` equals the stored report bytes.
+   - `quotes.csv` page hashes match `document_page`.
+   - Packaging is refused for an unsigned determination and for a missing report.
+   - Rule 7: another tenant gets 404.
+   - The local and S3 streaming put/open paths are covered; the S3 store is tested against its fake, not the
+     network.
+   - The determinism check: building twice with a fixed clock gives identical bytes.
+6. **Docs:** decisions in `docs/decisions/F15.md`, progress in `docs/progress/F15.md`, and a short "Evidence
+   packages" section in `docs/OPERATIONS.md`. The button on the Evidence report and in the register comes in UI3-2
+   or later, not here.
 
 ## Follow-ups recorded from reviews
 - FIX-5 (rule 9): `LOGOUT` is audited after the session is cleared, so its audit entry has no actor. Capture the

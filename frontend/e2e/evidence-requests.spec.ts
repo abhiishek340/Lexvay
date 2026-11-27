@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { JORDAN, PRIYA, allowConsoleErrors, apiPost, expect, expectAccessible, nav, openRequirement, signIn, stateTab, switchUser, test } from './support';
+import { JORDAN, PRIYA, apiPost, allowConsoleErrors, expect, expectAccessible, goTo, nav, openRequirement, signIn, stateTab, switchUser, test } from './support';
 
 const NOTE = 'Please send the passage that covers clinical supervision for this requirement.';
 
@@ -133,17 +133,18 @@ test('a reviewer asks for evidence, a contributor answers with a verified passag
   await expect(page.locator('.p-toast')).toContainText('Evidence sent to review');
   await expect(drawer).toBeHidden();
   await expect(page.getByRole('heading', { level: 1, name: 'Evidence requests' })).toBeFocused();
-  await expect(page.getByTestId('requests-empty')).toHaveText('No open evidence requests. Reviewers create them from the Review screen.');
+  await expect(page.getByTestId('requests-empty')).toContainText('No open evidence requests.');
   await expect(nav(page, 'Evidence requests')).not.toHaveAttribute('aria-describedby');
   await page.locator('p-selectbutton').getByText('Answered').click();
-  await expect(row).toContainText('Answered, awaiting review');
+  await expect(row).toContainText('Answered');
+  await expect(row).toContainText('With the reviewer');
   await expect(row).toContainText(new RegExp(`Jordan Ellis, \\d{1,2} [A-Z][a-z]{2}, ${syllabus.filename}, page 1`));
   await expect(row.getByRole('button', { name: /Provide evidence/ })).toHaveCount(0);
   await expectAccessible(page, 'Evidence requests, answered');
 
   // The reviewer sees the requirement back in "Needs review" with the provided evidence, and accepts it.
   await switchUser(page, PRIYA);
-  await nav(page, 'Review').click();
+  await goTo(page, 'Review');
   await stateTab(page, 'UT').click();
   await page.getByRole('region', { name: 'Requirements' }).getByRole('button', { name: / to review$/ }).click();
   const listed = page.getByRole('region', { name: 'Requirements' }).getByRole('button').filter({ hasText: new RegExp(`^${ref}(?!\\d)`) });
@@ -163,8 +164,8 @@ test('a reviewer asks for evidence, a contributor answers with a verified passag
   await expect(page.getByTestId('message')).toContainText(`${ref}: Accepted.`);
 
   // Nothing is open any more; the provided evidence stays on the requirement.
-  await nav(page, 'Evidence requests').click();
-  await expect(page.getByTestId('requests-empty')).toHaveText('No open evidence requests. Reviewers create them from the Review screen.');
+  await goTo(page, 'Evidence requests');
+  await expect(page.getByTestId('requests-empty')).toContainText('No open evidence requests.');
   await openRequirement(page, 'UT', ref);
   await expect(page.getByTestId('provided-evidence').getByTestId('evidence-mark')).toHaveText(quote);
 });
@@ -179,9 +180,12 @@ test('at 400 px: the inbox, the drawer, a blocked request and the provided evide
   expect((await apiPost(page, `/api/v1/mappings/${ambiguous.id}/reviews`, { kind: 'EVIDENCE_REQUESTED', note: 'Please send the required-course coverage.' })).status()).toBe(201);
 
   await switchUser(page, JORDAN);
-  await nav(page, 'Evidence requests').click();
+  await goTo(page, 'Evidence requests');
   const row = page.getByRole('table', { name: 'Evidence requests' }).locator(`tr[data-ref="${ambiguous.requirement.ref}"]`);
   await expect(row).toContainText('Open');
+  // A card has no column headers, so its answer count is said in words.
+  await expect(row.getByTestId('answer-words')).toBeVisible();
+  await expect(row.getByTestId('answer-words')).toHaveText('No answers');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await expectAccessible(page, 'Evidence requests at 400 px');
@@ -197,22 +201,37 @@ test('at 400 px: the inbox, the drawer, a blocked request and the provided evide
   await expect(drawer).toBeHidden();
   await expect(provide).toBeFocused();
 
-  // A request whose mapping went stale after a change is blocked. The seed cannot make a requested mapping stale
-  // without a course or rule change that other suites depend on, so the list response carries the flag here.
+  // A request whose mapping went stale after a change is blocked, and so is one a signed determination covers (FIX-3).
+  // The seed cannot make a requested mapping stale or signed without a change that other suites depend on, so the list
+  // response carries the flags here; the flags themselves are covered by the backend tests.
+  let flag: 'stale' | 'signed' = 'stale';
   await page.route('**/evidence-requests?status=ALL', async (route) => {
     const response = await route.fetch();
-    const rows = (await response.json()) as { mappingId: string; stale: boolean }[];
-    await route.fulfill({ response, json: rows.map((r) => (r.mappingId === ambiguous.id ? { ...r, stale: true } : r)) });
+    const rows = (await response.json()) as { mappingId: string }[];
+    await route.fulfill({ response, json: rows.map((r) => (r.mappingId === ambiguous.id ? { ...r, [flag]: true } : r)) });
   });
-  // Leave the screen and come back, so it fetches the list again; Review must have opened first, or the second click
-  // is a navigation to the screen already shown, which the router ignores.
-  await nav(page, 'Review').click();
-  await expect(nav(page, 'Review')).toHaveAttribute('aria-current', 'page');
-  await nav(page, 'Evidence requests').click();
-  await expect(row).toContainText('Blocked');
-  await expect(row).toContainText('This requirement is waiting for a re-run after a change; answer it after the re-run');
-  await expect(row.getByRole('button', { name: /Provide evidence/ })).toHaveCount(0);
-  await expectAccessible(page, 'Evidence requests at 400 px, blocked');
+  const ref = ambiguous.requirement.ref;
+  const reasons = [
+    ['stale', 'Waiting for a re-run', 'This requirement is waiting for a re-run after a change; answer it after the re-run.'],
+    ['signed', 'Signed', 'A signed determination already covers this requirement, so the request can no longer be answered.'],
+  ] as const;
+  for (const [reason, short, why] of reasons) {
+    flag = reason;
+    // Leave the screen and come back, so it fetches the list again; Review must have opened first, or the second click
+    // is a navigation to the screen already shown, which the router ignores.
+    await goTo(page, 'Review');
+    await expect(nav(page, 'Review')).toHaveAttribute('aria-current', 'page');
+    await goTo(page, 'Evidence requests');
+    await expect(row).toContainText('Blocked');
+    await expect(row.getByTestId('blocked-reason')).toContainText(short);
+    await expect(row.getByRole('button', { name: /Provide evidence/ })).toHaveCount(0);
+    await row.getByRole('button', { name: `Why ${ref} is blocked` }).click();
+    await expect(page.getByRole('dialog', { name: `Why ${ref} is blocked` })).toHaveText(why);
+    await expectAccessible(page, `Evidence requests at 400 px, blocked (${reason})`);
+    await page.keyboard.press('Escape');
+  }
+  // A signed request is listed, blocked, but not counted in the badge: it can never be answered.
+  await expect(nav(page, 'Evidence requests')).not.toHaveAttribute('aria-describedby');
   await page.unroute('**/evidence-requests?status=ALL');
 
   // The provided evidence of the first test, on a phone: behind "Show on page" like the system's.

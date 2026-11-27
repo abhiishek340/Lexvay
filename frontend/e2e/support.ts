@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { ConsoleMessage, expect, Page, test as base } from '@playwright/test';
+import { ConsoleMessage, Locator, expect, Page, test as base } from '@playwright/test';
 
 export const PASSWORD = process.env['LEXVAY_DEMO_PASSWORD'] ?? 'lexvay-demo';
 export const DANA = 'dana.whitfield@northfield.example';
@@ -174,4 +174,17 @@ export async function openRequirement(page: Page, jurisdiction: string, ref: str
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', new RegExp(`^${jurisdiction}-`));
   await page.getByRole('region', { name: 'Requirements' }).getByRole('button').filter({ hasText: new RegExp(`^${ref}(?!\\d)`) }).click();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', ref);
+}
+
+/**
+ * Opens the avatar menu and returns it. Right after a load the popover can miss its first click (the page is still
+ * settling, and the menu is a deferred chunk), so the click is repeated until the menu is there.
+ */
+export async function openAccountMenu(page: Page): Promise<Locator> {
+  const menu = page.getByRole('dialog', { name: 'Account' });
+  await expect(async () => {
+    if (!(await menu.isVisible())) { await page.getByRole('button', { name: /^Account, / }).click(); }
+    await expect(menu).toBeVisible({ timeout: 1000 });
+  }).toPass();
+  return menu;
 }
