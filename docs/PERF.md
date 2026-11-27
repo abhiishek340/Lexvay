@@ -172,6 +172,9 @@ milliseconds on loopback:
 | 62 tenants | GET /work-queue/count | 3.90 | 15.36 | 24.94 | 1.0 | 12 |
 
 The 15 ms p95 of the count on the 62-tenant pass is one noisy run (its p50 is 3.9 ms); the budget is 40 ms.
+A second full run after the last merge of main (rule source endpoints in the list), same machine: seed
+`/work-queue` p50 4.07, p95 14.15, p99 25.32 and count p95 4.22; 62 tenants `/work-queue` p95 3.74 and count
+p95 3.77. Variation between runs is machine noise; every p95 is far inside the budget.
 
 Plan: `IndexUsageTest` runs `EXPLAIN (ANALYZE, BUFFERS)` of the exact statement as the application role under
 row-level security on about 200 tenants with synthetic review history, for each role, and fails on a sequential scan
