@@ -126,6 +126,33 @@ kbd {
 /* The polite live region under a page header (data-testid="message"). */
 .lx-status-line { min-height: 22px; margin-bottom: var(--lx-space-3); color: var(--p-lx-text-2); }
 .lx-help { font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
+/* A page title with the InfoTip that holds what a paragraph under it used to say (word budget). */
+.lx-title-row { display: flex; align-items: center; gap: var(--lx-space-2); }
+/* Empty state: a 32 px duotone icon in accent, one sentence, at most one action. */
+.lx-empty-state { display: flex; flex-direction: column; align-items: center; gap: var(--lx-space-3); padding: var(--lx-space-8) var(--lx-space-4); text-align: center; color: var(--p-lx-text-2); }
+.lx-empty-state > ng-icon { color: var(--p-lx-accent); }
+/* A numbered part of a form in a sheet (1 Document, 2 Passage, 3 Comment). */
+.lx-numbered { display: flex; align-items: center; gap: 8px; font-size: 15px; line-height: 22px; font-weight: 600; }
+.lx-numbered-n {
+  width: 22px; height: 22px; border-radius: 999px; display: inline-grid; place-items: center; flex: none;
+  background: var(--p-lx-accent-tint); color: var(--p-lx-accent); font-size: 12px; font-weight: 650;
+}
+/* A passage a person selected on a page, in Document type, before it is sent. */
+.lx-passage {
+  font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; padding: 12px 16px; border-radius: 10px;
+  background: var(--p-lx-accent-tint); box-shadow: inset 3px 0 0 var(--p-lx-accent); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+/* Where a document will appear once one is chosen. */
+.lx-placeholder {
+  min-height: 16rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px;
+  border-radius: var(--lx-r-card); background: var(--p-lx-surface-2); color: var(--p-lx-text-2); text-align: center;
+}
+.lx-placeholder > ng-icon { color: var(--p-lx-accent); }
+/* A state's two-letter code as a small tile, the StateMap's shape in a row. */
+.lx-state-code {
+  display: inline-grid; place-items: center; min-width: 28px; height: 22px; padding: 0 6px; box-sizing: border-box; border-radius: 6px;
+  background: var(--p-lx-accent-tint); color: var(--p-lx-accent); font-size: 11px; line-height: 1; font-weight: 650; letter-spacing: 0.02em;
+}
 /* An icon that turns while work runs (the Extracting status); reduced motion stops it. */
 .lx-spin { animation: lx-spin 1.2s linear infinite; }
 @keyframes lx-spin { to { transform: rotate(360deg); } }
