@@ -2,8 +2,8 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { NgIcon, provideIcons } from '@ng-icons/core';
-import { phosphorCopy, phosphorPrinter } from '@ng-icons/phosphor-icons/regular';
+import { NgIcon } from '@ng-icons/core';
+import { phosphorArrowCounterClockwise, phosphorCopy, phosphorDownloadSimple, phosphorMinusCircle, phosphorPrinter, phosphorSealCheck, phosphorXCircle } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -15,14 +15,15 @@ import { Tag } from 'primeng/tag';
 import { ToggleSwitch } from 'primeng/toggleswitch';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
-import { OUTCOME_ICON, OUTCOME_LABEL, STATUS_ICON, STATUS_LABEL } from '../../core/labels';
+import { OUTCOME_LABEL, STATUS_LABEL } from '../../core/labels';
 import { DeterminationLists, DeterminationStatus, Jurisdiction, Outcome, Program, RegisterFilter, RegisterRow } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { NO_FILTER, registerCsvUrl } from '../../core/register';
 import { SessionService } from '../../core/session.service';
+import { registerComponentTokens } from '../../theme/component-tokens';
 import { IconName } from '../../theme/icons';
-import { registerRegisterTheme } from './register-theme';
+import { REGISTER_TOKENS } from './register-theme';
 import { disclosureSections } from './register-view';
 
 type TabId = 'register' | 'by-program';
@@ -30,6 +31,12 @@ type Severity = 'success' | 'danger' | 'secondary' | 'warn';
 interface TagView { severity: Severity; label: string; icon: IconName }
 
 const OUTCOMES: Outcome[] = ['MEETS', 'DOES_NOT_MEET', 'NOT_DETERMINED'];
+/** The icons the register shows beyond SHELL_ICONS, provided by its route (register.routes.ts). */
+export const REGISTER_ICONS = { phosphorArrowCounterClockwise, phosphorCopy, phosphorDownloadSimple, phosphorMinusCircle, phosphorPrinter, phosphorSealCheck, phosphorXCircle };
+
+/** A distinct shape per signed outcome, so the outcome never depends on colour alone. */
+const OUTCOME_ICON: Record<Outcome, IconName> = { MEETS: 'phosphorCheckCircle', DOES_NOT_MEET: 'phosphorXCircle', NOT_DETERMINED: 'phosphorMinusCircle' };
+const STATUS_ICON: Record<DeterminationStatus, IconName> = { SIGNED: 'phosphorSealCheck', REOPENED: 'phosphorArrowCounterClockwise' };
 const OUTCOME_SEVERITY: Record<Outcome, Severity> = { MEETS: 'success', DOES_NOT_MEET: 'danger', NOT_DETERMINED: 'secondary' };
 const STATUS_SEVERITY: Record<DeterminationStatus, Severity> = { SIGNED: 'success', REOPENED: 'warn' };
 
@@ -41,8 +48,6 @@ const STATUS_SEVERITY: Record<DeterminationStatus, Severity> = { SIGNED: 'succes
   selector: 'lx-register',
   imports: [DatePipe, FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, Select, Skeleton, TableModule,
     Tab, TabList, TabPanel, TabPanels, Tabs, Tag, ToggleSwitch],
-  // Icons only this screen shows ship in its chunk, not in the initial bundle's registry (theme/icons.ts).
-  viewProviders: [provideIcons({ phosphorCopy, phosphorPrinter })],
   templateUrl: './register.html',
   styleUrl: './register.css',
 })
@@ -94,7 +99,7 @@ export class Register {
   readonly printGeneratedAt = computed(() => (this.tab() === 'by-program' ? this.lists()?.generatedAt ?? null : this.loadedAt()));
 
   constructor() {
-    registerRegisterTheme();
+    registerComponentTokens(REGISTER_TOKENS);
     Promise.all([firstValueFrom(this.api.programs()), firstValueFrom(this.api.jurisdictions())])
       .then(([programs, jurisdictions]) => {
         this.jurisdictions.set(jurisdictions);

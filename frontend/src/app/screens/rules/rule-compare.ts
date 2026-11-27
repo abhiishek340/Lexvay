@@ -9,11 +9,12 @@ import { TableModule } from 'primeng/table';
 import { Tag } from 'primeng/tag';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
-import { DIFF_STATUS, REQUIREMENT_TYPE_LABEL, numericCheck } from '../../core/labels';
+import { REQUIREMENT_TYPE_LABEL, numericCheck } from '../../core/labels';
 import { DiffRow, DiffSegment, DiffStatus, RuleVersionDiff, RuleVersionView } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { comparableVersions } from '../../core/rules';
 import { DiffText } from '../../ui/diff-text';
+import { DIFF_STATUS } from './diff-status';
 
 const SUMMARY_ORDER: { status: DiffStatus; key: keyof RuleVersionDiff['summary'] }[] = [
   { status: 'CHANGED', key: 'changed' }, { status: 'ADDED', key: 'added' }, { status: 'REMOVED', key: 'removed' }, { status: 'UNCHANGED', key: 'unchanged' },

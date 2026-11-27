@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { LEXVAY_ICONS } from '../theme/icons';
+import { CHANGE_KIND } from '../screens/changes/change-kind';
+import { DIFF_STATUS } from '../screens/rules/diff-status';
+import { RULE_STATUS } from '../screens/rules/rule-status';
+import { DECISION_ICON, FINDING_ICON } from '../ui/finding';
 import {
-  ACTION_LABEL, CHANGE_KIND, DECISION_ICON, DECISION_LABEL, DIFF_STATUS, FINDING_ICON, FINDING_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, REQUIREMENT_TYPE_LABEL,
+  ACTION_LABEL, DECISION_LABEL, FINDING_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, REQUIREMENT_TYPE_LABEL,
   ROLE_LABEL, actionLabel, humanize, licenseLabel, numericCheck,
 } from './labels';
-import { RULE_STATUS } from './rules';
 
 describe('labels', () => {
   it('never use the forbidden phrases', () => {
@@ -16,17 +18,13 @@ describe('labels', () => {
     }
   });
 
-  it('every finding and decision has a distinct, registered icon so state is not colour alone', () => {
+  it('every finding and decision has a distinct icon so state is not colour alone (icons.spec.ts checks each is registered)', () => {
     expect(new Set(Object.values(FINDING_ICON)).size).toBe(3);
     expect(new Set(Object.values(DECISION_ICON)).size).toBe(3);
-    for (const name of [...Object.values(FINDING_ICON), ...Object.values(DECISION_ICON), ...Object.values(CHANGE_KIND).map((k) => k.icon)]) {
-      expect(LEXVAY_ICONS[name]).toContain('<svg');
-    }
   });
 
-  it('every diff status has its own registered icon, and a numeric check reads as field, operator and value', () => {
+  it('every diff status has its own icon, and a numeric check reads as field, operator and value', () => {
     expect(new Set(Object.values(DIFF_STATUS).map((s) => s.icon)).size).toBe(4);
-    for (const s of Object.values(DIFF_STATUS)) { expect(LEXVAY_ICONS[s.icon]).toContain('<svg'); }
     expect(numericCheck({ numericField: 'INTERNSHIP_HOURS', numericOperator: '>=', numericValue: 700 })).toBe('Internship hours >= 700');
     expect(numericCheck({ numericField: null, numericOperator: null, numericValue: null })).toBeNull();
   });
