@@ -2,6 +2,8 @@ export type Role = 'CONTRIBUTOR' | 'REVIEWER' | 'SIGNER' | 'ADMIN';
 export type Finding = 'EVIDENCE_FOUND' | 'EVIDENCE_MISSING' | 'AMBIGUOUS';
 export type DecisionKind = 'ACCEPTED' | 'EVIDENCE_REQUESTED' | 'GAP_CONFIRMED';
 export type Outcome = 'MEETS' | 'DOES_NOT_MEET' | 'NOT_DETERMINED';
+/** Where a page's stored text came from (F11); OCR pages carry a confidence from 0 to 100. */
+export type TextSource = 'TEXT_LAYER' | 'OCR';
 
 export interface UserView { id: string; tenantId: string; email: string; displayName: string; role: Role; }
 /** GET /users: the people of the caller's tenant, for resolving ids to names. */
@@ -18,7 +20,7 @@ export type RequirementType = 'NUMERIC' | 'SUBJECT' | 'SUPERVISED_HOURS' | 'ACCR
 export type NumericField = 'TOTAL_CREDITS' | 'PRACTICUM_HOURS' | 'INTERNSHIP_HOURS';
 export type NumericOperator = '>=' | '<=' | '=' | '>' | '<';
 export interface RequirementView { id: string; ref: string; title: string; text: string; type: RequirementType; numericField: NumericField | null; numericOperator: NumericOperator | null; numericValue: number | null; }
-export interface Evidence { spanId: string; documentId: string; filename: string; kind: string; courseVersionId: string | null; courseCode: string | null; courseRequired: boolean | null; pageNumber: number; charStart: number; charEnd: number; quote: string; }
+export interface Evidence { spanId: string; documentId: string; filename: string; kind: string; courseVersionId: string | null; courseCode: string | null; courseRequired: boolean | null; pageNumber: number; charStart: number; charEnd: number; quote: string; textSource: TextSource; ocrConfidence: number | null; }
 export interface Decision { kind: DecisionKind; note: string | null; userId: string; userDisplayName: string | null; at: string; }
 export interface Mapping { id: string; assessmentId: string; jurisdictionId: string; jurisdiction: string; ruleVersionId: string; requirement: RequirementView; finding: Finding; method: 'RULES_ENGINE' | 'MATCH'; rationale: string; stale: boolean; evidence: Evidence | null; decision: Decision | null; }
 export interface MappingsView { assessmentId: string; jurisdiction: string | null; mappings: Mapping[]; }
@@ -59,5 +61,6 @@ export interface RuleVersionDiff {
   from: { id: string; label: string; effectiveFrom: string }; to: { id: string; label: string; effectiveFrom: string };
   summary: { added: number; removed: number; changed: number; unchanged: number }; requirements: DiffRow[]; ruleTextDiff: DiffSegment[];
 }
+export interface ProgramOverview { program: Program; assessment: AssessmentView | null; determinations: Determination[]; openChangeEvents: ChangeEvent[]; undecidedTotal: number; }
 /** GET /documents/{id}/pages/{n}: one immutable page of extracted text. */
-export interface DocumentPage { documentId: string; filename: string; kind: string; courseCode: string | null; courseRequired: boolean | null; pageNumber: number; pageCount: number; text: string; }
+export interface DocumentPage { documentId: string; filename: string; kind: string; courseCode: string | null; courseRequired: boolean | null; pageNumber: number; pageCount: number; text: string; textSource: TextSource; ocrConfidence: number | null; }

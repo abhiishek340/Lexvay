@@ -280,6 +280,11 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(row("document page: page number overflows an int", page, HttpMethod.GET,
                 "/api/v1/documents/" + DOCUMENT + "/pages/99999999999", null, null, 400));
         rows.add(row("document page: page number zero does not exist", page, HttpMethod.GET, "/api/v1/documents/" + DOCUMENT + "/pages/0", null, null, 404));
+        String file = "GET /api/v1/documents/{id}/file";
+        rows.add(row("document file: id is not a UUID", file, HttpMethod.GET, "/api/v1/documents/" + BAD_ID + "/file", null, null, 400));
+        rows.add(row("document file: unknown id is not found", file, HttpMethod.GET, "/api/v1/documents/" + ID + "/file", null, null, 404));
+        rows.add(row("document file: hostile query parameter is ignored", file, HttpMethod.GET,
+                "/api/v1/documents/" + DOCUMENT + "/file?q=%00%ff", null, null, 200));
 
         // --- program overview and assessments of a program ---
         rows.add(row("overview: program id is not a UUID", "GET /api/v1/programs/{programId}/overview", HttpMethod.GET,
@@ -407,6 +412,44 @@ class InputValidationTableTest extends AbstractDatabaseTest {
                 "/api/v1/change-events?q=%00%ff", null, null, 200));
         rows.add(row("change event rerun: id is not a UUID", "POST /api/v1/change-events/{id}/rerun", HttpMethod.POST,
                 "/api/v1/change-events/" + BAD_ID + "/rerun", null, null, 400));
+
+        // --- rule sources ---
+        Map<String, Object> ruleSource = Map.of("jurisdictionCode", "CA", "licenseType", "L", "label", "Demo rule source",
+                "url", "https://rules.example.test/rules.pdf", "checkIntervalHours", 24);
+        String ruleSources = "/api/v1/rule-sources";
+        String postRuleSource = "POST /api/v1/rule-sources";
+        bodies.post("rule sources create: jurisdiction is not two capital letters", postRuleSource, ruleSources, with(ruleSource, "jurisdictionCode", "california"));
+        bodies.post("rule sources create: unknown jurisdiction code", postRuleSource, ruleSources, with(ruleSource, "jurisdictionCode", "ZZ"));
+        bodies.post("rule sources create: license type missing", postRuleSource, ruleSources, without(ruleSource, "licenseType"));
+        bodies.post("rule sources create: oversized label", postRuleSource, ruleSources, with(ruleSource, "label", "l".repeat(151)));
+        bodies.post("rule sources create: control character in label", postRuleSource, ruleSources, with(ruleSource, "label", "a\u0000b"));
+        bodies.post("rule sources create: URL is not http", postRuleSource, ruleSources, with(ruleSource, "url", "ftp://rules.example.test/rules.pdf"));
+        bodies.post("rule sources create: URL contains a space", postRuleSource, ruleSources, with(ruleSource, "url", "https://rules.example.test/a b"));
+        bodies.post("rule sources create: URL is a loopback address", postRuleSource, ruleSources, with(ruleSource, "url", "http://127.0.0.1/rules"));
+        bodies.post("rule sources create: URL is a private address", postRuleSource, ruleSources, with(ruleSource, "url", "http://10.0.0.1/rules"));
+        bodies.post("rule sources create: URL is a link-local address", postRuleSource, ruleSources, with(ruleSource, "url", "http://169.254.1.1/rules"));
+        bodies.post("rule sources create: URL is an IPv6 loopback address", postRuleSource, ruleSources, with(ruleSource, "url", "http://[::1]/rules"));
+        bodies.post("rule sources create: URL host does not resolve", postRuleSource, ruleSources, with(ruleSource, "url", "https://nowhere.example.test/rules"));
+        bodies.post("rule sources create: oversized URL", postRuleSource, ruleSources, with(ruleSource, "url", "https://rules.example.test/" + "u".repeat(2000)));
+        bodies.post("rule sources create: interval below one hour", postRuleSource, ruleSources, with(ruleSource, "checkIntervalHours", 0));
+        bodies.post("rule sources create: interval above thirty days", postRuleSource, ruleSources, with(ruleSource, "checkIntervalHours", 721));
+        bodies.post("rule sources create: interval is not a number", postRuleSource, ruleSources, with(ruleSource, "checkIntervalHours", "daily"));
+        rows.add(row("rule sources list: hostile query parameter is ignored", "GET /api/v1/rule-sources", HttpMethod.GET,
+                ruleSources + "?q=%00%ff", null, null, 200));
+        String checksEndpoint = "GET /api/v1/rule-sources/{id}/checks";
+        rows.add(row("rule source checks: id is not a UUID", checksEndpoint, HttpMethod.GET, ruleSources + "/" + BAD_ID + "/checks", null, null, 400));
+        rows.add(row("rule source checks: limit below minimum", checksEndpoint, HttpMethod.GET, ruleSources + "/" + ID + "/checks?limit=0", null, null, 400));
+        rows.add(row("rule source checks: limit above maximum", checksEndpoint, HttpMethod.GET, ruleSources + "/" + ID + "/checks?limit=201", null, null, 400));
+        rows.add(row("rule source checks: limit is not a number", checksEndpoint, HttpMethod.GET, ruleSources + "/" + ID + "/checks?limit=many", null, null, 400));
+        rows.add(row("rule source check: id is not a UUID", "POST /api/v1/rule-sources/{id}/check", HttpMethod.POST,
+                ruleSources + "/" + BAD_ID + "/check", null, null, 400));
+        String putActive = "PUT /api/v1/rule-sources/{id}/active";
+        rows.add(row("rule source active: id is not a UUID", putActive, HttpMethod.PUT, ruleSources + "/" + BAD_ID + "/active",
+                json(Map.of("active", true)), JSON, 400));
+        rows.add(rawJson("rule source active: flag missing", putActive, HttpMethod.PUT, ruleSources + "/" + ID + "/active", "{}", 400));
+        rows.add(rawJson("rule source active: flag is not a boolean", putActive, HttpMethod.PUT, ruleSources + "/" + ID + "/active",
+                "{\"active\":\"maybe\"}", 400));
+        rows.add(rawJson("rule source active: body is not JSON", putActive, HttpMethod.PUT, ruleSources + "/" + ID + "/active", "{not json", 400));
 
         // --- reports ---
         rows.add(row("report request: determination id is not a UUID", "POST /api/v1/determinations/{id}/report", HttpMethod.POST,

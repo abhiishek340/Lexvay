@@ -133,6 +133,8 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
                 new Scenario("GET /programs/{id}/evidence-requests?status=ALL", program + "/evidence-requests?status=ALL"),
                 new Scenario("GET /programs/{id}/search?q=ethics", program + "/search?q=ethics"),
                 new Scenario("GET /rule-versions/{id}/diff", "/api/v1/rule-versions/" + f.supersedingRuleVersionId + "/diff"),
+                new Scenario("GET /rule-sources", "/api/v1/rule-sources"),
+                new Scenario("GET /rule-sources/{id}/checks", "/api/v1/rule-sources/" + f.ruleSourceId + "/checks"),
                 new Scenario("Program screen today: program + determinations + change-events (3 requests)",
                         List.of(program, program + "/determinations", "/api/v1/change-events")));
     }
@@ -194,6 +196,7 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
         UUID ruleVersionId;
         UUID reviewedMappingId;
         UUID supersedingRuleVersionId;
+        UUID ruleSourceId;
 
         Fixture(TestHttpClient api, ObjectMapper json, UUID programId, UUID assessmentId) {
             this.api = api;
@@ -247,6 +250,7 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
                 }
             }
             assertThat(supersedingRuleVersionId).as("a rule version that supersedes another").isNotNull();
+            ruleSourceId = UUID.fromString(read(api.get("/api/v1/rule-sources")).get(0).get("id").asString());
         }
 
         private JsonNode read(TestHttpClient.Reply reply) {

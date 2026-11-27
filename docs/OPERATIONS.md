@@ -18,6 +18,17 @@ The PrimeNG license key is a **build-time** argument: `LEXVAY_PRIMEUI_LICENSE=<k
 not read at runtime and not stored in any image layer other than that bundle (the Node stage is discarded). Do not
 push an image built with a real key to a public registry. Without it the app builds and runs and shows a license notice.
 
+### Continuous integration
+
+Job `image` in `.github/workflows/ci.yml` runs after `test` succeeds, on every pull request and every push to `main`
+(D-240 to D-244). It builds this `Dockerfile` with Buildx and the GitHub Actions cache (`type=gha`, `mode=max`),
+loads the result into the runner's Docker as **`lexvay:ci-<full commit sha>`** (never pushed anywhere, no license key),
+writes the image size to the job summary, then runs `scripts/smoke.sh lexvay:ci-<sha>` on slot 0. Any failed smoke
+check fails the job and the log shows the last 40 lines of the container's output. To repeat it on a machine:
+`docker build -t lexvay:ci-local . && scripts/smoke.sh lexvay:ci-local` (`scripts/smoke.sh` alone builds
+`lexvay:local`, which is what `make smoke` does). The script uses the Docker daemon the CLI already points at
+(`DOCKER_HOST` when set).
+
 ### Pinned base images (checked 2026-11-26)
 
 | Stage | Tag | Digest |

@@ -76,7 +76,26 @@
 
 /* Pane 3 */
 .lx-evidence { padding: 20px 20px 24px; overflow-y: auto; gap: 12px; background: var(--p-lx-ground); }
-.lx-quote { padding: 16px 18px 18px; margin: 0; color: var(--p-lx-text); }
+.lx-evidence-meta { display: flex; flex-wrap: wrap; gap: 2px 16px; font-size: 12px; line-height: 16px; color: var(--p-lx-text-secondary); }
+.lx-evidence-meta div { display: flex; gap: 4px; min-width: 0; }
+.lx-evidence-meta dd { color: var(--p-lx-text); word-break: break-word; }
+.lx-quote-only summary {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; border-radius: 4px;
+  font-size: 13px; font-weight: 500; color: var(--p-lx-text);
+}
+.lx-quote-only summary::-webkit-details-marker { display: none; }
+.lx-quote-only summary ng-icon { transition: transform 120ms ease-out; }
+.lx-quote-only[open] summary ng-icon { transform: rotate(90deg); }
+.lx-quote-only blockquote {
+  margin-top: 8px; padding: 12px 16px; border-left: 2px solid var(--p-lx-hairline); background: var(--p-lx-card); color: var(--p-lx-text);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.lx-show-on-page { align-self: flex-start; }
+/* In the three-pane layout the viewer takes the rest of the pane and its page scrolls inside it. */
+@media (min-width: 1024px) {
+  .lx-evidence-page { flex: 1; min-height: 16rem; display: flex; flex-direction: column; }
+  .lx-evidence-page lx-document-viewer { flex: 1; --lx-document-max-height: none; }
+}
 .lx-no-evidence { padding: 16px; border: 1px dashed var(--p-lx-control); border-radius: 4px; display: flex; flex-direction: column; gap: 4px; background: var(--p-lx-card); }
 
 /* Dialogs */

@@ -52,6 +52,7 @@ lexvay:
     min-quote-chars: ${LEXVAY_MIN_QUOTE_CHARS:40}
     min-ocr-confidence: 80
     shortlist-size: 8
+    ranker: ${LEXVAY_MATCHING_RANKER:bm25}   # bm25 | ts_rank (the baseline the evaluation compares against)
   ocr:
     engine: ${LEXVAY_OCR:off}                              # off | tesseract
     tesseract-path: ${LEXVAY_OCR_TESSERACT_PATH:tesseract}
@@ -61,6 +62,9 @@ lexvay:
     polling-enabled: true
     poll-interval-ms: 1000
     max-attempts: 3
+  rule-sources:                           # F12: fetch the pages where licensing boards publish rules (D-185)
+    enabled: ${LEXVAY_RULE_SOURCES_ENABLED:false}
+    poll-interval-ms: ${LEXVAY_RULE_SOURCES_POLL_INTERVAL_MS:300000}
 
 server:
   port: ${LEXVAY_PORT:8080}

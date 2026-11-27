@@ -49,7 +49,7 @@ class AssessmentApiTest extends AbstractAssessmentTest {
         var view = fx.assessment(t, assessmentId);
         assertThat(view.get("status").asString()).isEqualTo("FINISHED");
         assertThat(view.get("llmModel").asString()).isEqualTo("fake-llm");
-        assertThat(view.get("promptVersion").asString()).isEqualTo("match-v1");
+        assertThat(view.get("promptVersion").asString()).isEqualTo("match-v2");
         assertThat(view.get("jurisdictions")).hasSize(2);
         var ut = view.get("jurisdictions").get(1);
         assertThat(ut.get("jurisdiction").asString()).isEqualTo("UT");

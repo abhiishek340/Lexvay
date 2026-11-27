@@ -105,7 +105,7 @@ public class MappingRepository {
     }
 
     public List<Mapping> findByAssessmentAndJurisdiction(UUID assessmentId, String jurisdictionCode) {
-        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a AND j.code = :code" + CURRENT + " ORDER BY r.created_at, r.ref")
+        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a AND j.code = :code" + CURRENT + " ORDER BY r.ordinal")
                 .param("a", assessmentId).param("code", jurisdictionCode).query(ROW).list();
     }
 
@@ -170,7 +170,7 @@ public class MappingRepository {
     }
 
     public List<Mapping> findByAssessment(UUID assessmentId) {
-        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a" + CURRENT + " ORDER BY j.code, r.created_at, r.ref")
+        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a" + CURRENT + " ORDER BY j.code, r.ordinal")
                 .param("a", assessmentId).query(ROW).list();
     }
 }

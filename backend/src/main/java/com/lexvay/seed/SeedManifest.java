@@ -8,13 +8,15 @@ import java.util.List;
 public record SeedManifest(boolean fictional, List<Tenant> tenants) {
 
     public record Tenant(String name, boolean demo, List<User> users, Program program, List<Course> courses,
-                         List<Document> documents, List<Fact> facts, List<RuleVersion> ruleVersions, Changes changes) {
+                         List<Document> documents, List<Fact> facts, List<RuleVersion> ruleVersions,
+                         List<RuleSource> ruleSources, Changes changes) {
 
         /** A copy for one evaluation run: unique tenant name and user emails, and without the change-tracking demo. */
         public Tenant isolated(String suffix) {
             List<User> renamed = users.stream()
                     .map(u -> new User(u.email().replace("@", "." + suffix + "@"), u.displayName(), u.title(), u.role())).toList();
-            return new Tenant(name + " (evaluation " + suffix + ")", false, renamed, program, courses, documents, facts, ruleVersions, null);
+            return new Tenant(name + " (evaluation " + suffix + ")", false, renamed, program, courses, documents, facts, ruleVersions,
+                    null, null);
         }
     }
 
@@ -34,6 +36,10 @@ public record SeedManifest(boolean fictional, List<Tenant> tenants) {
     }
 
     public record RuleVersion(String jurisdiction, String label, String sourceUrl, LocalDate effectiveFrom, String text) {
+    }
+
+    /** A monitored rule source, registered inert: no check runs until a person asks for one or the scheduler is enabled. */
+    public record RuleSource(String jurisdiction, String label, String url, int checkIntervalHours) {
     }
 
     public record Changes(ChangeRuleVersion ruleVersion, ChangeCourseVersion courseVersion) {

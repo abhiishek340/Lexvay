@@ -1,4 +1,4 @@
-import { DANA, SCREENSHOTS, expect, nav, shoot, signIn, test } from './support';
+import { DANA, SCREENSHOTS, citedRequirement, expect, nav, openRequirement, shoot, signIn, test } from './support';
 
 /**
  * Screenshots of every screen in both themes for docs/screens. Not part of the regular suite:
@@ -20,6 +20,12 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await page.getByRole('tab', { name: 'TX', exact: true }).click();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^TX-/);
   await shoot(page, 'review');
+
+  // The document viewer: the cited page with the quote marked, on a requirement whose evidence is a syllabus.
+  const cited = await citedRequirement(page, 'UT');
+  await openRequirement(page, 'UT', cited.ref);
+  await expect(page.getByTestId('evidence-mark')).toBeInViewport();
+  await shoot(page, 'review-viewer');
 
   await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
   await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible();
@@ -48,4 +54,9 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await page.getByRole('tab', { name: 'TX', exact: true }).click();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^TX-/);
   await shoot(page, 'review-400px');
+
+  await openRequirement(page, 'UT', cited.ref);
+  await page.getByRole('button', { name: 'Show on page' }).click();
+  await expect(page.getByTestId('evidence-mark')).toBeFocused();
+  await shoot(page, 'review-viewer-400px');
 });

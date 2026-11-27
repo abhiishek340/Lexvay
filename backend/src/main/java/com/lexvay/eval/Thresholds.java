@@ -4,13 +4,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Shape of eval/thresholds.yml: one set of limits for the scripted model and one for a real model. Quote
- * verification has no entry on purpose: it must be 100 % (product rule 2) and is fixed in code.
+ * Shape of eval/thresholds.yml: one set of limits for the scripted model, one for a real model, and the retrieval
+ * limits, which do not depend on a model. Quote verification has no entry on purpose: it must be 100 % (product
+ * rule 2) and is fixed in code.
  */
-public record Thresholds(Limits fake, Limits live) {
+public record Thresholds(Limits fake, Limits live, Retrieval retrieval) {
 
     public record Limits(double maxFalseEvidenceFoundRate, double minRecall, double minNumericAccuracy,
                          double minExtractionAgreement, double minEvidenceAgreement) {
+    }
+
+    /** Floors for the BM25 ranker on the queries that are not lexical gaps. Beyond them it may not fall below the baseline ranker. */
+    public record Retrieval(double minRecallAtDeep, double minExcerptCoverage) {
     }
 
     public Limits forMode(EvalReport.Mode mode) {
@@ -30,6 +35,16 @@ public record Thresholds(Limits fake, Limits live) {
         require(out, "numeric accuracy", m.numericAccuracy(), limits.minNumericAccuracy());
         require(out, "requirement extraction agreement", m.extractionAgreement(), limits.minExtractionAgreement());
         require(out, "evidence agreement", m.evidenceAgreement(), limits.minEvidenceAgreement());
+        return out;
+    }
+
+    /** Every retrieval limit the BM25 ranker breaks, in plain language, including falling below the baseline. */
+    public static List<String> retrievalBreaches(Retrieval limits, RetrievalScorer.Metrics bm25, RetrievalScorer.Metrics baseline) {
+        List<String> out = new ArrayList<>();
+        require(out, "recall@" + RetrievalScorer.DEEP, bm25.recallAtDeep(), limits.minRecallAtDeep());
+        require(out, "recall@" + RetrievalScorer.DEEP + " against the baseline", bm25.recallAtDeep(), baseline.recallAtDeep().value());
+        require(out, "recall@" + RetrievalScorer.SHALLOW + " against the baseline", bm25.recallAtShallow(), baseline.recallAtShallow().value());
+        require(out, "excerpt coverage", bm25.excerptCoverage(), limits.minExcerptCoverage());
         return out;
     }
 

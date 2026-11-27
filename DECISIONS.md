@@ -391,7 +391,7 @@ End-to-end stacks are slot-based (`LEXVAY_E2E_SLOT`) so several checkouts can te
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–249, F7c D-250–259. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F13 if needed, V015 F7c. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–249, F7c D-250–259, F4 D-260–269, F8 D-270–279. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F13 if needed, V015 F7c. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -1286,3 +1286,132 @@ stage to extend; whoever adds one must install Tesseract (`apt-get install tesse
 `requireSafeDocx`. The OCR cap (`lexvay.ocr.max-pages`, 200) is not a parallel copy of that limit: it counts only the
 pages that need recognition, which is where the CPU cost is. F11 adds no endpoint, so `InputValidationTableTest`
 needs no new row (upload and document read are already covered).
+
+### F12 — Rule source monitoring (D-180 to D-189)
+
+**D-180 — One seam for the network, one for DNS; fakes are `@Primary` beans imported by the test base.** `HttpFetcher`
+(`Fetched fetch(URI)`: status, content type, bytes) is the only code that opens a connection for the monitoring job.
+`JdkHttpFetcher` is the production bean. `FakeHttpFetcher` (scripted by URL; a URL nobody scripted is a `FetchRejected`)
+and `FakeHostResolver` (IP literals resolve to themselves, three named test hosts resolve to a public, a private and the
+metadata address, anything else is unresolvable) are annotated `@Primary` and imported by `AbstractDatabaseTest`, so every
+database test uses them and none needs the network or DNS. No Mockito. Because the fetcher is shared by all tests of a
+JVM, each test uses URLs of its own (`AbstractRuleSourceTest.newUrl`). Rejected: `@MockitoBean` (the project uses scripted
+fakes, like `FakeLlmClient`); a per-test `@TestConfiguration` (would give every test class its own Spring context).
+
+**D-181 — `JdkHttpFetcher`.** `java.net.http.HttpClient`, connect timeout 10 s, and 30 s for the whole response, body included: the request timeout
+alone covers only the wait for the headers, so the call is `sendAsync` with a 30 s `get` deadline that cancels the request.
+Redirects are set to `NEVER` and followed by hand: at most 3, and the `UrlPolicy` runs before every hop, including the first. A
+fourth redirect is a `FetchRejected`. The 20 MB
+cap is a small `BodySubscriber` that cancels the download at the first byte over the cap (`BodyHandlers.limiting` does
+not exist in the JDK 21 this project targets); a server that streams forever costs 20 MB of memory at most. A status of 400
+or more is returned, not thrown, so the check can record it; connection failures, timeouts, the cap and a refused address are
+`FetchRejected`. The job's database transaction stays open while the fetch runs (the job runner wraps every handler), so a
+slow server holds one connection for up to about 40 seconds. That is acceptable at one check per source per interval and
+was kept rather than redesigning `JobRunner`. The real fetcher is tested against a `com.sun.net.httpserver` server on
+loopback with a permissive policy (the policy has its own tests), plus one test that the real policy refuses that server.
+
+**D-182 — SSRF guard.** `UrlPolicy.requireAllowed(URI)` (production: `SsrfGuard`, over a `HostResolver`) refuses any scheme
+but http and https, a missing host, a host that does not resolve, and a host with any resolved address that is: any-local
+(`0.0.0.0`, `::`), loopback, link-local (this covers `169.254.169.254`), site-local (RFC 1918), multicast, "this network"
+`0.0.0.0/8`, carrier-grade NAT `100.64.0.0/10`, IPv6 unique-local `fc00::/7`, or an IPv4-compatible IPv6 address whose
+embedded IPv4 address is any of those (IPv4-mapped addresses are already IPv4 for the JDK). It runs at registration (a 400
+problem detail, nothing stored) and on every hop at run time (a `FETCH_FAILED` check). A host that does not resolve is
+refused at registration so a typo is caught at once. **Known residual risk:** the policy resolves the name, then the JDK client
+resolves it again to connect, so a DNS record that changes between the two (DNS rebinding) is not caught. Closing it needs
+the connection to be made to the checked address, which `java.net.http` does not allow without a JVM-wide resolver SPI. Deployments
+should also deny egress to private ranges at the network level (infrastructure). Rejected: a blocklist of host names
+(`localhost`), which is bypassed by any alias; checking only at registration.
+
+**D-183 — HTML text, pagination and the content hash.** `FileType.HTML` exists for fetched content only: `FileType.detect`
+(uploads) never returns it, so an HTML upload is still refused; `FileType.detectFetched(contentType, bytes)` decides for
+fetched content (PDF and DOCX by leading bytes whatever the server says, HTML by `text/html` or a leading
+`<!doctype html`/`<html`, TXT by `text/plain` and valid UTF-8, anything else is refused). `HtmlText` (jsoup) removes
+`script, style, nav, header, footer`, makes every block element and `<br>` a line, collapses white space, drops blank lines,
+and groups lines into pages of at most 4 000 characters at line boundaries; a line longer than a page is cut at the last
+space that fits, or at 4 000 characters when it has none. The charset comes from the byte order mark or the meta tag (UTF-8
+otherwise). The hash is SHA-256 of `QuoteVerifier.normalizeWhitespace` over the pages joined by a newline (the same join as the
+offsets, D-041), using the existing `DocumentService.sha256`. Whitespace, markup, pagination and navigation changes leave it
+unchanged; one changed word changes it. Hashing the downloaded bytes was rejected: timestamps and tokens in a page would
+report a change at every check. **Disagreement with the spec text:** it says pagination works "exactly like the TXT path does
+today", but the TXT path makes one page (D-017). I implemented the stated rule (4 000 characters, paragraph boundaries) and
+left TXT alone; offsets, the newline join and the empty-document rule are shared with the TXT path.
+
+**D-184 — The check job.** `CHECK_RULE_SOURCE` payload `{ruleSourceId}`. Every check writes one `rule_source_check` row and an
+audit row `RULE_SOURCE_CHECKED` (system actor, job id in the detail), and sets `last_checked_at`.
+- *Failure is a check, not a failed job.* A status outside 2xx, a `FetchRejected`, an unsupported content type, an empty or
+  unparsable document each give `FETCH_FAILED` with the status (when there was one) and a message of at most 1 000
+  characters. The job ends DONE. `last_checked_at` moves on a failure too, so a broken source is retried after its interval
+  rather than at every scheduler poll (5 minutes), which would hammer the remote server and fill the table; a person can retry
+  at once with `POST /rule-sources/{id}/check`. `last_content_hash` never moves on a failure.
+- *UNCHANGED* when the hash equals `last_content_hash`. The first check has no hash, so it is always CHANGED.
+- *Which version is superseded.* `RuleVersionRepository.findCurrentApproved`: approved for the jurisdiction and license type
+  and not itself superseded by an approved version (latest `effective_from` first); none means the draft supersedes nothing
+  and no change event is created. `findDraft` finds an unapproved version that supersedes that one (or, when there is none,
+  one that supersedes nothing). A draft means `DRAFT_EXISTS` (the detail names it) and nothing is stored.
+- *The baseline does not move on `DRAFT_EXISTS`.* The new text is not forgotten: once the waiting draft is approved the
+  next check sees the difference and drafts it. The cost is one extra draft whose text may equal the just approved one when
+  nothing changed again after the approval; it is unapproved and shows an empty diff. Moving the baseline instead would lose a
+  rule change that arrived while a draft waited, which is the worse error for this product.
+- *CHANGED.* The bytes are stored as a `RULE_TEXT` document with its pages (`DocumentService.storeRuleText`, extracted pages
+  passed in so a large PDF is parsed once), then `RuleVersionService.createFromDocument` creates the version: label
+  `<source label> fetched <yyyy-mm-dd>` (UTC date), `sourceUrl` the source URL, `effectiveFrom` the check date, `supersedesId` as
+  above. Same validation, audit (`RULE_VERSION_CREATED`), change event, reopening of signed determinations and
+  `EXTRACT_REQUIREMENTS` job as `POST /rule-versions`. Nothing approves anything.
+- *Same bytes seen before.* Content this tenant already holds (a page that returned to an earlier text) is a
+  `DuplicateDocumentException`; the handler reuses that document instead of failing. `storeRuleText` is deliberately not
+  `@Transactional`, because an exception passing a transactional proxy would mark the job's transaction rollback-only.
+- *System actor.* `CurrentUser.idOrNull()` replaces three copies of `CurrentUser.get().map(...).orElse(null)` and is used where a
+  job now runs code written for a signed-in user: `RuleVersionService`, `DocumentService.storeRuleText`,
+  `ChangeService.onRuleVersionSuperseded`. Their rows get `created_by` null, like other job-created rows.
+- *Audit of the stored document.* A rule text stored through `POST /rule-versions` has no `DOCUMENT_UPLOADED` row (D-044); the
+  fetched one is identical: the document id is in `RULE_VERSION_CREATED` and `RULE_SOURCE_CHECKED`.
+`RuleVersionService.create` now delegates to the same private insert as `createFromDocument`; behaviour and error order of the
+existing endpoint are unchanged.
+
+**D-185 — Scheduler and the worker flag.** `RuleSourceScheduler` (`@ConditionalOnProperty lexvay.rule-sources.enabled=true`,
+no `matchIfMissing`, so off by default; `LEXVAY_RULE_SOURCES_ENABLED`, `LEXVAY_RULE_SOURCES_POLL_INTERVAL_MS`, default 300 000)
+calls `RuleSourceRepository.enqueueDue()`: in one transaction it sets the transaction-local `lexvay.worker` flag and runs one
+`INSERT ... SELECT` for active sources that were never checked or whose `last_checked_at` is older than
+`check_interval_hours`, skipping any with a `CHECK_RULE_SOURCE` job QUEUED or RUNNING. The manual path uses the same
+statement with a different predicate (`rs.id = :id`, whether or not active or due), so "already queued or running" means the same
+thing in both and the 409 comes from the insert returning no row. Cross-tenant queueing needs two policies the spec did not list;
+V011 adds them: `worker_due_select` on `rule_source` (SELECT when the flag is on) and `worker_enqueue_insert` on `job` (INSERT
+when the flag is on), next to the poller's existing job policies (D-013). Nothing else honours the flag; a tenant session
+cannot set it (`Rule7_RuleSourceIsolationTest`). The scheduler class lives in `com.lexvay.rule.source`, not beside `JobPoller`
+in `com.lexvay.job`: it needs `RuleSourceRepository`, and `rule.source` already depends on `job` (the handler), so the other
+placement would create a package cycle. It carries its own `@EnableScheduling` because `JobPoller` is itself conditional.
+Two instances of the service may both run it; the dedupe predicate keeps it to one job per source in the common case (a rare
+duplicate is harmless: the second check is UNCHANGED).
+
+**D-186 — API, roles, seed.** `POST /rule-sources` (ADMIN, REVIEWER; 201 `{id, jobId}`), `GET /rule-sources` (one statement
+with a lateral join to the latest check), `GET /rule-sources/{id}/checks?limit=` (default 50, 1 to 200; 404 for an unknown
+source, still one statement, by left-joining the checks to the source), `POST /rule-sources/{id}/check` (ADMIN, REVIEWER; 202
+`{jobId}`; 409 when queued or running), `PUT /rule-sources/{id}/active` (ADMIN; 200 `{id, active}`). Audit actions:
+`RULE_SOURCE_CREATED`, `RULE_SOURCE_CHECK_REQUESTED`, `RULE_SOURCE_ACTIVE_CHANGED`, `RULE_SOURCE_CHECKED` (by the job). A
+manual check works on a deactivated source: deactivating stops the schedule, not a person's explicit request. Registration
+validates the address with the policy; `RuleSourceService.register` (no address resolution, no first check) exists for the
+seed only, because the seed address `example.invalid` cannot resolve and the demo must stay offline. The seed registers one
+source for the one demo tenant (Northfield, Colorado) and none for the isolation fixture tenant (Westbrook has no rule
+versions); `SeedManifest.Tenant` gets `ruleSources`, which the evaluation copy leaves out. Nothing queues a job, so the source stays
+inert until a person asks or the scheduler is switched on.
+
+**D-187 — Schema (V011).** As specified, with these additions: CHECK constraints on lengths, on `url` (`^https?://[^[:space:]]+$`,
+at most 2 000 characters), on the hash format, on `http_status` (100 to 599), and two on `rule_source_check` so that only a
+CHANGED check carries a document and a rule version and a CHANGED check carries both; `rule_source` has no DELETE (trigger,
+`forbid_change`) because checks reference it. The label is limited to 150 characters so that the draft's label (plus
+" fetched yyyy-mm-dd") stays under the 200 of a rule version. `rule_source_check` has no `created_by`: the job writes it and the
+audit row names the job. Rejected: a unique constraint on (tenant, URL), which the spec does not ask for and which would turn
+a harmless duplicate into a 409.
+
+**D-188 — Tests.** `SsrfGuardTest` (every range and edge, no DNS), `JdkHttpFetcherTest` (loopback server: body, status,
+redirects and their limit, per-hop policy, the 20 MB cap exactly, unreachable server), `HtmlTextTest`, `FileTypeTest`,
+`CheckRuleSourceTest` (CHANGED, system audit, extraction without approval, first check, UNCHANGED, markup-only change,
+DRAFT_EXISTS and its pickup after approval, document reuse, PDF, seven kinds of FETCH_FAILED with the job DONE, baseline kept
+after a failure), `RuleSourceApiTest`, `RuleSourceEnqueueTest`, `RuleSourceSchedulerLoopTest` (scheduler enabled, its own
+context, closed afterwards so no later test class has a scheduler running), `Rule7_RuleSourceIsolationTest`,
+`Rule5_RuleSourceImmutabilityTest`, rows in `InputValidationTableTest` and `Rule9_AuditCoverageTest`, the seed assertion in
+`SeedLoaderTest`.
+
+**D-189 — Open points for the orchestrator.** (1) Pagination wording in the spec (D-183). (2) The scheduler's package (D-185).
+(3) A failed check delays the retry by a full interval (D-184); say so if a shorter retry is wanted, it is a one-line change in
+the due predicate plus a column. (4) DNS rebinding (D-182). (5) A frontend screen for sources is not part of this item.

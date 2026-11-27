@@ -1,11 +1,14 @@
 package com.lexvay.perf;
 
+import static com.lexvay.common.TestCsrf.csrf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import com.lexvay.assessment.AbstractAssessmentTest;
+import com.lexvay.assessment.AssessmentFixtures;
 import com.lexvay.common.CountingDataSource;
 import com.lexvay.review.ReviewFixtures;
+import com.lexvay.rule.source.FakeHostResolver;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -13,6 +16,7 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -48,11 +52,19 @@ class ReadPathConnectionsTest extends AbstractAssessmentTest {
         endpoints.put("search", program + "/search?q=ethics");
         endpoints.put("document", "/api/v1/documents/" + document);
         endpoints.put("document page", "/api/v1/documents/" + document + "/pages/1");
+        endpoints.put("document file", "/api/v1/documents/" + document + "/file");
         endpoints.put("rule versions", "/api/v1/rule-versions");
         endpoints.put("rule version diff", "/api/v1/rule-versions/" + s.ruleVersionId() + "/diff?against=" + s.ruleVersionId());
         endpoints.put("requirements", "/api/v1/rule-versions/" + s.ruleVersionId() + "/requirements");
         endpoints.put("change events", "/api/v1/change-events");
         endpoints.put("audit", "/api/v1/audit");
+        var source = mvc.post().uri("/api/v1/rule-sources").with(user(t.admin())).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("jurisdictionCode", "CA", "licenseType", AssessmentFixtures.LICENSE,
+                        "label", "Demo rule source", "url", "https://" + FakeHostResolver.PUBLIC_HOST + "/rules.pdf", "checkIntervalHours", 24)))
+                .exchange();
+        assertThat(source).hasStatus(201);
+        endpoints.put("rule sources", "/api/v1/rule-sources");
+        endpoints.put("rule source checks", "/api/v1/rule-sources/" + fx.read(source).get("id").asString() + "/checks");
 
         CountingDataSource counter = (CountingDataSource) dataSource;
         Map<String, Long> used = new LinkedHashMap<>();

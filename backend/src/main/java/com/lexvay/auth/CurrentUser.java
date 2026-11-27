@@ -1,6 +1,7 @@
 package com.lexvay.auth;
 
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 public final class CurrentUser {
@@ -14,6 +15,11 @@ public final class CurrentUser {
             return Optional.of(user);
         }
         return Optional.empty();
+    }
+
+    /** The signed-in user's id, or null for work done by the system (a job, the scheduler). */
+    public static UUID idOrNull() {
+        return get().map(LexvayUser::id).orElse(null);
     }
 
     public static LexvayUser require() {
