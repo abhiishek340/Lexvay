@@ -15,6 +15,9 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     /** SQLSTATE raised by the immutability triggers (V003). */
     static final String IMMUTABLE_SQLSTATE = "LX001";
 
+    /** SQLSTATE class 22 (data exception): a value the database cannot store, such as a NUL character. */
+    private static final String DATA_EXCEPTION_CLASS = "22";
+
     @ExceptionHandler(NotFoundException.class)
     ProblemDetail notFound(NotFoundException e) {
         return problem(HttpStatus.NOT_FOUND, e.getMessage());
@@ -43,6 +46,9 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     ProblemDetail dataAccess(DataAccessException e) {
         if (e.getCause() instanceof SQLException sql && IMMUTABLE_SQLSTATE.equals(sql.getSQLState())) {
             return problem(HttpStatus.CONFLICT, sql.getMessage().lines().findFirst().orElse("Record is immutable"));
+        }
+        if (e.getCause() instanceof SQLException sql && sql.getSQLState() != null && sql.getSQLState().startsWith(DATA_EXCEPTION_CLASS)) {
+            return problem(HttpStatus.BAD_REQUEST, "The request contains a value that cannot be stored");
         }
         if (e instanceof org.springframework.dao.DataIntegrityViolationException) {
             return problem(HttpStatus.CONFLICT, "The request conflicts with existing data");

@@ -74,7 +74,11 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 | `LEXVAY_LLM_PROVIDER`, `LEXVAY_LLM_MODEL`, `LEXVAY_LLM_EFFORT`, `ANTHROPIC_API_KEY` | Model (D-033). `fake` is for demos only | `fake` |
 | `LEXVAY_LLM_PRICE_INPUT_PER_MTOK`, `LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK` | USD per million tokens, for the cost estimate; 0 means not set | 0 |
 | `LEXVAY_FILESTORE`, `LEXVAY_FILESTORE_PATH`, `LEXVAY_S3_BUCKET` | Where documents are stored | image: `/var/lexvay/files` |
-| `SPRING_PROFILES_ACTIVE` | The image sets `prod` (structured logs) | `prod` |
+| `SPRING_PROFILES_ACTIVE` (compose: `LEXVAY_PROFILES`) | The image sets `prod` (structured logs); use `prod,oidc` for single sign-on, because setting only `oidc` drops the production log format | `prod` |
+| `LEXVAY_OIDC_ISSUER_URI`, `LEXVAY_OIDC_CLIENT_ID`, `LEXVAY_OIDC_CLIENT_SECRET`, `LEXVAY_OIDC_POST_LOGIN_URL` | Single sign-on (WS-SEC, D-090) | empty |
+| `LEXVAY_COOKIE_SECURE` | `true` when users reach the service over HTTPS | false |
+| `LEXVAY_FORWARD_HEADERS` | `native` behind a reverse proxy or load balancer, so client address and scheme come from the proxy headers; leave `none` when the container is reached directly | none |
+| `LEXVAY_RATELIMIT_LOGIN_PER_MINUTE`, `LEXVAY_RATELIMIT_API_PER_MINUTE`, `LEXVAY_RATELIMIT_UPLOAD_PER_MINUTE`, `LEXVAY_UPLOAD_MAX_MB` | Rate limits and upload size (WS-SEC) | 10, 600, 30, 25 |
 
 The JVM options are in `JAVA_OPTS` (default `-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -XX:-UsePerfData
 -Djava.io.tmpdir=/var/lexvay/tmp`); override the variable to change them.

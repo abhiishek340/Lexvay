@@ -37,3 +37,16 @@ Every seed rule set is labeled "Demo rule set" and every seed document carries
   page 1 contains "Fictional. Prototype data.", every rule text says it is not the law of any state).
   Enforced since M6.
 - E2E assertion: the banner is visible after sign-in (`.banner` contains "Fictional data"). Enforced since M6.
+
+## Security hardening (WS-SEC, decisions D-090 to D-099)
+
+Not product rules, but each has a test that fails when it breaks. Details in `docs/decisions/WS-SEC.md`.
+
+| Control | Enforcement | Tests |
+|---|---|---|
+| Single sign-on, roles from the Lexvay database, 403 without an account or with an unverified email | Profile `oidc`: `OidcLogin`, `LexvayOidcUserService` | `OidcLoginTest`, `AuthTest.singleSignOnIsOffUnlessProfileOidcIsActive` |
+| Rate limits: login 10/min per address, API 600/min and uploads 30/min per user, 429 with `Retry-After`, bounded bucket cache | `RateLimitFilter`, `lexvay.ratelimit.*` | `RateLimitFilterTest`, `RateLimitApiTest`, `ForwardedHeadersTest` |
+| Security headers on every response, HSTS on secure requests; session cookie HttpOnly, SameSite=Lax, Secure by configuration | `SecurityHeadersFilter`, `application.yml` | `SecurityHeadersTest`, `SessionSecurityTest`, `SecureCookieTest` |
+| Upload size (413), file type, DOCX zip bomb, PDF page cap, file name | Multipart limit, `FileType`, `ContentLimits`, `DocumentService` | `UploadSizeLimitTest`, `DocumentUploadTest`, `ContentLimitsTest` |
+| Malformed input is a 4xx problem detail, never a 500, on every endpoint | Bean validation, `ApiExceptionHandler` | `InputValidationTableTest` (fails when an endpoint has no row) |
+| The session id changes at login (form and OIDC), login CSRF stays on | `SecurityConfig` | `SessionSecurityTest`, `OidcLoginTest`, `AuthTest` |

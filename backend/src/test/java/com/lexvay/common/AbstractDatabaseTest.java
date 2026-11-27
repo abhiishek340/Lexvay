@@ -6,6 +6,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.MountableFile;
 
@@ -15,7 +16,14 @@ import org.testcontainers.utility.MountableFile;
  * must outlive any single class. Testcontainers' Ryuk sidecar removes it when the JVM exits. The same
  * role script as docker compose runs inside the container, so tests connect as the application role
  * that cannot bypass row-level security, and Flyway runs as the owner.
+ *
+ * <p>Rate limits are set so high that no test trips them by accident; a test about the limiter overrides
+ * them with its own {@code @TestPropertySource}.
  */
+@TestPropertySource(properties = {
+        "lexvay.ratelimit.login-per-minute=100000",
+        "lexvay.ratelimit.api-per-minute=100000",
+        "lexvay.ratelimit.upload-per-minute=100000"})
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @Import({TestTenants.class, SchemaFixtures.class})

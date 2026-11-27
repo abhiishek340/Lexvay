@@ -24,6 +24,7 @@
     <awssdk.version>2.59.10</awssdk.version>
     <anthropic.version>3.14.0</anthropic.version>
     <json-schema-validator.version>3.0.9</json-schema-validator.version>
+    <bucket4j.version>8.22.0</bucket4j.version>
     <java-diff-utils.version>4.18</java-diff-utils.version>
   </properties>
 
@@ -51,6 +52,10 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security-oauth2-client</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -100,6 +105,15 @@
       <groupId>com.networknt</groupId>
       <artifactId>json-schema-validator</artifactId>
       <version>${json-schema-validator.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.bucket4j</groupId>
+      <artifactId>bucket4j_jdk17-core</artifactId>
+      <version>${bucket4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
     </dependency>
     <dependency>
       <groupId>io.github.java-diff-utils</groupId>
