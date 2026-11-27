@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.CountingDataSource;
 import com.lexvay.common.TestHttpClient;
+import com.lexvay.llm.LlmClient;
+import com.lexvay.seed.ScriptedFakeModel;
 import com.lexvay.seed.SeedLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -56,12 +58,14 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
 
     @LocalServerPort int port;
     @Autowired SeedLoader loader;
+    @Autowired LlmClient llm;
     @Autowired DataSource dataSource;
     @Autowired ObjectMapper json;
 
     @Test
     void everyReadEndpointMeetsTheP95Budget() throws Exception {
-        List<SeedLoader.Result> seeded = loader.load(SEED_DIR, PASSWORD);
+        ScriptedFakeModel model = ScriptedFakeModel.load(SEED_DIR, llm, json);
+        List<SeedLoader.Result> seeded = loader.load(SEED_DIR, PASSWORD, model);
         SeedLoader.Result northfield = seeded.get(0);
         TestHttpClient api = new TestHttpClient(port);
         api.login(SIGNER_EMAIL, PASSWORD);
@@ -69,7 +73,7 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
         fixture.decideAndSignCurrentJurisdictions();
 
         List<Result> seedOnly = measureAll(api, fixture);
-        PerfSeed.loadCopies(loader, SEED_DIR, PASSWORD, EXTRA_TENANTS);
+        PerfSeed.loadCopies(loader, SEED_DIR, PASSWORD, model, EXTRA_TENANTS);
         analyze();
         List<Result> scaled = measureAll(api, fixture);
 
@@ -125,6 +129,10 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
                 new Scenario("GET /programs/{id}/assessments", program + "/assessments"),
                 new Scenario("GET /documents/{id}/pages/1", "/api/v1/documents/" + f.documentId + "/pages/1"),
                 new Scenario("GET /mappings/{id}/reviews", "/api/v1/mappings/" + f.reviewedMappingId + "/reviews"),
+                new Scenario("GET /mappings/{id}/evidence-responses", "/api/v1/mappings/" + f.reviewedMappingId + "/evidence-responses"),
+                new Scenario("GET /programs/{id}/evidence-requests?status=ALL", program + "/evidence-requests?status=ALL"),
+                new Scenario("GET /programs/{id}/search?q=ethics", program + "/search?q=ethics"),
+                new Scenario("GET /rule-versions/{id}/diff", "/api/v1/rule-versions/" + f.supersedingRuleVersionId + "/diff"),
                 new Scenario("Program screen today: program + determinations + change-events (3 requests)",
                         List.of(program, program + "/determinations", "/api/v1/change-events")));
     }
@@ -185,6 +193,7 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
         UUID documentId;
         UUID ruleVersionId;
         UUID reviewedMappingId;
+        UUID supersedingRuleVersionId;
 
         Fixture(TestHttpClient api, ObjectMapper json, UUID programId, UUID assessmentId) {
             this.api = api;
@@ -214,8 +223,14 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
                 if (anyStale) {
                     continue;
                 }
+                boolean first = true;
                 for (JsonNode mapping : mappings) {
                     reviewedMappingId = UUID.fromString(mapping.get("id").asString());
+                    if (first) {
+                        ok(api.postJson("/api/v1/mappings/" + reviewedMappingId + "/reviews",
+                                "{\"kind\":\"EVIDENCE_REQUESTED\",\"note\":\"Benchmark fixture request.\"}"));
+                        first = false;
+                    }
                     boolean found = mapping.get("finding").asString().equals("EVIDENCE_FOUND");
                     ok(api.postJson("/api/v1/mappings/" + mapping.get("id").asString() + "/reviews", found
                             ? "{\"kind\":\"ACCEPTED\"}"
@@ -226,6 +241,12 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
                 signed++;
             }
             assertThat(signed).as("jurisdictions the fixture could sign").isGreaterThanOrEqualTo(1);
+            for (JsonNode version : read(api.get("/api/v1/rule-versions"))) {
+                if (!version.get("supersedesId").isNull()) {
+                    supersedingRuleVersionId = UUID.fromString(version.get("id").asString());
+                }
+            }
+            assertThat(supersedingRuleVersionId).as("a rule version that supersedes another").isNotNull();
         }
 
         private JsonNode read(TestHttpClient.Reply reply) {

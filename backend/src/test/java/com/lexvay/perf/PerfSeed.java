@@ -1,5 +1,6 @@
 package com.lexvay.perf;
 
+import com.lexvay.seed.ModelStrategy;
 import com.lexvay.seed.SeedLoader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -21,7 +22,7 @@ final class PerfSeed {
     }
 
     /** Loads {@code copies} renamed copies of the seed through the real services (about a second each). */
-    static void loadCopies(SeedLoader loader, Path seedDir, String password, int copies) {
+    static void loadCopies(SeedLoader loader, Path seedDir, String password, ModelStrategy model, int copies) {
         Path work = createTempDir();
         try {
             String manifest = Files.readString(seedDir.resolve("manifest.yml"), StandardCharsets.UTF_8);
@@ -39,7 +40,7 @@ final class PerfSeed {
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
-                loader.load(work, password);
+                loader.load(work, password, model);
             });
         } catch (IOException e) {
             throw new UncheckedIOException(e);

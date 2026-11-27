@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
+import com.lexvay.llm.LlmClient;
+import com.lexvay.seed.ScriptedFakeModel;
 import com.lexvay.seed.SeedLoader;
 import com.lexvay.tenant.AppUserRepository;
 import java.nio.file.Files;
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Proves with {@code EXPLAIN}, as the application role under row-level security, that the planner chooses
@@ -49,13 +52,16 @@ class IndexUsageTest extends AbstractDatabaseTest {
             "CREATE INDEX rejected_job_rule_version_id_idx ON job ((payload->>'ruleVersionId'))");
 
     @Autowired SeedLoader loader;
+    @Autowired LlmClient llm;
+    @Autowired ObjectMapper json;
     @Autowired AppUserRepository users;
     @Autowired JdbcClient jdbc;
 
     @Test
     void thePlannerChoosesEveryKeptIndexAndIgnoresTheRejectedOnes() throws Exception {
-        loader.load(SEED_DIR, PASSWORD);
-        PerfSeed.loadCopies(loader, SEED_DIR, PASSWORD, COPIES);
+        ScriptedFakeModel model = ScriptedFakeModel.load(SEED_DIR, llm, json);
+        loader.load(SEED_DIR, PASSWORD, model);
+        PerfSeed.loadCopies(loader, SEED_DIR, PASSWORD, model, COPIES);
         try (Connection admin = DriverManager.getConnection(jdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
              Statement statement = admin.createStatement()) {
             PerfSeed.addHistoryVolume(statement);
