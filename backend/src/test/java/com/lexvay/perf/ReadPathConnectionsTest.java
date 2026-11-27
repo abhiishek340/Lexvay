@@ -53,6 +53,8 @@ class ReadPathConnectionsTest extends AbstractAssessmentTest {
         endpoints.put("requirements", "/api/v1/rule-versions/" + s.ruleVersionId() + "/requirements");
         endpoints.put("change events", "/api/v1/change-events");
         endpoints.put("audit", "/api/v1/audit");
+        endpoints.put("work queue", "/api/v1/work-queue");
+        endpoints.put("work queue count", "/api/v1/work-queue/count");
 
         CountingDataSource counter = (CountingDataSource) dataSource;
         Map<String, Long> used = new LinkedHashMap<>();

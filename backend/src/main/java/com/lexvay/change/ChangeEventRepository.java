@@ -11,6 +11,16 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ChangeEventRepository {
 
+    /**
+     * Change event {@code ce} touches program {@code p}: a new version of one of its courses ({@code c}), or a
+     * new rule version ({@code rn}) for one of its target jurisdictions and its license type.
+     */
+    public static final String AFFECTS_PROGRAM = """
+            ((ce.kind = 'COURSE_VERSION' AND c.program_id = p.id)
+             OR (ce.kind = 'RULE_VERSION' AND rn.license_type = p.license_type
+                 AND rn.jurisdiction_id IN (SELECT pj.jurisdiction_id FROM program_jurisdiction pj WHERE pj.program_id = p.id)))
+            """;
+
     private static final RowMapper<ChangeEvent> ROW = (rs, i) -> new ChangeEvent(rs.getObject("id", UUID.class),
             ChangeKind.valueOf(rs.getString("kind")), rs.getObject("old_id", UUID.class), rs.getObject("new_id", UUID.class),
             ChangeStatus.valueOf(rs.getString("status")), rs.getObject("created_at", java.time.OffsetDateTime.class),
@@ -54,18 +64,10 @@ public class ChangeEventRepository {
         return views("WHERE ce.id = :id", Map.of("id", id)).stream().findFirst();
     }
 
-    /**
-     * Open events that touch the program: a new version of one of its courses, or a new rule version for one
-     * of its target jurisdictions and its license type.
-     */
+    /** Open events that touch the program ({@link #AFFECTS_PROGRAM}). */
     public List<ChangeEventView> findOpenViewsForProgram(UUID programId) {
-        return views("""
-                WHERE ce.status = 'OPEN' AND (
-                    (ce.kind = 'COURSE_VERSION' AND c.program_id = :programId)
-                    OR (ce.kind = 'RULE_VERSION'
-                        AND rn.license_type = (SELECT p.license_type FROM program p WHERE p.id = :programId)
-                        AND rn.jurisdiction_id IN (SELECT pj.jurisdiction_id FROM program_jurisdiction pj WHERE pj.program_id = :programId)))
-                """, Map.of("programId", programId));
+        return views("WHERE ce.status = 'OPEN' AND EXISTS (SELECT 1 FROM program p WHERE p.id = :programId AND "
+                + AFFECTS_PROGRAM + ")", Map.of("programId", programId));
     }
 
     /** One statement for any number of events: what each affects is joined in, not looked up per event. */

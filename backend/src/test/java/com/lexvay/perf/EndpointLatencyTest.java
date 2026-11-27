@@ -133,6 +133,8 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
                 new Scenario("GET /programs/{id}/evidence-requests?status=ALL", program + "/evidence-requests?status=ALL"),
                 new Scenario("GET /programs/{id}/search?q=ethics", program + "/search?q=ethics"),
                 new Scenario("GET /rule-versions/{id}/diff", "/api/v1/rule-versions/" + f.supersedingRuleVersionId + "/diff"),
+                new Scenario("GET /work-queue", "/api/v1/work-queue"),
+                new Scenario("GET /work-queue/count", "/api/v1/work-queue/count"),
                 new Scenario("Program screen today: program + determinations + change-events (3 requests)",
                         List.of(program, program + "/determinations", "/api/v1/change-events")));
     }
