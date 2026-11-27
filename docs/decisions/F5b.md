@@ -22,7 +22,7 @@ own row (the reset of one's own password is legitimate, D-375).
 **D-427 — Add person and the one-time link live in one dialog, which alone holds the code.** `PersonDialog` has two
 phases: the form (name, email, role; the role Select defaults to Contributor, the least a person can do, with an InfoTip
 "About roles" giving one line per role as the server's permissions stand) and the link view. On 201 the dialog turns into
-the link view: the person, the whole link `<origin>/setup?code=…` in mono with "Copy link" (focus moves there), "Valid for
+the link view: the person, the whole link `<origin>/setup#code=…` (D-435) in mono with "Copy link" (focus moves there), "Valid for
 72 hours, until 30 Nov 15:04" (`expiryText`, local time, hours rounded) and "Shown once. Copy it now and hand it over
 yourself." "New setup code" opens the same view for an existing person, issuing the code from the dialog and adding
 "Earlier links stop working." (D-372). The code exists only in the dialog's private `setup` signal: People's list
@@ -36,8 +36,8 @@ email field the server already validates, checked again only for shape and prese
 wordmark, and the form vocabulary (`lx-auth-field`, labels, heading), with encapsulation off because that content is
 projected; sign-in projects its map story with `lxAuthStory` and `[story]="true"`, setup shows the form alone. Sign-in
 looks as before. `/setup` is anonymous (no guard) and stands alone like sign-in (`beforeSignIn` in `core/navigation.ts`,
-used by the shell's top bar and by the access handling of D-430). The component reads `code` from the route snapshot into
-a private field and calls `history.replaceState(history.state, '', '/setup')` in its constructor: the router has already
+used by the shell's top bar and by the access handling of D-430). The component reads `code` from the fragment
+(`location.hash`, D-435) into a private field and calls `history.replaceState(history.state, '', '/setup')` in its constructor: the router has already
 written the URL by then (it does so before activating the route), so the code is gone from the address bar and from
 history before the first paint. Without a code (a reload after that) the page says "This setup code is not valid." with
 "Ask your administrator for a new link." and "Go to sign in". The POST needs the CSRF cookie, so the session is loaded
@@ -97,7 +97,24 @@ Avatar set from `audit-theme.ts` to `theme/avatar-tokens.ts` (D-426, values unch
 `login.css` to `styles.css` for the frame and the sign-in headline; `navLinks` takes the role (D-426); `beforeSignIn`
 replaces the shell's `/login` test; `SessionService` gains `notice`, `end` and the 401 retry (D-430); `ApiService` gains
 `accounts`, `createUser`, `issueSetupCode`, `changeRole`, `setActive` and `setPassword`; `models.ts` gains `Account`,
-`UserSetup` and `NewUser`. No backend change: the F5a actions already have audit sentences (UI2-3, D-341).
+`UserSetup` and `NewUser`. No backend change: the F5a actions already have audit sentences (UI2-3, D-341), and the
+backend neither builds nor documents the setup link (it returns the code alone; `docs/OPERATIONS.md` does not mention the
+link). Review round 1 added: `register.html` takes `class="lx-table"` instead of `styleClass`, which `p-table` does not
+have in PrimeNG 22, so the register's narrow-screen table rules (UI2-1) finally apply; `e2e/support.ts` gains `goTo`,
+used where an administrator opens a screen that may sit under "More" at 400 px (`records.spec.ts`, `screens.spec.ts`).
+
+**Bottom tab bar overflow (review round 1).** With F10b's Coverage and People, an administrator has ten screens, and the
+bottom tab bar (under 640 px, 40 px a tab, 4 px padding each side) scrolled sideways at 400 px. Each `NavLink` now has a
+`priority` (how much the screen is used: overview 90, review 85, coverage 80, requests 75, changes 70, register 60, rules
+40, report 30, People 20, audit trail 10). `tabSlots(width)` counts the tabs that fit and `tabBarOverflow(links, slots)`
+(pure, tested) returns the screens that go into a final "More" tab: none when all fit, otherwise all but the `slots - 1`
+of highest priority, kept in rail order. At 400 px an administrator's People and Audit trail move; every other role still
+fits nine. A new screen (UI2-4's Program setup) needs only its priority. The "More" tab is a button (`aria-haspopup`
+menu, `aria-expanded`, the accent underline and "More screens, <screen> open" when the current route is one of its
+screens) opening a PrimeNG Menu in a deferred chunk (`shell/more-menu.ts`), so arrow keys, Enter and Escape work and
+focus returns to the tab. Hidden screens stay in the DOM (`display: none` under 640 px only), so the rail above 640 px
+is unchanged. Rejected: a horizontally scrolling bar (the screens off the edge are invisible and their count unknown);
+dropping labels further below 40 px (targets under 40 px).
 
 **D-434 — What the tests prove.** Vitest: `screens/setup/password-rules.spec.ts` (limits in code points with four-byte
 characters, the email shape, the match, every strength step, the distinct-character cap, case in other alphabets),
@@ -106,7 +123,7 @@ count, upsert order, the own-row menu, the link, the expiry sentence, the form c
 with the real interceptor: sign-out, context cleared, sign-in route, the error still thrown; a wrong-password 401 left
 alone; no navigation from setup; a 401 session call read as signed out; the notice cleared by a sign-in),
 `core/busy.spec.ts` (header parsing, bounds, the countdown and its stop), `core/navigation.spec.ts` (People for
-administrators only, `beforeSignIn`), `commands.spec.ts` and `icons.spec.ts` (two new units). End-to-end
+administrators only, `beforeSignIn`, the tab slots, which screens overflow into More and a new screen placed by priority), `commands.spec.ts` and `icons.spec.ts` (two new units). End-to-end
 (`e2e/people.spec.ts`): the administrator adds a contributor, copies the link (clipboard read back) and the code is in no
 browser storage; signs out; the link leaves the address bar; the password is set and the toast shown; the new person
 signs in and has no People; the used link is refused with the invalid-code view. A second context signs in as another new
@@ -120,11 +137,13 @@ requests produces them on demand: the 409 inside the role confirmation (the last
 through a stale session or two administrators at once, D-376) and the 503 of the hashing gate (SEC-2's own tests hold
 the permits in the backend). Both carry the server's exact problem detail and header.
 
-**D-435 — Bundle, and one disagreement.** Initial bundle in `docs/progress/F5b.md` (the interceptor, `beforeSignIn` and
-the People rail icon are the only initial additions; People and setup are lazy chunks). Disagreement with point 4: the
-setup link carries the code in the query string (`/setup?code=…`), as specified, and the page removes it at once, but
-the request for the page has already gone to the server with it, so any access log in front of the application (a load
-balancer or CDN log, if one is ever enabled; none is in `infra/` today, and the application's `ApiAccessLog` logs only
-`/api` paths and never a query string) would record live codes. A fragment (`/setup#code=…`) is never sent to any server and would close that gap with the same page logic. It
-changes the link format the roadmap names, so it is the orchestrator's call; recorded in `docs/progress/F5b.md` as a
-follow-up.
+**D-435 — The setup code travels in the fragment; bundle.** The link is `<origin>/setup#code=…` (orchestrator's decision
+in review round 1, replacing point 4's `?code=`). A query string goes to the server with the page request, so any access
+log in front of the application (a load balancer or CDN log, if one is ever enabled; none is in `infra/` today, and the
+application's `ApiAccessLog` logs only `/api` paths and never a query string) would record live codes. A fragment is never
+sent to any server: the page reads it from `location.hash`, removes it with `history.replaceState` in its constructor, and
+the code leaves the browser only in the body of `POST /auth/setup`. One form only: nothing was deployed, so no `?code=`
+link was ever handed over and the page does not read one. The end-to-end test records every request the browser sends
+while the person opens the link and sets the password and requires that none of their URLs (fragment removed, as on the
+wire) carries `code=` or the code. Initial bundle in `docs/progress/F5b.md` (the interceptor, `beforeSignIn`, the rail's
+People and More icons and the More tab are the only initial additions; People, setup and the More menu are lazy chunks).
