@@ -13,6 +13,12 @@ public class AssessmentRepository {
 
     private static final String COLUMNS = "id, program_id, status, started_at, finished_at, llm_model, prompt_version, created_at, created_by";
 
+    /**
+     * The tail of "the program's latest finished assessment" over {@code assessment a}: the newest finish, then the
+     * newest creation. The caller adds {@code WHERE a.program_id = ...} (the status test is included here).
+     */
+    public static final String LATEST_FINISHED = "a.status = 'FINISHED' ORDER BY a.finished_at DESC, a.created_at DESC LIMIT 1";
+
     private static final RowMapper<Assessment> ROW = (rs, i) -> new Assessment(
             rs.getObject("id", UUID.class), rs.getObject("program_id", UUID.class), AssessmentStatus.valueOf(rs.getString("status")),
             rs.getObject("started_at", java.time.OffsetDateTime.class), rs.getObject("finished_at", java.time.OffsetDateTime.class),
@@ -37,8 +43,7 @@ public class AssessmentRepository {
     }
 
     public Optional<Assessment> latestFinished(UUID programId) {
-        return jdbc.sql("SELECT " + COLUMNS + " FROM assessment WHERE program_id = :programId AND status = 'FINISHED' "
-                        + "ORDER BY finished_at DESC, created_at DESC LIMIT 1")
+        return jdbc.sql("SELECT " + COLUMNS + " FROM assessment a WHERE a.program_id = :programId AND " + LATEST_FINISHED)
                 .param("programId", programId).query(ROW).optional();
     }
 

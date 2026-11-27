@@ -354,6 +354,19 @@ lookup 1 000, evidence span 900) plus one pass over the assessment's mappings to
 the rows. `IndexUsageTest` fails above 4 000. Plans: `backend/target/perf/mappings-plan.txt` and
 `work-queue-plan.txt` (the work queue plan of the other roles: 2.0 to 3.3 ms).
 
+## Coverage matrix (F10a)
+
+`GET /programs/{id}/coverage?jurisdiction=CA` (D-390 to D-397, `docs/decisions/F10a.md`): one statement, one row, one
+connection. One `make perf` run, milliseconds on loopback:
+
+| Pass | Endpoint | p50 | p95 | p99 | connections per call | wire bytes |
+|---|---|---:|---:|---:|---:|---:|
+| 2 seeded tenants | GET /programs/{id}/coverage?jurisdiction=CA | 3.15 | 4.91 | 5.88 | 1.0 | 1666 |
+| 62 tenants | GET /programs/{id}/coverage?jurisdiction=CA | 2.64 | 4.15 | 5.28 | 1.0 | 1666 |
+
+Plan (`IndexUsageTest`, `backend/target/perf/coverage-plan.txt`): 0.31 ms execution, no executed
+sequential scan of `mapping`, `evidence_span`, `evidence_response` or `document`.
+
 ## Not covered
 
 - All numbers are loopback. Production adds network latency per round trip, which favours the new design.
