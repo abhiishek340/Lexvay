@@ -10,7 +10,7 @@ import { Skeleton } from 'primeng/skeleton';
 import { ApiService } from '../../core/api.service';
 import { DocumentPageCache } from '../../core/document-page-cache';
 import { problemDetail } from '../../core/problem';
-import { CharRange, PassageSelection, isRange, rangeOffsets, splitForHighlight } from './page-text';
+import { CharRange, PassageSelection, isRange, ocrNote, rangeOffsets, splitForHighlight } from './page-text';
 
 /** Where the "Use this passage" toolbar sits, relative to the scrolling page body. */
 interface PendingSelection { selection: PassageSelection; top: number; left: number; }
@@ -67,6 +67,11 @@ export class DocumentViewer {
     source: () => ({ documentId: this.documentId(), count: this.loaded()?.pageCount }),
     computation: (source, previous) =>
       source.count ?? (previous && previous.source.documentId === source.documentId ? previous.value : null),
+  });
+  /** "Read by OCR, NN % confidence" for a page whose text came from OCR (F11). */
+  readonly ocr = computed(() => {
+    const page = this.loaded();
+    return page ? ocrNote(page) : null;
   });
   readonly hasPrevious = computed(() => this.current() > 1);
   readonly hasNext = computed(() => this.pageCount() !== null && this.current() < this.pageCount()!);

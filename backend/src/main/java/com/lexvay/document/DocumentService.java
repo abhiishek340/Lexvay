@@ -36,7 +36,7 @@ public class DocumentService {
 
     /** A single page of extracted text with where it belongs. Pages never change once ingested. */
     public record PageView(UUID documentId, String filename, DocumentKind kind, String courseCode, Boolean courseRequired,
-                           int pageNumber, int pageCount, String text) {
+                           int pageNumber, int pageCount, String text, TextSource textSource, Double ocrConfidence) {
     }
 
     public record IngestStatus(UUID jobId, String status, String error) {

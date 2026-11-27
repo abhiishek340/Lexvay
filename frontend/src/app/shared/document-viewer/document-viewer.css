@@ -11,6 +11,7 @@
 .lx-document-body:focus-visible { outline: 2px solid var(--p-lx-primary); outline-offset: -2px; }
 .lx-document-name { display: flex; gap: 6px; align-items: center; font-weight: 500; word-break: break-word; }
 .lx-document-name ng-icon { flex: none; }
+.lx-document-ocr { display: flex; gap: 6px; align-items: center; font-size: 12px; line-height: 16px; color: var(--p-lx-ambiguous); }
 .lx-document-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
 .lx-document-position { font-size: 12px; line-height: 16px; color: var(--p-lx-text-secondary); white-space: nowrap; }
 .lx-document-position .lx-mono { color: var(--p-lx-text); }

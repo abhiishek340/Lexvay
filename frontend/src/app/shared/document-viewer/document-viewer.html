@@ -4,6 +4,9 @@
       <ng-icon name="phosphorFileText" size="16" aria-hidden="true" />
       @if (loaded(); as p) { <span>{{ p.filename }}</span> } @else { <p-skeleton width="12rem" height="1rem" /> }
     </p>
+    @if (ocr(); as note) {
+      <p class="lx-document-ocr" data-testid="ocr-note"><ng-icon name="phosphorWarning" size="14" aria-hidden="true" />{{ note }}</p>
+    }
     <div class="lx-document-bar">
       <p class="lx-document-position" role="status" aria-live="polite" data-testid="page-position">
         Page <span class="lx-mono">{{ current() }}</span>@if (pageCount(); as count) { of <span class="lx-mono">{{ count }}</span>}

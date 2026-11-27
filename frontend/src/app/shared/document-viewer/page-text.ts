@@ -1,8 +1,18 @@
+import { TextSource } from '../../core/models';
+
 /** Page-relative character offsets, end exclusive, exactly as `Evidence` carries them. */
 export interface CharRange { charStart: number; charEnd: number; }
 
 /** A passage a person chose on a page: the offsets and the stored text between them. */
 export interface PassageSelection extends CharRange { pageNumber: number; quote: string; }
+
+/**
+ * How the page text was obtained, in words, when it matters: OCR text can contain misread characters, so the
+ * reader is told, with the engine's confidence (0 to 100). A text layer needs no note.
+ */
+export function ocrNote(page: { textSource: TextSource; ocrConfidence: number | null }): string | null {
+  return page.textSource === 'OCR' && page.ocrConfidence !== null ? `Read by OCR, ${Math.round(page.ocrConfidence)} % confidence` : null;
+}
 
 /** The page text cut around the highlighted span. */
 export interface HighlightParts { before: string; quote: string; after: string; }

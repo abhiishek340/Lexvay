@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { isRange, rangeOffsets, splitForHighlight } from './page-text';
+import { isRange, ocrNote, rangeOffsets, splitForHighlight } from './page-text';
 
 /** A fictional page with a line break, a double space and a tab, so whitespace must be counted as stored. */
 const PAGE = 'COUN 605 Ethics\nStudents complete  40 hours of\tsupervised practice.\nFictional syllabus.';
@@ -29,6 +29,14 @@ describe('splitForHighlight', () => {
   it('agrees with isRange', () => {
     expect(isRange(PAGE, START, END)).toBe(true);
     expect(isRange(PAGE, END, START)).toBe(false);
+  });
+});
+
+describe('ocrNote', () => {
+  it('names OCR and its rounded confidence, and says nothing for a text layer', () => {
+    expect(ocrNote({ textSource: 'OCR', ocrConfidence: 71.25 })).toBe('Read by OCR, 71 % confidence');
+    expect(ocrNote({ textSource: 'OCR', ocrConfidence: 93.5 })).toBe('Read by OCR, 94 % confidence');
+    expect(ocrNote({ textSource: 'TEXT_LAYER', ocrConfidence: null })).toBeNull();
   });
 });
 

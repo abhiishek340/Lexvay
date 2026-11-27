@@ -6,7 +6,7 @@ import { DOCUMENT_PAGE_CACHE_SIZE, DocumentPageCache } from './document-page-cac
 import { DocumentPage } from './models';
 
 function page(documentId: string, pageNumber: number): DocumentPage {
-  return { documentId, filename: 'f.pdf', kind: 'SYLLABUS', courseCode: null, courseRequired: null, pageNumber, pageCount: 99, text: `${documentId} ${pageNumber}` };
+  return { documentId, filename: 'f.pdf', kind: 'SYLLABUS', courseCode: null, courseRequired: null, pageNumber, pageCount: 99, text: `${documentId} ${pageNumber}`, textSource: 'TEXT_LAYER', ocrConfidence: null };
 }
 
 /** Records every request; each one completes only when the test says so. */
