@@ -48,6 +48,7 @@ class DocumentOcrCheckpointIngestTest extends AbstractDatabaseTest {
 
     @BeforeEach
     void setUp() {
+        runner.runPending(); // jobs other test classes left queued would be claimed before this test's
         t = tenants.create("ocr-checkpoints");
     }
 
