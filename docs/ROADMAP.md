@@ -103,7 +103,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | merged (PR #28) |
 | F5a User administration and audit export API | `feat-admin-api` | 5 | Sonnet 5.5 | merged (PR #32) |
-| F5b Administration screens (v2) | `ui2-admin` | 2 | Opus 5.5 | in progress |
+| F5b Administration screens (v2) | `ui2-admin` | 2 | Opus 5.5 | merged (#44) |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
 | F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
 | TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | merged (PR #25) |
@@ -774,13 +774,13 @@ D-435 in `docs/decisions/F5b.md`.
    Reactivate, New setup code. An administrator's own row has no role or deactivate action (the API refuses them; the
    screen does not offer them).
 2. **Add person** (Dialog): name, email, role (Select with one-line role descriptions in an InfoTip). On success the
-   dialog turns into a one-time code view: the setup link (`<origin>/setup?code=…`) in mono with a Copy button and
+   dialog turns into a one-time code view: the setup link (`<origin>/setup#code=…`, fragment so no server log sees it (D-435)) in mono with a Copy button and
    the expiry ("valid for 72 hours, until 30 Nov 15:04"), a clear sentence that the code is shown once, and Done. The
    code is never stored in the browser (no storage, no logs; cleared from component state on close). "New setup code"
    shows the same view.
 3. **Change role / deactivate** (ConfirmDialog with the consequence in one sentence: "Their current session ends.");
    the 409 messages from the API (last administrator, self) appear inline in the dialog.
-4. **Set password** (`/setup?code=…`, anonymous, uses the sign-in layout from UI2-0 without the map story): two
+4. **Set password** (`/setup#code=…`, anonymous, uses the sign-in layout from UI2-0 without the map story): two
    password fields with show/hide, live rules (12 to 128 characters, not the email) shown as a checklist with icons,
    a strength meter based on length and character variety only (no dictionary library), Submit to
    `POST /auth/setup`; the generic invalid-code message for 400s; on success go to sign-in with a toast "Password set.
