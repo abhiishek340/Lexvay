@@ -883,3 +883,170 @@ Acceptance evidence
 
 Deferred
 - Milestones 8 and 9 continue as work items WS-SEC and WS-EVAL in `docs/ROADMAP.md` (CTO mode, D-071).
+
+## WS-EVAL — Evaluation harness and Terraform (PR #11)
+
+Branch `eval-and-infra`, slot 3, run 2026-11-26 on macOS arm64 (Colima), after merging `origin/main`.
+Decisions: D-100 to D-109 in `DECISIONS.md`.
+
+### `LEXVAY_E2E_SLOT=3 make eval` (scripted model), exit 0
+
+```
+Lexvay evaluation (fictional seed data)
+  model   fake-llm (scripted; token counts are estimates)
+  tenant  Northfield University (evaluation 6718a7ca)
+  golden  42 requirements
+
+Metric                                        Result      Count   Limit        Status
+False EVIDENCE_FOUND rate                      0.0 %     0 / 33   <= 0.0 %     ok
+Recall on golden EVIDENCE_FOUND              100.0 %    33 / 33   >= 100.0 %   ok
+Quote verification                           100.0 %    31 / 31   = 100.0 %    ok
+Numeric accuracy (rules engine)              100.0 %    11 / 11   >= 100.0 %   ok
+Requirement extraction agreement             100.0 %    42 / 42   >= 100.0 %   ok
+Evidence agreement (document, quote)         100.0 %    39 / 39   >= 100.0 %   ok
+
+Model calls                                36
+Input tokens                               50,781
+Output tokens                              4,672
+Cost per assessment (USD)                  n/a (LEXVAY_LLM_PRICE_*_PER_MTOK not set)
+Wall time per assessment                   0.4 s
+
+RESULT: pass
+```
+
+### A wrong golden entry fails the run
+
+In a copy of `eval/` (the committed file was not touched) UT-2 was changed from EVIDENCE_FOUND to
+EVIDENCE_MISSING and the real process was run with `LEXVAY_EVAL_DIR` pointing at the copy. The jar exited 1
+(make reports `Error 1`):
+
+```
+False EVIDENCE_FOUND rate                      3.0 %     1 / 33   <= 0.0 %     FAIL
+Disagreements with the golden set
+  UT/UT-2    false EVIDENCE_FOUND   expected EVIDENCE_MISSING, got EVIDENCE_FOUND
+RESULT: FAIL
+  - false EVIDENCE_FOUND rate 3.0 % exceeds 0.0 %
+make: *** [eval] Error 1
+```
+
+The same is proved in `EvalServiceTest` (`aWrongGoldenEntryFailsTheRunSoTheProcessWouldExitNonZero`, and a recall
+case) and, for every metric, in `EvalScorerTest`.
+
+`make eval-live` without `ANTHROPIC_API_KEY`: "eval-live: ANTHROPIC_API_KEY is not set, so no real model can be
+called. Nothing was run." exit 0. It was not run against the real model.
+
+### `make infra-validate`, exit 0
+
+Terraform v1.17.2 on darwin_arm64, `hashicorp/aws` 6.74.0, `hashicorp/random` 3.9.1.
+
+```
+terraform -chdir=infra fmt -check -recursive        (no output, exit 0)
+terraform -chdir=infra init -backend=false -input=false   Terraform has been successfully initialized!
+terraform -chdir=infra validate                     Success! The configuration is valid.
+terraform -chdir=infra test
+  run "defaults_are_private_encrypted_and_versioned"... pass
+  run "one_nat_gateway_per_zone_when_asked"... pass
+  run "rejects_unknown_environment"... pass
+  run "rejects_the_latest_image_tag"... pass
+  run "rejects_a_certificate_that_is_not_acm"... pass
+  run "rejects_a_database_that_is_not_postgresql_18"... pass
+  run "rejects_a_storage_limit_below_the_initial_size"... pass
+  run "rejects_a_vpc_too_small_to_split"... pass
+Success! 8 passed, 0 failed.
+```
+
+`terraform test` uses mocked providers (no credentials, nothing created). `plan` and `apply` were never run.
+
+### `LEXVAY_E2E_SLOT=3 make test`, exit 0
+
+```
+[INFO] Tests run: 237, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+ Test Files  3 passed (3)
+      Tests  8 passed (8)
+  3 passed (13.4s)
+```
+
+New tests: `EvalScorerTest` (9), `GoldenFileTest` (3), `EvalServiceTest` (3), `EvalModelTest` (1),
+`FakeLlmClientTest.replaceScriptDropsEarlierResponsesForTheKey`. `SeedLoaderTest` and `RuleVersionDiffSeedTest` now pass
+`ScriptedFakeModel`.
+
+### Not done or not verified
+
+- No run against the real model: no API key. The live thresholds for recall, extraction and evidence agreement are
+  first guesses (D-104).
+- Terraform was never planned or applied. RDS parameter group family `postgres18` and the CloudFront/ALB wiring are
+  validated for schema only. Creating the `lexvay_owner` and `lexvay_app` roles on the new database is a manual step
+  (D-108).
+- The Playwright run logs a `TypeError: Cannot read properties of null (reading 'id')` from
+  `frontend/src/app/screens/review/review.ts:82` during the review test; the test passes. Not touched (frontend).
+
+## WS-SEC — OIDC and hardening (PR #12; spec milestone 8)
+
+Branch `sec-oidc-hardening`, merged with `origin/main` (including PRs 8 to 11) on 2026-11-26. Decisions D-090 to D-099
+are in `docs/decisions/WS-SEC.md`.
+
+### What was built
+
+| Spec item | Built | Tests |
+|---|---|---|
+| 1 OIDC | Profile `oidc`: `OidcLogin`, `LexvayOidcUserService`; role and tenant from `app_user` by verified email; 403 "No Lexvay account for this identity"; `LOGIN_SUCCEEDED` with `method: oidc`; 401 (no redirect) for API calls without a session | `OidcLoginTest` (17, full code flow against a loopback provider), `AuthTest` |
+| 2 Rate limiting | `RateLimitFilter`: login 10/min per address, API 600/min and uploads 30/min per user, 429 with `Retry-After`, Caffeine cache of 10 000 keys with 10 minute idle expiry, `lexvay.ratelimit.*` | `RateLimitFilterTest` (11, fake clock), `RateLimitApiTest` (4), `ForwardedHeadersTest` (2) |
+| 3 Headers and cookie | `SecurityHeadersFilter` (exact CSP, nosniff, no-referrer, Permissions-Policy, HSTS on secure requests); session cookie HttpOnly, SameSite=Lax, Secure by `LEXVAY_COOKIE_SECURE` | `SecurityHeadersTest` (21), `SessionSecurityTest`, `SecureCookieTest` |
+| 4 Upload limits | 413 problem detail over the limit; DOCX zip bomb guard (50 MiB or ratio 100); PDF page cap 500; file name checks | `UploadSizeLimitTest`, `ContentLimitsTest` (10), `DocumentUploadTest` (13) |
+| 5 Validation table | 111 requests covering every endpoint, plus a guard that fails when an endpoint has no row | `InputValidationTableTest` |
+| 6 Session fixation | `changeSessionId` explicit; id change tested over a real connection for form login and OIDC | `SessionSecurityTest`, `OidcLoginTest` |
+
+`Rule9_AuditCoverageTest` needed no change: no mutating endpoint was added (the OIDC callback and login are
+security filters). The merged-in endpoints from main (evidence responses, evidence requests, rule version diff,
+search) have rows in the validation table.
+
+### Bugs the validation table found (all fixed, none whitelisted)
+
+1. A NUL character in any stored string (program name, rule text, review note, requirement title) gave 409 or 500:
+   `ApiExceptionHandler` maps SQLSTATE class 22 to 400.
+2. `numeric_value: 1e400` in the requirements PUT threw `JsonNodeException` (500): parser requires a finite number.
+3. Requirement `ref`, `title` and `text` had no size limit (300 000 characters accepted): 50, 200, 20 000.
+4. The `jurisdiction` filter of `GET /assessments/{id}/mappings` took any string: `@Pattern`.
+5. File names of 5 000 characters or with control characters were accepted (a NUL name reached the database after
+   the file was stored): 400.
+6. A NUL in the login username or OIDC email logged a database stack trace: `findForLogin` returns empty.
+
+### Real output
+
+`LEXVAY_E2E_SLOT=2 make test` from the repository root (backend `./mvnw verify`, frontend unit tests, end to end):
+
+```
+[INFO] Tests run: 445, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+ Test Files  3 passed (3)
+      Tests  8 passed (8)
+e2e: starting backend on :8083
+  ✓  1 e2e/review-and-sign.spec.ts:13:1 › Dana Whitfield reviews every California requirement, signs, and sees the audit entries (4.3s)
+  ✓  2 e2e/review-and-sign.spec.ts:86:1 › the review tabs are keyboard operable and the login page is accessible (993ms)
+  ✓  3 e2e/review-and-sign.spec.ts:103:1 › the Changes screen lists the seeded changes and re-runs matching for the new course version (2.2s)
+  3 passed (11.3s)
+```
+
+New or extended test classes (from the same run):
+
+```
+Tests run: 11 auth.RateLimitFilterTest      Tests run: 4  auth.RateLimitApiTest
+Tests run: 21 auth.SecurityHeadersTest      Tests run: 3  auth.SessionSecurityTest
+Tests run: 1  auth.SecureCookieTest         Tests run: 2  auth.ForwardedHeadersTest
+Tests run: 17 auth.OidcLoginTest            Tests run: 111 common.InputValidationTableTest
+Tests run: 10 document.ContentLimitsTest    Tests run: 13 document.DocumentUploadTest
+Tests run: 2  document.UploadSizeLimitTest  Tests run: 10 auth.AuthTest
+```
+
+Mutation check: setting `sessionFixation` to `none()` makes `SessionSecurityTest.loginChangesTheSessionId` fail.
+
+### Notes for the orchestrator
+
+- `InputValidationTableTest.everyEndpointHasARow` fails for any branch that adds an endpoint without a table row;
+  branches merged after this one must add rows.
+- Production behind a load balancer needs `LEXVAY_FORWARD_HEADERS=native` (D-093), otherwise the login budget is one
+  shared bucket.
+- `scripts/e2e.sh` sets the login budget to 1000 (the browser tests sign in repeatedly from one address).

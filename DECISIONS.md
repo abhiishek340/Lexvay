@@ -385,11 +385,13 @@ checked on the npm registry for Angular 22 peer support on 2026-11-26. Design co
 reviewed and merged by the orchestrator after CI. No `Co-Authored-By` trailers or AI attribution anywhere.
 End-to-end stacks are slot-based (`LEXVAY_E2E_SLOT`) so several checkouts can test at once.
 
+**D-002 addendum (WS-SEC).** `com.bucket4j:bucket4j_jdk17-core` 8.22.0 (checked on repo1.maven.org 2026-11-26; 8.23.0 was four days old). `spring-boot-starter-security-oauth2-client` and `caffeine` 3.2.4 come from the Boot 4.1.3 BOM.
+
 **D-074 — Per-item decision files.** In CTO mode each work item records its decisions in
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
-This file keeps the cross-cutting decisions and this index: F3a D-120–129 (`docs/decisions/F3a.md`), F4a
-D-130–139 (`docs/decisions/F4a.md`), WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL D-100–109, WS-PERF
-D-110–119, F6 D-140–149, F9 D-150–159. Migration number V006 is intentionally unused (D-073 workflow).
+This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
+D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
+F7 D-170–179, F12 D-180–189, F13 D-190–199. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F12, V011 F13 if needed.
 
 ## Spec concerns (section 13, item 5)
 
@@ -402,3 +404,448 @@ D-110–119, F6 D-140–149, F9 D-150–159. Migration number V006 is intentiona
   as colour, the bar will carry a text legend with counts, which makes it wider than a plain bar.
 - "Upload size and type limits" are listed under milestone 8 but uploads ship in milestone 2; the
   limits are configured in M2 and tested in M8.
+
+## Work-item decisions folded from `docs/decisions/` (D-074)
+Each merged work item recorded its decisions in its own file while in flight; the orchestrator folds them here
+after the merge and deletes the file. Ids keep the ranges assigned in D-074.
+
+### WS-EVAL — Evaluation harness and Terraform (D-100 to D-109)
+
+**D-100 — The evaluation is a Spring profile run by `scripts/eval.sh`.** `make eval` and `make eval-live` start an
+isolated PostgreSQL through docker compose (project `lexvay-eval-<slot>`, port 5433 + `LEXVAY_E2E_SLOT`), package the
+backend, run the jar with `--spring.profiles.active=eval` and tear the database down. The runner (`EvalRunner`) prints
+the table and exits 0, 1 (a limit is broken) or 2 (the run itself failed). The scoring is in `EvalService` (no
+profile), so the same code runs in `EvalServiceTest` against Testcontainers. Rejected: a JUnit-only harness (no
+`make` entry point, no live mode); a separate Maven module (a second build for one runner); a CLI that talks to a
+running server over HTTP (it could not substitute the golden list through the service layer, and the job queue would
+have to be polled).
+
+**D-101 — Scripting the fake model is a `ModelStrategy`.** `SeedLoader` no longer injects `LlmClient` or
+`ObjectMapper` and no longer checks `instanceof FakeLlmClient`. `ModelStrategy` has three hooks:
+`beforeExtraction(label)`, `afterExtraction(jurisdiction, ruleVersionId)` (as the reviewer, before approval) and
+`beforeMatching(documentByFile)`. `ScriptedFakeModel` (reads `seed/fake-llm.yml`) is the strategy for `make seed`
+and tests, `ModelStrategy.NONE` leaves a real model alone, `EvalModel` records extraction and, in live mode,
+substitutes the golden list. Creating, extracting and approving a rule version is one private method used for the
+initial and the superseding rule sets (it was written out twice). `load(seedDir, password, strategy)` replaces
+`load(seedDir, password)`; `loadTenant` and `manifest` are public so the evaluation can seed one tenant. `YamlFile`
+(`com.lexvay.common`) is the single YAML reader. `FakeLlmClient.replaceScript` replaces a key's queue: `script` appends,
+so a second load of the same data in one JVM was answered with the first load's document ids. Rejected: a subclass of
+the loader; a boolean `scriptModel` flag; leaving the `instanceof` check and adding a second loader for the evaluation
+(duplicated loading code, which the spec forbids).
+
+**D-102 — Golden file.** `eval/golden.yml` is keyed by `jurisdiction/ref` (a ref may repeat across rule sets) and holds, for
+each of the 42 requirements, `title`, `text`, `type`, numeric definition, `finding`, `document`, `quoteContains` and
+a human `reason`. Title, text and numeric definition are needed because live mode replaces the model's list with
+the golden one through `RuleVersionService.replaceRequirements`. It was written from `seed/rules` and `seed/docs`, not
+from `seed/fake-llm.yml`; `GoldenFileTest` checks every cited file exists and every `quoteContains` appears in the
+seed text. Fictional, labelled `fictional: true`, and `EvalService` refuses a file that is not. Expected mix: 33
+EVIDENCE_FOUND (11 numeric by the rules engine + 22 by the matcher), 6 AMBIGUOUS, 3 EVIDENCE_MISSING. (The roadmap's
+"22 evidence found" counts the matcher's findings; the 11 rules-engine ones are separate.) Rejected: generating the
+golden set from the fake scripts (it would test nothing); only `ref -> finding` (nothing to score citations with, and no
+list to substitute in live mode).
+
+**D-103 — Metrics.** The five metrics are as defined in the roadmap. Details the definition leaves open: proposals with no
+golden entry count as "golden differs"; the false rate counts every proposed EVIDENCE_FOUND, rules-engine ones
+included (33 in the seed); numeric accuracy requires `method = RULES_ENGINE` and the golden finding; extraction
+agreement compares the model's own list (captured before any substitution) by jurisdiction, ref and type; quote
+verification runs `QuoteVerifier.find` over every stored `evidence_span` of the tenant (program-fact spans
+included) against the stored `document_page`. One metric is added: evidence agreement (golden entries naming a
+document whose cited file and quote substring match, out of those entries). Without it `document` and
+`quoteContains` in the golden file would not be used and a correct finding citing the wrong passage would pass.
+Every disagreement is listed under the table. Rejected: counting only matcher proposals in the false rate (hides
+rules-engine errors); a fuzzy quote comparison (rule 2 forbids it).
+
+**D-104 — Thresholds.** `eval/thresholds.yml` has `fake` and `live` sections. Quote verification is not in the file: it
+must be 100 % and is fixed in code. `fake` is exact (false rate 0, everything else 100 %), so drift between the fake
+scripts, the pipeline and the golden set fails the build. `live`: false EVIDENCE_FOUND 0 and numeric accuracy 100 %,
+which need no measurement; recall 0.80, extraction agreement 0.90 and evidence agreement 0.80 are first guesses made
+without a live run (no API key was available) and must be tightened after the first real run. An unmeasurable
+metric (zero denominator) fails, except the false rate when nothing was proposed. Rejected: one threshold set
+(a real model cannot be held to exact reproduction); thresholds as Java constants (the spec names the file).
+
+**D-105 — Tokens, cost and time.** Input and output tokens and call count are summed from `llm_call` for the
+evaluation tenant (row-level security scopes the query), extraction included. Cost = tokens times
+`lexvay.llm.price.*` (`LEXVAY_LLM_PRICE_INPUT_PER_MTOK`, `LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK`); when neither price is set it
+prints "n/a" rather than a free-looking 0. Fake token counts are estimates from text length and the report says so.
+Wall time is the assessment's `finished_at - started_at`, the pipeline stage the roadmap asks about, not process
+start-up. There is one assessment per run, so the totals are per assessment. Rejected: placeholder default prices in
+`application.yml` (invented money); timing the whole process (includes Flyway and JVM start).
+
+**D-106 — Live mode.** `make eval-live` sets `LEXVAY_LLM_PROVIDER=anthropic` only when `ANTHROPIC_API_KEY` is set;
+otherwise it prints why and exits 0. `make eval` unsets the key so a scripted run can never reach the network. The
+live path (no scripts, golden substitution before approval) is covered by `EvalModelTest`, which drives the same
+`EvalModel` with the scripted model; it has not run against the real model. Tests never call a real model.
+
+**D-107 — Isolation.** Each run seeds the first demo tenant under a unique name and unique user emails
+(`SeedManifest.Tenant.isolated`) and without the change-tracking demo, so it can run against a database that
+already holds the demo seed. The database is a fresh compose project `lexvay-eval-<slot>` removed on exit; the
+volume is removed with it. `scripts/eval.sh` repeats the six lines of port and cleanup convention from `scripts/e2e.sh`
+instead of both sourcing a shared file, to avoid editing a script other work items touch; fold them together when
+convenient. Eval and end-to-end use the same ports for the same slot, so they must not run at the same time in one
+checkout.
+
+**D-108 — Terraform design (`infra/`, AWS, no modules).** Plain resources, so every line is reviewable and the only
+providers are `aws` and `random`.
+- Network: one VPC, a public and a private subnet per zone (2 by default), one NAT gateway by default
+  (`nat_gateway_per_az` for one per zone), S3 gateway endpoint, default security group emptied. Backend and database are
+  only in private subnets. Rejected: private subnets without NAT (the backend must reach the model API and ECR);
+  VPC flow logs and WAF (not in the spec, follow-up for F6).
+- Entry: CloudFront serves the Angular build from a private S3 bucket through origin access control (versioned,
+  SSE-S3, public access blocked) and sends `/api/*` to a public ALB so the browser has one origin (session cookie and
+  CSRF keep working). The ALB serves HTTPS only (ACM certificate variable), accepts only CloudFront's address list,
+  and returns 403 unless the request carries a secret header the distribution adds. A CloudFront Function rewrites
+  extensionless paths to `/index.html`. Rejected: CloudFront custom error responses for SPA routing (they would also
+  rewrite API 403/404 into the page); a CloudFront VPC origin with an internal ALB (newer, needs service-managed
+  security groups that cannot be checked without applying); ALB open to the internet; HTTP listener.
+- Database: RDS PostgreSQL 18, KMS-encrypted, not publicly accessible, Multi-AZ, 14-day backups, deletion
+  protection and final snapshot by default, TLS enforced, master password managed by RDS in Secrets Manager.
+  Rejected: a master password variable (secret in a variable file).
+- Files bucket: versioned, SSE-KMS with the data key, public access blocked, TLS-only policy, `BucketOwnerEnforced`.
+- Secrets Manager: `database` (random passwords of the owner and app roles, in Terraform state) and
+  `anthropic-api-key` (entry only, value set with the CLI so the key is never in state). Injected as environment
+  variables by the execution role.
+- IAM: execution role (managed policy, read two secrets, decrypt the key via Secrets Manager only) and a separate task
+  role (get/put objects in the files bucket, list that bucket, use the key via S3 only).
+- Variables have descriptions and validation, none hold secrets or account ids (the account id is read from the
+  provider where bucket names need it). `backend_image` rejects `:latest`.
+- No remote state backend is configured: the choice (bucket, locking, who may read it) belongs to the deployer, and
+  the state holds the generated passwords.
+Not done and called out: creating the database roles. RDS has no `lexvay_owner` or `lexvay_app` until
+`db/initdb/01-roles.sh` (or equivalent) is run with the administrator secret; the passwords it needs are in the
+`database` secret. This is a deployment step, not Terraform, and it has not been tried.
+
+**D-109 — Pins and what was verified.** Terraform 1.17.2 (releases.hashicorp.com lists it as newest; installed from the
+official darwin_arm64 zip after checking its SHA-256 against the published `SHA256SUMS`, because
+`brew install hashicorp/tap/terraform` stopped at "Command Line Tools are too outdated"; the signature could not be
+checked, no `gpg`). `hashicorp/aws` 6.74.0 (registry, published 2026-11-23), `hashicorp/random` 3.9.1 (2026-09-11), both
+exact in `versions.tf` and locked for linux_amd64, linux_arm64, darwin_arm64 and darwin_amd64 in
+`infra/.terraform.lock.hcl`. CI: `hashicorp/setup-terraform@v4` (v4.0.1, 2026-05-12, runs on node24), with
+`terraform_version: 1.17.2` and `terraform_wrapper: false`; a separate `infra` job so it runs beside the tests.
+`make infra-validate` runs `fmt -check`, `init -backend=false`, `validate` and `terraform test`. The tests
+(`infra/tests/stack.tftest.hcl`) use mocked providers, so they need no credentials and create nothing; they check the
+variable validations and the private, encrypted, versioned and public-access-blocked properties. `plan` and `apply`
+were never run. RDS: PostgreSQL 18 is generally available (18.7 is listed in the RDS release notes); the parameter
+group family `postgres18` follows RDS naming and could not be checked without credentials; `db_engine_version`
+defaults to the major version `18`. The CloudFront and ALB wiring has been validated for syntax and schema only, not
+deployed.
+
+### WS-SEC — OIDC and hardening (D-090 to D-099)
+
+**D-090 — OIDC through `spring-boot-starter-security-oauth2-client`, only in profile `oidc`.** The starter is managed
+by the Boot 4.1.3 BOM (Spring Security 7.1.3, `oauth2-oidc-sdk` 11.38.2, `nimbus-jose-jwt` 10.9.1). It is on the
+classpath in every profile but does nothing without `spring.security.oauth2.client.registration.*`, which only
+`application.yml`'s `oidc` section defines (`LEXVAY_OIDC_ISSUER_URI`, `LEXVAY_OIDC_CLIENT_ID`,
+`LEXVAY_OIDC_CLIENT_SECRET`, scopes `openid,email,profile`, registration id `lexvay`, so browsers start at
+`/oauth2/authorization/lexvay`). `OidcLogin` (`@Profile("oidc")`) configures `oauth2Login` on the one security chain;
+`SecurityConfig` calls it through an `ObjectProvider`, so the default profile has no OIDC bean at all
+(`AuthTest.singleSignOnIsOffUnlessProfileOidcIsActive`). After the provider authenticates, the success handler
+replaces the `OAuth2AuthenticationToken` in the session with a `UsernamePasswordAuthenticationToken` whose principal is
+the same `LexvayUser` that form login produces, so `CurrentUser`, `TenantContextFilter`, method security and audit
+are unchanged, then redirects to `LEXVAY_OIDC_POST_LOGIN_URL` (default `/`) and audits `LOGIN_SUCCEEDED` with
+`method: oidc` (form login now audits `method: password`). `/api/**` without a session keeps the 401 problem detail
+because the explicit authentication entry point wins over the OAuth2 login redirect. Form login stays enabled in the
+`oidc` profile (the spec says it remains the default); an organisation that wants SSO only should disable it in a
+follow-up. Rejected: making `LexvayUser` implement `OidcUser` (it would carry token claims in every session and in
+every form login); a resource-server (JWT bearer) setup (the browser flow is the requirement); a second
+`SecurityFilterChain` for OIDC (two chains would have to repeat CSRF, headers, rate limiting and tenant binding).
+
+**D-091 — Identity to account: verified email, roles from the database.** `LexvayOidcUserService` wraps Spring's
+`OidcUserService` (so the user-info call, subject check and ID token validation are Spring's) and looks the `email`
+claim up with `AppUserRepository.findForLogin`. It refuses with 403 problem detail "No Lexvay account for this
+identity" when the claim is missing or blank, when `email_verified` is present and not `true` (providers send a boolean
+or the string "false"; anything else than true fails closed), or when no `app_user` matches. Roles and tenant are
+never read from token claims; a token carrying `roles: [ADMIN]` for a reviewer still yields a reviewer
+(`OidcLoginTest.theRoleComesFromTheLexvayDatabaseAndNeverFromTheToken`). `findForLogin` returns empty for an email
+containing NUL, which PostgreSQL cannot store (it used to raise a database error). Other failures (bad state, nonce,
+issuer, signature) are 401 and logged without personal data. Rejected: mapping provider groups to roles (the roles
+belong to Lexvay, per the spec); creating accounts on first login (an account carries a tenant and a role, which a
+provider cannot decide); matching on `sub` (needs a new column and a linking flow, not in the spec).
+
+**D-092 — Rate limiting: one filter, Bucket4j buckets in a bounded Caffeine cache.** `RateLimitFilter` is created
+inside `SecurityConfig` (not a bean, so Boot does not register it a second time as a servlet filter) before
+`CsrfFilter`, so a login attempt counts whether or not its CSRF token is valid, and the user is already known from the
+session. Budgets, all per minute with greedy refill: login 10 per client address (counts `POST /api/v1/auth/login` and
+the OIDC callback `GET /login/oauth2/code/*`), authenticated `/api/**` 600 per user, `POST /api/v1/programs/*/documents`
+30 per user on top of the API budget. A refusal is a 429 problem detail with `Retry-After` (whole seconds until a token
+is back). Settings are `lexvay.ratelimit.*` (`LEXVAY_RATELIMIT_LOGIN_PER_MINUTE`, `_API_PER_MINUTE`,
+`_UPLOAD_PER_MINUTE`, `max-keys` 10000, `idle-expiry` 10m), validated positive. The filter takes its clock as a
+`LongSupplier`, so refill and idle expiry are tested with a fake clock (`RateLimitFilterTest`, including that the
+cache never exceeds `max-keys`). The test base sets the budgets to 100000 and the rate limit tests override them.
+`scripts/e2e.sh` sets the login budget to 1000 because every browser test signs in from 127.0.0.1. Budgets are per
+instance, so with N instances the effective budget is up to N times higher. Rejected: `bucket4j-spring-boot-starter`
+(a third-party auto-configuration for what is one class); a filter before the security chain (the user is unknown
+there); Redis or JDBC-backed buckets (the spec says in-memory, per instance); Spring's `HandlerInterceptor`
+(does not see login requests, which are handled by a security filter).
+
+**D-093 — Response headers, session cookie, forwarded headers.** `SecurityHeadersFilter` sets, on every response,
+the exact `Content-Security-Policy` from the spec, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,
+`Permissions-Policy: camera=(), microphone=(), geolocation=()`, and `Strict-Transport-Security: max-age=31536000 ;
+includeSubDomains` when `request.isSecure()`. It is a servlet filter at highest precedence rather than the Spring
+Security headers DSL because the request firewall rejects some URLs (for example `;` in the path) before the security
+chain starts, and those 400 responses must carry the headers too (`SecurityHeadersTest` covers 200, 400, 401, 403,
+404, 405, 415, the firewall's 400 and 429). The DSL keeps `X-Frame-Options: DENY` and `Cache-Control: no-store`; its nosniff and
+HSTS writers are disabled to avoid duplicates. Session cookie: `server.servlet.session.cookie` `http-only: true`,
+`same-site: lax` (Lax, not Strict, because the OIDC callback is a cross-site top-level navigation), `secure` from
+`LEXVAY_COOKIE_SECURE`. `server.forward-headers-strategy` comes from `LEXVAY_FORWARD_HEADERS` (default `none`).
+Behind a load balancer it must be `native`: otherwise every client shares the balancer's address, one login budget
+for everybody, and the scheme is always http (no HSTS). `native` uses Tomcat's `RemoteIpValve`, which trusts the
+header only from private-range peers (`ForwardedHeadersTest`). `framework` was rejected: `ForwardedHeaderFilter` does
+not change the remote address. Rejected: Spring Security's HSTS writer alone (misses firewall rejections); a CSP with
+nonces (the API serves JSON, the Angular build is served elsewhere).
+
+**D-094 — Session fixation and login CSRF stay on, with tests.** `sessionFixation().changeSessionId()` is now explicit
+in `SecurityConfig` so it cannot be lost by accident, and CSRF is untouched. `SessionSecurityTest` uses a real
+connection (MockMvc has no container session): it plants a session with an unauthenticated request, logs in with it,
+and asserts the id changed, the new id is authenticated and the planted one is not. Changing the setting to `none()`
+makes the test fail (checked). `OidcLoginTest.theSessionIdChangesAtOidcLoginOverARealConnection` proves the same for
+the OIDC callback. Login without the CSRF header is 403 (`SessionSecurityTest`, `AuthTest`). Rejected: asserting the id
+change with MockMvc (`MockHttpSession` does not follow the container's behaviour).
+
+**D-095 — Upload limits.** (1) Size: Spring's multipart limit (`LEXVAY_UPLOAD_MAX_MB`, default 25) answers 413 problem
+detail through `ResponseEntityExceptionHandler` (`UploadSizeLimitTest`, real connection, limit 1 MB for speed). (2) Type:
+`FileType.detect` (extension and leading bytes) as before; tests cover every mismatch with a problem detail. (3) DOCX
+zip bomb: `ContentLimits.requireSafeDocx` inflates the archive counting the bytes that really come out (declared sizes
+can lie) and stops at the first byte beyond `min(50 MiB, 100 x file size)`; it runs at upload (400 problem detail,
+nothing stored) and again in `TextExtractor` (any caller). An unreadable archive is left to the parser, so a corrupt
+DOCX is still accepted and fails ingest as before. (4) PDF page cap 500: checked in `TextExtractor` after the PDF is
+opened, so an over-long PDF is accepted with 202 and its ingest job fails with "PDF has 501 pages; the limit is 500",
+like the other content failures; loading every PDF at upload just to count pages was rejected. Also: file names longer
+than 255 characters or with control characters are refused with 400 (a NUL used to reach PostgreSQL after the file was
+already stored). 50 MB is read as 50 MiB. Rejected: POI's own `ZipSecureFile` limits as the only guard (no total size
+limit); `ZipFile` on a temporary file (disk writes for an in-memory check).
+
+**D-096 — Input validation table test and the fixes it forced.** `InputValidationTableTest` lists 111 requests, at
+least one per endpoint (bad UUID, missing field, oversized string, unknown enum, NUL character, malformed or deeply
+nested JSON, wrong media type, non-JSON login) and asserts the expected 4xx with a problem detail. A second test fails
+when `RequestMappingHandlerMapping` contains an endpoint without a row, so new endpoints cannot skip it (a work item
+that adds an endpoint must add a row, like `Rule9_AuditCoverageTest`). It runs against records that exist (program,
+document, unapproved rule version, mapping with an open evidence request) so validation below the controller is
+reached too. Bugs found and fixed: (a) any string containing NUL (program name, rule text, review note, requirement
+title) made PostgreSQL fail with SQLSTATE 22021 and the response was 409 or 500: `ApiExceptionHandler` now answers 400
+for every SQLSTATE class 22 (data exception) and keeps 409 for class 23; (b) `numeric_value: 1e400` in the
+requirements PUT threw `JsonNodeException` (500): `RequirementListParser` requires a finite positive number; (c) a
+300 000-character requirement text, ref or title was accepted: limits 50, 200 and 20 000 characters in the parser (the
+LLM output schema is not changed, structured-output schemas do not accept `maxLength`); (d) the mappings
+`jurisdiction` filter accepted any string: `@Pattern` like every other jurisdiction input; (e) file names (D-095); (f) a
+NUL in the login username or the OIDC email logged a database stack trace: `findForLogin` returns empty. Rejected:
+whitelisting any 500; a global filter stripping NUL (it would silently change user data).
+
+**D-097 — Dependency pins.** `com.bucket4j:bucket4j_jdk17-core:8.22.0` (published 2026-11-03). 8.23.0 is the latest but was
+published on 2026-11-22, four days before this check; the release before it was chosen to let it settle. `com.github.ben-manes.caffeine:caffeine` 3.2.4 and `spring-boot-starter-security-oauth2-client` 4.1.3 come
+from the Boot BOM, unpinned in the POM. `bucket4j_jdk17-core` has no transitive dependencies. Test-only code uses
+Nimbus (already transitive of the OAuth2 client) and the JDK HTTP server.
+
+**D-098 — OIDC tests use a loopback provider, not explicit endpoints.** The spec asks for explicit endpoints so tests
+need no network. Boot always performs discovery when `issuer-uri` is set, and an empty issuer fails startup
+("issuer cannot be empty"), so the explicit-endpoint form cannot coexist with the shipped `application.yml`. The test
+instead starts `FakeIdentityProvider` (JDK `HttpServer` on 127.0.0.1, random port) serving discovery, a JWK set and a
+token endpoint, and sets `LEXVAY_OIDC_ISSUER_URI` to it. Nothing leaves the machine, and the shipped configuration,
+issuer validation, signature check, state and nonce are all exercised (an ID token with another issuer, nonce or state
+is refused). Rejected: `MockMvc` with `oidcLogin()` post-processors (they skip the code exchange and the account
+lookup, which is the part that matters); mocking `ClientRegistrationRepository`.
+
+**D-099 — Test isolation.** The shared test base sets the three rate limit budgets to 100000 through
+`@TestPropertySource`; tests that need tight budgets, a Secure cookie, forwarded headers, a 1 MB upload limit or the
+`oidc` profile declare their own and get their own cached Spring context (five extra contexts, about 8 seconds each).
+`spring-security-test`'s `csrf()` is still not used; `TestCsrf.csrf()` stays.
+
+### F3a — Rule version diff API (D-120 to D-129)
+
+**D-120 — One definition of "same requirement": `RequirementComparison`.** `com.lexvay.rule.RequirementComparison.changes(a, b)`
+returns an `EnumSet` of `TITLE`, `TEXT`, `TYPE`, `NUMERIC`. Text and title are compared after
+`QuoteVerifier.normalizeWhitespace` (case stays significant, as before). `NUMERIC` compares field, operator and value, the
+value with `BigDecimal.compareTo` (600 equals 600.00; a missing value differs from any present one). Each `Aspect` carries
+`affectsEvaluation` (false for `TITLE` only); `sameForEvaluation(a, b)` is true when no changed aspect affects evaluation.
+`RerunChangeHandler` calls it directly and its private `unchanged` method is deleted, so carry-over is true exactly when
+the set contains none of `TEXT`, `TYPE`, `NUMERIC`, and a title-only change still carries over (identical to the previous
+behaviour; `RuleVersionChangeTest` is unmodified and green). The diff service uses the same `changes`.
+Rejected: keeping a boolean `unchanged` beside a second set-based comparison for the diff (two definitions would drift);
+a `Requirement.equals` override (the record's equality includes ids and must stay structural); comparing title without
+whitespace normalization (a re-spaced title is not a change a reviewer cares about; the spec only fixes text, so this is
+my reading).
+
+**D-121 — One text diff utility: `TextDiff`, Myers via java-diff-utils.** `com.lexvay.common.TextDiff.words` and `.lines`
+return merged segments `{op: EQUAL | DELETE | INSERT, text}`. Tokens are `\w+|\W+` so that joining reproduces the input;
+the pattern is compiled with `UNICODE_CHARACTER_CLASS` so accented letters in names and legal text stay inside words
+(without it `café` would be split at the `é`). Lines are split after each `\n` and keep their terminator, so the
+reconstruction property (EQUAL+DELETE gives `a`, EQUAL+INSERT gives `b`) holds for lines as well, including `\r\n` and a
+missing final newline. A replaced block becomes DELETE then INSERT for words and is refined with `words` on the joined
+block for lines. One private walker serves both; adjacent segments with the same op (including those produced by refining
+neighbouring blocks) are merged and empty segments are dropped. No cap on input size: rule texts are a few pages and the
+Myers implementation is O(ND); revisit if a rule document of hundreds of pages ever needs a diff.
+Rejected: hand-written diff (forbidden by the spec); character diff (unreadable on legal text); `DiffRowGenerator`
+inline mode (HTML-oriented, wraps tags around text, no reconstruction guarantee); `MyersDiffWithLinearSpace` (smaller
+memory but not the library default; no need at this size).
+
+**D-122 — Requirement matching: `RequirementMatcher`.** Package-private class used by `RuleVersionDiffService`, split out so it
+is unit tested without a database. (a) Pair by identical `ref`. (b) Among the requirements whose ref exists in only one
+version, compute the Jaccard similarity of lower-cased `\w+` word sets of the texts for every removed x added pair, keep
+pairs with similarity >= 0.80 (the boundary is inclusive and tested at exactly 0.80), sort by similarity descending
+(ties by older position, then newer position, so the result is deterministic), and pair greedily so each requirement is
+used once; those pairs are `refChanged: true`. (c) The rest is ADDED or REMOVED. Two empty word sets have similarity 0,
+never 1, so blank texts do not pair. A pair is `UNCHANGED` only if the ref is the same and the change set is empty, so a
+renumbered requirement is always `CHANGED` even when nothing else changed. Output order: newer version's order, then
+removed ones in the older version's order. "Order" is the repository order (`created_at, ref`); because the requirements of
+a version are inserted in one transaction, this is effectively ref text order (`CO-10` sorts before `CO-2`). That ordering
+is pre-existing; the F3 UI may want a natural sort.
+Rejected: optimal assignment (Hungarian) instead of greedy (the spec says greedy; at 0.80 conflicts are rare);
+similarity on titles; matching on the numeric fields.
+
+**D-123 — Endpoint contract.** `GET /api/v1/rule-versions/{id}/diff?against={otherId}`. `id` is the newer side (`to`),
+`against` the older (`from`); when omitted `against` is the version `id` supersedes. 400 problem detail when there is no
+superseded version and no `against`, and when jurisdiction or license type differ; 404 when either version is not visible
+in the tenant (RLS), including `against`; 401 unauthenticated. Any authenticated role may read it, like the other rule
+version reads. Comparing a version with itself is allowed (all UNCHANGED). The lists need not be approved: a reviewer
+looks at the diff before approving the new list. Response: `from`/`to` `{id, label, effectiveFrom}`, `summary`
+`{added, removed, changed, unchanged}`, `requirements` `[{status, refChanged, before, after, changes, textDiff}]`
+(`before`/`after` are the existing `Requirement` JSON, null on the missing side; `textDiff` only for CHANGED rows, else
+null; `changes` is an array in the order TITLE, TEXT, TYPE, NUMERIC) and `ruleTextDiff` (`TextDiff.lines` over the two rule
+texts). `RuleVersionDiffService.diff` is `@Transactional(readOnly = true)`: two version lookups, two requirement queries and
+two rule-text queries in one transaction, no per-requirement queries.
+Rejected: `from`/`to` query parameters (the spec fixes the shape); 404 instead of 400 for the mismatch (both versions
+exist, the request is wrong); a diff of approved lists only (blocks the review use case).
+
+**D-124 — Tests.** Unit: `TextDiffTest`, `RequirementComparisonTest`, `RequirementMatcherTest`. API:
+`RuleVersionDiffSeedTest` (seeded Colorado revision: one CHANGED CO-5 with `TEXT` and `NUMERIC`, eight UNCHANGED;
+default `against`, explicit `against`, reverse direction, 400 without a superseded version, 400 across jurisdictions, 404
+for another tenant, 401) and `RuleVersionDiffApiTest` (renumbered, edited, added and removed requirements on unapproved
+lists, title-only change, 400 across jurisdiction and license type, malformed `against`, tenant isolation including the
+`against` parameter, 401). The seed test loads a copy of `seed/manifest.yml` with its own tenant name and email domain
+(symlinks to the shared `rules/`, `pdf/` and `fake-llm.yml`), because `SeedLoaderTest` asserts that its load is not
+skipped and the two classes share one database container in any order.
+
+**D-125 — Dependency pin.** `io.github.java-diff-utils:java-diff-utils:4.18`, the `latest` and `release` entry in
+`https://repo1.maven.org/maven2/io/github/java-diff-utils/java-diff-utils/maven-metadata.xml` on 2026-11-26 (last updated
+2026-10-18). jar sha1 `65e544c565591a97fd6a02150eb294e7e0a426ed`, no transitive dependencies. Declared in
+`backend/pom.xml` through the `java-diff-utils.version` property, next to the other pins. API used, read from the jar with
+`javap`: `com.github.difflib.DiffUtils.diff(List, List)` (default algorithm `MyersDiff`, verified in the static
+initializer), `Patch.getDeltas()`, `AbstractDelta.getType()/getSource()/getTarget()` and `Chunk.getPosition()/getLines()/size()`.
+Not used: `DiffRowGenerator`, `UnifiedDiffUtils`, `patch`/`unpatch`. Licence: Apache-2.0 (parent pom); the jar's only
+dependencies are test-scoped.
+Rejected: Google `diff-match-patch` (character oriented, not the library the spec names), an older java-diff-utils (no
+reason to pin behind the latest stable).
+
+### F4a — Evidence requests API (D-130 to D-139)
+
+**D-130 — A response is attached to the mapping; it never edits it.** `evidence_response` is a new append-only
+table. The mapping's `finding`, `method`, `rationale` and `evidence_span_id` stay exactly as the system proposed
+them (product rules 1 and 5). The response only adds a verified span and a `REOPENED` review event, which makes
+the requirement "needs review" again (D-003); the reviewer then decides.
+Rejected: replacing the mapping's span with the human-supplied one (rewrites the system's proposal and loses
+what the reviewer originally saw); a new `EVIDENCE_PROVIDED` review kind (the schema CHECK and the UI's reading
+of review events would both change, and the spec fixes `REOPENED`).
+
+**D-131 — A person's quote passes the model's verifier, through one shared service.** The document, page and
+quote checks that `ProgramFactService` already did are extracted into `assessment.ProgramCitationService`, which
+both program facts and evidence responses call. It also rejects `RULE_TEXT` documents with their own message
+(they have no program, so they previously fell under "different program"). Spans are inserted only after the
+verifier accepts, inside the caller's transaction, so a later failure stores nothing.
+Rejected: copying the checks into the new service (two places to keep in step for product rule 2); putting the
+helper in `document` (it needs `EvidenceSpanRepository`, which lives in `assessment`).
+
+**D-132 — At most one response per request (`UNIQUE (review_event_id)`).** The spec table has no such
+constraint; it follows from the loop: a response reopens the mapping, so no open request remains and a second
+answer needs a new request. The constraint makes the rule hold under concurrent submissions: the second insert
+waits for the first to commit and then fails with 409 ("conflicts with existing data").
+Rejected: locking the mapping row (more code, same effect); allowing several responses to one request (the
+state model has nothing to show for it).
+
+**D-133 — ANSWERED is derived, not stored.** Rows come from the latest review event of the mapping (D-003):
+OPEN when it is `EVIDENCE_REQUESTED`; ANSWERED when it is a `REOPENED` that carries a user and the latest
+response answers the latest request. People cannot send `REOPENED` (`ReviewService`) and system reopenings
+(`RerunChangeHandler`, course changes) have no user, so a `REOPENED` with a user can only come from a response.
+A system reopening after an answer is neither OPEN nor ANSWERED: the requirement is back in normal review.
+Rejected: a status column on the request (review events are immutable and a request is an event, so it would
+need a second table or an update); marking the reopening event by note text (fragile).
+
+**D-134 — Response count and latest response are per mapping, not per request.** After a second request the
+row is OPEN again but still shows the earlier answer, which is what a contributor needs to see before answering
+again. The list is the latest finished assessment's current mappings only (D-066, `MappingRepository.CURRENT`
+is now public and reused), newest request first, in one query with lateral joins (no N+1).
+Rejected: counting only responses to the latest request (always 0 or 1 under D-132, no information).
+
+**D-135 — Audit entity is the mapping.** `EVIDENCE_PROVIDED` is recorded on `mapping` like `REVIEW_RECORDED`, so a
+mapping's audit trail reads in one place; the response id is in the detail with requirement ref, jurisdiction,
+document id, page and the verified quote. The actor is the contributor (the REOPENED event also carries them as
+`user_id`, note `Evidence provided by <display name>`).
+Rejected: entity `evidence_response` (splits one requirement's history over two entities).
+
+**D-136 — Checks run in the spec's order and use the mapping's current state.** 404, stale 409, signed 409
+(`DeterminationRepository.hasSigned`), no open request 409, then the 400s of the citation. The open request is
+read from the newest review event (`ReviewRepository.latest`), the same source as the mapping's decision, and
+its id is stored as `review_event_id`.
+
+**D-137 — Roles.** POST is open to all four roles as specified (so only unauthenticated callers are refused);
+both GETs follow the other read endpoints (any authenticated user of the tenant). Cross-tenant ids are 404
+through row-level security, as everywhere else.
+
+**D-138 — Migration count test.** `MigrationsApplyCleanlyTest` now compares applied migrations with the
+`db/migration/V*.sql` files on the classpath instead of a hard-coded number, because V006 belongs to another
+work item and the version numbers have a gap. Applied count is 6 here (V001 to V005 and V007); it is 7 once V006
+merges, with no test change.
+
+### F9 — Curriculum search API (D-150 to D-159)
+
+**D-150 — Query syntax.** The reviewer's text goes to `websearch_to_tsquery('english', :q)` as a bound
+parameter, so quoted phrases, `OR` and `-term` work and no input can raise a syntax error. Rejected:
+`to_tsquery` with sanitising in Java (reimplements the parser and loses phrases and negation) and
+`plainto_tsquery` (no operators). The requirement shortlist keeps `to_tsquery` with OR-ed words (D-051).
+Decided by the CTO in the roadmap.
+
+**D-151 — Ranking and headline cost.** Pages are ranked by `ts_rank_cd(tsv, query, 32)` (cover density,
+normalised to 0..1 by rank/(rank+1)), ties by document creation time, page number and document id so the order
+is stable. The query keeps the top `limit` rows in a subquery first; `ts_headline` is computed only in the outer
+select over those rows (`MaxFragments=2, MaxWords=40, MinWords=15`). Rejected: headline in the same select as the
+filter (PostgreSQL may evaluate it for every matching page before the cut).
+
+**D-152 — No markup from the database.** `StartSel` and `StopSel` are U+0001 and U+0002. The server splits the
+headline on them into `segments: [{text, match}]` and drops empty runs; the control characters never leave the
+server and the client renders `text` as text. Page text is passed through `translate(text, U+0001 U+0002, '')`
+before `ts_headline`, so a page that itself contained those characters (a hostile or damaged PDF) cannot forge a
+match or unbalance the split. Rejected: `<b>` delimiters with HTML escaping (a second parser on the server and an
+invitation to `innerHTML` on the client), and returning character offsets (the headline is a computed excerpt,
+not the stored page text, so offsets would not point into anything the client holds).
+
+**D-153 — One query shape for both uses of the seam.** `PassageSearch` gains
+`searchWithHeadlines(programId, query, kind, courseVersionId, limit)` returning `PassageHit`.
+`PostgresPassageSearch` builds both statements from one SQL template (the joins, tenant-program and non-rule
+filters, ranking subquery, top-N cut and final ordering); the two `Mode` constants supply only the tsquery
+function, the rank function and the outer projection (`h.text` for the matcher, `ts_headline(...)` for search).
+The matcher's behaviour is unchanged (same words, same `ts_rank`; its order gains a final document-id tiebreak).
+Rejected: a second method with its own copy of the joins, and switching the matcher to `ts_rank_cd` (would
+change shortlists and therefore findings; out of scope for a read feature).
+
+**D-154 — Where it lives.** `com.lexvay.search`: `SearchController`, `SearchService`, `SearchHit`, `Segment`,
+`HeadlineSegments`. The passage SQL stays in the `assessment.match` seam, where the shared joins are. The service
+calls `ProgramService.get` first so another tenant's (or an unknown) program is a 404 from row-level security, never
+an empty list. The transaction is `@Transactional(readOnly = true)`: one transaction, one query, no audit row
+(nothing is created or changed; reading is not audited anywhere else in the API either). Any authenticated role
+may search.
+
+**D-155 — Parameter rules.** `q` is required, not blank, at most 500 characters (an addition to the roadmap: a
+bound ceiling on the work one request can ask the parser for). `limit` defaults to 20 and must be 1 to 50; a value
+outside that range is a 400, not silently clamped, the same contract as `GET /audit`. `kind` is a `DocumentKind`;
+`RULE_TEXT` is a 400 because rule text is not part of a program's documents. `courseVersionId` that matches
+nothing returns an empty list. Rejected: clamping the limit (hides a client bug) and ignoring `kind=RULE_TEXT`
+(an empty list would look like "nothing found").
+
+**D-156 — Response shape.** A JSON array of rows `documentId, filename, kind, courseCode, courseRequired,
+pageNumber, rank, segments`, best first. `courseCode` and `courseRequired` are null for documents without a
+course. `rank` is the raw `ts_rank_cd` score as a number: comparable inside one response, not across queries.
+Rejected: a wrapper with a total (counting all matches costs a second pass and the screen does not need it).
+
+**D-157 — No new index or migration.** `document_page_tsv_idx` (GIN on `tsv`) already serves
+`tsv @@ query`; `document_page` is also reached by the tenant policy's index. On the seeded tenant (24 pages)
+`EXPLAIN ANALYZE` of the filter runs in 0.03 ms with a tenant index scan, and the measured p95 of the endpoint
+is a few milliseconds (D-158), so no index would change anything. Migration numbering is untouched.
+
+**D-158 — Latency check.** `perf/SearchLatencyTest` (tagged `perf`) runs 50 warm-up and then 200 timed requests
+over six queries against a fresh tenant holding the real seed documents and asserts p95 at most 40 ms. No
+`EndpointLatencyTest` exists on main and the build has no surefire exclusion, so it runs in the normal
+suite. It measures MockMvc in process (controller, security, transaction, SQL, JSON), not the network.
+
+**D-159 — Test data.** The search tests ingest the seed PDFs of the first demo university into a new tenant
+through the upload API, using the course and document lists from `seed/manifest.yml`, instead of calling
+`SeedLoader`. The loader creates the shared demo tenants once per database and `SeedLoaderTest` asserts that
+first load, so a second test calling it would make that test depend on class order. The search tests need no
+model and no scripts.

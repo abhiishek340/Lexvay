@@ -16,6 +16,8 @@ export LEXVAY_E2E_BACKEND_PORT="$BACKEND_PORT"
 export LEXVAY_E2E_WEB_PORT="$WEB_PORT"
 export LEXVAY_FILESTORE_PATH="$(mktemp -d)"
 export LEXVAY_LLM_PROVIDER=fake
+# Every browser test signs in from 127.0.0.1; the production login budget (10 per minute) would trip them.
+export LEXVAY_RATELIMIT_LOGIN_PER_MINUTE=1000
 export LEXVAY_DEMO_PASSWORD="${LEXVAY_DEMO_PASSWORD:-lexvay-demo}"
 COMPOSE="docker compose -p lexvay-e2e-$SLOT -f docker-compose.yml"
 BACKEND_PID=""
