@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V019 SEC-3, V020 F15 (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V019 SEC-3, V020 F15, reserved V021 RG-1, V022 MODE-1, V023 RG-2, V024 AC-1, V025 AC-2 (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -4294,3 +4294,32 @@ two audit sentences. axe runs on the drop zone and on each result in both themes
 cannot be produced on the shared seeded stack without reopening California for the specs that run after, so that test
 answers the check with the server's real response for the file with only the status and time changed (`page.route`); the
 backend test proves the real reopened answer.
+
+## Real-data validation track (D-550)
+**D-550 — Master prompt v3 adopted as the next stage; free-first.** On 2026-11-27 the founder issued "Complete Master
+Engineering Prompt v3 (free-first)". The orchestrator ran its G0 intake (`docs/INTAKE-2026-11-27.md`, main
+`7b04d82`) and adopted it as follows.
+
+The demo stays, clearly separated from real data (MODE-1). The next milestone is one authorized real-data vertical
+slice:
+- one Utah clinical mental health counseling pathway, from official sources;
+- one public academic program, the University of Utah CMHC;
+- acquisition, replay, temporal correctness, pathway reasoning and an evidence record with explicit missing data.
+
+The intake confirmed two P0 defects in the rule-source monitor, both fixed in RG-1:
+- the fetch date was used as the effective date;
+- changes observed while a draft waited were discarded.
+
+Budget: no paid data, connector, scraping, OCR or metered inference without the founder's explicit approval,
+enforced in code by MODE-1's spend gate. Local inference is evaluated through an OpenAI-compatible adapter (EV-1)
+before any model is chosen.
+
+Architecture: no rewrite, no new services. The existing Angular, Spring Boot, PostgreSQL application, job table,
+fetcher and evidence model are extended.
+
+Blocked on the founder: a qualified licensure domain expert (DOM-1) and an authorized SharePoint test tenant (SP-1).
+Until then, rule packs built in this repository are labelled demo-only or expert-review pending, never certified.
+University handbook text is not committed to the repository until its rights are reviewed.
+
+The design work (UI3) is bounded to restyling built screens.
+
