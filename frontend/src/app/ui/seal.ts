@@ -11,8 +11,8 @@ import { initials } from './initials';
  *   <lx-seal outcome="DOES_NOT_MEET" signer="Dana Whitfield" signedAt="2026-11-27T09:12:00Z" />
  * `compact` draws it at 24 px without the date, for a 40 px table row whose next words name the signer and the date.
  * The accessible name says it all in one sentence. `preview` draws a seal that does not exist yet (the signing dialog
- * before the server has signed): no role and no name, hidden from assistive technology, so nothing claims a signature
- * that has not happened.
+ * before the server has signed): no role, no name and no date, hidden from assistive technology, so nothing claims a
+ * signature that has not happened.
  */
 @Component({
   selector: 'lx-seal',
@@ -22,7 +22,7 @@ import { initials } from './initials';
       <circle cx="20" cy="20" r="16.25" class="lx-seal-ring" stroke-width="0.75" />
       <text x="20" y="20.5" class="lx-seal-initials" [attr.font-size]="compact() ? 14 : 11" text-anchor="middle" dominant-baseline="central">{{ letters() }}</text>
     </svg>
-    @if (!compact()) { <span class="lx-seal-date" aria-hidden="true">{{ date() }}</span> }
+    @if (!compact() && !preview()) { <span class="lx-seal-date" aria-hidden="true">{{ date() }}</span> }
   `,
   host: {
     '[attr.role]': 'preview() ? null : "img"', '[attr.aria-label]': 'preview() ? null : description()',

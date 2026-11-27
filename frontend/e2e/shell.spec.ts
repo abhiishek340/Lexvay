@@ -116,7 +116,7 @@ test('the overview with the v3 shell is accessible in both themes at 1440 and 40
   await expect(rail.getByRole('list', { name: 'Workspace' })).toBeVisible();
   await expect(rail.getByRole('list', { name: 'Program' })).toBeVisible();
   await expect(nav(page, 'Program overview')).toHaveAttribute('aria-current', 'page');
-  expect(await nav(page, 'Program overview').evaluate((a) => getComputedStyle(a).boxShadow)).toMatch(/inset 2px 0px 0px/);
+  expect(await nav(page, 'Program overview').evaluate((a) => getComputedStyle(a).boxShadow)).toMatch(/ 2px 0px 0px 0px inset$/);
   // Focus moves to the page title after a navigation without drawing a ring on it.
   await nav(page, 'Coverage').click();
   await nav(page, 'Program overview').click();

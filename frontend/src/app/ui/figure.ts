@@ -8,7 +8,7 @@ import { Component, input } from '@angular/core';
 @Component({
   selector: 'lx-figure',
   template: `
-    <p class="lx-figure-value"><span class="lx-figure">{{ value() }}</span>@if (of() !== null) {<span class="lx-figure-of">of {{ of() }}</span>}</p>
+    <p class="lx-figure-value"><span class="lx-figure">{{ value() }}</span>@if (of() !== null) {<span class="lx-figure-of"> of {{ of() }}</span>}</p>
     <p class="lx-meta">{{ label() }}</p>
   `,
   styles: `

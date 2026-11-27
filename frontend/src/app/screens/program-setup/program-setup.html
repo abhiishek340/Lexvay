@@ -13,7 +13,7 @@
 
   <!-- PrimeNG's Stepper marks itself a tablist holding its panels; the steps here are a list of buttons with aria-current
        instead (the WAI pattern for a step sequence), so its roles are replaced through pass-through (D-087). -->
-  <section class="lx-hero lx-setup-hero" aria-label="Program setup">
+  <section class="lx-setup-hero" aria-label="Program setup">
     <p-stepper [value]="stepValue()" (valueChange)="go($event)" [pt]="{ root: { role: null } }">
       <p-step-list class="lx-step-list" [pt]="{ root: { role: 'list', 'aria-label': 'Setup steps' } }">
         @for (s of steps; track s; let n = $index) {

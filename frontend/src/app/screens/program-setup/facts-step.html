@@ -24,7 +24,7 @@
           </div>
           @if (row.current; as f) {
             <div class="lx-fact-body">
-              <span class="lx-number" data-testid="fact-value">{{ f.value }}</span>
+              <span class="lx-figure" data-testid="fact-value">{{ f.value }}</span>
               <div class="lx-fact-source">
                 <blockquote class="lx-fact-quote">{{ f.quote }}</blockquote>
                 <p class="lx-help">{{ f.filename }}, page <span class="lx-mono">{{ f.pageNumber }}</span>, {{ f.createdAt | date: 'd MMM y' }}</p>

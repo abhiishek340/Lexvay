@@ -91,7 +91,7 @@ export class Review {
   readonly busy = signal(false);
   readonly signOpen = signal(false);
   readonly helpOpen = signal(false);
-  /** The determination the signing dialog has just recorded, for its stamp. */
+  /** The determination the signing dialog has just recorded, for its seal. */
   readonly justSigned = signal<Determination | null>(null);
   readonly wide = signal(typeof matchMedia === 'function' ? matchMedia(WIDE).matches : true);
 
@@ -275,7 +275,7 @@ export class Review {
     this.busy.set(true);
     try {
       const determination = await firstValueFrom(this.api.sign(this.programId(), this.jurisdiction(), outcome));
-      // The dialog stays open on its stamped seal until the signer closes it.
+      // The dialog stays open on its seal until the signer closes it.
       this.justSigned.set(determination);
       await this.context.refreshDeterminations();
       const text = `Determination for ${determination.jurisdiction} signed by ${determination.signedByName}: ${OUTCOME_LABEL[determination.outcome]}.`;

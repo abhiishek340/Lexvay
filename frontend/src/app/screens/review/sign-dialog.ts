@@ -52,7 +52,7 @@ export class SignDialog {
   private readonly doneButton = viewChild<ElementRef<HTMLButtonElement>>('done');
 
   constructor() {
-    // The Sign button is gone once the seal has landed: Done takes the focus, so the keyboard never falls to the page.
+    // The Sign button is gone once the seal appears: Done takes the focus, so the keyboard never falls to the page.
     effect(() => {
       if (this.signed()) {
         untracked(() => afterNextRender(() => this.doneButton()?.nativeElement.focus(), { injector: this.injector }));

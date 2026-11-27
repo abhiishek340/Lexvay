@@ -227,7 +227,7 @@ test('at 400 px: the inbox, the drawer, a blocked request and the provided evide
     const term = row.getByTestId('blocked-reason').locator('.lx-term');
     await expect(term).toHaveAccessibleDescription(why);
     await term.focus();
-    await expect(page.getByRole('tooltip')).toHaveText(why);
+    await expect(page.getByRole('tooltip').filter({ hasText: why })).toBeVisible();
     await expectAccessible(page, `Evidence requests at 400 px, blocked (${reason})`);
   }
   // A signed request is listed, blocked, but not counted in the badge: it can never be answered.

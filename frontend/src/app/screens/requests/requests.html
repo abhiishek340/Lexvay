@@ -10,7 +10,7 @@
   <p class="lx-status-line" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
 
   @if (context.ready()) {
-    <section class="lx-hero lx-inbox" aria-labelledby="inbox-heading">
+    <section class="lx-inbox" aria-labelledby="inbox-heading">
       <div class="lx-inbox-head">
         <h2 id="inbox-heading" class="lx-sr-only">Inbox</h2>
         <p-selectbutton [options]="filters" optionLabel="label" optionValue="value" [allowEmpty]="false" [ngModel]="filter()"
@@ -116,7 +116,7 @@
       }
     </section>
   } @else if (!context.error()) {
-    <div class="lx-hero lx-inbox lx-skeleton" aria-busy="true" aria-label="Loading evidence requests">
+    <div class="lx-inbox lx-skeleton" aria-busy="true" aria-label="Loading evidence requests">
       <p-skeleton width="16rem" height="2.25rem" />
       @for (i of [1, 2, 3]; track i) { <p-skeleton height="3.25rem" /> }
     </div>

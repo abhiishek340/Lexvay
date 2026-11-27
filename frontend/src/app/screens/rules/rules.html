@@ -15,7 +15,7 @@
   @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
 
   @if (context.ready()) {
-    <div class="lx-hero lx-rules-panes">
+    <div class="lx-rules-panes">
       <section class="lx-versions" aria-labelledby="versions-heading">
         <h2 id="versions-heading" class="lx-versions-heading">Versions <span class="lx-versions-count">{{ versionCount() }}</span></h2>
         @if (groups().length === 0) {
