@@ -10,6 +10,7 @@ import { PEOPLE_ICONS } from '../screens/people/people';
 import { REGISTER_ICONS } from '../screens/register/register';
 import { REQUESTS_ICONS } from '../screens/requests/requests';
 import { REPORT_ICONS } from '../screens/report/report';
+import { REPORT_CHECK_ICONS } from '../screens/report/report-check-dialog';
 import { REVIEW_ICONS } from '../screens/review/review';
 import { RULES_ICONS } from '../screens/rules/rules';
 import { PROGRAM_SETUP_ICONS } from '../screens/program-setup/program-setup';
@@ -62,6 +63,7 @@ const UNITS: Unit[] = [
   { name: 'state map (shared)', entries: ['ui/state-map/state-map.ts'], registered: STATE_MAP_ICONS, shared: true },
   { name: 'status icon (shared)', entries: ['ui/status-icon.ts'], registered: STATUS_ICONS, shared: true },
   { name: 'decision bar (shared)', entries: ['ui/decision-bar/decision-bar.ts'], registered: DECISION_BAR_ICONS, shared: true },
+  { name: 'report check (report, deferred)', entries: ['screens/report/report-check-dialog.ts'], registered: REPORT_CHECK_ICONS, shared: true },
 ];
 
 const read = (file: string): string => readFileSync(join(SRC, file), 'utf8');
