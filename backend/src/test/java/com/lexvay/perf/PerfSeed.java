@@ -97,6 +97,39 @@ final class PerfSeed {
                 """);
     }
 
+    /**
+     * Audit entries as a log that has been used for months holds them: {@code perTenant} for every tenant, spread over
+     * 180 days with five actions, inserted oldest first as a log grows, and {@code extra} more for {@code tenantId}, the tenant the planner
+     * checks run as. The entries are append-only in the product (a trigger refuses updates and deletes) but may be
+     * inserted; the owner connection bypasses row-level security. Synthetic; used to check how the audit list and
+     * export are planned.
+     */
+    static void addAuditVolume(Statement admin, UUID tenantId, int perTenant, int extra) throws SQLException {
+        admin.execute("""
+                INSERT INTO audit_log (tenant_id, user_id, action, entity_type, entity_id, detail, created_at)
+                SELECT tenant_id, user_id, action, 'mapping', gen_random_uuid(), jsonb_build_object('n', g), created_at
+                FROM (
+                    SELECT t.id AS tenant_id, u.id AS user_id, g,
+                           (ARRAY['MAPPING_REVIEWED', 'ASSESSMENT_STARTED', 'DETERMINATION_SIGNED', 'LOGIN_SUCCEEDED',
+                                  'DOCUMENT_UPLOADED'])[1 + g %% 5] AS action,
+                           now() - random() * interval '180 days' AS created_at
+                    FROM tenant t
+                    JOIN LATERAL (SELECT id FROM app_user WHERE tenant_id = t.id LIMIT 1) u ON true
+                    CROSS JOIN generate_series(1, %1$d) g
+                    UNION ALL
+                    SELECT t.id, u.id, g,
+                           (ARRAY['MAPPING_REVIEWED', 'ASSESSMENT_STARTED', 'DETERMINATION_SIGNED', 'LOGIN_SUCCEEDED',
+                                  'DOCUMENT_UPLOADED'])[1 + g %% 5],
+                           now() - random() * interval '180 days'
+                    FROM tenant t
+                    JOIN LATERAL (SELECT id FROM app_user WHERE tenant_id = t.id LIMIT 1) u ON true
+                    CROSS JOIN generate_series(1, %2$d) g
+                    WHERE t.id = '%3$s'
+                ) volume
+                ORDER BY created_at
+                """.formatted(perTenant, extra, tenantId));
+    }
+
     /** Two large finished assessments of one program, see {@link #addLargeAssessments}. */
     record LargeAssessments(UUID beforeRerun, UUID afterRerun) {
     }
