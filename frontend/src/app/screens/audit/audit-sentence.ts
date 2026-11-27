@@ -136,6 +136,13 @@ export const AUDIT_SENTENCES: Record<string, Sentence> = {
       ? `${actor} started an audit trail download that stopped${rows ? ` after ${rows}` : ''}`
       : withCount(`${actor} downloaded the audit trail`, rows);
   },
+  AUDIT_VERIFIED: ({ actor, detail }) => {
+    const base = `${actor} verified the audit trail`;
+    if (detail['intact'] === true) { return `${base}: intact`; }
+    if (detail['intact'] !== false) { return base; }
+    const entry = number(detail, 'firstBrokenSeq');
+    return `${base}: broken${entry === null ? '' : ` at entry ${entry}`}`;
+  },
   CHANGE_EVENT_CREATED: ({ actor, detail }) => {
     const base = `${actor} recorded a new ${isRule(detail) ? 'rule' : 'course'} version`;
     const reopened = number(detail, 'reopenedDeterminations');
@@ -197,6 +204,7 @@ export const ACTION_LABEL: Record<string, string> = {
   DETERMINATION_REOPENED: 'Determination reopened',
   REGISTER_EXPORTED: 'Register downloaded',
   AUDIT_EXPORTED: 'Audit trail downloaded',
+  AUDIT_VERIFIED: 'Audit trail verified',
   CHANGE_EVENT_CREATED: 'Change recorded',
   CHANGE_RERUN_REQUESTED: 'Re-run requested',
   CHANGE_RERUN: 'Re-run finished',
