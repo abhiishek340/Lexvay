@@ -125,7 +125,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F10b Coverage matrix screen (v2) | `ui2-coverage` | 7 | Opus 5.5 | merged (#41) |
 | FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | merged (#42) |
 | F12b Rule sources in the Rules workspace (v2) | `ui2-rule-sources` | 1 | Opus 5.5 | queued (after UI2-4) |
-| FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | in progress |
+| FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | merged (#45) |
 | F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | in progress |
 | INFRA-2 Remote state, WAF, flow logs, egress | `infra-hardening` | — | Sonnet 5.5 | in progress |
 | FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | in progress |

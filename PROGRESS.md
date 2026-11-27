@@ -2499,3 +2499,20 @@ Branch `fix-ocr-checkpoints`, slot 5, migration V017. Decisions D-436 to D-441 a
 frontend `Test Files 29 passed (29)`, `Tests 312 passed (312)`, end-to-end `37 passed (4.0m)`. The first backend run had one
 failure in the new ingest test: `JobRunner.runOne` claims the oldest queued job of any tenant, and jobs that other test
 classes had left queued were claimed first. The test now drains the queue in `setUp`.
+
+## FIX-7 — One "latest finished assessment" ordering (PR #45)
+
+Branch `fix-latest-finished`, decisions D-450 to D-452 in `docs/decisions/FIX-7.md`. Backend only, no migration.
+
+- `MappingRepository.latestAssessmentsUsing` now runs `LATEST_ASSESSMENTS_USING`: `program` joined laterally to
+  `AssessmentRepository.LATEST_FINISHED`, filtered by an `EXISTS` over the program's latest assessment's mappings of the
+  rule version (D-450). `grep -rn "finished_at DESC" backend/src/main/java` shows only `LATEST_FINISHED`.
+- `LatestAssessmentsUsingParityTest`: old statement as a literal against the new method, equal as sets for every rule version
+  of the seeded tenant, with three extra programs (newest finished lacks the version; newest assessment FAILED; tied finish
+  time) and explicit expectations (D-451).
+- `IndexUsageTest` explains the statement on the perf seed (100 tenant copies, application role): `program_tenant_idx`,
+  then per program `assessment_program_status_finished_idx`, then `mapping_assessment_jurisdiction_idx` (500 rows of
+  the large assessment) and `requirement_pkey`. No sequential scan on `mapping` or `assessment`.
+  Execution 1.05 ms, 1 551 shared buffers, planning 0.6 ms (`target/perf/latest-assessments-using-plan.txt`) (D-452).
+- `make perf`: `EndpointLatencyTest` and `IndexUsageTest` green (slot 6).
+- ROADMAP: the FIX-5 and F10a follow-up lines about this ordering are removed.
