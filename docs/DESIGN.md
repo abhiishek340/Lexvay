@@ -199,6 +199,11 @@ only carrier of state; any network request to a third-party host.
   (checked with a Chrome performance trace in the PR).
 
 ## Bundle
-Icons and component tokens live with the chunk that uses them; the shared preset holds only what the shell and first
-paint need (PERF-FE-1). The initial bundle budget is in `angular.json`; a change that crosses the warning moves
-something out first.
+Icons and component tokens live with the chunk that uses them (PERF-FE-1, D-295 to D-299); the shared preset holds only
+the token sets of what the shell and first paint render, and `SHELL_ICONS` only the icons of the shell, sign-in and home.
+A routed screen names its other icons in a `<SCREEN>_ICONS` constant next to the screen, provided by the route in
+`<screen>.routes.ts` (loaded with `loadChildren`, because route providers are built at start-up), and its other
+components' token sets in `<screen>-theme.ts`, registered from its constructor with `registerComponentTokens`; a shared
+component does the same through `viewProviders` and its own constructor. `theme/icons.spec.ts` fails on an icon nobody
+registers, and the end-to-end suite fails on a "No icon named" warning. The initial bundle budget is in `angular.json`;
+a change that crosses the warning moves something out first.

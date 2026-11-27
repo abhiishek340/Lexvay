@@ -188,6 +188,64 @@ existed showed a sequential scan of `review_event`: the table was empty and the 
 tables, which is why `PerfSeed.addHistoryVolume` now adds review events. Known cost: `MappingRepository.CURRENT` is
 quadratic in the mappings of one assessment (D-199).
 
+## Frontend bundle (PERF-FE-1)
+
+Method: `cd frontend && npx ng build --stats-json --verbose` (production configuration, Angular 22.3.0); sizes are
+raw bytes and Angular's estimated transfer (gzip). The breakdown groups the esbuild metafile (`browser-stats.json`)
+by package for the `main` chunk. "Before" is `origin/main` at 611d0a0 (F8 merged), "after" is this branch.
+
+| | before raw | after raw | before transfer | after transfer |
+|---|---:|---:|---:|---:|
+| Initial total | 703.12 kB | 695.03 kB | 169.43 kB | 168.22 kB |
+| main.js | 695.67 kB | 687.58 kB | 167.84 kB | 166.62 kB |
+| styles.css | 7.45 kB | 7.45 kB | 1.60 kB | 1.60 kB |
+
+Named lazy chunks (raw / transfer, kB). A chunk now carries its screen's route file, token sets and the shared
+modules only it uses; the screens that use a module together keep sharing the unnamed chunks.
+
+| Chunk | before | after |
+|---|---:|---:|
+| rules | 209.98 / 45.83 | 211.28 / 46.30 |
+| review | 53.47 / 14.08 | 55.69 / 14.65 |
+| register | 30.25 / 8.04 | 30.66 / 8.16 |
+| changes | 14.62 / 4.83 | 15.22 / 5.04 |
+| report | 14.03 / 4.30 | 14.23 / 4.39 |
+| overview | 12.40 / 3.96 | 12.70 / 4.08 |
+| login, audit, home | 29.69, 7.38, 2.69 | 29.69, 7.39, 2.69 |
+
+The budget is unchanged at 700 kB warning and 800 kB error: the initial bundle is not under 640 kB (the condition for
+650 / 750). The token sets of seven components left the shared preset (Aura sets in `main`: 55.2 kB to 52.0 kB) and
+the global registry shrank from every icon of every screen to the 17 of `SHELL_ICONS`, but `main` still holds 52 Phosphor icons (26.9 kB; the 17
+shell icons alone are 7.5 kB), because `@ng-icons/phosphor-icons/regular` is one module: the bundler puts it in the
+chunk all its importers share, with every export any chunk uses. Per-chunk icon constants name what a chunk shows, but
+the SVG strings come from `main` for as long as the shell imports that module.
+
+What the 687.6 kB `main` holds (raw, grouped by package):
+
+| Package | kB | Package | kB |
+|---|---:|---|---:|
+| @angular/core | 221.5 | @primeuix/utils | 29.8 |
+| primeng | 110.9 | rxjs | 28.5 |
+| @angular/router | 108.4 | @ng-icons/phosphor-icons | 26.9 |
+| @primeuix/themes (Aura) | 52.0 | @primeui/license-manager | 22.6 |
+| @angular/common | 49.1 | application code (shell 17.0, preset 8.0, rest 14) | about 39 |
+| @angular/forms | 46.2 | @angular/platform-browser | 16.9 |
+| @primeuix/styles | 44.4 | @ng-icons/core, @primeicons, tslib | 13.4 |
+| @primeuix/styled | 30.2 | | |
+
+Next cuts, with what each is worth (estimates from the same metafile; the first was measured on a scratch build):
+
+1. The shell's own copy of its 17 icons (about 7.5 kB of SVG strings, generated and checked against the package by a
+   test), so the package module is imported only by lazy chunks: initial 676.5 kB (minus 18.5 kB).
+2. Move the remaining Aura token sets that are not first paint of the shell (DataTable 4.9, Message 5.3, Toast 4.8,
+   Select 3.2, Tabs 1.7, InputText 1.6, Menu 1.5, Password 0.8 kB) into the chunks that render them: about minus 20 kB.
+   The spec keeps these in the preset because two or more screens render them on first paint.
+3. `@primeui/license-manager` (22.6 kB) is imported statically by `primeng/config`; it cannot leave without patching
+   PrimeNG or an upstream change, and the only other large shell-only item, `@primeuix/styles/button` (23.9 kB, all
+   button variants), is PrimeNG's.
+4. 640 kB needs cuts 1 and 2 and one of the items in 3, or a decision to split the shell (the program switcher, theme
+   switcher and navigation) behind `@defer`.
+
 ## Not covered
 
 - All numbers are loopback. Production adds network latency per round trip, which favours the new design.
