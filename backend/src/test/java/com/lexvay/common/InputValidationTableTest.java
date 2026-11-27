@@ -222,6 +222,72 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(row("audit: control character in action filter", "GET /api/v1/audit", HttpMethod.GET,
                 "/api/v1/audit?action=a%00b", null, null, 400));
 
+        // --- audit export ---
+        String exportCsv = "GET /api/v1/audit.csv";
+        rows.add(row("audit export: hostile query parameter is ignored", exportCsv, HttpMethod.GET, "/api/v1/audit.csv?q=%00%ff", null, null, 200));
+        rows.add(row("audit export: entity id is not a UUID", exportCsv, HttpMethod.GET, "/api/v1/audit.csv?entityId=" + BAD_ID, null, null, 400));
+        rows.add(row("audit export: user id is not a UUID", exportCsv, HttpMethod.GET, "/api/v1/audit.csv?userId=" + BAD_ID, null, null, 400));
+        rows.add(row("audit export: from is not a timestamp", exportCsv, HttpMethod.GET, "/api/v1/audit.csv?from=yesterday", null, null, 400));
+        rows.add(row("audit export: to is not a timestamp", exportCsv, HttpMethod.GET, "/api/v1/audit.csv?to=%00", null, null, 400));
+        rows.add(row("audit export: control character in action filter", exportCsv, HttpMethod.GET, "/api/v1/audit.csv?action=a%00b", null, null, 400));
+        rows.add(row("audit export: control character in entity type filter", exportCsv, HttpMethod.GET, "/api/v1/audit.csv?entityType=a%00b", null, null, 400));
+        rows.add(signerRow("audit export: a signer is refused", exportCsv, HttpMethod.GET, "/api/v1/audit.csv", null, null, 403));
+        rows.add(anonymousRow("audit export: no session", exportCsv, HttpMethod.GET, "/api/v1/audit.csv", 401));
+
+        // --- user administration ---
+        Map<String, Object> newUser = Map.of("email", "new.person@example.test", "displayName", "New Person", "role", "REVIEWER");
+        String users = "/api/v1/users";
+        String postUser = "POST /api/v1/users";
+        bodies.post("users create: email missing", postUser, users, without(newUser, "email"));
+        bodies.post("users create: email is not an address", postUser, users, with(newUser, "email", "not-an-address"));
+        bodies.post("users create: blank email", postUser, users, with(newUser, "email", "   "));
+        bodies.post("users create: oversized email", postUser, users, with(newUser, "email", "a".repeat(250) + "@x.test"));
+        bodies.post("users create: control character in email", postUser, users, with(newUser, "email", "a\u0000b@x.test"));
+        bodies.post("users create: display name missing", postUser, users, without(newUser, "displayName"));
+        bodies.post("users create: blank display name", postUser, users, with(newUser, "displayName", "   "));
+        bodies.post("users create: oversized display name", postUser, users, with(newUser, "displayName", "n".repeat(201)));
+        bodies.post("users create: control character in display name", postUser, users, with(newUser, "displayName", "a\u0000b"));
+        bodies.post("users create: role missing", postUser, users, without(newUser, "role"));
+        bodies.post("users create: unknown role", postUser, users, with(newUser, "role", "OWNER"));
+        bodies.post("users create: role in lower case", postUser, users, with(newUser, "role", "admin"));
+        rows.add(rawJson("users create: body is not JSON", postUser, HttpMethod.POST, users, "{not json", 400));
+        rows.add(row("users create: body is not JSON media type", postUser, HttpMethod.POST, users, "email=a%40b.test", MediaType.APPLICATION_FORM_URLENCODED_VALUE, 415));
+        rows.add(signerRow("users create: a signer is refused", postUser, HttpMethod.POST, users, json(newUser), JSON, 403));
+        String postCode = "POST /api/v1/users/{id}/setup-code";
+        rows.add(row("user setup code: id is not a UUID", postCode, HttpMethod.POST, users + "/" + BAD_ID + "/setup-code", null, null, 400));
+        rows.add(row("user setup code: unknown user", postCode, HttpMethod.POST, users + "/" + ID + "/setup-code", null, null, 404));
+        rows.add(signerRow("user setup code: a signer is refused", postCode, HttpMethod.POST, users + "/" + ID + "/setup-code", null, null, 403));
+        String putRole = "PUT /api/v1/users/{id}/role";
+        rows.add(row("user role: id is not a UUID", putRole, HttpMethod.PUT, users + "/" + BAD_ID + "/role", json(Map.of("role", "SIGNER")), JSON, 400));
+        rows.add(row("user role: unknown user", putRole, HttpMethod.PUT, users + "/" + ID + "/role", json(Map.of("role", "SIGNER")), JSON, 404));
+        rows.add(rawJson("user role: role missing", putRole, HttpMethod.PUT, users + "/" + ID + "/role", "{}", 400));
+        rows.add(rawJson("user role: role is null", putRole, HttpMethod.PUT, users + "/" + ID + "/role", "{\"role\":null}", 400));
+        rows.add(rawJson("user role: unknown role", putRole, HttpMethod.PUT, users + "/" + ID + "/role", "{\"role\":\"OWNER\"}", 400));
+        rows.add(rawJson("user role: body is not JSON", putRole, HttpMethod.PUT, users + "/" + ID + "/role", "{not json", 400));
+        rows.add(signerRow("user role: a signer is refused", putRole, HttpMethod.PUT, users + "/" + ID + "/role", json(Map.of("role", "SIGNER")), JSON, 403));
+        String putUserActive = "PUT /api/v1/users/{id}/active";
+        rows.add(row("user active: id is not a UUID", putUserActive, HttpMethod.PUT, users + "/" + BAD_ID + "/active", json(Map.of("active", true)), JSON, 400));
+        rows.add(row("user active: unknown user", putUserActive, HttpMethod.PUT, users + "/" + ID + "/active", json(Map.of("active", true)), JSON, 404));
+        rows.add(rawJson("user active: flag missing", putUserActive, HttpMethod.PUT, users + "/" + ID + "/active", "{}", 400));
+        rows.add(rawJson("user active: flag is not a boolean", putUserActive, HttpMethod.PUT, users + "/" + ID + "/active", "{\"active\":\"maybe\"}", 400));
+        rows.add(rawJson("user active: body is not JSON", putUserActive, HttpMethod.PUT, users + "/" + ID + "/active", "{not json", 400));
+        rows.add(signerRow("user active: a signer is refused", putUserActive, HttpMethod.PUT, users + "/" + ID + "/active", json(Map.of("active", false)), JSON, 403));
+
+        // --- setting a password (anonymous) ---
+        Map<String, Object> setup = Map.of("code", "a-code-nobody-was-given", "password", "a-long-enough-password");
+        String postSetup = "POST /api/v1/auth/setup";
+        String setupUri = "/api/v1/auth/setup";
+        rows.add(anonymousJson("setup: unknown code", postSetup, setupUri, json(setup)));
+        rows.add(anonymousJson("setup: code missing", postSetup, setupUri, json(without(setup, "code"))));
+        rows.add(anonymousJson("setup: blank code", postSetup, setupUri, json(with(setup, "code", "  "))));
+        rows.add(anonymousJson("setup: oversized code", postSetup, setupUri, json(with(setup, "code", "c".repeat(201)))));
+        rows.add(anonymousJson("setup: control character in code", postSetup, setupUri, json(with(setup, "code", "a\u0000b"))));
+        rows.add(anonymousJson("setup: password missing", postSetup, setupUri, json(without(setup, "password"))));
+        rows.add(anonymousJson("setup: oversized password", postSetup, setupUri, json(with(setup, "password", "p".repeat(1001)))));
+        rows.add(anonymousJson("setup: control character in password", postSetup, setupUri, json(with(setup, "password", "a\u0000b".repeat(8)))));
+        rows.add(anonymousJson("setup: code is not text", postSetup, setupUri, json(with(setup, "code", List.of("a")))));
+        rows.add(anonymousJson("setup: body is not JSON", postSetup, setupUri, "{not json"));
+
         // --- programs ---
         Map<String, Object> program = Map.of("name", "P", "licenseType", "L", "catalogYear", "2026-27", "jurisdictions", List.of("CA"));
         bodies.post("programs: name missing", "POST /api/v1/programs", "/api/v1/programs", without(program, "name"));
@@ -523,6 +589,10 @@ class InputValidationTableTest extends AbstractDatabaseTest {
 
     private static Row anonymousRow(String name, String endpoint, HttpMethod method, String uri, int status) {
         return new Row(name, endpoint, method, uri, null, null, status, As.ANONYMOUS);
+    }
+
+    private static Row anonymousJson(String name, String endpoint, String uri, String body) {
+        return new Row(name, endpoint, HttpMethod.POST, uri, body, JSON, 400, As.ANONYMOUS);
     }
 
     private static Row rawJson(String name, String endpoint, HttpMethod method, String uri, String body, int status) {

@@ -7,9 +7,12 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-/** The authenticated principal: a tenant user with exactly one role. */
-public record LexvayUser(UUID id, UUID tenantId, String email, String displayName, Role role, String passwordHash)
-        implements UserDetails {
+/**
+ * The authenticated principal: a tenant user with exactly one role. {@code securityStamp} is the value the user's
+ * stamp had when the session was issued; {@link UserStampCheck} refuses the session once it differs (D-374).
+ */
+public record LexvayUser(UUID id, UUID tenantId, String email, String displayName, Role role, String passwordHash,
+                         int securityStamp) implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
