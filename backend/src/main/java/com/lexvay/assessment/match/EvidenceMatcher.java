@@ -6,10 +6,11 @@ import com.lexvay.common.TenantContext;
 import com.lexvay.document.QuoteVerifier;
 import com.lexvay.llm.JsonSchemaValidator;
 import com.lexvay.llm.LlmCallRecorder;
-import com.lexvay.llm.LlmClient;
+import com.lexvay.llm.LlmGateway;
 import com.lexvay.llm.LlmPurpose;
 import com.lexvay.llm.LlmRequest;
 import com.lexvay.llm.LlmResponse;
+import com.lexvay.observability.LexvayMetrics;
 import com.lexvay.rule.Requirement;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -41,18 +42,19 @@ public class EvidenceMatcher {
     }
 
     private final PassageSearch search;
-    private final LlmClient llm;
+    private final LlmGateway llm;
     private final LlmCallRecorder calls;
     private final EvidenceSpanRepository spans;
     private final JsonSchemaValidator validator;
     private final ObjectMapper json;
+    private final LexvayMetrics metrics;
     private final int shortlistSize;
     private final List<DowngradeRule> downgrades;
     private final int maxOutputTokens;
     private final String systemPrompt;
 
-    public EvidenceMatcher(PassageSearch search, LlmClient llm, LlmCallRecorder calls, EvidenceSpanRepository spans,
-                           ObjectMapper json,
+    public EvidenceMatcher(PassageSearch search, LlmGateway llm, LlmCallRecorder calls, EvidenceSpanRepository spans,
+                           ObjectMapper json, LexvayMetrics metrics,
                            @Value("${lexvay.matching.shortlist-size:8}") int shortlistSize,
                            @Value("${lexvay.matching.min-quote-chars:40}") int minQuoteChars,
                            @Value("${lexvay.matching.min-ocr-confidence:80}") double minOcrConfidence,
@@ -62,6 +64,7 @@ public class EvidenceMatcher {
         this.calls = calls;
         this.spans = spans;
         this.json = json;
+        this.metrics = metrics;
         this.validator = new JsonSchemaValidator(json, SCHEMA);
         this.shortlistSize = shortlistSize;
         this.downgrades = DowngradeRule.ordered(minQuoteChars, minOcrConfidence);
@@ -98,6 +101,7 @@ public class EvidenceMatcher {
                 .filter(p -> p.documentId().equals(proposal.documentId()) && p.pageNumber() == proposal.pageNumber())
                 .findFirst().orElseThrow();
         Optional<QuoteVerifier.Match> verified = QuoteVerifier.find(passage.text(), proposal.quote());
+        metrics.quoteVerification(verified.isPresent());
         if (verified.isEmpty()) {
             return new Outcome(Finding.EVIDENCE_MISSING, NO_VERIFIABLE_PASSAGE, null);
         }

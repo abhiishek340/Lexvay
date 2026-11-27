@@ -20,10 +20,12 @@ class HealthEndpointTest extends AbstractDatabaseTest {
     }
 
     @Test
-    void healthIsPublicAndUp() {
-        var response = client().get().uri("/actuator/health").retrieve().toEntity(String.class);
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatusCode.valueOf(200));
-        assertThat(response.getBody()).contains("\"status\":\"UP\"");
+    void probesStayOnTheMainPortAndArePublic() {
+        for (String probe : new String[] {"/readyz", "/livez"}) {
+            var response = client().get().uri(probe).retrieve().toEntity(String.class);
+            assertThat(response.getStatusCode()).as(probe).isEqualTo(HttpStatusCode.valueOf(200));
+            assertThat(response.getBody()).as(probe).contains("\"status\":\"UP\"");
+        }
     }
 
     @Test

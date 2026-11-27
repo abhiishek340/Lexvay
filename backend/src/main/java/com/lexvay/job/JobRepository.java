@@ -70,6 +70,13 @@ public class JobRepository {
                 .query(ROW).optional();
     }
 
+    /** Jobs waiting to be claimed, across all tenants, from the claim index. For the queue depth gauge. */
+    @Transactional(readOnly = true)
+    public long queuedCount() {
+        jdbc.sql("SELECT set_config('lexvay.worker', 'on', true)").query().singleRow();
+        return jdbc.sql("SELECT count(*) FROM job WHERE status = 'QUEUED'").query(Long.class).single();
+    }
+
     /** The following run under the job's tenant context. */
     public void markDone(UUID id) {
         jdbc.sql("UPDATE job SET status = 'DONE', error = NULL WHERE id = :id").param("id", id).update();
