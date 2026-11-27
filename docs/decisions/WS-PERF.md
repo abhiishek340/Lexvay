@@ -33,7 +33,7 @@ set the signing gate counts (stale, undecided or reopened mappings), so it needs
 `openChangeEvents` is a list of the same views as `GET /change-events`, limited to OPEN events that touch this
 program: a new version of one of its courses, or a new rule version for one of its target jurisdictions and its
 license type. The spec did not say whether the list is program-scoped; an unscoped list would show another
-program's course changes on this program's screen. The orchestrator should confirm this reading.
+program's course changes on this program's screen. Confirmed by the orchestrator on review.
 
 The service lives in a new package `overview` because it composes assessment, determination and change data and
 nothing depends on it; putting it in `program` would create a package cycle (assessment already depends on program).

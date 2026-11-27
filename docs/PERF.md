@@ -103,6 +103,12 @@ diff, evidence requests); rows marked "new" have no before.
   column). On loopback it only costs CPU: the 45 kB mappings response is about 1 to 2 ms slower at p50 after, in all
   three runs, and still far inside the budget. Over a real network the saved bytes outweigh that.
 
+- The rate-limit and security-headers filters merged from WS-SEC run on every request in the final benchmark
+  run (the tables above were measured before that merge; a full `make perf` after it passes, worst p95 15 ms
+  under a load average of 6 to 7). `GET /auth/me` touches no database, so it shows the filters' cost: p50 0.27 and
+  0.88 ms on the two passes, against 0.12 to 0.74 ms in the earlier runs. The difference is inside the run-to-run
+  noise; the filters cost well under 1 ms. `ReadPathConnectionsTest` still sees exactly one checkout per read.
+
 ## One connection per request
 
 `@Transactional(readOnly = true)` on the read service methods, no close-time `RESET` in `TenantAwareDataSource`,
