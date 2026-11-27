@@ -14,6 +14,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 public record LexvayUser(UUID id, UUID tenantId, String email, String displayName, Role role, String passwordHash,
                          int securityStamp) implements UserDetails {
 
+    public LexvayUser withPasswordHash(String hash) {
+        return new LexvayUser(id, tenantId, email, displayName, role, hash, securityStamp);
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
