@@ -482,7 +482,7 @@ reliable than a text layer, so it is stored with its source and confidence and i
    `Rule4_LowOcrConfidenceForcesAmbiguousTest`; one test with the real binary guarded by
    `assumeTrue(engine.available())` that renders known text into an image-only PDF and finds its key words.
    Install Tesseract locally with Homebrew and in CI with the `tesseract-ocr` apt package so that test runs.
-Decisions in `docs/decisions/F11.md` (D-160 to D-169). If a `Dockerfile` exists on `main` when you finish,
+Decisions in `DECISIONS.md (D-160 to D-169)` (D-160 to D-169). If a `Dockerfile` exists on `main` when you finish,
 add Tesseract to the runtime stage and set `LEXVAY_OCR=tesseract` there; otherwise say so in the report.
 
 ## F7 — Retrieval quality (slot 3; no schema change)
