@@ -35,6 +35,7 @@ export function navLinks(programId: string | null, counts: NavCounts): NavLink[]
     register,
     screen('overview', 'Program overview', 'phosphorSquaresFour'),
     screen('review', 'Review', 'phosphorListChecks', waiting, `${plural(waiting, 'requirement', 'requirements')} waiting for review`),
+    screen('coverage', 'Coverage', 'phosphorGridFour'),
     screen('requests', 'Evidence requests', 'phosphorTray', requests, `${plural(requests, 'open evidence request', 'open evidence requests')}`, 'Requests'),
     screen('changes', 'Changes', 'phosphorGitDiff', open, `${plural(open, 'open change', 'open changes')}`),
     screen('rules', 'Rules', 'phosphorScales', rules, `${plural(rules, 'rule version', 'rule versions')} waiting for approval`),
