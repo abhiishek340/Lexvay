@@ -160,7 +160,7 @@ measurable, at hundreds of thousands of jobs it will.
 
 ## Work queue (F13)
 
-`GET /work-queue` and `GET /work-queue/count` (D-190 to D-199, `docs/decisions/F13.md`): one statement and one
+`GET /work-queue` and `GET /work-queue/count` (D-190 to D-199, `DECISIONS.md (F13)`): one statement and one
 connection each, signer role (it sees five of the seven kinds). One `make perf` run (not a median of three),
 milliseconds on loopback:
 
