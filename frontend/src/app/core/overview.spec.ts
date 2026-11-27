@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AssessmentView, Determination, Program } from './models';
-import { barSegments, jurisdictionRows, overviewCounts } from './overview';
+import { jurisdictionRows, overviewCounts } from './overview';
 
 const program: Program = { id: 'p', name: 'P', licenseType: 'L', catalogYear: '2026-27', jurisdictions: ['CA', 'UT'], createdAt: '' };
 const assessment: AssessmentView = {
@@ -23,19 +23,16 @@ describe('overview counts', () => {
 });
 
 describe('jurisdiction rows', () => {
-  it('reports signed, in-progress and not-assessed states in words', () => {
+  it('reports signed, in-review and not-assessed states', () => {
     const rows = jurisdictionRows(program, assessment, [signed]);
-    expect(rows[0]).toMatchObject({ state: 'SIGNED', status: 'Signed' });
-    expect(rows[1]).toMatchObject({ state: 'IN_REVIEW', status: 'Not signed' });
-    expect(jurisdictionRows(program, null, [])[0]).toMatchObject({ state: 'NOT_ASSESSED', status: 'Not assessed' });
+    expect(rows[0]).toMatchObject({ state: 'SIGNED', signed, reopened: false });
+    expect(rows[1]).toMatchObject({ state: 'IN_REVIEW', signed: null, reopened: false });
+    expect(jurisdictionRows(program, null, [])[0]).toMatchObject({ state: 'NOT_ASSESSED', summary: null });
   });
-  it('says when a determination was reopened by a change', () => {
+  it('is ready to sign once every requirement is decided, and says when a signature was reopened by a change', () => {
     const reopened: Determination = { ...signed, status: 'REOPENED' };
     const [ca] = jurisdictionRows(program, assessment, [reopened]);
-    expect(ca).toMatchObject({ state: 'READY', status: 'Reopened, ready to sign', signed: null });
-  });
-  it('bar segments add up to 100 percent', () => {
-    const total = barSegments(assessment.jurisdictions[0]).reduce((n, s) => n + s.percent, 0);
-    expect(Math.round(total)).toBe(100);
+    expect(ca).toMatchObject({ state: 'READY', signed: null, reopened: true });
+    expect(jurisdictionRows(program, assessment, [reopened, signed])[0]).toMatchObject({ state: 'SIGNED', reopened: false });
   });
 });

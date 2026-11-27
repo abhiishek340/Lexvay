@@ -1,6 +1,6 @@
 import { DECISION_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, ROLE_LABEL, humanize } from '../../core/labels';
 import { AuditEntry, DecisionKind, NumericField, Outcome, Role, UserSummary } from '../../core/models';
-import { initials } from '../../ui/seal';
+import { initials } from '../../ui/initials';
 import { ACTION_LABEL, auditSentence, capitalize } from './audit-sentence';
 
 /** Who acted: a person of the tenant, background work (no user), or a user id the tenant no longer lists. */

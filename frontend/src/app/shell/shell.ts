@@ -13,7 +13,7 @@ import { CommandPalette } from '../ui/command-palette/command-palette';
 import { paletteShortcut } from '../ui/command-palette/shortcut';
 import { InfoTip } from '../ui/info-tip';
 import { Mark } from '../ui/mark';
-import { initials } from '../ui/seal';
+import { initials } from '../ui/initials';
 import { AccountMenu } from './account-menu';
 import { ProgramSwitcher } from './program-switcher';
 import { ShellToast } from './shell-toast';

@@ -29,6 +29,21 @@ test('the register lists the California signature, filters, exports CSV, groups 
   await expect(rows.first()).toContainText('Signed');
   await expect(rows.first()).toContainText('Dana Whitfield');
   await expect(rows.first()).toContainText('Demo rule set - California (fictional) 2026');
+  await expect(page.getByTestId('register-count')).toContainText(/^\s*1\s*Signed determination\s*$/);
+
+  // The map of signed states: California in its outcome, its card opening the evidence report.
+  const map = page.getByRole('group', { name: 'Signed states' });
+  await expect(map.getByRole('button')).toHaveCount(1);
+  const california = map.getByRole('button', { name: 'California, determined not to meet' });
+  await california.focus();
+  const card = page.getByRole('dialog', { name: 'California' });
+  await expect(card.getByRole('link', { name: 'View report' })).toHaveAttribute('href', /\/programs\/[0-9a-f-]+\/report\?jurisdiction=CA$/);
+  await expectAccessible(page, 'Determination register with a map card');
+  await page.keyboard.press('Escape');
+  await expect(card).toBeHidden();
+  await page.getByRole('button', { name: 'About the register' }).click();
+  await expect(page.getByRole('dialog', { name: 'About the register' })).toContainText('exactly as it was signed');
+  await page.keyboard.press('Escape');
   await expectAccessible(page, 'Determination register');
 
   // The outcome filter uses the signing labels; a filter that matches nothing says so.
@@ -36,6 +51,8 @@ test('the register lists the California signature, filters, exports CSV, groups 
   await outcome.click();
   await page.getByRole('option', { name: 'Determined to meet', exact: true }).click();
   await expect(table).toContainText('No signed determination matches these filters.');
+  await expect(map.getByRole('button')).toHaveCount(0);
+  await expect(table.getByRole('button', { name: 'Clear filters' })).toBeVisible();
   await outcome.click();
   await page.getByRole('option', { name: 'Determined not to meet', exact: true }).click();
   await expect(rows).toHaveCount(1);
@@ -67,17 +84,20 @@ test('the register lists the California signature, filters, exports CSV, groups 
   const toMeet = page.getByRole('region', { name: 'Determined to meet', exact: true });
   const notToMeet = page.getByRole('region', { name: 'Determined not to meet', exact: true });
   const none = page.getByRole('region', { name: 'No determination made', exact: true });
-  await expect(notToMeet.locator('tbody tr')).toHaveCount(1);
+  await expect(notToMeet.getByRole('listitem')).toHaveCount(1);
   await expect(notToMeet).toContainText('California');
   await expect(notToMeet).toContainText('Dana Whitfield');
+  await expect(notToMeet.getByRole('img', { name: /^Signed by Dana Whitfield on .+: determined not to meet$/ })).toBeVisible();
   await expect(toMeet).toContainText('No target jurisdiction has a current signed determination to meet.');
-  await expect(none.locator('tbody tr')).toHaveCount(OTHER_TARGETS.length);
+  await expect(none.getByRole('listitem')).toHaveCount(OTHER_TARGETS.length);
   for (const [i, name] of OTHER_TARGETS.entries()) {
-    const row = none.locator('tbody tr').nth(i);
+    const row = none.getByRole('listitem').nth(i);
     await expect(row).toContainText(name);
     await expect(row).toContainText('No current signed determination');
   }
-  await expect(page.getByText('The institution\'s published disclosure remains its own responsibility.')).toBeVisible();
+  await page.getByRole('button', { name: 'About these lists' }).click();
+  await expect(page.getByRole('dialog', { name: 'About these lists' })).toContainText('The institution\'s published disclosure remains its own responsibility.');
+  await page.keyboard.press('Escape');
   await expectAccessible(page, 'Determination register, by program');
 
   // Paper: no shell, no controls; a header names the tenant, the program and the time; the fictional notice stays.
@@ -92,6 +112,8 @@ test('the register lists the California signature, filters, exports CSV, groups 
   await expect(printHeader).toContainText('M.S. Clinical Mental Health Counseling');
   await expect(printHeader).toContainText('Generated');
   await expect(page.getByRole('complementary', { name: 'Fictional data notice' })).toBeVisible();
+  // Paper keeps the explanation the screen holds behind the InfoTip.
+  await expect(page.getByText('These lists show signed records only.')).toBeVisible();
   const ink = await page.evaluate(() => ({
     body: getComputedStyle(document.body).backgroundColor,
     heading: getComputedStyle(document.querySelector('main h1')!).color,
@@ -101,6 +123,7 @@ test('the register lists the California signature, filters, exports CSV, groups 
 
   // A register row opens the program's evidence report for that jurisdiction.
   await page.getByRole('tab', { name: 'Register' }).click();
+  await expect(page.getByRole('group', { name: 'Signed states' })).toBeVisible();
   await rows.first().locator('td').first().click();
   await expect(page).toHaveURL(/\/programs\/[0-9a-f-]+\/report\?jurisdiction=CA$/);
   await expect(page.getByTestId('stamp')).toContainText('Determined not to meet');

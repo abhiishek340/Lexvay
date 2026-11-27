@@ -1,90 +1,118 @@
-<div class="lx-page">
+<div class="lx-page lx-overview">
   @if (context.error(); as e) {
     <p-message severity="error">{{ e }}</p-message>
   }
-  @if (context.program(); as p) {
-    <header class="lx-page-header">
-      <div>
-        <p class="lx-label">Program overview</p>
-        <h1>{{ p.name }}</h1>
-        <p>{{ license(p) }} · catalog year {{ p.catalogYear }}</p>
+  @if (ready() && context.program(); as p) {
+    <header class="lx-overview-header">
+      <h1 class="lx-display">{{ p.name }}</h1>
+      <div class="lx-pills">
+        <p-tag severity="secondary" [value]="license(p)" />
+        <p-tag severity="secondary" [value]="'Catalog ' + p.catalogYear" />
       </div>
     </header>
 
-    @if (context.counts(); as c) {
-      <dl class="lx-figures">
-        <div><dt class="lx-label">Jurisdictions</dt><dd>{{ c.jurisdictions }}</dd></div>
-        <div><dt class="lx-label">Requirements</dt><dd>{{ c.requirements }}</dd></div>
-        <div><dt class="lx-label">Waiting for review</dt><dd>{{ c.waitingForReview }}</dd></div>
-        <div><dt class="lx-label">Determinations signed</dt><dd>{{ c.determinationsSigned }} <span class="lx-of">of {{ c.jurisdictions }}</span></dd></div>
-      </dl>
+    <section class="lx-hero lx-overview-hero" aria-label="Program at a glance">
+      <lx-state-map class="lx-overview-map" [states]="mapStates()" size="hero" label="Target states" [legend]="true" />
+      @if (context.assessment() && stats(); as s) {
+        <div class="lx-overview-stats">
+          <lx-stat [value]="s.toReview" label="To review">
+            <lx-progress-ring [size]="40" [value]="s.reviewed" [total]="s.requirements" [label]="s.reviewed + ' of ' + s.requirements + ' reviewed'" />
+          </lx-stat>
+          <lx-stat [value]="s.foundPercent" suffix="%" label="Evidence found">
+            <lx-progress-ring [size]="40" [segments]="s.findings" [total]="s.requirements" [label]="s.findingsLabel" />
+          </lx-stat>
+          <lx-stat [value]="s.signed" [of]="s.targets" label="Signed">
+            <lx-progress-ring [size]="40" [segments]="s.signedRing" [total]="s.targets" [label]="s.signed + ' of ' + s.targets + ' signed'" />
+          </lx-stat>
+        </div>
+        <lx-info-tip class="lx-hero-tip" label="About these figures">
+          Findings are proposals drawn from the curriculum documents. A reviewer accepts each one or confirms a gap, and only a signer signs a
+          determination.
+        </lx-info-tip>
+      } @else {
+        <div class="lx-overview-empty">
+          <ng-icon name="phosphorMapTrifoldDuotone" size="32" aria-hidden="true" />
+          <p>No finished assessment yet.</p>
+          <button pButton type="button" size="small" (click)="runAssessment()" [loading]="running()">
+            <span pButtonLabel>Run assessment</span>
+          </button>
+        </div>
+      }
+    </section>
+
+    @if (needs().length > 0 || queueError()) {
+      <section class="lx-section" aria-labelledby="needs-heading">
+        <h2 id="needs-heading" class="lx-section-title">Needs you</h2>
+        @if (queueError(); as e) {
+          <p-message severity="error">{{ e }}</p-message>
+        } @else {
+          <ul class="lx-card lx-needs">
+            @for (row of needs(); track row.key) {
+              <li class="lx-needs-row" [lxEnter]="$index">
+                <span class="lx-needs-icon"><ng-icon [name]="row.icon" size="18" aria-hidden="true" /></span>
+                <span class="lx-needs-text">
+                  <span class="lx-needs-title">{{ row.title }}</span>
+                  @if (row.detail) { <span class="lx-needs-detail">{{ row.detail }}</span> }
+                </span>
+                @if (row.run === 'assessment') {
+                  <button pButton type="button" size="small" [outlined]="true" (click)="runAssessment()" [loading]="running()"
+                          [attr.aria-label]="row.action + ': ' + row.title">
+                    <span pButtonLabel>{{ row.action }}</span>
+                  </button>
+                } @else {
+                  <a pButton size="small" [outlined]="true" [routerLink]="row.commands" [queryParams]="row.queryParams"
+                     [attr.aria-label]="row.action + ': ' + row.title + (row.detail ? ', ' + row.detail : '')">
+                    <span pButtonLabel>{{ row.action }}</span>
+                  </a>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </section>
     }
 
-    @if (context.ready() && !context.assessment()) {
-      <p-message severity="secondary">No finished assessment yet. Findings for each jurisdiction appear here after an assessment runs.</p-message>
-    }
-
-    <section class="lx-section" aria-labelledby="jurisdictions-heading">
-      <h2 id="jurisdictions-heading" class="lx-section-title">Jurisdictions</h2>
-      <p-table [value]="rows()" dataKey="code" [rowHover]="true" [pt]="{ table: { 'aria-labelledby': 'jurisdictions-heading' } }" styleClass="lx-table">
-        <ng-template #header>
-          <tr>
-            <th scope="col">Jurisdiction</th>
-            <th scope="col">Findings</th>
-            <th scope="col">Review progress</th>
-            <th scope="col">Determination</th>
-            <th scope="col"><span class="lx-sr-only">Action</span></th>
-          </tr>
-        </ng-template>
-        <ng-template #body let-row>
-          <tr class="lx-row-link" (click)="openReview(row)">
-            <td>
-              <span class="lx-state-name">{{ context.jurisdictionName(row.code) }}</span>
-              <span class="lx-mono lx-muted">{{ row.code }}</span>
-            </td>
-            <td class="lx-col-findings">
-              @if (row.summary; as s) {
-                <lx-findings-bar [summary]="s" />
-              } @else {
-                <span class="lx-muted">Not assessed</span>
-              }
-            </td>
-            <td class="lx-col-progress">
-              @if (row.summary; as s) {
-                <span class="lx-progress-text"><span class="lx-mono">{{ s.decided }}</span> of <span class="lx-mono">{{ s.total }}</span> reviewed</span>
-                <p-progressbar class="lx-progress" [value]="reviewProgress(row)" [showValue]="false" aria-hidden="true" />
-              } @else {
-                <span class="lx-muted">No requirements yet</span>
-              }
-            </td>
-            <td>
-              <p-tag [severity]="stateTag(row.state).severity" [value]="row.status">
-                <ng-template #icon><ng-icon [name]="stateTag(row.state).icon" size="14" aria-hidden="true" /></ng-template>
-              </p-tag>
-              @if (row.signed; as d) {
-                <p class="lx-help lx-signed-meta">{{ outcome(d) }} · {{ d.signedByName }} · {{ d.signedAt | date: 'd MMM y' }}</p>
-              }
-            </td>
-            <td class="lx-col-action">
-              <a pButton [text]="true" size="small" [routerLink]="['/programs', programId(), 'review']" [queryParams]="{ jurisdiction: row.code }"
-                 (click)="$event.stopPropagation()" [attr.aria-label]="'Open review for ' + context.jurisdictionName(row.code)">
-                <span pButtonLabel>Open review</span>
+    <section class="lx-section" aria-labelledby="states-heading">
+      <div class="lx-section-head">
+        <h2 id="states-heading" class="lx-section-title">States</h2>
+        <ul class="lx-findings-legend" aria-label="Ring legend">
+          <li><span class="lx-dot lx-dot-found" aria-hidden="true"></span>Evidence found</li>
+          <li><span class="lx-dot lx-dot-ambiguous" aria-hidden="true"></span>Ambiguous</li>
+          <li><span class="lx-dot lx-dot-missing" aria-hidden="true"></span>Evidence missing</li>
+        </ul>
+      </div>
+      <ul class="lx-state-cards">
+        @for (card of cards(); track card.code) {
+          <li class="lx-card lx-state-card" [class.lx-card-link]="card.action" [lxEnter]="$index" [attr.data-testid]="'state-card-' + card.code">
+            <div class="lx-state-card-head" [style.view-transition-name]="departing() === card.code ? 'state-' + card.code : null">
+              <div class="lx-state-card-name">
+                <h3>{{ card.name }}</h3>
+                <span class="lx-mono lx-muted">{{ card.code }}</span>
+              </div>
+              <lx-progress-ring [size]="40" [segments]="card.segments" [total]="card.total" [label]="card.name + ': ' + card.ringLabel" />
+            </div>
+            <p-tag class="lx-state-chip" [attr.data-tone]="card.tone" [severity]="severity[card.tone]" [value]="card.status">
+              <ng-template #icon><ng-icon [name]="card.icon" size="14" aria-hidden="true" /></ng-template>
+            </p-tag>
+            @if (card.action; as a) {
+              <a pButton class="lx-state-card-action" size="small" [text]="a.label !== 'Sign'" [routerLink]="a.commands" [queryParams]="a.queryParams"
+                 (click)="depart(card)" [attr.aria-label]="a.label + ', ' + card.name">
+                <span pButtonLabel>{{ a.label }}</span>
                 <ng-icon name="phosphorArrowRight" size="14" aria-hidden="true" />
               </a>
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
+            }
+          </li>
+        }
+      </ul>
     </section>
   } @else if (!context.error()) {
-    <div class="lx-skeleton" aria-busy="true" aria-label="Loading the program">
-      <p-skeleton width="9rem" height="0.75rem" />
-      <p-skeleton width="28rem" height="1.75rem" />
-      <p-skeleton width="16rem" height="1rem" />
-      <div class="lx-skeleton-figures">
-        @for (i of [1, 2, 3, 4]; track i) { <p-skeleton height="4rem" /> }
+    <div class="lx-overview-skeleton" aria-busy="true" aria-label="Loading the program">
+      <p-skeleton width="min(30rem, 100%)" height="2.75rem" />
+      <p-skeleton width="16rem" height="1.25rem" />
+      <p-skeleton height="26rem" borderRadius="16px" />
+      <div class="lx-state-cards">
+        @for (i of [1, 2, 3, 4, 5]; track i) { <p-skeleton height="10rem" borderRadius="12px" /> }
       </div>
-      @for (i of [1, 2, 3, 4, 5]; track i) { <p-skeleton height="3rem" /> }
     </div>
   }
 </div>

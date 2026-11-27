@@ -125,7 +125,7 @@ test('the theme chosen in the avatar menu persists across a reload, and the menu
 test('the overview with the v2 shell is accessible in both themes at 1440 and 400 px, and the rail collapses', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await signIn(page, PRIYA);
-  await expect(page.getByRole('table', { name: 'Jurisdictions' })).toContainText('California');
+  await expect(page.getByTestId('state-card-CA')).toContainText('California');
   await expectAccessible(page, 'Overview at 1440 px');
   await page.getByRole('button', { name: 'Collapse navigation' }).click();
   await expect(page.getByRole('button', { name: 'Expand navigation' })).toBeVisible();

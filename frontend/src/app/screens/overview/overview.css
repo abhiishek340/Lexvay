@@ -1,36 +1,72 @@
-.lx-figures {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 32px;
-  border-top: 1px solid var(--p-lx-line); border-bottom: 1px solid var(--p-lx-line);
+/* Title: the program in Display type, its license and catalog year as two pills. */
+.lx-overview-header { margin-bottom: 24px; }
+.lx-overview-header h1 { text-wrap: balance; }
+.lx-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+/* The hero: the map is the focal point, the three numbers sit beside it on the same surface. */
+.lx-overview-hero {
+  position: relative; display: grid; grid-template-columns: minmax(0, 572px) minmax(200px, auto); align-items: center; justify-content: center;
+  gap: 40px 88px; padding: 36px 40px 32px;
 }
-.lx-figures > div { padding: 14px 20px 16px; }
-.lx-figures > div + div { border-left: 1px solid var(--p-lx-line); }
-.lx-figures > div:first-child { padding-left: 0; }
-.lx-figures dd { margin-top: 6px; font-size: 28px; line-height: 32px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.lx-of { font-size: 14px; color: var(--p-lx-text-2); font-weight: 400; }
+.lx-overview-stats { display: flex; flex-direction: column; gap: 32px; }
+.lx-hero-tip { position: absolute; top: 16px; right: 16px; }
+.lx-overview-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; justify-self: center; color: var(--p-lx-text-2); }
+.lx-overview-empty ng-icon { color: var(--p-lx-accent); }
 
-.lx-section { margin-top: 24px; }
-.lx-section-title { margin-bottom: 8px; }
+.lx-section { margin-top: 40px; }
+.lx-section-title { margin-bottom: 12px; }
+.lx-section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 24px; }
 
-.lx-row-link { cursor: pointer; }
-.lx-state-name { display: block; font-weight: 500; font-size: 14px; }
-.lx-col-findings { width: 34%; }
-.lx-col-progress { width: 18%; }
-.lx-progress-text { display: block; margin-bottom: 6px; white-space: nowrap; }
-.lx-progress { display: block; max-width: 140px; }
-.lx-signed-meta { margin-top: 6px; }
-.lx-col-action { text-align: right; white-space: nowrap; }
-.lx-col-action a { gap: 6px; }
+/* "Needs you": compact rows in one card, one action each. */
+.lx-needs { list-style: none; margin: 0; padding: 4px; }
+.lx-needs-row { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 8px; }
+.lx-needs-row + .lx-needs-row { margin-top: 2px; }
+.lx-needs-icon {
+  flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--p-lx-accent-tint); color: var(--p-lx-accent);
+}
+.lx-needs-text { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; }
+.lx-needs-title { font-weight: 600; }
+.lx-needs-detail { color: var(--p-lx-text-2); }
 
-.lx-skeleton { display: flex; flex-direction: column; gap: 12px; }
-.lx-skeleton-figures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 16px 0 24px; }
+/* The legend of the rings' colours, once, beside the heading of the cards. */
+.lx-findings-legend { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
+.lx-findings-legend li { display: inline-flex; align-items: center; gap: 8px; }
+.lx-dot { width: 8px; height: 8px; border-radius: 999px; }
+.lx-dot-found { background: var(--p-lx-found); }
+.lx-dot-ambiguous { background: var(--p-lx-ambiguous); }
+.lx-dot-missing { background: var(--p-lx-missing); }
 
-@media (max-width: 720px) {
-  .lx-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .lx-figures > div:nth-child(3) { border-left: 0; padding-left: 0; border-top: 1px solid var(--p-lx-line); }
-  .lx-figures > div:nth-child(4) { border-top: 1px solid var(--p-lx-line); }
-  .lx-figures dd { font-size: 22px; line-height: 28px; }
-  /* The table becomes one block per jurisdiction. */
-  :host ::ng-deep .lx-table thead { display: none; }
-  :host ::ng-deep .lx-table tbody tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--p-lx-line); }
-  :host ::ng-deep .lx-table tbody td { display: block; border: 0; padding: 4px 0; width: auto; text-align: left; }
+/* One card per target state. The action's hit area covers the card, so the whole card is one link that lifts. */
+.lx-state-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(208px, 1fr)); gap: 16px; }
+.lx-state-card { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 18px 18px 14px; min-width: 0; }
+.lx-state-card-head { align-self: stretch; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
+.lx-state-card-name { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lx-state-card-name h3 { font-size: 15px; line-height: 22px; font-weight: 600; letter-spacing: -0.005em; }
+.lx-state-chip[data-tone='seal'] ng-icon { color: var(--p-lx-seal); }
+.lx-state-card-action { position: static; margin-top: auto; gap: 6px; }
+.lx-state-card-action:not(.p-button-text) { align-self: stretch; justify-content: center; }
+.lx-state-card-action.p-button-text { margin-left: -10px; }
+.lx-state-card-action::after { content: ''; position: absolute; inset: 0; border-radius: var(--lx-r-card); }
+.lx-state-card-action ng-icon { transition: transform var(--lx-t-1) var(--lx-ease-out); }
+.lx-state-card:hover .lx-state-card-action ng-icon { transform: translateX(2px); }
+/* The focus ring of the link marks the whole card it stands for. */
+.lx-state-card:has(.lx-state-card-action:focus-visible) { outline: 2px solid var(--p-lx-accent); outline-offset: 2px; }
+.lx-state-card-action:focus-visible { outline: none; }
+
+.lx-overview-skeleton { display: flex; flex-direction: column; gap: 16px; }
+.lx-overview-skeleton .lx-state-cards { margin-top: 24px; }
+
+@media (max-width: 1100px) {
+  .lx-overview-hero { grid-template-columns: minmax(0, 1fr); padding: 28px; }
+  .lx-overview-stats { flex-direction: row; flex-wrap: wrap; justify-self: stretch; justify-content: space-between; gap: 24px 32px; }
+}
+@media (max-width: 640px) {
+  .lx-overview-hero { padding: 40px 16px 20px; gap: 28px; }
+  .lx-overview-stats { flex-direction: column; gap: 20px; }
+  .lx-hero-tip { top: 10px; right: 10px; }
+  .lx-section { margin-top: 32px; }
+  .lx-needs-row { padding: 10px 8px; gap: 12px; }
+  .lx-state-cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .lx-state-card { padding: 14px 14px 10px; }
 }

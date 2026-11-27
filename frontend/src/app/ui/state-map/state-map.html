@@ -4,7 +4,8 @@
     @if (cell.state && interactive()) {
       <button #tileEl type="button" class="lx-tile" [attr.data-code]="cell.tile.code" [attr.data-tile]="cell.state.tile"
               [style.grid-row]="cell.tile.row + 1" [style.grid-column]="cell.tile.col + 1" [style.--lx-col]="cell.tile.col"
-              [style.--lx-fill]="share(cell.state)" [tabindex]="tabStop() === cell.tile.code ? 0 : -1" [attr.aria-label]="name(cell)"
+              [style.--lx-fill]="share(cell.state)" [style.view-transition-name]="departing() === cell.tile.code ? 'state-' + cell.tile.code : null"
+              [tabindex]="tabStop() === cell.tile.code ? 0 : -1" [attr.aria-label]="name(cell)"
               (focus)="onFocus(cell, tileEl)" (blur)="scheduleClose()" (mouseenter)="onEnter(cell, tileEl)" (mouseleave)="scheduleClose()"
               (click)="activate(cell.state)">
         <span class="lx-tile-tint"></span><span class="lx-tile-fill"></span><span class="lx-tile-outcome"></span>
@@ -19,13 +20,22 @@
     }
   }
 </div>
+@if (legend()) {
+  <ul class="lx-map-legend" aria-label="Legend">
+    @for (entry of legendEntries(); track entry.key) {
+      <li><span class="lx-map-swatch" [attr.data-tile]="entry.key" aria-hidden="true"></span>{{ entry.label }}</li>
+    }
+  </ul>
+}
 
 @if (interactive()) {
   <p-popover #card [focusOnShow]="false" [ariaLabel]="previewed()?.name ?? 'State'" styleClass="lx-map-card">
     @if (previewed(); as p) {
       <div class="lx-map-card-body" (mouseenter)="keepOpen()" (mouseleave)="scheduleClose()">
-        <lx-progress-ring [size]="40" [value]="p.state.reviewed" [total]="p.state.total || 1"
-                          [label]="p.state.reviewed + ' of ' + p.state.total + ' reviewed'">{{ p.state.reviewed }}/{{ p.state.total }}</lx-progress-ring>
+        @if (p.state.total > 0) {
+          <lx-progress-ring [size]="40" [value]="p.state.reviewed" [total]="p.state.total"
+                            [label]="p.state.reviewed + ' of ' + p.state.total + ' reviewed'">{{ p.state.reviewed }}/{{ p.state.total }}</lx-progress-ring>
+        }
         <div class="lx-map-card-text">
           <p class="lx-map-card-name">{{ p.name }}</p>
           <p class="lx-map-card-status" [attr.data-tile]="p.state.tile">
@@ -33,7 +43,7 @@
           </p>
         </div>
         @if (p.state.action; as a) {
-          <a pButton size="small" class="lx-map-card-action" [routerLink]="a.commands" [queryParams]="a.queryParams" (click)="closeCard()">
+          <a pButton size="small" class="lx-map-card-action" [routerLink]="a.commands" [queryParams]="a.queryParams" (click)="depart(p.state)">
             <span pButtonLabel>{{ a.label }}</span>
           </a>
         }
