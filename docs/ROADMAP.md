@@ -106,7 +106,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | queued (after UI2-0) |
 | UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI2-0, F4) |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
-| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | queued (after F7, FIX-1) |
+| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | in progress (backend; screen cell in UI2-4) |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
@@ -934,7 +934,7 @@ in `DECISIONS.md (OPS-1)`.
 4. Done when a pull request shows the `image` job green with the smoke output in its log, and
    `docs/OPERATIONS.md` names the job and the tag convention.
 
-## F7c — Search terms proposed at extraction (after F7 and FIX-1 merge; slot 3; migration `V015__requirement_search_terms.sql`)
+## F7c — Search terms proposed at extraction (slot 3; migration `V014__requirement_search_terms.sql`; screens in UI2-4)
 Purpose: F7 measured what lexical search cannot do: 2 of 6 lexical-gap queries are recalled, because the rule
 says "diagnosis of mental and emotional disorders" and the syllabus says "psychopathology". The model already
 reads the rule text at extraction; it can propose the vocabulary a syllabus would use, a person can correct it,
