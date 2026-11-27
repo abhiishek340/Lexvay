@@ -1,6 +1,5 @@
 package com.lexvay.determination.register;
 
-import static com.lexvay.common.TestCsrf.csrf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
@@ -12,6 +11,7 @@ import com.lexvay.llm.LlmClient;
 import com.lexvay.seed.ScriptedFakeModel;
 import com.lexvay.seed.SeedCopy;
 import com.lexvay.seed.SeedLoader;
+import com.lexvay.seed.SeedSigning;
 import com.lexvay.tenant.AppUserRepository;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import tools.jackson.databind.JsonNode;
@@ -72,7 +71,8 @@ class RegisterSeedTest extends AbstractDatabaseTest {
             assertThat(e.get("reopenedDeterminationId").isNull()).isTrue();
         });
 
-        String signedCode = signFirstCurrentJurisdiction(loaded.assessmentId(), loaded.programId(), priya, dana);
+        String signedCode = SeedSigning.signFirstCurrentJurisdiction(mvc, json, TARGETS, loaded.assessmentId(), loaded.programId(), priya, dana)
+                .jurisdiction();
 
         Map<String, List<String>> after = partition(body(mvc.get().uri(lists).with(user(priya)).exchange()));
         assertThat(after.get("determinedToMeet")).isEmpty();
@@ -85,31 +85,5 @@ class RegisterSeedTest extends AbstractDatabaseTest {
             assertThat(row.get("signedByName").asString()).isEqualTo("Dana Whitfield");
             assertThat(row.get("courseVersionCount").asInt()).as("every course of the seeded program").isEqualTo(11);
         });
-    }
-
-    /** Decides every mapping of the first jurisdiction whose mappings are all current, and signs it. */
-    private String signFirstCurrentJurisdiction(UUID assessmentId, UUID programId, LexvayUser reviewer, LexvayUser signer) throws Exception {
-        for (String code : TARGETS) {
-            JsonNode mappings = body(mvc.get().uri("/api/v1/assessments/" + assessmentId + "/mappings?jurisdiction=" + code)
-                    .with(user(reviewer)).exchange()).get("mappings");
-            boolean current = true;
-            for (JsonNode m : mappings) {
-                current &= !m.get("stale").asBoolean();
-            }
-            if (!current) {
-                continue;
-            }
-            for (JsonNode m : mappings) {
-                boolean found = m.get("finding").asString().equals("EVIDENCE_FOUND");
-                Map<String, Object> decision = found ? Map.of("kind", "ACCEPTED") : Map.of("kind", "GAP_CONFIRMED", "note", "Fixture decision.");
-                body(mvc.post().uri("/api/v1/mappings/" + m.get("id").asString() + "/reviews").with(user(reviewer)).with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(decision)).exchange());
-            }
-            body(mvc.post().uri("/api/v1/programs/" + programId + "/determinations").with(user(signer)).with(csrf())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(json.writeValueAsString(Map.of("jurisdiction", code, "outcome", "DOES_NOT_MEET"))).exchange());
-            return code;
-        }
-        throw new AssertionError("no seeded jurisdiction has only current mappings");
     }
 }
