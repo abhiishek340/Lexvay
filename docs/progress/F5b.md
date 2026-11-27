@@ -71,3 +71,16 @@ icon and the chip styles now global). Lazy: `people-routes` 31.89 kB raw (8.61 k
   narrow-screen table rules never apply (the table scrolls sideways inside its card at 400 px); `class="lx-table"` fixes
   it, as People does.
 - An anonymous lookup of a setup code's email would let the page check "not your email" exactly (a backend change).
+
+### Test tails (2026-11-27, after merging `origin/main` at 2bc911c)
+`make frontend-test` and `LEXVAY_E2E_SLOT=2 make test`:
+```
+[INFO] Tests run: 1074, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  34 passed (34)
+      Tests  351 passed (351)
+  45 passed (4.8m)
+```
+An earlier `LEXVAY_SCREENSHOTS=1 LEXVAY_E2E_SLOT=2 make test` run (49 passed, 1 failed) found that `records.spec.ts`'s empty
+audit filter ("Access withdrawn" alone) now matches People's deactivation; the test now also filters by Dana, who never
+withdraws access. Only the `f5b-*` screenshots from that run are committed.
