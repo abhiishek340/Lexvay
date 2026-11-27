@@ -113,7 +113,7 @@ public class DocumentService {
         audit.record("DOCUMENT_UPLOADED", "document", documentId, Map.of(
                 "filename", filename, "kind", kind.name(), "sha256", sha256, "bytes", bytes.length,
                 "programId", programId.toString()));
-        UUID jobId = jobs.enqueue(JobType.INGEST_DOCUMENT, Map.of("documentId", documentId.toString()));
+        UUID jobId = jobs.enqueue(JobType.INGEST_DOCUMENT, documentId, Map.of("documentId", documentId.toString()));
         return new UploadResult(documentId, jobId);
     }
 
@@ -148,7 +148,7 @@ public class DocumentService {
                 .map(p -> new PageSummary(p.pageNumber(), p.charStart(), p.charEnd(), p.text().length(), p.textSource(),
                         p.ocrConfidence()))
                 .toList();
-        Optional<IngestStatus> ingest = jobs.latest(JobType.INGEST_DOCUMENT, "documentId", id)
+        Optional<IngestStatus> ingest = jobs.latest(JobType.INGEST_DOCUMENT, id)
                 .map(j -> new IngestStatus(j.id(), j.status().name(), j.error()));
         return new DocumentView(document.id(), document.programId(), document.courseVersionId(), document.filename(),
                 document.sha256(), document.kind(), document.createdAt(), document.createdBy(), pages, ingest.orElse(null));

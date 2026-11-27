@@ -80,7 +80,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
     void handlerRunsUnderTheJobsTenantAndJobEndsDone() {
         var t = tenants.create("jobs");
         var probe = new ProbeHandler();
-        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of("k", "v")));
+        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, UUID.randomUUID(), Map.of("k", "v")));
 
         runnerWith(probe).runPending();
 
@@ -97,7 +97,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
         var t = tenants.create("jobs");
         var probe = new ProbeHandler();
         probe.failTimes = 5;
-        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, UUID.randomUUID(), Map.of()));
         var r = runnerWith(probe);
 
         assertThat(r.runOne()).isTrue();
@@ -124,7 +124,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
         var t = tenants.create("jobs");
         var probe = new ProbeHandler();
         probe.permanent = true;
-        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, UUID.randomUUID(), Map.of()));
         runnerWith(probe).runPending();
         Job job = TenantContext.runAs(t.tenantId(), () -> jobs.findById(jobId)).orElseThrow();
         assertThat(job.status()).isEqualTo(JobStatus.FAILED);
@@ -135,7 +135,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
     @Test
     void jobWithoutHandlerFailsCleanly() {
         var t = tenants.create("jobs");
-        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.RERUN_CHANGE, Map.of()));
+        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.RERUN_CHANGE, UUID.randomUUID(), Map.of()));
         new JobRunner(jobs, List.of(), transaction, json, auditService(), metrics, 3).runPending();
         Job job = TenantContext.runAs(t.tenantId(), () -> jobs.findById(jobId)).orElseThrow();
         assertThat(job.status()).isEqualTo(JobStatus.FAILED);
@@ -151,7 +151,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
     void theJobIdIsInTheLogContextWhileTheHandlerRunsAndGoneAfter() {
         var t = tenants.create("jobs");
         var probe = new ProbeHandler();
-        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, UUID.randomUUID(), Map.of()));
 
         runnerWith(probe).runPending();
 
@@ -164,8 +164,8 @@ class JobRunnerTest extends AbstractDatabaseTest {
     void runWhileStopsClaimingWhenToldToButTheStartedJobFinishes() {
         var t = tenants.create("jobs");
         var probe = new ProbeHandler();
-        UUID first = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
-        UUID second = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+        UUID first = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, UUID.randomUUID(), Map.of()));
+        UUID second = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, UUID.randomUUID(), Map.of()));
         AtomicInteger asked = new AtomicInteger();
 
         int processed = runnerWith(probe).runWhile(() -> asked.getAndIncrement() < 1);
@@ -181,7 +181,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
         var t = tenants.create("jobs");
         var probe = new ProbeHandler();
         probe.failTimes = 5;
-        TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+        TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, UUID.randomUUID(), Map.of()));
         long done = outcomes("done");
         long retried = outcomes("retried");
         long failed = outcomes("failed");
@@ -191,7 +191,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
         assertThat(outcomes("retried") - retried).isEqualTo(2);
         assertThat(outcomes("failed") - failed).isEqualTo(1);
         probe.failTimes = 0;
-        TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+        TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, UUID.randomUUID(), Map.of()));
         runnerWith(probe).runPending();
         assertThat(outcomes("done") - done).isEqualTo(1);
     }
@@ -202,7 +202,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
         var probe = new ProbeHandler();
         probe.failTimes = 5;
         probe.failureMessage = "model said: SECRET quote from a syllabus";
-        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, UUID.randomUUID(), Map.of()));
 
         runnerWith(probe).runPending();
 
@@ -216,7 +216,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
     void jobsAreTenantScopedThroughTheApi() throws Exception {
         var a = tenants.create("alpha");
         var b = tenants.create("beta");
-        UUID jobId = TenantContext.runAs(a.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+        UUID jobId = TenantContext.runAs(a.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, UUID.randomUUID(), Map.of()));
         assertThat(mvc.get().uri("/api/v1/jobs/" + jobId).with(user(b.admin())).exchange()).hasStatus(404);
         var own = mvc.get().uri("/api/v1/jobs/" + jobId).with(user(a.admin())).exchange();
         assertThat(own).hasStatus(200);

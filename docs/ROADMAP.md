@@ -90,7 +90,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | merged (PR #18) |
-| FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | in progress |
+| FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | merged (PR #27) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | merged (PR #21) |
 | F2 Program setup workspace | `feat-setup-workspace` | 3 | Opus 5.5 | folded into UI2-4 (built directly in v2) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
@@ -106,7 +106,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | queued (after UI2-0) |
 | UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI2-0, F4) |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
-| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | queued (after F7, FIX-1) |
+| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | in progress (backend; screen cell in UI2-4) |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
@@ -631,8 +631,8 @@ Every job payload today holds exactly one id (`documentId`, `ruleVersionId`, `as
 `reportId`, and `ruleSourceId` from F12), so the id becomes a real column.
 1. Migration: `ALTER TABLE job ADD COLUMN entity_id uuid`; backfill with the single value of the payload
    object (`(SELECT value::uuid FROM jsonb_each_text(payload) LIMIT 1)`, guarded by
-   `jsonb_typeof(payload) = 'object'`); `SET NOT NULL`; `CREATE INDEX job_entity_idx ON job (tenant_id, type,
-   entity_id, created_at DESC)`. Prove the backfill expression with a SQL-level test on a temporary table, as
+   `jsonb_typeof(payload) = 'object'`); `SET NOT NULL`; `CREATE INDEX job_entity_idx ON job (type, entity_id,
+   created_at DESC)` (key decided in review, D-202). Prove the backfill expression with a SQL-level test on a temporary table, as
    FIX-1 does. The job policies in V002 are unchanged; `entity_id = :id` is leakproof, so the planner may use
    the index under the policy. `IndexUsageTest` (WS-PERF) gains this index and the lookup query.
 2. `JobRepository.enqueue(JobType type, UUID entityId, Map<String, ?> payload)` writes both columns; the five
@@ -643,7 +643,7 @@ Every job payload today holds exactly one id (`documentId`, `ruleVersionId`, `as
    extraction status); `EXPLAIN` under the application role shows an index scan on `job_entity_idx`;
    `MigrationsApplyCleanlyTest` counts the new file; the WS-PERF latency table in `docs/PERF.md` gets the
    before and after rows for `GET /documents/{id}` and `GET /rule-versions`.
-Decisions D-200 to D-209 in `docs/decisions/FIX-2.md`.
+Decisions D-200 to D-209 in `DECISIONS.md (FIX-2)`.
 
 ## F11 — OCR for scanned documents (slot 6; migration `V009__document_page_text_source.sql`)
 Real syllabi and handbooks are often scans. Today a PDF without a text layer is rejected. OCR text is less
@@ -934,7 +934,7 @@ in `DECISIONS.md (OPS-1)`.
 4. Done when a pull request shows the `image` job green with the smoke output in its log, and
    `docs/OPERATIONS.md` names the job and the tag convention.
 
-## F7c — Search terms proposed at extraction (after F7 and FIX-1 merge; slot 3; migration `V015__requirement_search_terms.sql`)
+## F7c — Search terms proposed at extraction (slot 3; migration `V014__requirement_search_terms.sql`; screens in UI2-4)
 Purpose: F7 measured what lexical search cannot do: 2 of 6 lexical-gap queries are recalled, because the rule
 says "diagnosis of mental and emotional disorders" and the syllabus says "psychopathology". The model already
 reads the rule text at extraction; it can propose the vocabulary a syllabus would use, a person can correct it,

@@ -23,8 +23,14 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-          cache: maven
-          cache-dependency-path: backend/pom.xml
+
+      # The Maven repository is cached with a prefix fallback: a pom.xml change restores the newest cache and downloads
+      # only what changed, instead of everything from Maven Central, which rate-limits busy runners (HTTP 429).
+      - uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles('backend/pom.xml') }}
+          restore-keys: maven-${{ runner.os }}-
 
       - uses: actions/setup-node@v7
         with:
