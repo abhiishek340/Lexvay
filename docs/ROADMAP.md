@@ -115,7 +115,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI2-0, F4) |
 | FIX-3 Work queue and evidence request follow-ups | `fix-queue-followups` | 9 | Sonnet 5.5 | in progress |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
-| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | PR #30 in review (grid pass-through, eval port) |
+| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | merged (PR #30); screen cell in UI2-4 |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
