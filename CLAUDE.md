@@ -6,7 +6,8 @@ decide. This is a real product, not a demo: build depth, not breadth.
 
 ## Authority
 1. Owner directives (latest first). On 2026-11-26 the owner put the project in "CTO mode": improve the
-   product continuously, use a real UI library, add real features, keep latency low. These directives
+   product continuously, use a real UI library, add real features, keep latency low. On 2026-11-27 the owner
+   replaced the v2 look with design system v3 (no AI slop, human craft). These directives
    override the original build prompt on scope and stack.
 2. The nine product rules below. Nobody may weaken them, including the orchestrator.
 3. `DECISIONS.md`, then `docs/ROADMAP.md` (work items with exact specs), `docs/DESIGN.md` (UI), `docs/PLAN.md`.
@@ -41,20 +42,20 @@ Also: never invent regulatory content (seed data is fictional and labeled), and 
 - No secrets in the repository. Configuration through `LEXVAY_*` environment variables and `.env.example`.
 - Every mutating endpoint is audited and listed in `Rule9_AuditCoverageTest`.
 
-## UI bar (design system v2, details in docs/DESIGN.md)
-- The owner wants a world-class interface that impresses on first sight: clean, few words, motion with meaning.
-  One focal point per screen; numbers shown as rings and the state map; explanations behind an InfoTip, never as
-  paragraphs on screen (word budget in docs/DESIGN.md).
-- PrimeNG 22 for behaviour and accessibility, restyled completely by the Lexvay preset v2. Do not hand-build a
-  component PrimeNG provides; do make it look like ours.
-- Inter (UI), Source Serif 4 (rule text, quoted evidence, report body), IBM Plex Mono (ids, hashes, offsets),
-  self-hosted. Phosphor icons through `@ng-icons` (duotone at 32 px and larger).
-- Motion with native CSS, `animate.enter`/`animate.leave`, View Transitions and the Web Animations API; only
-  transform, opacity, clip-path and SVG stroke; everything off under `prefers-reduced-motion`.
-- Forbidden: emoji or glyph icons, sparkle icons, purple-to-pink or decorative gradients, confetti, looping attention
-  animations, coloured or glowing shadows, blur anywhere except the Review DecisionBar.
-- WCAG 2.1 AA, keyboard operable, visible focus, state by icon and text as well as colour, responsive to
-  400 px, light and dark themes. The end-to-end suite runs axe on every screen: zero serious or critical.
+## UI bar (design system v3 "Ledger", details in docs/DESIGN.md)
+- On 2026-11-27 the owner rejected v2 as AI slop. The bar is now a professional, modern interface with human craft:
+  typography, alignment and whitespace on a 4 px grid carry the design, not colour, boxes or icons.
+- Near-monochrome ink on paper. Colour only for meaning: `found`, `missing`, the accent for links, focus and
+  selection. No amber, yellow, orange, teal or purple anywhere; no gradients; no colour outside the token table.
+- Structure with hairlines and space, not cards. No pills, no rings or gauges, no count-ups, no state map, no icon
+  beside a heading, at most one help affordance per screen. Status is a small mark plus a word.
+- PrimeNG 22 for behaviour and accessibility, restyled completely by the Lexvay preset v3.
+- Fonts, self-hosted: Inter (UI), Source Serif 4 (rule text, quoted evidence, report body), IBM Plex Mono (hashes and
+  offsets only). Phosphor regular icons at 16 px through `@ng-icons`.
+- Motion: 120–180 ms fades with at most a 4 px rise, through native CSS and View Transitions, and nothing that
+  performs. All of it is off under `prefers-reduced-motion`.
+- WCAG 2.1 AA, keyboard operable, visible focus, state by mark and word as well as colour, responsive to 400 px,
+  light and dark themes. The end-to-end suite runs axe on every screen: zero serious or critical.
 
 ## Git and pull requests
 - One branch per work item, named in `docs/ROADMAP.md`. Commit in logical steps with plain, specific

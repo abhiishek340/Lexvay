@@ -1,209 +1,216 @@
-# Lexvay — Design system v2
+# Lexvay — Design system v3 ("Ledger")
 
-Decided by the CTO on 2026-11-26 after the owner asked for a world-class interface: "if someone opens the website,
-they should be like wow", very clean, few words, easy to read for everyone, with animation. This replaces v1
-completely. It is the contract for all UI work; refine within it.
+Decided by the CTO on 2026-11-27 after the owner reviewed v2 on the running app and called it AI slop: yellow and
+orange accents, icon-heavy cards, a palette and card art that look generated rather than crafted. The owner asked for
+a professional, modern, clean interface with human craft in every padding and margin, judged as a senior design
+director would judge it. v3 replaces v2 completely. It is the contract for all UI work; refine within it, never
+around it.
+
+## What made v2 look generated (do not reintroduce)
+1. A stock SaaS rainbow: saturated blue plus amber, emerald and coral, each used as fills and tints.
+2. Pills for everything: tags, statuses, counts, filters, tabs, demo notice. Rounded-full tinted shapes everywhere.
+3. An icon on every label, info circles on every heading, dashed and question-mark circles as status.
+4. Decorative data: progress rings beside every number (mostly empty), rings inside tabs, count-up animations.
+5. A 50-tile state map as the hero where five tiles carry meaning.
+6. Card soup: every region a rounded white card with a shadow on an off-white page, cards nested in cards.
+7. Undisciplined type: a 40 px program name, many sizes and weights, no rhythm; keyboard-hint chips inside buttons.
 
 ## Principles
-1. **One focal point per screen.** Every screen has a single hero (the state map, the requirement under review, the
-   signed seal). Everything else steps back in size, weight and colour.
-2. **Show, don't explain.** Numbers become rings and maps; status becomes colour plus icon plus one word. No paragraph
-   of explanation appears on a screen. Explanations live behind an info button (`InfoTip`, a PrimeNG Popover).
-3. **Motion carries meaning.** Things enter from where they come from, a decision visibly lands, progress fills. Motion
-   is short (under half a second for everything but the first view), uses only transform, opacity and SVG stroke, and
-   is off under `prefers-reduced-motion`.
-4. **Depth, not lines.** Surfaces are separated by elevation and spacing, not hairlines. Hairlines remain only inside
-   tables and lists.
-5. **Calm and exact.** The product holds legal evidence. No playfulness in copy, no confetti, no sparkle, nothing that
-   implies the software decided. People decide; the interface makes their decision feel weighty.
+1. **Typography and alignment carry the design.** Hierarchy comes from size, weight, position and whitespace on a
+   strict grid, not from colour, boxes or icons. If a screen needs a box to look organised, the layout is wrong.
+2. **Ink on paper.** The interface is near-monochrome. Colour appears only where it means something a person must
+   act on: evidence found, evidence missing, the primary action, focus and selection. Nothing is coloured for
+   decoration.
+3. **Structure with rules, not cards.** Sections are separated by 1 px hairlines and space. Cards exist only for
+   things that float (menus, popovers, dialogs) or are physically a document (the report sheet).
+4. **Honest data.** Show the number. A bar is used only when proportion matters and is drawn to scale. No rings, no
+   count-ups, no gauges.
+5. **Quiet motion.** Motion confirms an action or orients the eye. It is short (150–200 ms), small (4 px), and never
+   performs. Nothing loops, waves, stamps or bounces.
+6. **Calm and exact.** The product holds legal evidence. Plain words, people decide, the interface never implies the
+   software determined anything.
 
 ## Word budget (enforced in review)
-- Page title: at most 3 words. Subtitle: at most 8 words, or none.
-- No uppercase eyebrow labels. Section headings are sentence case, 15 px, 600.
+- Page title: at most 3 words. A meta line under it in `ink-2`, items separated by " · ".
+- Section headings: sentence case, no eyebrow labels, no icons beside them.
 - Buttons: at most 3 words, verb first. Table headers: one or two words.
-- A legend appears once per screen, never per row. Counts are written as numerals before the noun: "33 to review".
-- Any sentence that explains a concept moves into an `InfoTip`. Empty states are one sentence plus one action.
+- Counts are numerals before the noun: "33 to review". Empty states: one sentence and one action.
+- Explanations: at most one help affordance per screen (see Help), never an info icon per heading.
 - Forbidden words stay forbidden: "compliant", "meets requirements" (`ForbiddenWordsTest`).
 
 ## Stack
-- PrimeNG 22 (styled mode) for behaviour and accessibility, restyled completely by `LexvayPreset` v2 and component
-  pass-through. The visual language is ours; no screen should look like stock PrimeNG.
-- The PrimeUI license key is required for a clean screen (owner action, ROADMAP "Owner decisions needed"); without it
-  every page shows a red license badge, which no design can hide.
-- Icons: Phosphor through `@ng-icons`, regular weight at 16 and 20 px, **duotone** at 32 px and larger (empty states,
-  map popovers). Icons and component tokens load with the chunk that uses them (PERF-FE-1).
-- Fonts, self-hosted (`@fontsource-variable`, versions verified on the registry): **Inter** variable for the interface
-  (features `cv11`, `ss01`; tabular figures `tnum` for every number), **Source Serif 4** variable for rule text, quoted
-  evidence and the report body, **IBM Plex Mono** for ids, hashes and offsets.
-- Motion: native CSS (`animate.enter` / `animate.leave`, keyframes, transitions), the View Transitions API through the
-  router (`withViewTransitions`), and the Web Animations API for count-ups and SVG drawing. No animation library and
-  no `@angular/animations` (deprecated).
+- PrimeNG 22 (styled mode) for behaviour and accessibility, restyled completely by `LexvayPreset` v3. No screen may
+  look like stock PrimeNG; no screen may look like v2.
+- Fonts, self-hosted: **Inter** variable for the interface (features `cv11`, `ss01`, `tnum` for every number),
+  **Source Serif 4** variable for rule text, quoted evidence and the report body only, **IBM Plex Mono** for hashes
+  and document offsets only. Requirement refs (AZ-1) are Inter `tnum` 500, not mono.
+- Icons: Phosphor **regular** through `@ng-icons`, 16 px (20 px only in the bottom tab bar). No duotone, no fill
+  variants except the status marks defined below. Per-chunk registration (PERF-FE-1) unchanged.
+- Motion: native CSS and View Transitions only.
 
-## Tokens
-Defined once in the preset as `light-dark()` pairs and published as `--p-lx-*` (v1 mechanism, D-081).
+## Colour tokens
+Defined once in the preset as `light-dark()` pairs, published as `--p-lx-*`. No other colour may appear in any
+stylesheet (a unit test scans `frontend/src` for hex, rgb and hsl literals outside the token files).
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| ground | #F7F7F4 | #0A0C0F | page background |
-| surface | #FFFFFF | #111419 | cards, panels |
-| surface-2 | #F1F1ED | #171B21 | insets, inputs, list hover |
-| raised | #FFFFFF | #1B2027 | popovers, dialogs, floating bars |
-| line | #E6E6E0 | #252B33 | hairlines inside tables and lists only |
-| text | #0D1014 | #EEF0F3 | primary text |
-| text-2 | #565D67 | #A4ACB7 | secondary text |
-| text-3 | #8B919B | #6F7783 | decorative only (dividers, disabled glyphs); fails AA for text, so placeholders and map codes use text-2 (D-30x) |
-| accent | #2346E0 | #7D9BFF | primary action, focus, selection |
-| accent-tint | #EBEFFF | #1A2347 | selected rows, active nav, in-review tiles |
-| found | #0B7A52 | #45D19E | evidence found, determined to meet |
-| ambiguous | #A35C00 | #F3B54A | ambiguous |
-| missing | #C2362B | #FF8B7D | evidence missing, confirmed gap, determined not to meet |
-| neutral | #9AA1AB | #59616C | not reviewed, not a target |
-| seal | #1C3A8F | #9CB4FF | signed determination seal |
+| paper | #FAFAF9 | #0F1012 | page background |
+| surface | #FFFFFF | #151618 | panels that must separate from paper (tables, side panes, inputs) |
+| sunken | #F3F3F1 | #1B1C1F | hover rows, selected rows (with the rule), code wells |
+| line | #E6E5E2 | #26272B | hairlines |
+| line-strong | #D2D1CC | #34363B | input and secondary-button borders, column rules |
+| ink | #141517 | #ECECEE | primary text, primary button fill (light) |
+| ink-2 | #5A5D63 | #A3A6AD | secondary text, meta, table headers, icons |
+| ink-3 | #8C8F95 | #6E7178 | decorative only (rules, disabled); never body text |
+| accent | #2F4FBF | #93A6F2 | links, focus ring, selection rule, the one active indicator |
+| accent-wash | #EEF1FA | #1C2133 | selected row background (with the accent rule), focused input background never |
+| found | #2D7A53 | #62B88E | evidence found, determined to meet |
+| missing | #B0372E | #E2806F | evidence missing, confirmed gap, determined not to meet, destructive |
 
-Status tints (backgrounds) are the status colour at 10 % (light) or 16 % (dark) over surface. Every text and
-icon pair passes WCAG AA; the agent building the preset proves it with a contrast unit test over the token table.
+There is **no amber, yellow, orange, teal or purple** anywhere, including warnings. "Ambiguous", "outdated", "needs
+review", "blocked" and "demo data" are neutral (`ink-2`) and are distinguished by shape and words. Every text and mark
+pair passes WCAG AA; `tokens.spec.ts` proves it over this table.
 
-**Elevation.** e1 `0 1px 2px rgb(13 16 20 / .05), 0 0 0 1px rgb(13 16 20 / .04)`; e2 `0 6px 16px -4px rgb(13 16 20 /
-.08), 0 0 0 1px rgb(13 16 20 / .05)`; e3 `0 24px 48px -12px rgb(13 16 20 / .18), 0 0 0 1px rgb(13 16 20 / .06)`. In
-dark mode shadows are replaced by a 1 px border in `line` plus an inner top highlight `inset 0 1px 0 rgb(255 255 255
-/ .04)`. Cards use e1, hover lifts to e2 with `translateY(-1px)`, overlays use e3.
-**Radius.** 8 px controls, 12 px cards, 16 px hero panels, 999 px pills and chips.
-**Spacing.** 4, 8, 12, 16, 20, 24, 32, 40, 56, 72. Page gutter 32 px (16 px under 640 px). Content max width 1280 px.
+**Radius.** 6 px for controls and labels, 8 px for overlays and the report sheet, 0 for page sections and tables,
+full circle only for status dots and avatars.
+**Elevation.** Page content has none. Overlays (menu, popover, dialog, toast): `0 12px 32px -8px rgb(20 21 23 /
+.14), 0 0 0 1px var(--p-lx-line)`; dark mode uses the 1 px line plus `0 12px 32px -8px rgb(0 0 0 / .5)`.
+**Spacing.** A 4 px grid: 4, 8, 12, 16, 24, 32, 40, 56, 80. Page padding 40 px (20 px under 640 px). Content max width
+1200 px, left aligned under the title (not centred in a void). Sections are 40 px apart with a hairline between them.
 
 ## Typography
 | Role | Font | Size / line | Weight | Tracking |
 |---|---|---|---|---|
-| Display (overview hero, sign-in headline) | Inter | 40 / 44 | 650 | -0.025em |
-| Title (page) | Inter | 26 / 32 | 620 | -0.018em |
-| Heading (section, card) | Inter | 15 / 22 | 600 | -0.005em |
-| Body | Inter | 14 / 22 | 450 | 0 |
-| Small | Inter | 13 / 20 | 450 | 0 |
-| Number (stat) | Inter `tnum` | 32 / 36 | 600 | -0.02em |
-| Document (rule text, quotes) | Source Serif 4 | 17 / 28 | 400 | 0 |
-| Mono (ids, hashes, offsets) | IBM Plex Mono | 12 / 16 | 450 | 0 |
+| Title (page) | Inter | 24 / 32 | 600 | -0.012em |
+| Section | Inter | 15 / 24 | 600 | -0.004em |
+| Body | Inter | 14 / 20 | 400 | 0 |
+| UI (buttons, inputs, nav) | Inter | 13 / 20 | 500 | 0 |
+| Meta, table header | Inter | 12 / 16 | 500 | 0.01em |
+| Figure (key numbers) | Inter `tnum` | 28 / 32 | 500 | -0.02em |
+| Document (rule text, quotes, report body) | Source Serif 4 | 16 / 26 | 400 | 0 |
+| Mono (hashes, offsets) | IBM Plex Mono | 12 / 16 | 400 | 0 |
 
-## Motion
-Tokens (CSS custom properties, defined once in `styles.css`):
-`--lx-ease-out: cubic-bezier(.16, 1, .3, 1)`; `--lx-ease-in-out: cubic-bezier(.65, 0, .35, 1)`;
-`--lx-spring: linear(0, .009, .035 2.1%, .141 4.4%, .723 12.9%, .938 16.7%, 1.017 20.1%, 1.043 23.4%, 1.035 27.4%,
-.999 37.1%, .995 44.2%, 1)`; durations `--lx-t-1: 120ms` (hover, press), `--lx-t-2: 200ms` (toggles, popovers),
-`--lx-t-3: 320ms` (panels, list changes, route transitions), `--lx-t-4: 600ms` (count-ups, rings), `--lx-t-hero:
-1100ms` (first-view map wave, sign-in story).
+No other sizes. No uppercase except state codes. No text larger than 28 px anywhere in the app (sign-in included).
 
-| Moment | Motion |
-|---|---|
-| Route change | View transition: old view fades out 120 ms; new view fades in and rises 8 px over 320 ms `ease-out`. |
-| Shared element | A state tile on the overview and the state header in Review share `view-transition-name: state-<code>`; the tile morphs into the header. |
-| First view of a list or grid | Items enter with opacity 0 → 1 and `translateY(6px)` → 0, 320 ms, staggered 30 ms, at most 10 staggered (the rest enter with the tenth). `animate.enter` with a `--i` index. |
-| Numbers | Count up from 0 on first view of a screen only, 600 ms `ease-out`, tabular figures so width never jumps. |
-| Rings and bars | Stroke sweeps from 0 to value, 600 ms `ease-out`, segment by segment. |
-| Hover | Cards lift 1 px and gain e2 in 120 ms; buttons darken 4 % in 120 ms; press scales to .98 for 90 ms. |
-| Decision in Review | The decided row's status icon draws its stroke (240 ms), the row settles with `--lx-spring`, the next undecided requirement slides in from the right 16 px (320 ms), the progress ring advances. |
-| Signing | The seal stamps: scale 1.12 → 1 and rotate -8° → 0 with `--lx-spring` over 420 ms, one ink ring fades out from it over 600 ms. Once, never looped. |
-| Overlays | Dialogs and popovers fade and scale from .97, 200 ms; drawers slide 24 px, 320 ms. |
-| Loading | Skeletons shaped like the content with a 1.4 s shimmer; never a spinner on an empty page. |
+## Status marks (`ui/status-mark.ts`, replaces `StatusIcon`)
+Status is always a mark plus a word; the mark alone is never the only carrier.
 
-Rules: animate only `transform`, `opacity`, `clip-path` and SVG `stroke-dashoffset`; never width, height, top or left.
-No animation loops except the sign-in story, which stops when the user starts typing and never runs under reduced
-motion. Under `prefers-reduced-motion: reduce`, every duration becomes 0 except opacity fades of at most 120 ms,
-count-ups show the final value, and the map appears at once. Motion must never delay input: a click during an
-entrance applies immediately.
+| Status | Mark (10 px, SVG) | Colour |
+|---|---|---|
+| Evidence found / accepted | filled circle | found |
+| Evidence missing / gap confirmed | filled square, 1 px radius | missing |
+| Ambiguous | circle, left half filled | ink-2 |
+| Not reviewed | circle outline, 1.5 px | ink-3 stroke, ink-2 word |
+| Evidence requested | circle outline with centre dot | ink-2 |
+| Outdated / stale | dashed circle outline | ink-2 |
+| Blocked | outline square | ink-2 |
+| Signed | ink seal (see Seal) | ink |
 
-## Signature components (shared, `frontend/src/app/ui/`)
-- **StateMap.** A tile-grid map of the United States (51 tiles: 50 states and DC in the standard 8 × 12 tile layout,
-  positions in one constant) that is Lexvay's visual identity. Tile 44 px, radius 10 px, code in Inter 12/600. Fill by
-  state: target with a current signed determination uses the outcome colour (found, missing, or a seal outline for
-  "no determination made"); target in review shows `accent-tint` with a bottom-up fill proportional to reviewed /
-  total; non-target tiles are `surface-2` with `text-3` codes. Hover or focus opens a popover card (state name,
-  ProgressRing, status, one action). Tiles are buttons with full accessible names ("California, 8 of 8 reviewed,
-  determined not to meet"); arrow keys move between target tiles (roving tabindex). First view: tiles wave in from
-  west to east (`--lx-t-hero`). A legend appears once below the map. Sizes: `hero` (overview), `compact` (register,
-  sign-in), `mini` (16 px tiles, popovers).
-- **ProgressRing.** SVG ring at 20, 40 or 96 px; either one value or segments by status in the order found, ambiguous,
-  missing, not reviewed; centre label optional; accessible name states the numbers.
-- **Stat.** A number (count-up), a label of at most three words, an optional ring or delta. No borders: stats sit on
-  the surface of a hero panel.
-- **CommandPalette.** Ctrl+K / Cmd+K anywhere: go to any screen, jump to a state, jump to a requirement by ref or
-  title, run actions the role allows (Run assessment, New rule version, Download register). Fuzzy matching in one pure,
-  unit-tested function (subsequence with word-start bonus). Recent items first.
-- **DecisionBar.** The floating action bar in Review: raised surface at 88 % opacity with `backdrop-filter:
-  blur(12px)` (the only blur in the product), centred at the bottom of the decision pane, three actions with key hints.
-- **Seal.** The signed-determination mark: an SVG circle with the outcome, the signer's initials and the date set on
-  the ring in Inter caps 10 px, colour `seal`. Used in the report, register and the signing moment.
-- **InfoTip.** A 20 px `phosphorInfo` button opening a popover with the explanation that used to be a paragraph.
-- **StatusIcon.** One icon that combines finding and decision (for example a filled check for "found, accepted", an
-  outlined check for "found, not yet reviewed"), so list rows carry one status, not two labels.
+## Components (shared, `frontend/src/app/ui/`)
+- **Meter** (replaces `ProgressRing` and `Stat` rings). A 4 px tall, square-ended horizontal bar on `sunken`, segments
+  in the order found, ambiguous (`ink-2` at 55 %), missing, not reviewed (empty). Always accompanied by text
+  ("6 of 8 decided"). Drawn to scale; no animation beyond a 150 ms width-free `scaleX` on first render.
+- **Figure.** A key number in Figure type over a 12 px meta label. No ring, no icon, no count-up. Figures sit in a row
+  separated by 1 px vertical rules.
+- **Label** (replaces tags and pills). Only when a compact attribute must stand apart in a dense row ("Required",
+  "Elective", a role): 20 px high, 6 px radius, 1 px `line-strong` border, `ink-2` 12/500 text, no fill, no icon.
+  Elsewhere attributes are plain text joined with " · ".
+- **Seal.** The signed-determination mark, redrawn as line art: a 40 px double ring in `ink`, the signer's initials in
+  Inter 11/600, the date beneath the mark in meta type. No outcome colour, no rotation, no stamp animation (it fades in
+  over 200 ms).
+- **Help.** One per screen at most: a ghost "?" button at the end of the title row opening a popover with the screen's
+  definitions as a short list. Terms inside the page may be explained with a dotted underline and a tooltip. Remove
+  every per-heading `InfoTip`.
+- **CommandPalette** stays (behaviour unchanged), restyled as an overlay with the v3 elevation, 13 px rows, no icons
+  except the result type at 16 px in `ink-2`.
+- **DecisionBar** becomes a fixed footer of the Review centre column: a hairline above, the three actions left-aligned
+  (Accept is the primary button; Request and Gap are secondary, Gap with `missing` text). No blur, no floating, no key
+  chips (shortcuts live in the button tooltips and the Help list). The `backdrop-filter` exception is withdrawn.
+- **StateMap** is retired from every screen and deleted with its tests; geography adds no information here.
+- **Buttons.** 32 px (36 px for the single primary action of a screen), radius 6, 13/500, 12 px horizontal padding.
+  Primary: `ink` fill with `paper` text (dark: `ink` fill is light, text dark). Secondary: `surface` with a 1 px
+  `line-strong` border. Ghost: text only, `sunken` on hover. Destructive: secondary with `missing` text. Icons in
+  buttons only when the button has no text.
+- **Inputs.** 32 px, `surface`, 1 px `line-strong`, radius 6, 13 px text; focus is the 2 px accent ring (no glow).
+- **Tables.** The default structure for lists. 40 px rows, 1 px `line` between rows, no outer card, header row in meta
+  type on `paper` with a `line-strong` rule below. Hover is `sunken`; selection is `accent-wash` with a 2 px accent
+  rule on the left. Numbers right aligned in `tnum`.
 
 ## Shell
-- **Top bar** (56 px, surface, e1 when the page has scrolled): the Lexvay mark (an SVG monogram, two strokes forming an
-  L and a tick, accent colour) and wordmark; the program switcher as a pill showing the program's short name; centred,
-  the command palette trigger styled as a search field ("Search or jump to", key hint); on the right a "Demo data"
-  pill for fictional tenants (InfoTip with the full notice), the work queue button with its count (F13 API; popover
-  lists what needs the user), and the avatar menu (initials) holding name, role, theme (System, Light, Dark) and Sign
-  out. The theme control leaves the bar.
-- **Rail** (232 px, collapsible to 64 px with the choice remembered; 64 px under 1200 px; bottom tab bar under 640 px):
-  icon and label, the active item an `accent-tint` pill whose position glides between items (320 ms) when the route
-  changes. Counts as small pills. Tenant-wide items (Determination register) sit above a divider, program items below.
-- Skip link; focus moves to the page title after navigation; visible 2 px accent focus ring with 2 px offset on every
-  interactive element.
+- **Top bar** 48 px on `paper` with a hairline below. Left: the Lexvay mark (monochrome `ink`) and wordmark, then the
+  program switcher as a ghost text button with a chevron. Centre-left: search, a bordered 32 px field 280 px wide
+  ("Search", key hint in `ink-3` inside the field). Right: the work queue as a ghost icon button with a 6 px accent
+  dot when something needs the user (the count is inside its popover), and the account button (24 px avatar on
+  `sunken` with `ink` initials). Demo data is shown as plain `ink-2` meta text "Demo data" left of the work queue,
+  with its notice in a tooltip; never a coloured pill.
+- **Rail** 220 px on `paper`, a hairline on its right. Items are 32 px rows: 16 px icon in `ink-2` and label in UI
+  type; the active item has `ink` text, `sunken` background and a 2 px `ink` rule at its left edge. Counts are plain
+  `tnum` meta text at the right in `ink-2`; no count pills. Two groups with 12 px meta headings ("Workspace",
+  "Program"). Collapsible to 56 px; 56 px under 1200 px; bottom tab bar under 640 px with the More overflow (F5b).
+- Skip link; focus moves to the page title after navigation without drawing a ring on it (programmatic focus on a
+  heading uses `:focus:not(:focus-visible) { outline: none }`); every interactive element shows the 2 px accent ring
+  with 2 px offset on keyboard focus.
 
 ## Screens
-- **Sign in.** Two halves. Left (hidden under 900 px): the StateMap `compact` playing a 6-second story on loop (tiles
-  move from neutral to in review to signed), the headline "Every requirement, traced to its evidence." and nothing
-  else. Right: the mark, "Sign in", email, password, a full-width accent button; for the demo tenant, a row of four
-  account chips that fill the email. Errors appear inline under the field.
-- **Program overview.** Title is the program name (Display size) with license and catalog year as two pills. Hero
-  panel: StateMap `hero` on the left, three Stats on the right (To review, with ring; Evidence found, as a percentage
-  with a segmented ring; Signed, "1 of 5"). Under the hero, "Needs you" (at most three work-queue items as compact rows
-  with one action each), then one card per target state: name, segmented ring, status chip, one primary action that
-  changes with state (Review, Sign, View report).
-- **Review.** Focus mode. Header: state pills with full names and mini rings (the shared-element target), progress
-  ring with "6 of 8". Left rail (288 px): requirements as rows of ref, title and one StatusIcon; filter as a segmented
-  icon control with counts in tooltips. Centre: the requirement as the hero card: ref chip, title at Title size, rule
-  text in Document type inside a quiet inset, finding as a large status chip with the check method in one line and an
-  InfoTip for details, current decision. Right: the evidence in `DocumentViewer`. The DecisionBar floats at the bottom
-  of the centre pane: Accept (A), Request (R), Gap (G); Gap expands the bar into a note field in place. When every
-  requirement is decided, the header shows "Sign California" as the primary action; it pulses once, then stays still.
-  The signing dialog is a centred card with the three outcomes as large selectable cards and the Seal preview.
-- **Changes.** A vertical timeline of cards: icon, a one-line title ("Colorado rules, revision 2"), old → new as two
-  pills with an arrow, status chip, one action. Details (what it affects) collapse under the card.
-- **Evidence report.** The document as a sheet (max 880 px, e2, Document type) with the Seal at the top right when
-  signed or a dashed "Draft" stamp when not; requirements as a clean list (ref, title, StatusIcon, quote); a floating
-  action pill with "Download PDF".
-- **Audit trail.** A timeline grouped by day; each entry one sentence ("Dana Whitfield accepted CA-3") with avatar
-  initials and time; filters as chips; details expand in place.
-- **Rules, Evidence requests, Determination register, Program setup.** Same system: one hero per screen (the version
-  list with its selected detail; the inbox; the register's StateMap `compact` above the table; the setup stepper),
-  explanations in InfoTips, tables with 52 px rows, hover tint, no zebra striping.
+- **Sign in.** One centred column, 360 px, on `paper`: the mark and wordmark, "Sign in" in Title type, email,
+  password, a full-width primary button. For the demo tenant, a quiet list "Demo accounts" of four text buttons
+  (role and name). Below the form, one line of meta text: "Fictional demo data." No art, no map, no slogan panel.
+- **Program overview.** Title row: program name (Title), meta line (license · catalog year · N target states), the
+  primary action on the right when one exists (Run assessment, or Sign when everything is decided). Then a Figure
+  row: To review, Evidence found (%), Signed (n of m). Then **States**, a table: State (full name), Rules (version
+  label), Progress (Meter plus "6 of 8 decided"), Evidence found (%), Determination (Seal plus "Signed by Dana
+  Whitfield, 27 Nov" or "Not signed"), and a right-aligned text action (Review / Sign / Report). Then **Needs you**
+  (work queue, at most five rows) as a plain list. No map.
+- **Review.** Three columns divided by vertical hairlines, no cards: requirement list (280 px), requirement (flex),
+  evidence (420 px). The header is the title "Review", a state switcher as an underlined tab row (state names in UI
+  type, the active one `ink` with a 2 px `ink` underline; progress as "3 of 8" meta text after each name, no rings),
+  and on the right "3 of 8 decided" with a Meter 120 px wide. The list filter is a text tab row (All, To review,
+  Found, Ambiguous, Missing) with counts, not icons. The requirement column: ref and title (Title type), the rule
+  text in Document type with a 2 px `line-strong` rule on its left (no box), source line in meta, then "Finding" as a
+  section: StatusMark and word, the check method as one plain line; then the decision footer.
+- **Coverage.** The matrix as a table on `surface`; cells use the status marks (filled circle system quote, outline
+  circle person's, both = ring with dot, dashed = outdated); flags are plain text with a mark, filter as a text tab
+  row. Column headers are course codes in `tnum` meta type.
+- **Changes, Audit trail.** Plain lists grouped by day under meta headings; each row one sentence in Body, the time in
+  meta at the right, detail expands below the row. No timeline dots or cards.
+- **Evidence report.** The only card in the app: a sheet 816 px wide (US Letter proportion) on `surface` with 8 px
+  radius and the overlay shadow, Document type body, the Seal at the top right when signed or the meta word "Draft".
+  Actions (Download PDF, Check a file) in the title row, not floating.
+- **Rules, Requests, Register, Setup, People.** Same system: title row, meta line, tables. Program setup's steps are
+  a numbered text list on the left (number in `tnum`, the current step `ink` with the left rule), not a stepper of
+  circles.
+
+## Motion
+Tokens: `--lx-ease: cubic-bezier(.2, 0, 0, 1)`; `--lx-t-fast: 120ms` (hover, press), `--lx-t: 180ms` (everything
+else). Route change: the new view fades in from 0 and rises 4 px over 180 ms; nothing staggers. Overlays fade and
+rise 4 px over 150 ms. A decision in Review updates the row's mark with a 120 ms fade and moves the selection to the
+next requirement without sliding. No count-ups, no stroke sweeps, no stamps, no waves, no springs. Under
+`prefers-reduced-motion: reduce` all of it is off.
 
 ## States and feedback
-Loading uses skeletons shaped like the content. Empty states: a 32 px duotone icon in accent, one sentence, one
-action. Errors: inline, next to what failed, with the server's message. Long operations show progress and end with a
-toast that slides in from the bottom right (the toast never covers the DecisionBar). Never block the whole screen.
+Loading: skeleton rows the height of real rows in `sunken`, no shimmer. Empty states: one sentence in `ink-2` and one
+action, no illustration or icon. Errors: inline next to what failed, `missing` text, the server's message. Toasts:
+bottom right, overlay style, text only, 4 s.
 
 ## What is forbidden
-Emoji or Unicode glyphs as icons; sparkle icons; purple-to-pink or any decorative gradient (the only gradient is the
-StateMap's progress fill, which is a hard-edged fill, not a blend); glassmorphism beyond the DecisionBar's single blur;
-glowing or coloured shadows; confetti or looping attention animations; centred marketing hero copy inside the app;
-placeholder or lorem text; fake data presented as real; the words "compliant" and "meets requirements"; colour as the
-only carrier of state; any network request to a third-party host.
+Amber, yellow, orange, teal, purple or any colour outside the token table; gradients of any kind; coloured, glowing or
+blurred shadows; backdrop blur; pills and rounded-full chips; rings, gauges and count-ups; duotone or filled icons
+(except status marks); an icon beside a heading; more than one help affordance per screen; cards for page sections or
+cards inside cards; text above 28 px; centred marketing copy; emoji or Unicode glyphs as icons; sparkle icons;
+confetti or looping animation; keyboard-hint chips inside buttons; placeholder or lorem text; colour as the only
+carrier of state; network requests to third-party hosts; the words "compliant" and "meets requirements".
 
 ## Quality bar and testing contract
-- Each screen is reviewed by the orchestrator from screenshots in both themes at 1440 px and 400 px before merge.
-- axe in the end-to-end suite on every screen and state: zero serious or critical. Keyboard reaches everything.
+- The orchestrator reviews every screen from screenshots in both themes at 1440 px and 400 px against this document
+  before merge, looking specifically for the seven v2 failures listed at the top.
+- axe on every screen and state: zero serious or critical. Keyboard reaches everything.
+- `tokens.spec.ts` checks AA contrast over the table; a source scan fails on colour literals outside the token files
+  and on the forbidden component names (`ProgressRing`, `StateMap`, `p-tag`, `p-chip`, `rounded-full`).
 - Keep `data-testid="message"` on status messages and stable accessible names for navigation, tabs and the three
   review actions, or update `frontend/e2e` in the same change.
-- Unit-test view-model logic (filters, shortcuts, progress, fuzzy matching, map layout), not markup.
-- Performance: Largest Contentful Paint under 1.2 s on the seeded tenant in a production build on loopback; no layout
-  shift from fonts (`size-adjust` fallbacks) or count-ups; animations never drop below 60 fps on the overview map
-  (checked with a Chrome performance trace in the PR).
+- Performance: LCP under 1.0 s on the seeded tenant in a production build on loopback; no layout shift.
 
 ## Bundle
-Icons and component tokens live with the chunk that uses them (PERF-FE-1, D-295 to D-299); the shared preset holds only
-the token sets of what the shell and first paint render, and `SHELL_ICONS` only the icons of the shell, sign-in and home.
-A routed screen names its other icons in a `<SCREEN>_ICONS` constant next to the screen, provided by the route in
-`<screen>.routes.ts` (loaded with `loadChildren`, because route providers are built at start-up), and its other
-components' token sets in `<screen>-theme.ts`, registered from its constructor with `registerComponentTokens`; a shared
-component does the same through `viewProviders` and its own constructor. `theme/icons.spec.ts` fails on an icon nobody
-registers, and the end-to-end suite fails on a "No icon named" warning. The initial bundle budget is in `angular.json`;
-a change that crosses the warning moves something out first.
+Unchanged from v2 (PERF-FE-1): icons and component tokens live with the chunk that uses them, the shared preset holds
+only what the shell and first paint render, and the initial bundle stays under the `angular.json` warning. v3 should
+shrink it: the map, rings, count-ups and duotone icons leave.
