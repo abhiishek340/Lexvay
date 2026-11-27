@@ -365,6 +365,10 @@ system's proposed finding is never changed by an answer. Decisions D-260 to D-26
    The system's proposed finding and its evidence stay first and unchanged. The decision note placeholder for
    an answered request reads "Note the evidence you relied on". The requirement list shows a small
    `phosphorChatCircleText` marker with text "evidence provided" on mappings with responses.
+   **Decided during F4 (orchestrator):** `GET /programs/{id}/documents` is added in F4 (one statement, `current`
+   flag from the course-version supersession, any role); the picker shows current documents by default with an
+   "Include earlier catalog years" switch and disables documents without pages; `Mapping` gains `responseCount`
+   (correlated count served by `evidence_response_mapping_idx`), measured with `make perf`.
 5. **Accessibility and keyboard**: drawer traps focus and returns it to the row action; the inbox table is
    keyboard navigable; axe clean in both themes at 1280 and 400 px.
 6. **Unit tests** (Vitest): inbox status derivation including blocked, the selection-to-request mapping, the
