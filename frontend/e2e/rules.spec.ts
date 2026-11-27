@@ -15,6 +15,20 @@ function versions(page: Page) {
 }
 
 /** docs/screens are taken at the size the other screens use, then the test continues at its own size. */
+/** The edit grid never scrolls sideways at a window of 1024 px or wider. */
+async function expectNoSidewaysScroll(page: Page, widths: number[]): Promise<void> {
+  const size = page.viewportSize();
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 });
+    const overflow = await page.getByRole('table', { name: 'Requirements, editable' }).evaluate((table) => {
+      const container = table.parentElement!;
+      return Math.max(container.scrollWidth - container.clientWidth, table.scrollWidth - container.clientWidth);
+    });
+    expect(overflow, `edit grid at ${width} px`).toBeLessThanOrEqual(0);
+  }
+  if (size) { await page.setViewportSize(size); }
+}
+
 async function capture(page: Page, name: string): Promise<void> {
   if (!SCREENSHOTS) { return; }
   const size = page.viewportSize();
@@ -52,7 +66,7 @@ test('a reviewer reads the seeded Colorado revision: its list, its rule text and
 
   await page.getByRole('tab', { name: 'Rule text' }).click();
   await expect(page.getByTestId('rule-text')).toContainText('Rule 5. Internship. The applicant shall have completed at least 700 clock hours');
-  await expect(page.getByTestId('rule-text-page')).toHaveText('1 of 1');
+  await expect(page.getByTestId('page-position')).toHaveText(/Page\s+1\s+of\s+1/);
   await expectAccessible(page, 'Rule text');
 
   // Compare defaults to the superseded version: exactly one changed requirement, CO-5, number and text.
@@ -134,7 +148,13 @@ test('a contributor enters a new rule version and watches its extraction', async
 
   // The e2e backend runs FakeLlmClient with no script for this label, so extraction fails after its retries.
   await expect(page.getByTestId('version-state')).toContainText('Extraction failed', { timeout: 30_000 });
-  await expect(nevada).toContainText('FakeLlmClient has no scripted response');
+  // In words, with the internal error behind "Technical detail"; the list row shows only the status.
+  const failed = page.getByTestId('extraction-failed');
+  await expect(failed).toContainText('Requirement extraction did not produce a list. A reviewer can enter the list by hand with Edit list.');
+  await expect(failed.getByText(/FakeLlmClient/)).toBeHidden();
+  await failed.getByText('Technical detail').click();
+  await expect(failed.getByText(/FakeLlmClient has no scripted response/)).toBeVisible();
+  await expect(nevada).not.toContainText('FakeLlmClient');
   // Correcting and approving belong to reviewers.
   await expect(page.getByRole('button', { name: 'Edit list' })).toHaveCount(0);
   await expectAccessible(page, 'Rule version extraction failed');
@@ -168,6 +188,7 @@ test('a reviewer enters the list by hand, corrects it, saves, reloads and approv
   await page.getByRole('option', { name: 'Subject', exact: true }).click();
   await grid.getByRole('textbox', { name: 'NV-2 text' }).fill('coursework in professional ethics and legal issues in counseling');
   await expectAccessible(page, 'Edit grid');
+  await expectNoSidewaysScroll(page, [1024, 1280, 1440]);
 
   // The server rejects a blank title; its message appears under that row.
   await page.getByRole('button', { name: 'Save list' }).click();
@@ -182,9 +203,22 @@ test('a reviewer enters the list by hand, corrects it, saves, reloads and approv
   await expect(page.getByTestId('version-state')).toContainText('Needs approval');
   await expect(page.getByText('1 rule version waiting for approval')).toBeAttached();
 
-  // Edit one title, save, reload: the server kept it.
+  // Edit one title; choosing another version first asks, and Keep editing keeps the edit.
   await page.getByRole('button', { name: 'Edit list' }).click();
   await grid.getByRole('textbox', { name: 'NV-2 title' }).fill('Ethics and law coursework');
+  const nevadaUrl = page.url();
+  await versions(page).getByRole('option', { name: REVISION }).click();
+  const discard = page.getByRole('alertdialog', { name: 'Discard unsaved changes to this list?' });
+  await expect(discard).toBeVisible();
+  await expect(discard.getByRole('button', { name: 'Keep editing', exact: true })).toBeFocused();
+  await expectAccessible(page, 'Unsaved changes dialog');
+  await discard.getByRole('button', { name: 'Keep editing', exact: true }).click();
+  await expect(discard).toBeHidden();
+  expect(page.url()).toBe(nevadaUrl);
+  await expect(versions(page).getByRole('option', { name: /Nevada \(fictional\) 2027/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(grid.getByRole('textbox', { name: 'NV-2 title' })).toHaveValue('Ethics and law coursework');
+
+  // Save, reload: the server kept it.
   await page.getByRole('button', { name: 'Save list' }).click();
   await expect(page.getByTestId('message')).toContainText('Requirement list saved');
   await page.reload();
