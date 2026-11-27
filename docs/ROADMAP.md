@@ -78,7 +78,8 @@ sentence built by one pure, tested function per action); evidence report as a sh
 floating "Download PDF" pill. Tests: e2e for re-run from a timeline card, audit filter chips, report download; axe.
 
 ### UI2-4 — Rules, evidence requests and program setup in v2 (slot 4; after UI2-0 and F4; D-350 to D-359)
-Restyle the Rules workspace and F4's evidence request screens to v2 (word budget, InfoTips, cards, motion), and build
+Restyle the Rules workspace and F4's evidence request screens to v2 (word budget, InfoTips, cards, motion; requests
+with `signed: true` from FIX-3 show as blocked like stale ones), and build
 F2 (program setup) directly in v2 as specified in the F2 section with the v2 components (Stepper restyled, StateMap
 `mini` for choosing target states). Tests as in F2 plus axe on every Rules and Requests state.
 
@@ -111,6 +112,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | queued (after UI2-0) |
 | UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | queued (after UI2-0) |
 | UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI2-0, F4) |
+| FIX-3 Work queue and evidence request follow-ups | `fix-queue-followups` | 9 | Sonnet 5.5 | in progress |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | in progress (backend; screen cell in UI2-4) |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
@@ -629,6 +631,28 @@ version share a timestamp, so the order is the text order of the ref ("CO-10" be
    version's order" then follows the rule's own order.
 3. Tests: a rule with twelve requirements lists CO-1 … CO-12 in order through the requirements endpoint,
    the mappings endpoint and the diff; replace keeps the submitted order; `Rule5` immutability unchanged.
+
+## FIX-3 — Work queue and evidence request follow-ups (backend only; slot 9; no migration expected)
+Settles the open points recorded in the F13 and F4 reviews. Decisions D-360 to D-369 in `docs/decisions/FIX-3.md`.
+1. **`ASSESSMENTS_FAILED`** lists a program's FAILED assessments created after its latest FINISHED assessment (or all
+   failures when none finished). A failure followed by a successful run disappears from the queue. Test both.
+2. **Signed requests.** An open evidence request whose mapping's assessment and jurisdiction already have a SIGNED
+   determination cannot be answered (409 today). Extract the "signed for this assessment and jurisdiction" predicate
+   that `DeterminationRepository.hasSigned` uses into one SQL constant and use it in three places: `hasSigned`,
+   `EvidenceRequestView` (new `signed boolean`, one column in the existing statement) and the work queue, where
+   `EVIDENCE_REQUESTS_OPEN` counts signed requests in `blockedCount` with stale ones and does not count them as
+   answerable items (rename nothing; document the meaning in D-36x). The status stays OPEN in the API. The inbox shows
+   them as blocked in UI2-4 (frontend is out of scope here). Tests: after signing, the request is `signed: true`,
+   the work queue no longer lists it as answerable, and answering still returns 409.
+3. **One "decided" predicate.** `AssessmentRepository.findingCounts` uses `MappingRepository.LATEST_EVENT` and
+   `NEEDS_DECISION` instead of its own copy; the result is identical (assert with the existing overview tests plus one
+   that compares counts before and after on the seeded tenant).
+4. **`MappingRepository.CURRENT`.** Measure before changing: on the perf database, add one assessment with 500
+   mappings and a superseded rule version, run `EXPLAIN (ANALYZE, BUFFERS)` of `GET /assessments/{id}/mappings`'s
+   statement as the application role, and record the plan in `docs/PERF.md`. Rewrite the filter only if that
+   statement exceeds 5 ms or 2 000 buffers; if you rewrite, the result set must be identical (a test compares
+   both forms over the change-tracking fixtures).
+Done when `make backend-test`, `make perf` and `LEXVAY_E2E_SLOT=9 make e2e` are green.
 
 ## FIX-2 — Job entity id column and index (slot 5; migration `V013__job_entity_id.sql`)
 Defect found in review of WS-PERF (D-115): `JobRepository.latest` filters by `payload->>:key`, which scans the
