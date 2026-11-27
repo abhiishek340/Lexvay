@@ -1,6 +1,7 @@
 package com.lexvay.document;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -41,6 +42,11 @@ public class DocumentController {
                                         @RequestParam DocumentKind kind,
                                         @RequestParam(required = false) UUID courseVersionId) {
         return service.upload(programId, file, kind, courseVersionId);
+    }
+
+    @GetMapping("/programs/{programId}/documents")
+    List<DocumentService.ProgramDocumentView> list(@PathVariable UUID programId) {
+        return service.forProgram(programId);
     }
 
     /**

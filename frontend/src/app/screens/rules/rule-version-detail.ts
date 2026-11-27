@@ -7,9 +7,10 @@ import { Tag } from 'primeng/tag';
 import { licenseLabel } from '../../core/labels';
 import { RuleVersionView, UserSummary } from '../../core/models';
 import { ProgramContext } from '../../core/program-context';
-import { RULE_STATUS, ruleVersionStatus } from '../../core/rules';
+import { ruleVersionStatus } from '../../core/rules';
 import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
 import { RequirementsPanel } from './requirements-panel';
+import { RULE_STATUS } from './rule-status';
 import { RuleCompare } from './rule-compare';
 
 /** A finished operation, for the screen's live region and toast. */

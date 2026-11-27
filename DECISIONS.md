@@ -2154,3 +2154,169 @@ classpath, so it counts V013 without change.
 `GET /documents/{id}` and `GET /rule-versions` and the plans and buffer counts. At the seeded volume (under a
 thousand jobs) the endpoints do not move beyond run-to-run noise; the change shows in the plans, which no longer scan
 `job`, and in the buffer counts on the larger database.
+
+### F4 — Evidence request screens (D-260 to D-269)
+
+**D-260 — Route, rail entry and one source for the rows.** `programs/:programId/requests` is its own lazy chunk
+(`screens/requests/`). The rail shows "Evidence requests" after Review with `phosphorTray`, for every role, with a
+badge whose screen-reader text is "n open evidence request(s)". `ProgramContext` loads
+`GET /programs/{id}/evidence-requests?status=ALL` beside the other program reads and keeps the rows in one signal; the
+badge, the SelectButton counts and the table all derive from it, and the Open / Answered / All filter is applied in
+the browser. The inbox fetches the rows again when it is opened on a program that is already loaded (requests are other
+people's work), Review refreshes them after every decision, and `refreshAfterChange` after a re-run (a re-run can
+unblock a request). Rejected: one request per filter (three fetches for the counts); a separate store for the inbox
+(the badge would need a second copy, D-085).
+
+**D-261 — Status derivation.** `requestState(row)` in `core/evidence-requests.ts` is the only derivation: an OPEN row on
+a stale mapping is Blocked (`phosphorArrowsClockwise`, warn tag, the helper text from the spec, no action), any other
+OPEN row is Open (`phosphorEnvelopeOpen`), an ANSWERED row is "Answered, awaiting review" (`phosphorCheckCircle`). A
+blocked request is still an open request: it is listed and counted under Open and in the badge, because it still
+needs an answer once the change is re-run. A stale ANSWERED row stays Answered: there is nothing to answer and the
+reviewer's Review screen already says the mapping needs a re-run. Rejected: hiding blocked requests (the contributor
+would not know a request exists).
+
+**D-262 — `stale` on `EvidenceRequestView`.** One column (`m.stale`) in the existing statement of
+`EvidenceRequestRepository`, after `status`. Tested in `EvidenceRequestApiTest`
+(`aStaleMappingsRequestIsListedWithItsStaleFlagAndCannotBeAnswered` and the flag in the full loop).
+
+**D-263 — `GET /api/v1/programs/{id}/documents` (orchestrator decision during F4).** No endpoint on `main` listed a
+program's documents: the courses endpoint carries no documents and every document read takes a document id, so the
+spec's fallback could not be built. The orchestrator decided to add the endpoint here, in the document package next to
+the other document reads: `DocumentService.forProgram` checks the program (`ProgramService.get`, 404 for an unknown
+or another tenant's program) and `DocumentRepository.viewsByProgram` runs one statement returning `{ id, filename,
+kind, courseVersionId, courseCode, courseTitle, catalogYear, courseRequired, pageCount, current, createdAt }`,
+ordered program-level documents first (course code null), then course code, newest catalog year, file name. `current`
+is true for program-level documents and for documents of a course version no other version supersedes (the unique
+index on `course_version.supersedes_id` serves the `NOT EXISTS`); the page count uses the `(document_id,
+page_number)` key. Rule text has no program, so it never appears. Any role may read; it is a GET, so it is not
+audited. Rows in `InputValidationTableTest` (bad id 400, unknown program 404), `ReadPathConnectionsTest` (one
+connection) and `EndpointLatencyTest` (p95 5.5 ms seeded, 5.4 ms with 62 tenants); `ProgramDocumentsApiTest` covers
+order, fields, the `current` flag, a document without pages, every role, anonymous 401, another tenant 404.
+
+**D-264 — The document picker (orchestrator decision during F4).** A grouped PrimeNG Select: "Program documents" first,
+then one group per course ("COUN 605 Professional Orientation and Ethical Practice"), in the server's order. Current
+documents only by default; a ToggleSwitch "Include earlier catalog years" (shown only when there are any) adds the
+others, labelled "catalog year 2026-27". Switching it off again clears a choice that is no longer listed. A document
+with no pages is listed disabled with "No text available yet". The job table is not read for ingest status (FIX-2 makes
+that cheap later). The grouping is the plain function `documentGroups` (Vitest). An option's accessible name is its
+visible text (file name, then kind and year); the Select shows the same words, joined with commas, once chosen.
+
+**D-265 — The answer drawer.** `EvidenceDrawer` is a `@defer (when answering())` block of the inbox, so its code
+(Drawer, Select, ToggleSwitch, Textarea and their tokens) is a chunk of its own (`evidence-drawer`, 32.6 kB raw) loaded on
+the first "Provide evidence". PrimeNG Drawer on the right, 70 % wide, 100 % under 1024 px, appended to the body.
+PrimeNG renders the panel as `role="complementary"`; pass-through makes it `role="dialog"`, `aria-modal="true"`,
+labelled by its "Provide evidence" heading (D-087 style). Its focus trap keeps Tab inside; the Drawer gives no initial
+focus, so the heading takes it on show. Escape, the close button, the mask and Cancel return focus to the row's
+"Provide evidence" button; after an answer that button no longer exists, so focus goes to the page heading next to
+the status line. The inbox keeps the request it last opened while the drawer slides out. The Drawer runs with
+`modal` false and the screen draws its own backdrop (click closes, `aria-hidden`), and Escape is handled by the
+drawer for keys pressed inside it (`closeOnEscape` false): PrimeNG removes its own mask on `animationend`, which does
+not reliably fire when animations are reduced to zero (`prefers-reduced-motion` in `styles.css`), and a mask left
+behind made the whole page unclickable (seen in 1 of 3 end-to-end runs); its document-wide Escape listener also closed
+the drawer when Escape only meant to close the viewer's range dialog above it. The rule text is not on the request row; the drawer
+reads it from the existing `GET /assessments/{id}/mappings?jurisdiction=` (one request per opening) rather than
+adding the text to every inbox row. Wide layout: request, picker, passage, comment and actions on the left, the page on
+the right (sticky); under 1024 px everything stacks in reading order. The selection (mouse, "Use this passage" or the
+keyboard range dialog) fills "Selected passage" in serif with page and character range in mono; `responseBody` sends
+`{ documentId, pageNumber, quote, comment }` with the quote exactly as stored and a blank comment as null. A 400 is
+shown under the passage with the server's detail; a 409 (or any other failure) in a Message above the actions, and the
+inbox reloads. On success: toast "Evidence sent to review", a status-line sentence, the drawer closes, the row moves to
+Answered.
+
+**D-266 — `responseCount` on the mapping read (orchestrator decision during F4).** Option (a) of the review: a correlated
+`(SELECT count(*) FROM evidence_response er WHERE er.mapping_id = m.id)` in `MappingRepository`'s shared select, served
+by `evidence_response_mapping_idx`, exposed as `Mapping.responseCount`. No migration. `make perf`, p95 of
+`GET /assessments/{id}/mappings`: by jurisdiction 4.92 → 2.71 ms (seed only) and 3.57 → 5.68 ms (62 tenants); all
+mappings 9.38 → 5.77 ms and 9.27 → 11.14 ms. The differences are run-to-run noise in both directions and far under the
+40 ms budget; `ReadPathConnectionsTest` still shows one connection for every read endpoint. The marker means "this
+requirement has evidence provided by a person" and stays after a decision.
+
+**D-267 — Review.** Responses are fetched with the selected mapping only when its `responseCount` is above zero, kept per
+mapping in `ReviewWorkspace.responses` for the screen's lifetime, and fetched again when the count has grown since
+(`evidenceView`, Vitest). The Evidence pane shows the system's evidence (or "No quoted evidence") first and unchanged,
+then one block per response, newest first: a heading "Evidence provided by <name>, <date>" with `phosphorUser`, the
+same file, course, page and character list, the elective warning, "Quote only", the `DocumentViewer` with the stored
+span marked, and the comment. Both kinds use one `passageTpl` template; under 1024 px each has its own "Show on page"
+(the shown set is a `linkedSignal` of the selection). The requirement list shows `phosphorChatCircleText` "evidence
+provided" on mappings with responses; the note placeholder is "Note the evidence you relied on" while a person has
+answered and no decision has been made. The system test ids (`evidence-meta`, `evidence-quote`) stay on the system's
+block only.
+
+**D-268 — Bundle.** Initial bundle raw: 703.67 kB on the `main` this item started from, 710.30 kB with F4 before
+merging F3b and F8; after merging them, 703.12 kB on `main` and 707.30 kB with F4 (warning budget 700 kB, error
+800 kB). The screen and the drawer are lazy (`requests`, and `evidence-drawer` at 32.6 kB raw). The Drawer and
+ToggleSwitch token sets follow F3b's and F8's pattern and join the preset when the drawer's chunk first runs
+(`evidence-drawer-theme.ts`, which reuses the register's ToggleSwitch definition rather than copying it). The 4.2 kB
+left in the initial bundle are four icons in the single registry (`phosphorTray`, `phosphorEnvelopeOpen`,
+`phosphorChatCircleText`, `phosphorUser`, about 1.7 kB) and the code the rail badge needs (`ProgramContext`,
+`ApiService`, `core/evidence-requests.ts`). PERF-FE-1 moves screen icons into their chunks.
+
+**D-269 — Tests.** Vitest: `core/evidence-requests.spec.ts` (status derivation including blocked, filters and counts),
+`screens/requests/answer.spec.ts` (selection to request body, document groups, earlier years, disabled documents),
+`review-workspace.spec.ts` (responses merged into the evidence view, loading, answered, cache). End to end,
+`e2e/evidence-requests.spec.ts` follows the spec's scenario on Utah's missing requirement (Colorado and California are
+used by other suites): request with a note, the contributor's badge and inbox, row detail from the keyboard, the drawer,
+current and earlier documents, Escape closing only the range dialog, a passage typed into the range dialog, a tampered
+quote refused through the API and through the screen with the server's words, submit, Answered, the reviewer's
+"Needs review" filter with the marker, "Evidence provided by Jordan Ellis" and the marked quote, accept, nothing open.
+A second test checks 400 px: the inbox, the full-width drawer and focus returning to the row action, a blocked row,
+and the provided evidence behind "Show on page". The seed cannot make a requested mapping stale without a rule or
+course change that other suites depend on (and a stale mapping cannot be reviewed), so the blocked row is produced by
+setting `stale` on one row of the real list response in the test; the flag itself is covered by the backend test.
+`e2e/support.ts` gains `apiPost` (a mutating call with the CSRF header) and `switchUser`. The range offsets are typed key by
+key: Playwright's `fill` leaves PrimeNG InputNumber's model unchanged until the field loses focus.
+
+### PERF-FE-1 — Icons and theme tokens per chunk (D-295 to D-299)
+
+**D-295 — `SHELL_ICONS` is the only icon registry in `app.config.ts`.** It holds the 17 icons of the shell, the
+sign-in page and the home screen (`theme/icons.ts`); `LEXVAY_ICONS` is deleted. `IconName` is now
+`` `phosphor${string}` ``: it used to be `keyof typeof LEXVAY_ICONS`, which no longer exists as one registry, and the
+tables that carry icon names (`FINDING_ICON`, `RULE_STATUS`, ...) are checked by `icons.spec.ts` instead of by the type.
+Rejected: a union of every screen's constant (the label tables would import types from the screens they serve).
+
+**D-296 — Each routed screen provides its own icons through its route; shared components use `viewProviders`.**
+A route's `providers` are built when the app starts, so naming a screen's `<SCREEN>_ICONS` in `app.routes.ts` would
+import the screen into the initial bundle. Each screen with icons beyond `SHELL_ICONS` (Overview, Review, Requests,
+Changes, Rules, Report, Register) therefore has a `<screen>.routes.ts` (one route, `path: ''`, the screen as `component`, its
+`providers: [provideIcons(<SCREEN>_ICONS)]`, its title and guards) that `app.routes.ts` loads with `loadChildren`; the
+screen and its routes are one chunk, so there is no second request. `provideIcons` merges with the icons of the parent
+injector, so a screen names only what `SHELL_ICONS` does not. `DocumentViewer`, `FindingLabel` and `DecisionState`
+provide theirs in `viewProviders` (`DOCUMENT_VIEWER_ICONS`, `FINDING_LABEL_ICONS`, `DECISION_STATE_ICONS`). Login, Home
+and Audit show nothing beyond the shell's icons and keep `loadComponent`. `confirmLeave` moved from `app.routes.ts` to
+`core/confirm-leave.ts` so `rules.routes.ts` does not import the root route table. The label tables that held icon names
+moved next to the one screen that shows them (`CHANGE_KIND` to `screens/changes/change-kind.ts`, `DIFF_STATUS` to
+`screens/rules/diff-status.ts`, `RULE_STATUS` to `screens/rules/rule-status.ts`, `OUTCOME_ICON` and `STATUS_ICON` into
+`register.ts`, `REQUEST_STATE` into `requests.ts`, `FINDING_ICON` and `DECISION_ICON` into `ui/finding.ts`): `core/labels.ts` and `core/rules.ts` are
+imported by the shell, so icon names left there would belong to every chunk.
+Rejected: component-level `providers` on each screen (works, but the spec says the route's).
+
+**D-297 — The registration guard reads sources; the end-to-end suite watches the console.** `theme/icons.spec.ts`
+collects every quoted `phosphor...` name in the files a screen reaches through relative imports and `templateUrl`
+(stopping at a shared component that registers its own), and requires the registered set to equal the names shown
+minus `SHELL_ICONS`, in both directions (so a stale entry fails too). It also fails if any source file that names an
+icon is reached by no unit, so a new screen cannot forget to register. The spec asked for rendering each screen's
+template; a rendered DOM covers only the states a fixture reaches (the loading skeleton shows no icon), while the source
+covers every branch. The runtime half is `iconGuard` in `e2e/support.ts`: every end-to-end test fails on a
+"No icon named" console warning. The spec reads files, so `@types/node` 26.6.11 (registry latest, checked 2026-11-27,
+matching Node 26.13.1) is a dev dependency and `tsconfig.spec.json` lists `node` in `types`.
+
+**D-298 — `registerComponentTokens(sets)` and what moved.** One helper in `theme/component-tokens.ts` replaces
+`registerRulesTheme` and `registerRegisterTheme`: it calls `updatePreset` for the components not yet registered, so two
+chunks naming the same component (Dialog, InputNumber, Textarea, ProgressBar) are safe. Each screen exports its sets as
+`<SCREEN>_TOKENS` in `<screen>-theme.ts` and registers them from its constructor; `DocumentViewer` registers Dialog and
+InputNumber itself. Moved out of the shared preset: Dialog, InputNumber, ProgressBar, ProgressSpinner, RadioButton,
+Splitter, Textarea. F4's Drawer set and F8's ToggleSwitch set (with its Lexvay colours, now `theme/toggleswitch-tokens.ts`,
+shared by Register and Requests) follow the same pattern; `evidence-drawer-theme.ts` is gone and the Requests screen
+registers the drawer's sets. The Lexvay overrides of ProgressBar and Splitter moved with their sets with the same values
+(`theme/progressbar-tokens.ts` is shared by Overview and Review); the Dialog override restated Aura's own title values
+(1.125rem, 600), so it was dropped with no change of value. Disagreement with the spec's list: SelectButton and
+ToggleButton stay in the preset because the shell's theme switcher renders them on every screen, and IconField stays
+with Select (Select's filter uses it; 61 bytes).
+
+**D-299 — The budget stays at 700 kB / 800 kB; the initial bundle is 695.0 kB, not under 640 kB.** See
+`docs/PERF.md`, "Frontend bundle". The icon cut does not work as the spec assumes: `@ng-icons/phosphor-icons/regular`
+is one module, and the bundler places a module in the chunk every importer shares, with the union of the exports used
+anywhere. Because the shell imports it for `SHELL_ICONS`, the icons of every screen still ship in the initial chunk
+(26.9 kB for 52 icons; the 17 shell icons are 7.5 kB). Proposed next cut, measured on a scratch build: give the shell
+its own copy of its 17 icons (a generated `theme/shell-icons.ts` of SVG strings, checked against the package by a
+test), which takes the initial bundle to 676.5 kB. Still short of 640 kB; the rest is in the PERF.md breakdown.

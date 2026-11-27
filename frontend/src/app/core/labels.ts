@@ -1,5 +1,4 @@
-import type { IconName } from '../theme/icons';
-import { ChangeEvent, DecisionKind, DeterminationStatus, DiffStatus, Finding, NumericField, NumericOperator, Outcome, RequirementType, Role } from './models';
+import { DecisionKind, DeterminationStatus, Finding, NumericField, NumericOperator, Outcome, RequirementType, Role } from './models';
 
 /** Plain wording (spec section 9): the two phrases the spec forbids never appear anywhere in the UI. */
 export const FINDING_LABEL: Record<Finding, string> = {
@@ -8,23 +7,10 @@ export const FINDING_LABEL: Record<Finding, string> = {
   AMBIGUOUS: 'Ambiguous',
 };
 
-/** A distinct shape per finding (check, question mark, cross) so state never depends on colour alone. */
-export const FINDING_ICON: Record<Finding, IconName> = {
-  EVIDENCE_FOUND: 'phosphorCheckCircleBold',
-  AMBIGUOUS: 'phosphorQuestionBold',
-  EVIDENCE_MISSING: 'phosphorXCircleBold',
-};
-
 export const DECISION_LABEL: Record<DecisionKind, string> = {
   ACCEPTED: 'Accepted',
   EVIDENCE_REQUESTED: 'Evidence requested',
   GAP_CONFIRMED: 'Gap confirmed',
-};
-
-export const DECISION_ICON: Record<DecisionKind, IconName> = {
-  ACCEPTED: 'phosphorSealCheck',
-  EVIDENCE_REQUESTED: 'phosphorPaperPlaneTilt',
-  GAP_CONFIRMED: 'phosphorSealWarning',
 };
 
 export const OUTCOME_LABEL: Record<Outcome, string> = {
@@ -33,21 +19,9 @@ export const OUTCOME_LABEL: Record<Outcome, string> = {
   NOT_DETERMINED: 'No determination made',
 };
 
-/** A distinct shape per signed outcome, so the outcome never depends on colour alone. */
-export const OUTCOME_ICON: Record<Outcome, IconName> = {
-  MEETS: 'phosphorCheckCircle',
-  DOES_NOT_MEET: 'phosphorXCircle',
-  NOT_DETERMINED: 'phosphorMinusCircle',
-};
-
 export const STATUS_LABEL: Record<DeterminationStatus, string> = {
   SIGNED: 'Signed',
   REOPENED: 'Reopened',
-};
-
-export const STATUS_ICON: Record<DeterminationStatus, IconName> = {
-  SIGNED: 'phosphorSealCheck',
-  REOPENED: 'phosphorArrowCounterClockwise',
 };
 
 export const ROLE_LABEL: Record<Role, string> = {
@@ -55,11 +29,6 @@ export const ROLE_LABEL: Record<Role, string> = {
   REVIEWER: 'Reviewer',
   SIGNER: 'Signer',
   ADMIN: 'Administrator',
-};
-
-export const CHANGE_KIND: Record<ChangeEvent['kind'], { label: string; icon: IconName; action: string }> = {
-  RULE_VERSION: { label: 'New rule version', icon: 'phosphorScales', action: 'Re-run assessment' },
-  COURSE_VERSION: { label: 'New course version', icon: 'phosphorBookOpen', action: 'Re-run matching' },
 };
 
 export const REQUIREMENT_TYPE_LABEL: Record<RequirementType, string> = {
@@ -86,13 +55,6 @@ export function numericCheck(r: { numericField: NumericField | null; numericOper
   return r.numericField && r.numericOperator && r.numericValue !== null ? `${NUMERIC_FIELD_LABEL[r.numericField]} ${r.numericOperator} ${r.numericValue}` : null;
 }
 
-export const DIFF_STATUS: Record<DiffStatus, { label: string; icon: IconName; severity: 'success' | 'danger' | 'warn' | 'secondary' }> = {
-  CHANGED: { label: 'Changed', icon: 'phosphorNotePencil', severity: 'warn' },
-  ADDED: { label: 'Added', icon: 'phosphorPlusCircle', severity: 'success' },
-  REMOVED: { label: 'Removed', icon: 'phosphorMinusCircle', severity: 'danger' },
-  UNCHANGED: { label: 'Unchanged', icon: 'phosphorEquals', severity: 'secondary' },
-};
-
 export const ACTION_LABEL: Record<string, string> = {
   LOGIN_SUCCEEDED: 'Signed in',
   LOGOUT: 'Signed out',
@@ -109,6 +71,7 @@ export const ACTION_LABEL: Record<string, string> = {
   ASSESSMENT_STARTED: 'Assessment started',
   ASSESSMENT_FINISHED: 'Assessment finished',
   REVIEW_RECORDED: 'Review decision recorded',
+  EVIDENCE_PROVIDED: 'Evidence provided',
   DETERMINATION_SIGNED: 'Determination signed',
   DETERMINATION_REOPENED: 'Determination reopened',
   REGISTER_EXPORTED: 'Determination register exported',

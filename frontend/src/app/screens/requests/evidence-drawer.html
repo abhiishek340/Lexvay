@@ -1,0 +1,100 @@
+<!-- The backdrop is ours, not PrimeNG's: the Drawer removes its own mask on animationend, which never fires when
+     animations are reduced to zero, and a mask left behind blocks the whole page (D-265). -->
+@if (open()) {
+  <div class="lx-answer-backdrop" aria-hidden="true" (click)="closed.emit()"></div>
+}
+<!-- A modal dialog in a drawer: PrimeNG marks the panel "complementary", so its role and name are set through pass-through (D-087). -->
+<p-drawer [visible]="open()" (visibleChange)="visibleChange($event)" (onShow)="shown()" position="right" appendTo="body" [blockScroll]="true"
+          [modal]="false" [closeOnEscape]="false"
+          styleClass="lx-answer-drawer" ariaCloseLabel="Close without sending"
+          [pt]="{ root: { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'answer-heading' } }">
+  <ng-template #header>
+    <h2 id="answer-heading" class="lx-answer-heading" tabindex="-1" #heading>Provide evidence</h2>
+  </ng-template>
+
+  @if (request(); as row) {
+    <div class="lx-answer">
+      <section class="lx-answer-requirement" aria-labelledby="answer-requirement">
+        <p class="lx-label">Requirement</p>
+        <h3 id="answer-requirement" class="lx-answer-ref">
+          <span class="lx-mono">{{ row.requirementRef }}</span>&nbsp;{{ row.requirementTitle }}
+        </h3>
+        @if (requirement.value(); as r) {
+          <blockquote class="lx-answer-rule lx-serif">{{ r.text }}</blockquote>
+        } @else if (requirement.isLoading()) {
+          <div class="lx-answer-rule" aria-hidden="true"><p-skeleton height="0.875rem" /><p-skeleton width="80%" height="0.875rem" /></div>
+        }
+        <div class="lx-answer-ask">
+          <p class="lx-label">What was asked</p>
+          <p class="lx-answer-note">{{ row.requestNote ?? 'The reviewer gave no note.' }}</p>
+          <p class="lx-help">Asked by {{ row.requestedByName ?? 'an unknown user' }}, {{ row.requestedAt | date: 'd MMM y' }}</p>
+        </div>
+      </section>
+
+      <section class="lx-answer-picker" aria-labelledby="document-label">
+        <h3 id="document-label" class="lx-label">Program document</h3>
+        @if (documentsError(); as e) {
+          <p-message severity="error" size="small">{{ e }}</p-message>
+        } @else {
+          <p-select [options]="groups()" [group]="true" optionLabel="label" optionValue="id" optionDisabled="disabled" [ngModel]="documentId()"
+                    (ngModelChange)="chooseDocument($event)" ariaLabelledBy="document-label" placeholder="Choose a document" appendTo="body"
+                    [loading]="documents.isLoading()" [fluid]="true" emptyMessage="This program has no documents yet." data-testid="document-select">
+            <ng-template #group let-group><span class="lx-answer-group">{{ group.label }}</span></ng-template>
+            <ng-template #item let-option>
+              <span class="lx-answer-option">
+                <span>{{ option.filename }}</span>
+                <span class="lx-answer-option-meta">{{ option.kind }}@if (option.catalogYear) {, catalog year {{ option.catalogYear }}}@if (option.disabled) {, {{ noTextYet }}}</span>
+              </span>
+            </ng-template>
+          </p-select>
+          @if (hasEarlier()) {
+            <div class="lx-answer-earlier">
+              <p-toggleswitch inputId="include-earlier" [ngModel]="includeEarlier()" (ngModelChange)="setIncludeEarlier($event)" />
+              <label for="include-earlier">Include earlier catalog years</label>
+            </div>
+          }
+        }
+      </section>
+
+      <div class="lx-answer-page">
+        @if (documentId(); as id) {
+          <lx-document-viewer [documentId]="id" [pageNumber]="1" [selectable]="true" (selection)="selection.set($event)" />
+        } @else {
+          <p class="lx-answer-empty">Choose a document to read its pages and select the passage that answers the request.</p>
+        }
+      </div>
+
+      <section class="lx-answer-passage" aria-labelledby="passage-label">
+        <h3 id="passage-label" class="lx-label">Selected passage</h3>
+        <div aria-live="polite" data-testid="selected-passage">
+          @if (selection(); as s) {
+            <blockquote class="lx-serif">{{ s.quote }}</blockquote>
+            <p class="lx-help">Page <span class="lx-mono">{{ s.pageNumber }}</span>, characters <span class="lx-mono">{{ s.charStart }}–{{ s.charEnd }}</span></p>
+          } @else {
+            <p class="lx-help">Select text on the page, or choose "Select passage by character range" to enter it from the keyboard.</p>
+          }
+        </div>
+        @if (quoteError(); as e) {
+          <p-message severity="error" size="small" data-testid="quote-error">{{ e }}</p-message>
+        }
+      </section>
+
+      <div class="lx-answer-comment">
+        <label for="evidence-comment">Comment <span class="lx-muted">(optional)</span></label>
+        <textarea pTextarea id="evidence-comment" rows="4" [maxlength]="commentMax" [ngModel]="comment()" (ngModelChange)="comment.set($event)"
+                  aria-describedby="comment-count" [fluid]="true"></textarea>
+        <p id="comment-count" class="lx-help">{{ comment().length }} of {{ commentMax }} characters</p>
+      </div>
+
+      @if (failure(); as e) {
+        <p-message class="lx-answer-failure" severity="error" data-testid="answer-failure">{{ e }}</p-message>
+      }
+      <div class="lx-answer-actions">
+        <button pButton type="button" [disabled]="!selection() || busy()" [loading]="busy()" (click)="submit()">
+          <ng-icon name="phosphorPaperPlaneTilt" size="16" aria-hidden="true" /><span pButtonLabel>Submit evidence</span>
+        </button>
+        <button pButton type="button" severity="secondary" [outlined]="true" (click)="visibleChange(false)"><span pButtonLabel>Cancel</span></button>
+      </div>
+    </div>
+  }
+</p-drawer>

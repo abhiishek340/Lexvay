@@ -1615,3 +1615,166 @@ The roadmap's key led with `tenant_id`. Measured on the perf database, one looku
 skip-scanned over every tenant. V013 now creates `(type, entity_id, created_at DESC)`: 24 buffers for the ingest status
 and the extraction status, 28 for the rule version list. `IndexUsageTest` records these and fails above 100.
 The scheduler's dedupe is served by `job_claim_idx` (queued jobs are few), never a sequential scan of `job` (D-206).
+
+## F4 — Evidence request screens (PR #28)
+
+Branch `feat-evidence-requests`, end-to-end slot 4. Decisions D-260 to D-269 in `docs/decisions/F4.md`.
+
+### What was built
+- **Route and rail**: `programs/:programId/requests` (lazy chunk `requests`), "Evidence requests" after Review with
+  `phosphorTray` and the open count badge ("n open evidence requests"), every role.
+- **Inbox**: Open / Answered / All SelectButton with counts; PrimeNG Table with jurisdiction and ref in mono, title,
+  the note in two lines (full note in the row detail, opened with a toggle button), who asked and when, the status Tag
+  with icon (Open, "Answered, awaiting review", Blocked with the re-run helper text and no action), the response count
+  and the latest response (who, when, file, page). Empty state sentence as specified.
+- **Answer drawer** (deferred chunk `evidence-drawer`): the requirement with its rule text in serif, the request note
+  and who asked; a grouped document Select (program documents first, then courses; current catalog years by default,
+  "Include earlier catalog years" ToggleSwitch, documents without text disabled with "No text available yet");
+  `DocumentViewer` with `selectable`; "Selected passage" in serif with page and characters in mono; optional comment
+  (4000 characters); "Submit evidence". 400 under the passage with the server's detail, 409 in a Message plus inbox
+  reload, success toast "Evidence sent to review" and the row moves to Answered. The drawer is a labelled modal
+  dialog, traps focus, starts on its heading and returns focus to the row action.
+- **Review**: the Evidence pane shows "Evidence provided by <name>, <date>" (with `phosphorUser`) under the system's
+  evidence, each with the quote marked in `DocumentViewer` and the comment; "evidence provided" marker
+  (`phosphorChatCircleText`) in the requirement list; note placeholder "Note the evidence you relied on" while a
+  person has answered and nobody has decided.
+- **Backend**: `stale` on `EvidenceRequestView`; `responseCount` on the mapping read; `GET /programs/{id}/documents`
+  (orchestrator decisions D-263, D-264, D-266).
+- No new npm or Maven dependency.
+
+### Document picker source
+`GET /api/v1/programs/{id}/documents`, added in this item: `main` had no endpoint that lists a program's documents
+(the courses endpoint carries none, and every document read takes a document id).
+
+### Bundle (production build, raw)
+| | Initial total | Note |
+|---|---:|---|
+| `main` when F4 started | 703.67 kB | |
+| F4 before merging F3b and F8 | 710.30 kB | Drawer and ToggleSwitch tokens were in the eager preset |
+| `main` after F3b and F8 | 703.12 kB | |
+| F4 merged with that `main` | 707.30 kB | tokens in the drawer's chunk; +4.2 kB icons and badge code |
+Lazy chunks: `requests` (inbox), `evidence-drawer` 32.6 kB.
+
+### Latency (`make perf`, p95 ms; seed only / seed plus 30 renamed copies of both tenants)
+| Endpoint | Before | After |
+|---|---:|---:|
+| `GET /assessments/{id}/mappings?jurisdiction=CA` | 4.92 / 3.57 | 2.71 / 5.68 |
+| `GET /assessments/{id}/mappings` (all) | 9.38 / 9.27 | 5.77 / 11.14 |
+| `GET /programs/{id}/documents` | n/a | 5.47 / 5.40 |
+| `GET /programs/{id}/evidence-requests?status=ALL` | 4.12 / 11.88 | 5.66 / 2.51 |
+Every read endpoint stays under 40 ms; `ReadPathConnectionsTest` shows one connection per read endpoint, including the
+new one. `IndexUsageTest` (the second half of `make perf`) fails on `main` and on this branch alike:
+`requirement_rule_version_id_ref_key` is no longer chosen since FIX-1's `requirement_ordinal_key`; not touched here.
+
+### Screenshots (`docs/screens/`, light and dark)
+`evidence-requests-*.png` (inbox), `evidence-request-drawer-*.png` (drawer with a selected passage),
+`review-provided-evidence-*.png` (Review with provided evidence).
+
+### Test evidence
+`LEXVAY_E2E_SLOT=4 make test` (backend, frontend unit and end-to-end in one run), final run after merging
+`origin/main` at 7eba7a7 (FIX-2):
+```
+[INFO] Tests run: 831, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  15 passed (15)
+      Tests  95 passed (95)
+  ✓   1 [suite] › e2e/evidence-requests.spec.ts:15:1 › a reviewer asks for evidence, a contributor answers with a verified passage, and the reviewer accepts it (8.8s)
+  ✓   2 [suite] › e2e/evidence-requests.spec.ts:169:1 › at 400 px: the inbox, the drawer, a blocked request and the provided evidence (6.3s)
+  ...
+  ✓  19 [register] › e2e/register.spec.ts:109:1 › the register is accessible in both themes at 400 px and fits without horizontal scroll (2.9s)
+  18 passed (1.7m)
+```
+The run before (at 91f6602):
+```
+[INFO] Tests run: 827, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  15 passed (15)
+      Tests  95 passed (95)
+  ✓   1 [suite] › e2e/evidence-requests.spec.ts:15:1 › a reviewer asks for evidence, a contributor answers with a verified passage, and the reviewer accepts it (10.5s)
+  ✓   2 [suite] › e2e/evidence-requests.spec.ts:169:1 › at 400 px: the inbox, the drawer, a blocked request and the provided evidence (6.0s)
+  ...
+  ✓  18 [register] › e2e/register.spec.ts:14:1 › the register lists the California signature, filters, exports CSV, groups the program and prints (3.6s)
+  ✓  19 [register] › e2e/register.spec.ts:109:1 › the register is accessible in both themes at 400 px and fits without horizontal scroll (2.4s)
+  18 passed (1.4m)
+```
+Screenshots, `LEXVAY_SCREENSHOTS=1 LEXVAY_E2E_SLOT=4 make e2e` (after the drawer heading fix): `19 passed (2.3m)`. Every
+existing screenshot was regenerated because the rail gained "Evidence requests".
+
+Before the final runs the evidence-requests spec ran 13 times against a freshly seeded slot-4 stack; it failed 1 in 3
+runs with PrimeNG's Drawer mask left on the page, which led to D-265's own backdrop; the last 4 consecutive runs and
+the full suite passed.
+
+### Known gaps and follow-ups
+- An open request on a requirement whose jurisdiction is signed is listed as Open and answering it returns 409 (shown
+  in the drawer). Showing it as blocked like a stale one is the F13 follow-up already in the roadmap; the request row
+  would need the signed flag.
+- The development-only document viewer harness (F1) is no longer the only user of `selectable`; `viewer.spec.ts`
+  still uses it, so it stays.
+- Table stacking under 720 px is copied per screen (Changes, Audit, Overview, Report and now Evidence requests); a
+  shared rule belongs to the UI2 restyle.
+
+## PERF-FE-1 — Icons and theme tokens per chunk (PR #29)
+
+Branch `perf-frontend-chunks`, built on `origin/main` at 91f6602 (F8 merged, design v2 docs). Structural only: no token
+value, font or visual changed. Decisions D-295 to D-299 in `docs/decisions/PERF-FE-1.md`.
+
+### Status
+
+Built and tested. The budget step is not done: the initial bundle is 695.0 kB raw, not under 640 kB, so
+`angular.json` keeps 700 kB / 800 kB. The breakdown and the next cuts are in `docs/PERF.md`, "Frontend bundle".
+
+### After merging F4 (PR #28)
+
+F4's evidence request screen and drawer follow the pattern (`requests.routes.ts`, `REQUESTS_ICONS`, `requests-theme.ts`;
+`phosphorTray`, the rail entry, joins `SHELL_ICONS`; Review's new `ChatCircleText` and `User` join `REVIEW_ICONS`).
+Initial bundle on the merged tree: 698.75 kB raw / 168.84 kB transfer (main 691.30 kB), `requests-routes` chunk
+12.59 kB / 4.27 kB. The budget stays at 700 / 800 kB; the figures below are from before the merge.
+
+### What changed
+
+- `SHELL_ICONS` (17 icons) is the only registry in `app.config.ts`; `LEXVAY_ICONS` is gone.
+- Routed screens with their own icons (Overview, Review, Changes, Rules, Report, Register) have a
+  `<screen>.routes.ts` that provides `<SCREEN>_ICONS`; `app.routes.ts` loads them with `loadChildren`.
+  `DocumentViewer`, `FindingLabel` and `DecisionState` provide theirs with `viewProviders`.
+- `registerComponentTokens(sets)` (`theme/component-tokens.ts`) replaces `registerRulesTheme` and
+  `registerRegisterTheme`; `<screen>-theme.ts` files export `<SCREEN>_TOKENS`. Dialog, InputNumber, ProgressBar,
+  ProgressSpinner, RadioButton, Splitter and Textarea left the shared preset.
+- Icon label tables moved next to their one screen; `confirmLeave` moved to `core/confirm-leave.ts`.
+- Tests: `theme/icons.spec.ts` (every name shown is registered by its chunk, and nothing extra),
+  `theme/component-tokens.spec.ts`, and an `iconGuard` fixture that fails any end-to-end test on a "No icon named"
+  warning. `@types/node` 26.6.11 added as a dev dependency for the spec.
+- `docs/DESIGN.md` "Bundle" says how a new screen follows the pattern.
+
+### Bundle (production build, raw / estimated transfer)
+
+| | before (91f6602) | after |
+|---|---:|---:|
+| Initial total | 703.12 kB / 169.43 kB | 695.03 kB / 168.22 kB |
+| main.js | 695.67 kB / 167.84 kB | 687.58 kB / 166.62 kB |
+
+Lazy chunks per screen are in `docs/PERF.md`. Why the icon cut does not shrink the initial chunk: the package's
+`regular` entry is one module, so the bundler keeps every icon any chunk uses in the chunk the shell shares
+(52 icons, 26.9 kB, in `main`). A scratch build in which the shell holds its own copy of its 17 icons measures
+676.5 kB.
+
+### Test evidence
+
+```
+make test (LEXVAY_E2E_SLOT=6)
+  backend:   Tests run: 821, Failures: 0, Errors: 0, Skipped: 0 / BUILD SUCCESS
+  frontend:  Test Files 15 passed (15) / Tests 92 passed (92)
+  e2e:       1 skipped (the screenshot test) / 16 passed (1.2m)
+LEXVAY_SCREENSHOTS=1 LEXVAY_E2E_SLOT=6 make e2e
+  17 passed (1.7m)
+```
+
+Axe (zero serious or critical, light and dark) runs inside those end-to-end tests and passed.
+
+### Screenshots
+
+The committed `docs/screens` are unchanged (no visual change to record). To check, every screenshot was regenerated
+with this branch and again with `91f6602` on the same stack and slot, and the two sets were compared pixel by pixel:
+25 of the 38 are identical. The others differ only where a time or a generated record id is printed (audit trail times and ids, the register's
+"Generated" line, the evidence report's signature time: 111 to 9455 px in those boxes) or by 2 to 34 pixels of
+capture noise (a dialog's scroll position in rules-new-version-light, one-pixel edges in review-400px-light and
+rules-approve-light). No icon, colour or layout moved.

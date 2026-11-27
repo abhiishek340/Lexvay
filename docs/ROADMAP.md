@@ -101,12 +101,12 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | merged (PR #21) |
 | F2 Program setup workspace | `feat-setup-workspace` | 3 | Opus 5.5 | folded into UI2-4 (built directly in v2) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
-| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | in progress |
+| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | merged (PR #28) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
 | F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
 | TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | merged (PR #25) |
-| PERF-FE-1 Icons and theme tokens per chunk | `perf-frontend-chunks` | 6 | Sonnet 5.5 | in progress |
+| PERF-FE-1 Icons and theme tokens per chunk | `perf-frontend-chunks` | 6 | Sonnet 5.5 | merged (PR #29); remaining cuts in UI2-0 |
 | UI2-0 Design v2 foundation, shell and sign-in | `ui2-foundation` | 1 | Opus 5.5 | in progress |
 | UI2-1 Overview and register in v2 | `ui2-overview-register` | 2 | Opus 5.5 | queued (after UI2-0) |
 | UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | queued (after UI2-0) |
@@ -114,7 +114,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI2-0, F4) |
 | FIX-3 Work queue and evidence request follow-ups | `fix-queue-followups` | 9 | Sonnet 5.5 | in progress |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
-| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | in progress (backend; screen cell in UI2-4) |
+| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | PR #30 in review (grid pass-through, eval port) |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
@@ -1010,6 +1010,9 @@ D-259 in `docs/decisions/F7c.md`.
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
 ## Follow-ups recorded from reviews
+- F7c: `make eval-live` replaces the model's requirement list with the golden list through the replace path, which
+  carries no search terms, so live retrieval is measured without them. Add hand-written terms to `eval/golden.yml`
+  (fictional, labelled) so the live run measures BM25 + terms, and report the model's own proposed terms against them.
 - F3b: in the edit grid the title field stays about 7 rem wide even when the row has room; give title the
   remaining width (`minmax(10rem, 1fr)`) while ref, type and check keep fixed widths. The initial bundle is 698.9 kB
   raw, 1 kB under the warning: any new component in the shared preset must move another Rules-only or

@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
+import { phosphorCircleDashed, phosphorMinusCircle, phosphorSealCheck, phosphorSignature } from '@ng-icons/phosphor-icons/regular';
 import { ButtonDirective } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { ProgressBar } from 'primeng/progressbar';
@@ -12,8 +13,13 @@ import { OUTCOME_LABEL, licenseLabel } from '../../core/labels';
 import { Determination } from '../../core/models';
 import { JurisdictionRow, JurisdictionState, jurisdictionRows } from '../../core/overview';
 import { ProgramContext } from '../../core/program-context';
+import { registerComponentTokens } from '../../theme/component-tokens';
 import { IconName } from '../../theme/icons';
 import { FindingsBar } from '../../ui/findings-bar';
+import { OVERVIEW_TOKENS } from './overview-theme';
+
+/** The icons the Overview shows beyond SHELL_ICONS, provided by its route (overview.routes.ts). */
+export const OVERVIEW_ICONS = { phosphorCircleDashed, phosphorMinusCircle, phosphorSealCheck, phosphorSignature };
 
 interface StateTag { severity: 'success' | 'info' | 'warn' | 'secondary'; icon: IconName }
 
@@ -46,6 +52,7 @@ export class Overview {
   }
 
   constructor() {
+    registerComponentTokens(OVERVIEW_TOKENS);
     effect(() => {
       const id = this.programId();
       untracked(() => this.context.ensure(id));

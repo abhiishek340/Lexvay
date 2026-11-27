@@ -122,6 +122,7 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
                 new Scenario("GET /assessments/{id}", "/api/v1/assessments/" + f.assessmentId),
                 new Scenario("GET /assessments/{id}/mappings?jurisdiction=CA", "/api/v1/assessments/" + f.assessmentId + "/mappings?jurisdiction=CA"),
                 new Scenario("GET /assessments/{id}/mappings (all)", "/api/v1/assessments/" + f.assessmentId + "/mappings"),
+                new Scenario("GET /programs/{id}/documents", program + "/documents"),
                 new Scenario("GET /documents/{id}", "/api/v1/documents/" + f.documentId),
                 new Scenario("GET /audit?limit=100", "/api/v1/audit?limit=100"),
                 new Scenario("GET /audit?action=REVIEW_RECORDED&entityType=mapping", "/api/v1/audit?action=REVIEW_RECORDED&entityType=mapping"),

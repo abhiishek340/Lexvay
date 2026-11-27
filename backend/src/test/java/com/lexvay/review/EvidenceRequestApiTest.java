@@ -91,6 +91,7 @@ class EvidenceRequestApiTest extends AbstractAssessmentTest {
         JsonNode row = open.get(0);
         assertThat(row.get("mappingId").asString()).isEqualTo(s.ambiguousMapping().toString());
         assertThat(row.get("status").asString()).isEqualTo("OPEN");
+        assertThat(row.get("stale").asBoolean()).isFalse();
         assertThat(row.get("jurisdiction").asString()).isEqualTo("CA");
         assertThat(row.get("requirementRef").asString()).isEqualTo("CA-3");
         assertThat(row.get("requirementTitle").asString()).isEqualTo("Ethics");
@@ -129,6 +130,8 @@ class EvidenceRequestApiTest extends AbstractAssessmentTest {
 
         JsonNode proposedAfter = mapping(s.ambiguousMapping(), "CA-3");
         assertThat(proposedAfter.get("decision").isNull()).as("the requirement returns to needs review").isTrue();
+        assertThat(proposedBefore.get("responseCount").asInt()).isZero();
+        assertThat(proposedAfter.get("responseCount").asInt()).as("the mapping read counts the responses").isEqualTo(1);
         for (String field : List.of("finding", "method", "rationale", "evidence", "stale")) {
             assertThat(proposedAfter.get(field)).as(field + " is never changed by a response").isEqualTo(proposedBefore.get(field));
         }
@@ -169,6 +172,8 @@ class EvidenceRequestApiTest extends AbstractAssessmentTest {
         assertThat(rf.review(t.reviewer(), s.ambiguousMapping(), "ACCEPTED", "Schedule covers the ethics code.")).hasStatus(201);
         assertThat(requests(t.reviewer(), s.programId(), "ALL")).as("decided: no longer listed").isEmpty();
         assertThat(responses(t.reviewer(), s.ambiguousMapping())).as("the response stays on record").hasSize(1);
+        assertThat(mapping(s.ambiguousMapping(), "CA-3").get("responseCount").asInt()).as("and stays counted after the decision").isEqualTo(1);
+        assertThat(mapping(s.foundMapping(), "CA-1").get("responseCount").asInt()).isZero();
     }
 
     @Test
@@ -281,6 +286,19 @@ class EvidenceRequestApiTest extends AbstractAssessmentTest {
         assertThat(signed).hasStatus(409);
         assertThat(fx.read(signed).get("detail").asString()).contains("signed determination");
         assertThat(count("evidence_response")).isZero();
+    }
+
+    @Test
+    void aStaleMappingsRequestIsListedWithItsStaleFlagAndCannotBeAnswered() throws Exception {
+        request(s.ambiguousMapping(), "Please send it.");
+        TenantContext.runAs(t.tenantId(), () -> jdbc.sql("UPDATE mapping SET stale = true WHERE id = :id")
+                .param("id", s.ambiguousMapping()).update());
+
+        JsonNode open = requests(t.contributor(), s.programId(), "OPEN");
+        assertThat(open).hasSize(1);
+        assertThat(open.get(0).get("status").asString()).isEqualTo("OPEN");
+        assertThat(open.get(0).get("stale").asBoolean()).as("the inbox shows it as blocked").isTrue();
+        assertThat(respond(t.contributor(), s.ambiguousMapping(), schedule, 1, "Week 2", null)).hasStatus(409);
     }
 
     @Test

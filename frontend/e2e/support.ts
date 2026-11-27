@@ -12,7 +12,7 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
  * Every test fails if the page asked any host other than localhost for anything: fonts, icons and
  * scripts are bundled, and the product makes no third-party requests.
  */
-export const test = base.extend<{ thirdPartyGuard: void }>({
+export const test = base.extend<{ thirdPartyGuard: void; iconGuard: void }>({
   thirdPartyGuard: [async ({ page }, use) => {
     const foreign: string[] = [];
     page.on('request', (request) => {
@@ -23,6 +23,18 @@ export const test = base.extend<{ thirdPartyGuard: void }>({
     });
     await use();
     expect(foreign, 'requests to third-party hosts').toEqual([]);
+  }, { auto: true }],
+  /**
+   * Every test fails if an `ng-icon` was asked for a name no provider registers (ng-icons only warns). The unit test
+   * theme/icons.spec.ts checks the sources; this checks what the screens really render.
+   */
+  iconGuard: [async ({ page }, use) => {
+    const missing: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'warning' && message.text().includes('No icon named')) { missing.push(message.text()); }
+    });
+    await use();
+    expect(missing, 'icons that no provider registers').toEqual([]);
   }, { auto: true }],
 });
 export { expect };
@@ -67,6 +79,18 @@ export async function shoot(page: Page, name: string): Promise<void> {
     await page.screenshot({ path: `../docs/screens/${name}-${theme}.png` });
   }
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+}
+
+/** A mutating API call as the signed-in user, with the CSRF header the app would send (XSRF-TOKEN cookie). */
+export async function apiPost(page: Page, url: string, body: unknown) {
+  const token = (await page.context().cookies()).find((c) => c.name === 'XSRF-TOKEN')?.value ?? '';
+  return page.request.post(url, { data: body, headers: { 'X-XSRF-TOKEN': token } });
+}
+
+/** Signs the current user out by dropping the session, then signs in as someone else. */
+export async function switchUser(page: Page, email: string): Promise<void> {
+  await page.context().clearCookies();
+  await signIn(page, email);
 }
 
 export function nav(page: Page, name: string) {

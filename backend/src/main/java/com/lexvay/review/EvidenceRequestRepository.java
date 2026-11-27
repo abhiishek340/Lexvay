@@ -24,7 +24,7 @@ public class EvidenceRequestRepository {
                 SELECT m.id AS mapping_id, j.code AS jurisdiction, r.ref, r.title,
                        CASE WHEN le.kind = 'EVIDENCE_REQUESTED' THEN 'OPEN'
                             WHEN le.kind = 'REOPENED' AND le.user_id IS NOT NULL AND rs.review_event_id = rq.id THEN 'ANSWERED'
-                       END AS status, %s AS signed,
+                       END AS status, m.stale, %s AS signed,
                        rq.note AS request_note, rq.user_id AS requested_by, ru.display_name AS requested_by_name,
                        rq.created_at AS requested_at,
                        coalesce(rs.total, 0) AS response_count, rs.id AS response_id, rs.created_by AS response_by,
@@ -60,7 +60,8 @@ public class EvidenceRequestRepository {
                         rs.getObject("response_by", UUID.class), rs.getString("response_by_name"),
                         rs.getObject("response_at", java.time.OffsetDateTime.class), rs.getString("filename"), rs.getInt("page_number"));
         return new EvidenceRequestView(rs.getObject("mapping_id", UUID.class), rs.getString("jurisdiction"), rs.getString("ref"),
-                rs.getString("title"), EvidenceRequestStatus.valueOf(rs.getString("status")), rs.getBoolean("signed"), rs.getString("request_note"),
+                rs.getString("title"), EvidenceRequestStatus.valueOf(rs.getString("status")), rs.getBoolean("stale"), rs.getBoolean("signed"),
+                rs.getString("request_note"),
                 rs.getObject("requested_by", UUID.class), rs.getString("requested_by_name"),
                 rs.getObject("requested_at", java.time.OffsetDateTime.class), rs.getInt("response_count"), latest);
     };
