@@ -47,7 +47,7 @@ test('the audit filter chips ask the server, details open in place, and the admi
   const file = await download;
   expect(file.suggestedFilename()).toMatch(/^lexvay-audit-\d{4}-\d{2}-\d{2}\.csv$/);
   const [header, ...rows] = readFileSync(await file.path(), 'utf8').trim().split('\r\n');
-  expect(header).toBe('"Time (UTC)","Actor","Action","Record type","Record ID","Details"');
+  expect(header).toBe('"Time (UTC)","Actor","Action","Record type","Record ID","Details","Seq","Row hash","Entry ID","Actor ID"');
   expect(rows).toHaveLength(1);
   expect(rows[0]).toContain('"Dana Whitfield","DETERMINATION_SIGNED","determination"');
 

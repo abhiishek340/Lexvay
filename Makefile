@@ -59,6 +59,7 @@ PERF_MVN = ./mvnw test -Dgroups=perf -DexcludedGroups=none -Djacoco.skip=true
 perf: ## Read-path latency benchmark and index-usage check (Testcontainers); fails when a read endpoint's p95 exceeds 40 ms
 	cd $(BACKEND) && $(PERF_MVN) -Dtest=EndpointLatencyTest
 	cd $(BACKEND) && $(PERF_MVN) -Dtest=IndexUsageTest
+	cd $(BACKEND) && $(PERF_MVN) -Dtest=AuditSealPerfTest
 
 e2e: ## End-to-end tests (Playwright + axe) against an isolated seeded stack on ports 5433/8081/4300
 	scripts/e2e.sh

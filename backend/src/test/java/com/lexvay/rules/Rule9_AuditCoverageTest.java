@@ -45,11 +45,12 @@ class Rule9_AuditCoverageTest extends AbstractDatabaseTest {
 
     /**
      * Reads that are audited all the same, because they hand signed records out of the system (D-274 in
-     * docs/decisions/F8.md; the audit export, D-377). Endpoint → test that asserts its audit row.
+     * docs/decisions/F8.md; the audit export, D-377; the verification of the audit trail, D-534). Endpoint → test that asserts its audit row.
      */
     static final Set<String> AUDITED_READ_ENDPOINTS = Set.of(
             "GET /api/v1/determinations/register.csv",             // RegisterApiTest.theCsvExportIsRfc4180WithLabelsAndIsAudited
-            "GET /api/v1/audit.csv"                               // AuditExportApiTest.theExportIsAuditedWithItsFiltersAndRowCount
+            "GET /api/v1/audit.csv",                              // AuditExportApiTest.theExportIsAuditedWithItsFiltersAndRowCount
+            "GET /api/v1/audit/verify"                            // AuditVerificationApiTest.aVerificationIsAuditedWithItsOutcome
     );
 
     @Autowired @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping;

@@ -27,12 +27,14 @@ import tools.jackson.databind.ObjectMapper;
 /** F5a: the audit log as a CSV file for an auditor (D-377). */
 class AuditExportApiTest extends AbstractDatabaseTest {
 
-    static final List<String> HEADER = List.of("Time (UTC)", "Actor", "Action", "Record type", "Record ID", "Details");
+    static final List<String> HEADER = List.of("Time (UTC)", "Actor", "Action", "Record type", "Record ID", "Details",
+            "Seq", "Row hash", "Entry ID", "Actor ID");
 
     @Autowired MockMvcTester mvc;
     @Autowired TestTenants tenants;
     @Autowired AuditService audit;
     @Autowired AuditRepository repository;
+    @Autowired AuditSealer sealer;
     @Autowired ObjectMapper json;
 
     TestTenants.TenantWithUsers t;
@@ -122,7 +124,7 @@ class AuditExportApiTest extends AbstractDatabaseTest {
         assertThat(result.getResponse().getContentAsByteArray()[0]).as("no byte order mark").isEqualTo((byte) '"');
 
         List<List<String>> rows = rows(result);
-        assertThat(rows).allSatisfy(row -> assertThat(row).hasSize(6));
+        assertThat(rows).allSatisfy(row -> assertThat(row).hasSize(10));
         Instant previous = Instant.MAX;
         for (List<String> row : rows) {
             Instant time = Instant.parse(row.get(0));
@@ -141,6 +143,37 @@ class AuditExportApiTest extends AbstractDatabaseTest {
         assertThat(program.get(1)).isEqualTo(t.contributor().displayName());
         assertThat(program.get(3)).isEqualTo("program");
         assertThat(program.get(4)).isEqualTo(programId.toString());
+    }
+
+    @Test
+    void sealedEntriesCarryTheirSequenceAndHashAndPendingOnesDoNot() throws Exception {
+        List<List<String>> before = rows(export(t.admin(), ""));
+        assertThat(before).isNotEmpty().allSatisfy(row -> {
+            assertThat(row.get(6)).as("pending: no seq").isEmpty();
+            assertThat(row.get(7)).as("pending: no hash").isEmpty();
+        });
+
+        sealer.sealPending();
+
+        List<List<String>> sealed = rows(export(t.admin(), ""));
+        assertThat(sealed).allSatisfy(row -> {
+            assertThat(row.get(6)).matches("[1-9][0-9]*");
+            assertThat(row.get(7)).matches("[0-9a-f]{64}");
+            assertThat(UUID.fromString(row.get(8))).isNotNull();
+        });
+        List<List<String>> bySeq = sealed.stream().sorted(java.util.Comparator.comparingLong(r -> Long.parseLong(r.get(6)))).toList();
+        assertThat(bySeq.stream().map(r -> Long.parseLong(r.get(6))).toList())
+                .as("sequence numbers are contiguous from 1").isEqualTo(java.util.stream.LongStream.rangeClosed(1, sealed.size()).boxed().toList());
+        String previous = AuditCanonical.GENESIS_HASH;
+        for (List<String> row : bySeq) {
+            var entry = new AuditCanonical.Entry(UUID.fromString(row.get(8)), row.get(9).isEmpty() ? null : UUID.fromString(row.get(9)),
+                    row.get(2), row.get(3), row.get(4).isEmpty() ? null : UUID.fromString(row.get(4)), row.get(5), Instant.parse(row.get(0)));
+            assertThat(AuditCanonical.rowHash(t.tenantId(), Long.parseLong(row.get(6)), entry, previous))
+                    .as("the file alone is enough to recompute the hash of seq %s", row.get(6)).isEqualTo(row.get(7));
+            previous = row.get(7);
+        }
+        List<String> program = sealed.stream().filter(r -> r.get(2).equals("PROGRAM_CREATED")).findFirst().orElseThrow();
+        assertThat(program.get(9)).isEqualTo(t.contributor().id().toString());
     }
 
     @Test
