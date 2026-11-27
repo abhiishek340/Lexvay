@@ -96,6 +96,7 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 | `LEXVAY_FORWARD_HEADERS` | `native` behind a reverse proxy or load balancer, so client address and scheme come from the proxy headers; leave `none` when the container is reached directly | none |
 | `LEXVAY_RATELIMIT_LOGIN_PER_MINUTE`, `LEXVAY_RATELIMIT_API_PER_MINUTE`, `LEXVAY_RATELIMIT_UPLOAD_PER_MINUTE`, `LEXVAY_UPLOAD_MAX_MB` | Rate limits and upload size (WS-SEC) | 10, 600, 30, 25 |
 | `LEXVAY_PASSWORD_HASH_CONCURRENCY` | How many password hashes (sign-in, choosing a password) may run at once, 32 MiB of heap each; a caller that waits 2 seconds gets 503 with `Retry-After: 2` (D-407) | processors, at least 2 |
+| `LEXVAY_AUDIT_SEAL_INTERVAL_MS` | How often the sealer chains new audit entries into the tamper-evident trail (SEC-3, D-533); an entry is sealed within about this time of being written | 2000 |
 
 OCR of scanned PDFs (`LEXVAY_OCR`) checkpoints every page in its own committed transaction (`document_ocr_page`, FIX-6), so a retried ingest resumes after the last page that was read instead of recognising the whole document again.
 
@@ -131,6 +132,86 @@ user it served for 15 seconds (at most 10 000 users) and refuses a session issue
 The audit log can be exported by an administrator as `GET /api/v1/audit.csv` with the filters of the audit list. It is
 streamed from the database, so its size does not matter to the heap, but it reads the whole matching log in one
 transaction; export a time range when a tenant's log is very large (D-377). Every export is itself an audit entry.
+
+## Audit trail integrity
+
+Triggers stop the application from changing or deleting an audit entry. They do not stop a database superuser, or a
+restore from an altered backup. So each tenant's entries are also chained (SEC-3, `docs/decisions/SEC-3.md`): a sealer
+(`AuditSealer`, every `LEXVAY_AUDIT_SEAL_INTERVAL_MS`, safe to run on several instances) gives each new entry the next
+sequence number and a SHA-256 hash over the entry and the previous entry's hash. Change, remove or reorder anything
+sealed and the chain stops matching. An entry written a moment ago is *pending* until the next run; the check below
+reports how many.
+
+An administrator checks a tenant's trail with `GET /api/v1/audit/verify`. It recomputes every hash from what is stored
+(about 60 ms for 20 000 entries) and answers `intact`, how many entries are `sealed` and `pending`, and, when the chain
+is broken, `firstBrokenSeq` and `firstBrokenReason`. Each check is an `AUDIT_VERIFIED` audit entry carrying the outcome
+and `headHash`, the hash of the newest seal.
+
+What it proves, and what it does not:
+- **Proves:** no sealed entry was changed, and no seal was removed from inside the chain.
+- **Does not prove:** that seals were not removed from the *end* of the chain, or that the whole chain was not
+  rebuilt by someone who can write the database. Keep `headHash` and `sealed` somewhere the database administrator
+  cannot write (the `AUDIT_VERIFIED` entries themselves are there, so are exported copies); a later check whose
+  `sealed` is smaller than an earlier one, or whose hash for the same number differs, shows the tail was cut or rebuilt.
+- Entries are numbered in the order they were sealed. An entry that commits late can have an earlier time than the
+  entry before it.
+
+### The canonical form
+
+The hash of an entry is the lower-case hex SHA-256 of the UTF-8 bytes of these ten fields joined with the control
+character U+001F (unit separator). A missing value is the empty string.
+
+| # | Field | Form |
+|---|---|---|
+| 1 | tenant id | UUID, lower case |
+| 2 | `seq` | decimal, from 1, no padding |
+| 3 | entry id | UUID |
+| 4 | actor id | UUID, empty for work no person started |
+| 5 | action | as stored |
+| 6 | record type | as stored |
+| 7 | record id | UUID, empty when the entry has none |
+| 8 | details | PostgreSQL `jsonb::text` of the stored details, which is deterministic |
+| 9 | time | creation time in UTC, `YYYY-MM-DDTHH:MM:SS.ffffffZ`, always six fractional digits |
+| 10 | previous hash | the previous entry's hash; 64 zeros for `seq` 1 |
+
+### Checking an export without the application
+
+The audit export (`GET /api/v1/audit.csv`) has the columns `Seq` and `Row hash` (empty for a pending entry) and the
+`Entry ID` and `Actor ID` the form needs. Export without filters, then run, with the tenant id and the file:
+
+```python
+import csv, hashlib, sys
+from datetime import datetime
+
+
+def canonical_time(text):  # the export prints 0, 3 or 6 fractional digits; the form always has 6
+    text = text.rstrip("Z")
+    return datetime.strptime(text if "." in text else text + ".0", "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+tenant, path = sys.argv[1], sys.argv[2]
+with open(path, newline="", encoding="utf-8") as f:
+    rows = sorted((r for r in csv.DictReader(f) if r["Seq"]), key=lambda r: int(r["Seq"]))
+previous = "0" * 64
+for number, row in enumerate(rows, start=1):
+    fields = [tenant, row["Seq"], row["Entry ID"], row["Actor ID"], row["Action"], row["Record type"],
+              row["Record ID"], row["Details"], canonical_time(row["Time (UTC)"]), previous]
+    if int(row["Seq"]) != number or hashlib.sha256("\x1f".join(fields).encode("utf-8")).hexdigest() != row["Row hash"]:
+        sys.exit(f"broken at entry {row['Seq']}")
+    previous = row["Row hash"]
+print(f"{len(rows)} entries, intact, head {previous}")
+```
+
+Against a restored database the same recomputation is one statement; it lists the `seq` of every seal that does not
+match its entry (no rows: all match). Gaps and links need the application's check or the script above.
+
+```sql
+SELECT s.seq FROM audit_seal s JOIN audit_log a ON a.id = s.audit_id
+WHERE s.row_hash <> encode(sha256(convert_to(concat_ws(E'\x1f', s.tenant_id, s.seq, a.id, coalesce(a.user_id::text, ''),
+      a.action, a.entity_type, coalesce(a.entity_id::text, ''), a.detail::text,
+      to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'), s.prev_hash), 'UTF8')), 'hex')
+ORDER BY s.seq;
+```
 
 ## Health
 
