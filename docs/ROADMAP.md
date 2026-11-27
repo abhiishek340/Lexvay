@@ -7,15 +7,15 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 
 | Item | Branch | E2E slot | Model | Status |
 |---|---|---|---|---|
-| WS-UI Design system and screen rebuild | `ui-foundation` | 1 | Opus 5.5 | in progress |
-| WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | in progress |
-| WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | approved, PR #11 merging |
-| WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
+| WS-UI Design system and screen rebuild | `ui-foundation` | 1 | Opus 5.5 | in progress (paused by usage limit, resumes 17:30) |
+| WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | in progress (paused, resumes 17:30) |
+| WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | merged (PR #11) |
+| WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress (paused, resumes 17:30) |
 | F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | merged (PR #9) |
 | F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | merged (PR #8) |
-| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | in progress |
+| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | in progress (paused, resumes 17:30) |
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
-| F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | in progress |
+| F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | in progress (paused, resumes 17:30) |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | queued (after WS-PERF) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
