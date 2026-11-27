@@ -21,6 +21,7 @@ import auraTag from '@primeuix/themes/aura/tag';
 import auraTextarea from '@primeuix/themes/aura/textarea';
 import auraToast from '@primeuix/themes/aura/toast';
 import auraTogglebutton from '@primeuix/themes/aura/togglebutton';
+import auraToggleswitch from '@primeuix/themes/aura/toggleswitch';
 import auraTooltip from '@primeuix/themes/aura/tooltip';
 
 /**
@@ -86,7 +87,7 @@ const ink = {
  */
 const Aura = {
   ...auraBase,
-  components: { badge: auraBadge, button: auraButton, datatable: auraDatatable, dialog: auraDialog, iconfield: auraIconfield, inputtext: auraInputtext, menu: auraMenu, message: auraMessage, password: auraPassword, progressbar: auraProgressbar, progressspinner: auraProgressspinner, radiobutton: auraRadiobutton, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, splitter: auraSplitter, tabs: auraTabs, tag: auraTag, textarea: auraTextarea, toast: auraToast, togglebutton: auraTogglebutton, tooltip: auraTooltip },
+  components: { badge: auraBadge, button: auraButton, datatable: auraDatatable, dialog: auraDialog, iconfield: auraIconfield, inputtext: auraInputtext, menu: auraMenu, message: auraMessage, password: auraPassword, progressbar: auraProgressbar, progressspinner: auraProgressspinner, radiobutton: auraRadiobutton, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, splitter: auraSplitter, tabs: auraTabs, tag: auraTag, textarea: auraTextarea, toast: auraToast, togglebutton: auraTogglebutton, toggleswitch: auraToggleswitch, tooltip: auraTooltip },
 };
 
 export const LexvayPreset = definePreset(Aura, {
@@ -227,6 +228,11 @@ export const LexvayPreset = definePreset(Aura, {
       },
       content: { checkedBackground: 'transparent', checkedShadow: 'none', padding: '0', borderRadius: '2px' },
       icon: { color: t.textSecondary, hoverColor: t.text, checkedColor: t.selectedText },
+    },
+    /** Track against the card and handle against the track both reach 3:1 (WCAG 1.4.11) in either theme. */
+    toggleswitch: {
+      root: { background: t.control, hoverBackground: t.textSecondary, checkedBackground: t.primary, checkedHoverBackground: t.primaryHover },
+      handle: { background: t.card, hoverBackground: t.card, checkedBackground: t.onPrimary, checkedHoverBackground: t.onPrimary },
     },
     progressbar: {
       root: { background: t.sunken, borderRadius: '2px', height: '4px' },
