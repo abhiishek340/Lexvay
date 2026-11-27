@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, ElementRef, afterRenderEffect, inject, input } from '@angular/core';
 import { Tab, TabList } from 'primeng/tabs';
 import { ProgressRing } from './progress-ring';
 
@@ -58,4 +58,18 @@ export class StatePills {
   readonly states = input.required<readonly StatePill[]>();
   /** The selected state's code (the same as the surrounding Tabs' value). */
   readonly active = input.required<string>();
+
+  constructor() {
+    // A state opened from a link may sit beyond the edge of a narrow window: scroll the list (never the page) to its pill.
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    afterRenderEffect(() => {
+      if (!this.active() || !this.states().length) { return; }
+      const list = host.querySelector<HTMLElement>('.p-tablist-content');
+      const pill = host.querySelector<HTMLElement>('.p-tab-active');
+      if (!list || !pill) { return; }
+      const box = list.getBoundingClientRect();
+      const at = pill.getBoundingClientRect();
+      if (at.left < box.left) { list.scrollLeft -= box.left - at.left; } else if (at.right > box.right) { list.scrollLeft += at.right - box.right; }
+    });
+  }
 }
