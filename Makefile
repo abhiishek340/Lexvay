@@ -47,8 +47,11 @@ seed-pdfs: ## Regenerate the fictional seed PDFs in seed/pdf from seed/docs
 seed: db-up ## Load the fictional demo tenants (Northfield University, Westbrook College) once
 	cd $(BACKEND) && ./mvnw -q spring-boot:run -Dspring-boot.run.profiles=seed
 
-perf: ## Read-path latency benchmark (Testcontainers); fails when a read endpoint's p95 exceeds 40 ms
-	cd $(BACKEND) && ./mvnw test -Dgroups=perf -DexcludedGroups=none -Djacoco.skip=true
+PERF_MVN = ./mvnw test -Dgroups=perf -DexcludedGroups=none -Djacoco.skip=true
+
+perf: ## Read-path latency benchmark and index-usage check (Testcontainers); fails when a read endpoint's p95 exceeds 40 ms
+	cd $(BACKEND) && $(PERF_MVN) -Dtest=EndpointLatencyTest
+	cd $(BACKEND) && $(PERF_MVN) -Dtest=IndexUsageTest
 
 e2e: ## End-to-end tests (Playwright + axe) against an isolated seeded stack on ports 5433/8081/4300
 	scripts/e2e.sh

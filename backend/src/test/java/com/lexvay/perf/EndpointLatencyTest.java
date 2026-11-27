@@ -3,6 +3,8 @@ package com.lexvay.perf;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.lexvay.common.AbstractDatabaseTest;
+import com.lexvay.common.CountingDataSource;
+import com.lexvay.common.TestHttpClient;
 import com.lexvay.seed.SeedLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,17 +17,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Bean;
-import org.springframework.jdbc.datasource.DelegatingDataSource;
+import org.springframework.context.annotation.Import;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -35,6 +33,7 @@ import tools.jackson.databind.ObjectMapper;
  * read endpoint's p95 exceeds 40 ms. Excluded from the default run; execute it with {@code make perf}.
  */
 @Tag("perf")
+@Import(CountingDataSource.Config.class)
 class EndpointLatencyTest extends AbstractDatabaseTest {
 
     static final int WARM_UP = 50;
@@ -55,34 +54,6 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
     record Result(Scenario scenario, double p50, double p95, double p99, double checkoutsPerRound, int wireBytes, int bodyBytes) {
     }
 
-    /** Counts connection checkouts so the benchmark can report connections per request. */
-    static final class CountingDataSource extends DelegatingDataSource {
-        final AtomicLong checkouts = new AtomicLong();
-
-        CountingDataSource(DataSource target) {
-            super(target);
-        }
-
-        @Override
-        public java.sql.Connection getConnection() throws java.sql.SQLException {
-            checkouts.incrementAndGet();
-            return super.getConnection();
-        }
-    }
-
-    @TestConfiguration
-    static class CountingConfiguration {
-        @Bean
-        static BeanPostProcessor countingDataSource() {
-            return new BeanPostProcessor() {
-                @Override
-                public Object postProcessAfterInitialization(Object bean, String beanName) {
-                    return beanName.equals("dataSource") ? new CountingDataSource((DataSource) bean) : bean;
-                }
-            };
-        }
-    }
-
     @LocalServerPort int port;
     @Autowired SeedLoader loader;
     @Autowired DataSource dataSource;
@@ -92,7 +63,7 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
     void everyReadEndpointMeetsTheP95Budget() throws Exception {
         List<SeedLoader.Result> seeded = loader.load(SEED_DIR, PASSWORD);
         SeedLoader.Result northfield = seeded.get(0);
-        PerfHttpClient api = new PerfHttpClient(port);
+        TestHttpClient api = new TestHttpClient(port);
         api.login(SIGNER_EMAIL, PASSWORD);
         Fixture fixture = new Fixture(api, json, northfield.programId(), northfield.assessmentId());
         fixture.decideAndSignCurrentJurisdictions();
@@ -114,7 +85,7 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
         assertThat(overBudget).as("read endpoints over the %.0f ms p95 budget", P95_BUDGET_MS).isEmpty();
     }
 
-    private List<Result> measureAll(PerfHttpClient api, Fixture fixture) {
+    private List<Result> measureAll(TestHttpClient api, Fixture fixture) {
         List<Result> results = new ArrayList<>();
         for (Scenario scenario : scenarios(fixture)) {
             results.add(measure(api, scenario));
@@ -149,31 +120,36 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
                 new Scenario("GET /assessments/{id}/mappings (all)", "/api/v1/assessments/" + f.assessmentId + "/mappings"),
                 new Scenario("GET /documents/{id}", "/api/v1/documents/" + f.documentId),
                 new Scenario("GET /audit?limit=100", "/api/v1/audit?limit=100"),
+                new Scenario("GET /audit?action=REVIEW_RECORDED&entityType=mapping", "/api/v1/audit?action=REVIEW_RECORDED&entityType=mapping"),
+                new Scenario("GET /programs/{id}/overview", program + "/overview"),
+                new Scenario("GET /programs/{id}/assessments", program + "/assessments"),
+                new Scenario("GET /documents/{id}/pages/1", "/api/v1/documents/" + f.documentId + "/pages/1"),
+                new Scenario("GET /mappings/{id}/reviews", "/api/v1/mappings/" + f.reviewedMappingId + "/reviews"),
                 new Scenario("Program screen today: program + determinations + change-events (3 requests)",
                         List.of(program, program + "/determinations", "/api/v1/change-events")));
     }
 
-    private Result measure(PerfHttpClient api, Scenario scenario) {
+    private Result measure(TestHttpClient api, Scenario scenario) {
         for (int i = 0; i < WARM_UP; i++) {
             round(api, scenario);
         }
         CountingDataSource counter = (CountingDataSource) dataSource;
-        long checkoutsBefore = counter.checkouts.get();
+        long checkoutsBefore = counter.checkouts();
         double[] millis = new double[MEASURED];
-        PerfHttpClient.Reply last = null;
+        TestHttpClient.Reply last = null;
         for (int i = 0; i < MEASURED; i++) {
             long start = System.nanoTime();
             last = round(api, scenario);
             millis[i] = (System.nanoTime() - start) / 1_000_000.0;
         }
-        double checkouts = (counter.checkouts.get() - checkoutsBefore) / (double) MEASURED;
+        double checkouts = (counter.checkouts() - checkoutsBefore) / (double) MEASURED;
         Arrays.sort(millis);
         return new Result(scenario, percentile(millis, 0.50), percentile(millis, 0.95), percentile(millis, 0.99), checkouts,
                 last.wireBytes(), last.body().length());
     }
 
-    private static PerfHttpClient.Reply round(PerfHttpClient api, Scenario scenario) {
-        PerfHttpClient.Reply last = null;
+    private static TestHttpClient.Reply round(TestHttpClient api, Scenario scenario) {
+        TestHttpClient.Reply last = null;
         for (String path : scenario.paths()) {
             last = api.get(path);
             assertThat(last.status()).as(path).isEqualTo(200);
@@ -202,14 +178,15 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
 
     /** Ids the scenarios need, plus the signed state a real tenant reaches. */
     private static final class Fixture {
-        final PerfHttpClient api;
+        final TestHttpClient api;
         final ObjectMapper json;
         final UUID programId;
         final UUID assessmentId;
         UUID documentId;
         UUID ruleVersionId;
+        UUID reviewedMappingId;
 
-        Fixture(PerfHttpClient api, ObjectMapper json, UUID programId, UUID assessmentId) {
+        Fixture(TestHttpClient api, ObjectMapper json, UUID programId, UUID assessmentId) {
             this.api = api;
             this.json = json;
             this.programId = programId;
@@ -238,6 +215,7 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
                     continue;
                 }
                 for (JsonNode mapping : mappings) {
+                    reviewedMappingId = UUID.fromString(mapping.get("id").asString());
                     boolean found = mapping.get("finding").asString().equals("EVIDENCE_FOUND");
                     ok(api.postJson("/api/v1/mappings/" + mapping.get("id").asString() + "/reviews", found
                             ? "{\"kind\":\"ACCEPTED\"}"
@@ -250,12 +228,12 @@ class EndpointLatencyTest extends AbstractDatabaseTest {
             assertThat(signed).as("jurisdictions the fixture could sign").isGreaterThanOrEqualTo(1);
         }
 
-        private JsonNode read(PerfHttpClient.Reply reply) {
+        private JsonNode read(TestHttpClient.Reply reply) {
             ok(reply);
             return json.readTree(reply.body());
         }
 
-        private static void ok(PerfHttpClient.Reply reply) {
+        private static void ok(TestHttpClient.Reply reply) {
             assertThat(reply.status()).as(reply.body()).isBetween(200, 299);
         }
     }

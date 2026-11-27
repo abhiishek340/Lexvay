@@ -6,6 +6,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -42,6 +44,31 @@ final class PerfSeed {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * Rows the seed never produces but a tenant that has used the product for a while has: repeated
+     * assessments per program and signed or reopened determinations. Inserted as the database owner of the
+     * test container (which bypasses row-level security) so that those tables are big enough for the planner
+     * to consider an index. Synthetic; used only to check which indexes the planner chooses.
+     */
+    static void addHistoryVolume(Statement admin) throws SQLException {
+        admin.execute("""
+                INSERT INTO assessment (tenant_id, program_id, status, started_at, finished_at, llm_model, prompt_version)
+                SELECT p.tenant_id, p.id, CASE WHEN g % 5 = 0 THEN 'FAILED' ELSE 'FINISHED' END,
+                       now() - g * interval '1 day', now() - g * interval '1 day', 'fake', 'match-v1'
+                FROM program p CROSS JOIN generate_series(1, 20) g
+                """);
+        admin.execute("""
+                INSERT INTO determination (tenant_id, program_id, jurisdiction_id, rule_version_id, assessment_id, outcome,
+                                           signed_by, status, versions_hash)
+                SELECT a.tenant_id, a.program_id, rv.jurisdiction_id, rv.id, a.id, 'MEETS', u.id,
+                       CASE WHEN g % 4 = 0 THEN 'REOPENED' ELSE 'SIGNED' END, repeat('ab', 32)
+                FROM assessment a
+                JOIN rule_version rv ON rv.tenant_id = a.tenant_id
+                CROSS JOIN generate_series(1, 2) g
+                JOIN LATERAL (SELECT id FROM app_user WHERE tenant_id = a.tenant_id LIMIT 1) u ON true
+                """);
     }
 
     private static Path createTempDir() {
