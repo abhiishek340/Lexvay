@@ -1,5 +1,6 @@
 package com.lexvay.seed;
 
+import static com.lexvay.common.TestCsrf.csrf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
@@ -61,7 +62,10 @@ class SeedLoaderTest extends AbstractDatabaseTest {
 
         LexvayUser dana = users.findForLogin("dana.whitfield@northfield.example").orElseThrow();
         assertThat(dana.role().name()).isEqualTo("SIGNER");
+        assertThat(dana.passwordHash()).startsWith("{argon2}$argon2id$");
         assertThat(passwordEncoder.matches("demo-pass", dana.passwordHash())).isTrue();
+        assertThat(mvc.post().uri("/api/v1/auth/login").with(csrf()).param("username", dana.email()).param("password", "demo-pass")
+                .exchange()).as("the demo account signs in with the demo password").hasStatus(200);
 
         JsonNode view = json.readTree(mvc.get().uri("/api/v1/assessments/" + northfield.assessmentId()).with(user(dana)).exchange()
                 .getResponse().getContentAsString());
