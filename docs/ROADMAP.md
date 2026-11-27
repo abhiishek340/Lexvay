@@ -119,7 +119,8 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | merged (PR #30); screen cell in UI2-4 |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
-| F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
+| F10a Coverage matrix API | `feat-coverage-api` | 8 | Sonnet 5.5 | in progress |
+| F10b Coverage matrix screen (v2) | `ui2-coverage` | — | Opus 5.5 | queued (after F10a, UI2-0) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
@@ -686,6 +687,37 @@ every action names who did it). The screens come in v2 later (F5b). Decisions D-
    `/auth/setup`, rows in `InputValidationTableTest` for every new endpoint, `Rule9_AuditCoverageTest` for every
    mutating one and the export, `ForbiddenWordsTest` green.
 Done when `make backend-test`, `make perf` and `LEXVAY_E2E_SLOT=5 make e2e` are green.
+
+## F10a — Coverage matrix API (backend only; slot 8; no migration expected)
+Purpose: a program director needs to see, for one state, which course carries the evidence for which requirement, and
+where a requirement rests on a single elective course that not every student takes. The matrix reports what the
+evidence shows and what people decided; it never concludes anything (product rule 1). Screen in v2 later (F10b).
+Decisions D-390 to D-399 in `docs/decisions/F10a.md`.
+1. `GET /api/v1/programs/{id}/coverage?jurisdiction=XX` (any role; 400 when the jurisdiction is not a target of the
+   program) over the program's latest finished assessment and current mappings (`MappingRepository.current(...)`,
+   FIX-3). Response: `{ program, jurisdiction, assessmentId, ruleVersion: { id, label }, courses: [ { courseId,
+   courseVersionId, code, title, catalogYear, required } ], requirements: [ { mappingId, ref, title, type, finding,
+   decision, cells: [ { courseVersionId, source, quoteCount } ], programLevel: [ { documentId, filename, kind,
+   source } ], risk } ] }`. Courses are the program's current course versions, ordered required first, then by code.
+   Requirements follow `ordinal`.
+2. **Cells**: a course version appears in a requirement's `cells` when evidence for that mapping cites a document of
+   that course version. `source` is `SYSTEM` (the mapping's own verified evidence span) or `PERSON` (an evidence
+   response, F4a); both can be present. Evidence from documents with no course version (degree plan, handbook)
+   goes to `programLevel`. Numeric requirements evaluated by the rules engine carry no cells and `risk` = `NONE`.
+3. **Risk** (computed in SQL, one value per requirement): `NO_EVIDENCE` when there is no cell and no program-level
+   evidence; `ELECTIVE_ONLY` when every cell is an elective course (`required = false`) and there is no
+   program-level evidence; `SINGLE_COURSE` when exactly one required course carries all the evidence and there is
+   no program-level evidence; `NONE` otherwise. These are descriptive flags with fixed names; the API and later
+   screen describe them as "rests on an elective", "rests on one course", "no evidence cited", never as a judgement.
+4. One SQL statement, one read-only transaction; added to `EndpointLatencyTest` (40 ms p95) and
+   `ReadPathConnectionsTest`; rows in `InputValidationTableTest` (bad UUID, bad jurisdiction pattern, non-target
+   jurisdiction); `IndexUsageTest` candidate if `EXPLAIN` shows a sequential scan on `mapping`, `evidence_span`,
+   `evidence_response` or `document`.
+5. Tests on the seeded program: California's matrix lists every requirement in order with the expected cells (assert
+   the COUN 605 cell for CA-2), the seeded elective-only requirement is `ELECTIVE_ONLY`, a numeric requirement has no
+   cells, an evidence response from F4 adds a `PERSON` cell, a superseded rule version's mappings do not appear
+   (change-tracking fixture), tenant isolation 404, and `ForbiddenWordsTest` green.
+Done when `make backend-test`, `make perf` and `LEXVAY_E2E_SLOT=8 make e2e` are green.
 
 ## FIX-4 — Rule source backoff, live search terms, PDF page cap at upload (backend; slot 7; migration `V016__rule_source_schedule.sql`)
 Three follow-ups from the F12, F7c and WS-SEC reviews. Decisions D-380 to D-389 in `docs/decisions/FIX-4.md`.
