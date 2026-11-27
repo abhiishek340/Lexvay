@@ -59,6 +59,9 @@ test('the audit filter chips ask the server, details open in place, and the admi
 test('an empty filter result says so with one action that clears it', async ({ page }) => {
   await signIn(page, DANA);
   await nav(page, 'Audit trail').click();
+  // People (people.spec.ts) deactivates someone, so "Access withdrawn" alone has entries; Dana never withdraws access.
+  await page.getByRole('combobox', { name: 'Person' }).click();
+  await page.getByRole('option', { name: 'Dana Whitfield', exact: true }).click();
   await page.getByRole('combobox', { name: 'Action' }).click();
   await page.getByRole('option', { name: 'Access withdrawn' }).click();
   await expect(page.getByText('No entries match these filters.')).toBeVisible();
