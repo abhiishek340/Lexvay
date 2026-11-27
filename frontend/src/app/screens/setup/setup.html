@@ -1,0 +1,159 @@
+<div class="lx-page lx-setup">
+  <header class="lx-page-header">
+    <div class="lx-title-row">
+      <h1>{{ programId() ? 'Program setup' : 'New program' }}</h1>
+      <lx-info-tip label="About program setup">
+        Set up a program once: its states, its courses and their catalog years, the documents that describe them, and the numbers the rules
+        engine checks, each backed by a quote on its page. The same place takes a new catalog year or a new document later.
+      </lx-info-tip>
+    </div>
+    @if (store.program(); as p) { <p class="lx-setup-subtitle">{{ p.name }}</p> }
+  </header>
+  <p class="lx-status-line" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
+  @if (store.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
+  @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
+
+  <section class="lx-hero lx-setup-hero" aria-label="Setup steps">
+    <p-stepper [value]="stepValue()" (valueChange)="go($event)">
+      <p-step-list class="lx-step-list">
+        @for (s of steps; track s; let n = $index) {
+          <p-step [value]="n + 1" [disabled]="!open(s)">
+            <ng-template #content let-activate="activateCallback" let-active="active">
+              <button type="button" role="tab" class="lx-step" [class.lx-step-active]="active" [class.lx-step-done]="done(s)" [disabled]="!open(s)"
+                      [attr.aria-selected]="active" [id]="'setup-step-' + s" (click)="activate()"
+                      [attr.aria-label]="(n + 1) + '. ' + label[s] + ', ' + summaries()[s] + (done(s) ? ', done' : '')">
+                <span class="lx-step-n" aria-hidden="true">
+                  @if (done(s) && !active) { <ng-icon name="phosphorCheck" size="14" /> } @else { {{ n + 1 }} }
+                </span>
+                <span class="lx-step-text" aria-hidden="true">
+                  <span class="lx-step-title">{{ label[s] }}</span>
+                  <span class="lx-step-status" data-testid="step-status">{{ summaries()[s] }}</span>
+                </span>
+              </button>
+            </ng-template>
+          </p-step>
+        }
+      </p-step-list>
+
+      <p-step-panels>
+        <!-- Details -->
+        <p-step-panel [value]="1">
+          <ng-template #content>
+            <div class="lx-panel" id="setup-panel-DETAILS" role="region" aria-labelledby="setup-step-DETAILS">
+              <h2 class="lx-panel-title">Details</h2>
+              @if (store.program(); as p) {
+                <dl class="lx-fixed">
+                  <div><dt>Name</dt><dd>{{ p.name }}</dd></div>
+                  <div><dt>License type</dt><dd>{{ license(p) }}</dd></div>
+                  <div><dt>Catalog year</dt><dd class="lx-mono">{{ p.catalogYear }}</dd></div>
+                </dl>
+                <p class="lx-fixed-note">
+                  <ng-icon name="phosphorLockSimple" size="16" aria-hidden="true" />Fixed once created
+                  <lx-info-tip label="Why these are fixed">Name, license type, catalog year and states are fixed once the program exists. Create a new
+                    program for a different combination.</lx-info-tip>
+                </p>
+              } @else if (programId()) {
+                <div class="lx-panel-skeleton" aria-busy="true" aria-label="Loading the program"><p-skeleton height="2.5rem" /><p-skeleton height="2.5rem" /></div>
+              } @else {
+                @let f = form();
+                @let p = problems();
+                <form class="lx-form" (ngSubmit)="next()" novalidate aria-label="Program details">
+                  @if (general(); as g) { <p-message severity="error" data-testid="create-error">{{ g }}</p-message> }
+                  <div class="lx-field">
+                    <label for="program-name">Name</label>
+                    <input pInputText id="program-name" [ngModel]="f.name" name="name" (ngModelChange)="set('name', $event)" [invalid]="!!p.name"
+                           [attr.aria-describedby]="p.name ? 'program-name-error' : null" [fluid]="true" />
+                    @if (p.name; as e) { <p-message id="program-name-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
+                  </div>
+                  <div class="lx-field-row">
+                    <div class="lx-field">
+                      <span class="lx-label-row">
+                        <label for="program-license">License type</label>
+                        <lx-info-tip label="About the license type">The license type decides which rule versions apply. Choose one the rules already use, or
+                          type another.</lx-info-tip>
+                      </span>
+                      <p-select inputId="program-license" [options]="licenseOptions()" [editable]="true" [ngModel]="f.licenseType" name="licenseType"
+                                (ngModelChange)="set('licenseType', $event ?? '')" [invalid]="!!p.licenseType" placeholder="Choose or type" appendTo="body"
+                                [fluid]="true" inputStyleClass="lx-mono" />
+                      @if (p.licenseType; as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
+                    </div>
+                    <div class="lx-field">
+                      <label for="program-year">Catalog year</label>
+                      <input pInputText id="program-year" class="lx-mono" placeholder="2026-27" [ngModel]="f.catalogYear" name="catalogYear"
+                             (ngModelChange)="set('catalogYear', $event)" [invalid]="!!p.catalogYear" [attr.aria-describedby]="p.catalogYear ? 'program-year-error' : null" [fluid]="true" />
+                      @if (p.catalogYear; as e) { <p-message id="program-year-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
+                    </div>
+                  </div>
+                  <div class="lx-actions">
+                    <button pButton type="submit"><span pButtonLabel>Next</span></button>
+                  </div>
+                </form>
+              }
+            </div>
+          </ng-template>
+        </p-step-panel>
+
+        <!-- States -->
+        <p-step-panel [value]="2">
+          <ng-template #content>
+            <div class="lx-panel" id="setup-panel-STATES" role="region" aria-labelledby="setup-step-STATES">
+              <h2 class="lx-panel-title">States</h2>
+              <div class="lx-states">
+                <div class="lx-states-pick">
+                  @if (store.program()) {
+                    <ul class="lx-state-list" aria-label="Target states">
+                      @for (s of stateNames(); track s.code) { <li><span class="lx-state-code">{{ s.code }}</span>{{ s.name }}</li> }
+                    </ul>
+                    <p class="lx-fixed-note"><ng-icon name="phosphorLockSimple" size="16" aria-hidden="true" />Fixed once created</p>
+                  } @else {
+                    @let p = problems();
+                    <div class="lx-field">
+                      <span id="program-states-label" class="lx-field-label">Target states</span>
+                      <p-multiselect [options]="stateOptions()" optionLabel="label" optionValue="code" [ngModel]="form().jurisdictions"
+                                     (ngModelChange)="set('jurisdictions', $event ?? [])" [filter]="true" filterBy="label" display="chip" [showToggleAll]="false"
+                                     ariaLabelledBy="program-states-label" placeholder="Choose states" appendTo="body" [fluid]="true" [invalid]="!!p.jurisdictions"
+                                     data-testid="states-select" />
+                      @if (p.jurisdictions; as e) { <p-message severity="error" size="small" variant="simple" data-testid="states-error">{{ e }}</p-message> }
+                    </div>
+                    @if (general(); as g) { <p-message severity="error">{{ g }}</p-message> }
+                    <div class="lx-actions">
+                      <button pButton type="button" [disabled]="busy()" [loading]="busy()" (click)="create()">
+                        <ng-icon name="phosphorPlus" size="16" aria-hidden="true" /><span pButtonLabel>Create program</span>
+                      </button>
+                      <button pButton type="button" severity="secondary" [outlined]="true" (click)="go(1)"><span pButtonLabel>Back</span></button>
+                    </div>
+                  }
+                </div>
+                <figure class="lx-states-map">
+                  <lx-state-map [states]="mapStates()" size="mini" [interactive]="false" [wave]="false" />
+                  <figcaption class="lx-help">{{ mapStates().length }} of 51 chosen</figcaption>
+                </figure>
+              </div>
+            </div>
+          </ng-template>
+        </p-step-panel>
+
+        <p-step-panel [value]="3">
+          <ng-template #content>
+            <div class="lx-panel" id="setup-panel-COURSES" role="region" aria-labelledby="setup-step-COURSES"><lx-setup-courses (announce)="announce($event)" /></div>
+          </ng-template>
+        </p-step-panel>
+        <p-step-panel [value]="4">
+          <ng-template #content>
+            <div class="lx-panel" id="setup-panel-DOCUMENTS" role="region" aria-labelledby="setup-step-DOCUMENTS"><lx-setup-documents (announce)="announce($event)" /></div>
+          </ng-template>
+        </p-step-panel>
+        <p-step-panel [value]="5">
+          <ng-template #content>
+            <div class="lx-panel" id="setup-panel-FACTS" role="region" aria-labelledby="setup-step-FACTS"><lx-setup-facts (announce)="announce($event)" /></div>
+          </ng-template>
+        </p-step-panel>
+        <p-step-panel [value]="6">
+          <ng-template #content>
+            <div class="lx-panel" id="setup-panel-READINESS" role="region" aria-labelledby="setup-step-READINESS"><lx-setup-readiness (announce)="announce($event)" (goTo)="step.set($event)" /></div>
+          </ng-template>
+        </p-step-panel>
+      </p-step-panels>
+    </p-stepper>
+  </section>
+</div>
