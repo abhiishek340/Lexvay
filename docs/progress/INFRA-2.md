@@ -21,7 +21,7 @@ against an account or applied.
 - Provider arguments were checked against the schema of the installed `hashicorp/aws` 6.74.0
   (`terraform providers schema -json`) and its registry documentation for that version.
 - `make infra-validate`: format check, `init -backend=false`, validate, `terraform test` (16 runs).
-- `make backend-test`: see the pull request.
+- `make backend-test`: 1091 tests, 0 failures (run before merging origin/main; this item changes no backend file).
 
 ### Deviations from the spec
 None. Added beyond it, because the resources need them: a CloudWatch Logs resource policy for the WAF log group
