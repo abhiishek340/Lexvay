@@ -178,6 +178,79 @@ class TextExtractorOcrTest {
     }
 
     @Test
+    void aSecondExtractReadsEveryScannedPageFromItsCheckpointWithoutTheEngine() {
+        ocr.enable().page(SCANNED_TEXT, 91.4567).page(SCANNED_TEXT + " Second page.", 66.0);
+        InMemoryOcrCheckpoints checkpoints = new InMemoryOcrCheckpoints();
+        byte[] scan = scan(2);
+
+        List<ExtractedPage> first = extractor.extract(FileType.PDF, scan, checkpoints);
+        assertThat(ocr.imagesSeen()).hasSize(2);
+        assertThat(checkpoints.stored()).containsOnlyKeys(1, 2);
+        assertThat(checkpoints.stored().get(1)).isEqualTo(new InMemoryOcrCheckpoints.Stored(new OcrPage(SCANNED_TEXT, 91.46), 300));
+
+        List<ExtractedPage> second = extractor.extract(FileType.PDF, scan, checkpoints);
+        assertThat(ocr.imagesSeen()).hasSize(2);
+        assertThat(second).isEqualTo(first);
+        assertThat(second).extracting(ExtractedPage::textSource).containsOnly(TextSource.OCR);
+        assertThat(second.get(0).ocrConfidence()).isEqualTo(91.46);
+    }
+
+    @Test
+    void aPageIsCheckpointedBeforeTheNextOneIsRecognised() {
+        InMemoryOcrCheckpoints checkpoints = new InMemoryOcrCheckpoints();
+        ocr.enable().page(SCANNED_TEXT, 90).failOnCall(2);
+        assertThatThrownBy(() -> extractor.extract(FileType.PDF, scan(3), checkpoints)).isInstanceOf(OcrFailedException.class);
+        assertThat(checkpoints.stored()).containsOnlyKeys(1);
+
+        ocr.page(SCANNED_TEXT + " Two.", 80).page(SCANNED_TEXT + " Three.", 70);
+        assertThat(extractor.extract(FileType.PDF, scan(3), checkpoints)).extracting(ExtractedPage::text)
+                .containsExactly(SCANNED_TEXT, SCANNED_TEXT + " Two.", SCANNED_TEXT + " Three.");
+        assertThat(ocr.imagesSeen()).hasSize(4);
+    }
+
+    @Test
+    void aShortCheckpointStillFallsBackToTheTextLayerAndIsNotRecognisedAgain() {
+        InMemoryOcrCheckpoints checkpoints = new InMemoryOcrCheckpoints();
+        byte[] thin = TestDocuments.pdf(List.of(List.of("Page 3"), List.of(LAYER_TEXT)));
+        ocr.enable().page("3", 90);
+
+        List<ExtractedPage> first = extractor.extract(FileType.PDF, thin, checkpoints);
+        assertThat(checkpoints.stored().get(1).page()).isEqualTo(new OcrPage("3", 90));
+
+        List<ExtractedPage> second = extractor.extract(FileType.PDF, thin, checkpoints);
+        assertThat(ocr.imagesSeen()).hasSize(1);
+        assertThat(second).isEqualTo(first);
+        assertThat(second.get(0).text()).isEqualTo("Page 3");
+        assertThat(second.get(0).textSource()).isEqualTo(TextSource.TEXT_LAYER);
+        assertThat(second.get(0).ocrConfidence()).isNull();
+    }
+
+    @Test
+    void aPageWithoutWordsIsCheckpointedAsNothing() {
+        InMemoryOcrCheckpoints checkpoints = new InMemoryOcrCheckpoints();
+        ocr.enable().blankPage().page(SCANNED_TEXT, 85);
+        byte[] scan = scan(2);
+
+        List<ExtractedPage> first = extractor.extract(FileType.PDF, scan, checkpoints);
+        assertThat(checkpoints.stored().get(1).page()).isSameAs(OcrPage.NOTHING);
+        assertThat(extractor.extract(FileType.PDF, scan, checkpoints)).isEqualTo(first);
+        assertThat(ocr.imagesSeen()).hasSize(2);
+    }
+
+    @Test
+    void aCheckpointFromAnotherDpiIsIgnoredAndThePageIsRecognisedAgain() {
+        InMemoryOcrCheckpoints checkpoints = new InMemoryOcrCheckpoints();
+        checkpoints.save(1, new OcrPage("Stale text from a lower resolution render.", 40), 150);
+        ocr.enable().page(SCANNED_TEXT, 92);
+
+        List<ExtractedPage> pages = extractor.extract(FileType.PDF, scan(1), checkpoints);
+        assertThat(ocr.imagesSeen()).hasSize(1);
+        assertThat(pages.get(0).text()).isEqualTo(SCANNED_TEXT);
+        assertThat(pages.get(0).ocrConfidence()).isEqualTo(92.0);
+        assertThat(checkpoints.stored().get(1).renderDpi()).as("the first checkpoint of a page is kept").isEqualTo(150);
+    }
+
+    @Test
     void renderDpiIsThreeHundredUnlessTheImageWouldPassTheCap() {
         assertThat(TextExtractor.renderDpi(PDRectangle.A4)).isEqualTo(300);
         PDRectangle huge = new PDRectangle(2000, 2000);
