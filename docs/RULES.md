@@ -40,7 +40,7 @@ Every seed rule set is labeled "Demo rule set" and every seed document carries
 
 ## Security hardening (WS-SEC, decisions D-090 to D-099)
 
-Not product rules, but each has a test that fails when it breaks. Details in `docs/decisions/WS-SEC.md`.
+Not product rules, but each has a test that fails when it breaks. Details in `DECISIONS.md` (D-090 to D-099).
 
 | Control | Enforcement | Tests |
 |---|---|---|
