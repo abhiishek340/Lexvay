@@ -101,8 +101,8 @@ public class AssessmentFixtures {
                 .exchange();
     }
 
-    /** Creates a rule version whose extraction (scripted) yields the given requirements JSON, and approves it. */
-    public UUID approvedRuleVersion(TestTenants.TenantWithUsers t, String jurisdiction, String label, String ruleText, String requirementsJson) {
+    /** Creates a rule version whose extraction (scripted) yields the given requirements JSON. Not approved. */
+    public UUID ruleVersion(TestTenants.TenantWithUsers t, String jurisdiction, String label, String ruleText, String requirementsJson) {
         fake.script("EXTRACT:" + label, requirementsJson);
         var created = mvc.post().uri("/api/v1/rule-versions").with(user(t.contributor())).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
@@ -113,6 +113,12 @@ public class AssessmentFixtures {
         assertThat(created).hasStatus(202);
         UUID id = UUID.fromString(read(created).get("ruleVersionId").asString());
         runner.runPending();
+        return id;
+    }
+
+    /** Creates a rule version as {@link #ruleVersion} does, and approves it. */
+    public UUID approvedRuleVersion(TestTenants.TenantWithUsers t, String jurisdiction, String label, String ruleText, String requirementsJson) {
+        UUID id = ruleVersion(t, jurisdiction, label, ruleText, requirementsJson);
         var approved = mvc.post().uri("/api/v1/rule-versions/" + id + "/requirements/approve").with(user(t.reviewer())).with(csrf()).exchange();
         assertThat(approved).hasStatus(200);
         return id;

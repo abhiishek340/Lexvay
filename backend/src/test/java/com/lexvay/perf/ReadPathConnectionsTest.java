@@ -52,6 +52,7 @@ class ReadPathConnectionsTest extends AbstractAssessmentTest {
         endpoints.put("search", program + "/search?q=ethics");
         endpoints.put("document", "/api/v1/documents/" + document);
         endpoints.put("document page", "/api/v1/documents/" + document + "/pages/1");
+        endpoints.put("document file", "/api/v1/documents/" + document + "/file");
         endpoints.put("rule versions", "/api/v1/rule-versions");
         endpoints.put("rule version diff", "/api/v1/rule-versions/" + s.ruleVersionId() + "/diff?against=" + s.ruleVersionId());
         endpoints.put("requirements", "/api/v1/rule-versions/" + s.ruleVersionId() + "/requirements");

@@ -182,28 +182,38 @@
   </section>
 </ng-template>
 
-<!-- Pane 3: the quoted evidence as a document excerpt. -->
+<!-- Pane 3: the evidence where it sits on its page, with the quote alone in a disclosure. -->
 <ng-template #evidenceTpl>
   <section class="lx-pane lx-evidence" aria-labelledby="evidence-heading">
     <h2 id="evidence-heading" class="lx-label">Evidence</h2>
     @if (selected(); as m) {
       @if (m.evidence; as ev) {
-        <figure class="lx-document">
-          <figcaption class="lx-document-head">
-            <p class="lx-document-name"><ng-icon name="phosphorFileText" size="16" aria-hidden="true" />{{ ev.filename }}</p>
-            <dl class="lx-document-meta">
-              @if (ev.courseCode) {
-                <div><dt>Course</dt><dd>{{ ev.courseCode }} · {{ ev.courseRequired === false ? 'elective' : ev.courseRequired ? 'required course' : 'requirement status not recorded' }}</dd></div>
-              }
-              <div><dt>Page</dt><dd class="lx-mono">{{ ev.pageNumber }}</dd></div>
-              <div><dt>Characters</dt><dd class="lx-mono">{{ ev.charStart }}–{{ ev.charEnd }}</dd></div>
-            </dl>
-          </figcaption>
-          <blockquote class="lx-quote lx-serif">{{ ev.quote }}</blockquote>
-        </figure>
+        <dl class="lx-evidence-meta" data-testid="evidence-meta">
+          <div><dt>File</dt><dd>{{ ev.filename }}</dd></div>
+          @if (ev.courseCode) {
+            <div><dt>Course</dt><dd>{{ ev.courseCode }} · {{ ev.courseRequired === false ? 'elective' : ev.courseRequired ? 'required course' : 'requirement status not recorded' }}</dd></div>
+          }
+          <div><dt>Page</dt><dd class="lx-mono">{{ ev.pageNumber }}</dd></div>
+          <div><dt>Characters</dt><dd class="lx-mono">{{ ev.charStart }}–{{ ev.charEnd }}</dd></div>
+        </dl>
         @if (ev.courseRequired === false) {
           <p-message severity="warn" size="small">This passage comes from an elective. Not every student takes it.</p-message>
         }
+        <details class="lx-quote-only">
+          <summary><ng-icon name="phosphorCaretRight" size="14" aria-hidden="true" />Quote only</summary>
+          <blockquote class="lx-serif" data-testid="evidence-quote">{{ ev.quote }}</blockquote>
+        </details>
+        @if (!wide()) {
+          <button pButton type="button" severity="secondary" [outlined]="true" size="small" class="lx-show-on-page"
+                  [attr.aria-expanded]="showOnPage()" aria-controls="evidence-page" (click)="showOnPage.set(!showOnPage())">
+            <ng-icon name="phosphorEye" size="16" aria-hidden="true" /><span pButtonLabel>Show on page</span>
+          </button>
+        }
+        <div id="evidence-page" class="lx-evidence-page">
+          @if (wide() || showOnPage()) {
+            <lx-document-viewer [documentId]="ev.documentId" [pageNumber]="ev.pageNumber" [highlight]="ev" [focusHighlight]="!wide()" />
+          }
+        </div>
       } @else {
         <div class="lx-no-evidence">
           <p><strong>No quoted evidence.</strong></p>

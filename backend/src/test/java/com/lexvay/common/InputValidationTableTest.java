@@ -283,6 +283,11 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(row("document page: page number overflows an int", page, HttpMethod.GET,
                 "/api/v1/documents/" + DOCUMENT + "/pages/99999999999", null, null, 400));
         rows.add(row("document page: page number zero does not exist", page, HttpMethod.GET, "/api/v1/documents/" + DOCUMENT + "/pages/0", null, null, 404));
+        String file = "GET /api/v1/documents/{id}/file";
+        rows.add(row("document file: id is not a UUID", file, HttpMethod.GET, "/api/v1/documents/" + BAD_ID + "/file", null, null, 400));
+        rows.add(row("document file: unknown id is not found", file, HttpMethod.GET, "/api/v1/documents/" + ID + "/file", null, null, 404));
+        rows.add(row("document file: hostile query parameter is ignored", file, HttpMethod.GET,
+                "/api/v1/documents/" + DOCUMENT + "/file?q=%00%ff", null, null, 200));
 
         // --- program overview and assessments of a program ---
         rows.add(row("overview: program id is not a UUID", "GET /api/v1/programs/{programId}/overview", HttpMethod.GET,
