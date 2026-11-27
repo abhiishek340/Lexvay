@@ -1059,3 +1059,13 @@ screen, dialogs and the 400 px view. `LEXVAY_E2E_SLOT=1 make test` after the WS-
 27 frontend unit tests, 6 end-to-end tests passed (one screenshot test skipped unless `LEXVAY_SCREENSHOTS=1`).
 Initial bundle 672.8 kB raw, 161.9 kB estimated transfer. Backend addition: `GET /api/v1/users`. Open owner
 action: the PrimeUI license key (D-080). Screenshots in `docs/screens/`.
+
+## WS-PERF — Read-path latency and read APIs (PR #14)
+
+One connection per read request (tenant bound on checkout only, `Rule7_PooledConnectionRebindsTest`), read
+services in one read-only transaction, N+1 removed from determinations, change events and the rule version list
+(13 → 1 connections), new read endpoints `GET /programs/{id}/overview`, `GET /programs/{id}/assessments`,
+`GET /documents/{id}/pages/{n}` (immutable private cache, ETag, 304) and `GET /mappings/{id}/reviews`, audit
+filters, gzip over 1 kB, nine planner-verified indexes in V008 (`IndexUsageTest`), `make perf` with
+`EndpointLatencyTest` (every p95 under 40 ms on the seeded and the 62-tenant database; tables and method in
+`docs/PERF.md`). Final run: 487 backend tests, 6 end-to-end tests passed. Decisions D-110 to D-119.

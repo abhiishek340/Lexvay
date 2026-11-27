@@ -2,9 +2,11 @@ package com.lexvay.review;
 
 import com.lexvay.assessment.Mapping;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,6 +22,11 @@ public class ReviewController {
 
     public ReviewController(ReviewService service) {
         this.service = service;
+    }
+
+    @GetMapping("/{id}/reviews")
+    List<ReviewEventView> history(@PathVariable UUID id) {
+        return service.history(id);
     }
 
     @PostMapping("/{id}/reviews")

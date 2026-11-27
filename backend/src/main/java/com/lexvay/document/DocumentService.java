@@ -33,6 +33,11 @@ public class DocumentService {
     public record PageSummary(int pageNumber, int charStart, int charEnd, int length) {
     }
 
+    /** A single page of extracted text with where it belongs. Pages never change once ingested. */
+    public record PageView(UUID documentId, String filename, DocumentKind kind, String courseCode, Boolean courseRequired,
+                           int pageNumber, int pageCount, String text) {
+    }
+
     public record IngestStatus(UUID jobId, String status, String error) {
     }
 
@@ -126,6 +131,7 @@ public class DocumentService {
         return documentId;
     }
 
+    @Transactional(readOnly = true)
     public DocumentView get(UUID id) {
         Document document = documents.findById(id).orElseThrow(() -> new NotFoundException("Document not found"));
         List<PageSummary> pages = documents.pages(id).stream()
@@ -135,6 +141,11 @@ public class DocumentService {
                 .map(j -> new IngestStatus(j.id(), j.status().name(), j.error()));
         return new DocumentView(document.id(), document.programId(), document.courseVersionId(), document.filename(),
                 document.sha256(), document.kind(), document.createdAt(), document.createdBy(), pages, ingest.orElse(null));
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentRepository.PageWithContext page(UUID id, int pageNumber) {
+        return documents.pageWithContext(id, pageNumber).orElseThrow(() -> new NotFoundException("Document page not found"));
     }
 
     private static void requireUsableFilename(String filename) {

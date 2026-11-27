@@ -11,12 +11,14 @@ import com.lexvay.document.DocumentRepository;
 import com.lexvay.document.DocumentService;
 import com.lexvay.document.FileType;
 import com.lexvay.document.TextExtractor;
+import com.lexvay.job.Job;
 import com.lexvay.job.JobRepository;
 import com.lexvay.job.JobType;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -120,18 +122,25 @@ public class RuleVersionService {
         return new CreateResult(id, jobId);
     }
 
+    @Transactional(readOnly = true)
     public RuleVersion require(UUID id) {
         return ruleVersions.findById(id).orElseThrow(() -> new NotFoundException("Rule version not found"));
     }
 
+    @Transactional(readOnly = true)
     public RuleVersionView view(UUID id) {
-        return view(require(id));
+        RuleVersion version = require(id);
+        return view(version, jobs.latest(JobType.EXTRACT_REQUIREMENTS, "ruleVersionId", id));
     }
 
+    @Transactional(readOnly = true)
     public List<RuleVersionView> list() {
-        return ruleVersions.findAll().stream().map(this::view).toList();
+        List<RuleVersion> all = ruleVersions.findAll();
+        Map<UUID, Job> extractions = jobs.latestByPayloadValue(JobType.EXTRACT_REQUIREMENTS, "ruleVersionId", all.stream().map(RuleVersion::id).toList());
+        return all.stream().map(v -> view(v, Optional.ofNullable(extractions.get(v.id())))).toList();
     }
 
+    @Transactional(readOnly = true)
     public RequirementsView requirements(UUID id) {
         RuleVersion version = require(id);
         return new RequirementsView(id, version.approved(), ruleVersions.requirements(id));
@@ -168,7 +177,7 @@ public class RuleVersionService {
         if (version.approved()) {
             throw new ConflictException("Requirements are already approved");
         }
-        long count = ruleVersions.countRequirements(id);
+        long count = version.requirementCount();
         if (count == 0) {
             throw new ConflictException("There are no requirements to approve; extraction has not produced any");
         }
@@ -183,12 +192,11 @@ public class RuleVersionService {
         return documents.pages(version.documentId()).stream().map(p -> p.text()).collect(Collectors.joining("\n"));
     }
 
-    private RuleVersionView view(RuleVersion v) {
-        Extraction extraction = jobs.latest(JobType.EXTRACT_REQUIREMENTS, "ruleVersionId", v.id())
-                .map(j -> new Extraction(j.id(), j.status().name(), j.error())).orElse(null);
+    private static RuleVersionView view(RuleVersion v, Optional<Job> extractionJob) {
+        Extraction extraction = extractionJob.map(j -> new Extraction(j.id(), j.status().name(), j.error())).orElse(null);
         return new RuleVersionView(v.id(), v.jurisdictionCode(), v.licenseType(), v.label(), v.sourceUrl(), v.effectiveFrom(),
                 v.supersedesId(), v.documentId(), v.approved() ? new Approval(v.approvedBy(), v.approvedAt()) : null,
-                ruleVersions.countRequirements(v.id()), extraction, v.createdAt());
+                v.requirementCount(), extraction, v.createdAt());
     }
 
     private static List<Map<String, Object>> summarize(List<Requirement> requirements) {
