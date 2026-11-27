@@ -340,10 +340,10 @@ connection. One `make perf` run, milliseconds on loopback:
 
 | Pass | Endpoint | p50 | p95 | p99 | connections per call | wire bytes |
 |---|---|---:|---:|---:|---:|---:|
-| 2 seeded tenants | GET /programs/{id}/coverage?jurisdiction=CA | 3.54 | 7.90 | 12.33 | 1.0 | 1670 |
-| 62 tenants | GET /programs/{id}/coverage?jurisdiction=CA | 1.43 | 2.03 | 2.37 | 1.0 | 1670 |
+| 2 seeded tenants | GET /programs/{id}/coverage?jurisdiction=CA | 3.15 | 4.91 | 5.88 | 1.0 | 1666 |
+| 62 tenants | GET /programs/{id}/coverage?jurisdiction=CA | 2.64 | 4.15 | 5.28 | 1.0 | 1666 |
 
-Plan (`IndexUsageTest`, `backend/target/perf/coverage-plan.txt`): 0.26 ms execution, 98 shared buffers, no executed
+Plan (`IndexUsageTest`, `backend/target/perf/coverage-plan.txt`): 0.31 ms execution, no executed
 sequential scan of `mapping`, `evidence_span`, `evidence_response` or `document`.
 
 ## Not covered
