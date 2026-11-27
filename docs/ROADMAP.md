@@ -18,25 +18,25 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | WS-UI Design system and screen rebuild | `ui-foundation` | 1 | Opus 5.5 | merged (PR #15) |
 | WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | merged (PR #12) |
 | WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | merged (PR #11) |
-| WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
+| WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | merged (PR #14) |
 | F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | merged (PR #9) |
 | F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | merged (PR #8) |
-| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | in progress |
+| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | PR #16 in review (renumber to V010, merge after #14, #13) |
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
-| F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | in progress |
-| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | queued (after WS-PERF) |
+| F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
+| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (merges after V011) |
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
-| F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | ready (starts when PR #14 merges) |
+| F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | in progress |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | in progress |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | queued (after WS-UI, F4a) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
-| F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | in progress |
+| F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | PR #17 in review (merges after #14, #13, #16) |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | in progress |
-| F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | queued (after WS-PERF) |
+| F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | in progress |
 
 ---
 
@@ -407,10 +407,10 @@ Reviewers must be able to look for a passage themselves instead of trusting the 
    on the seeded tenant) following the pattern of `EndpointLatencyTest` if it exists on `main`.
 Decisions D-150 to D-159 (folded into `DECISIONS.md`).
 
-## FIX-1 — Requirement order column (after WS-PERF merges; slot 5; migration `V011__requirement_ordinal.sql`)
+## FIX-1 — Requirement order column (after WS-PERF merges; slot 5; migration `V012__requirement_ordinal.sql`)
 Defect found in review of F3a: `RuleVersionRepository.requirements` orders by `created_at, ref`; rows of one
 version share a timestamp, so the order is the text order of the ref ("CO-10" before "CO-2").
-1. Migration `V011__requirement_ordinal.sql` (V006 stays unused): inside the migration, `ALTER TABLE requirement NO FORCE
+1. Migration `V012__requirement_ordinal.sql` (V006 stays unused): inside the migration, `ALTER TABLE requirement NO FORCE
    ROW LEVEL SECURITY` and disable the `requirement_locked` trigger, add `ordinal integer`, backfill with
    `row_number() OVER (PARTITION BY rule_version_id ORDER BY created_at, (substring(ref from '(\d+)$'))::int
    NULLS LAST, ref)`, set `NOT NULL`, add `UNIQUE (rule_version_id, ordinal)`, then re-enable the trigger and
@@ -423,7 +423,7 @@ version share a timestamp, so the order is the text order of the ref ("CO-10" be
 3. Tests: a rule with twelve requirements lists CO-1 … CO-12 in order through the requirements endpoint,
    the mappings endpoint and the diff; replace keeps the submitted order; `Rule5` immutability unchanged.
 
-## FIX-2 — Job entity id column and index (after FIX-1; slot 5; migration `V012__job_entity_id.sql`)
+## FIX-2 — Job entity id column and index (after FIX-1; slot 5; migration `V013__job_entity_id.sql`)
 Defect found in review of WS-PERF (D-115): `JobRepository.latest` filters by `payload->>:key`, which scans the
 whole `job` table under row-level security because `jsonb ->>` is not leakproof and jobs are never deleted.
 Every job payload today holds exactly one id (`documentId`, `ruleVersionId`, `assessmentId`, `changeEventId`,
@@ -482,7 +482,7 @@ reliable than a text layer, so it is stored with its source and confidence and i
    `Rule4_LowOcrConfidenceForcesAmbiguousTest`; one test with the real binary guarded by
    `assumeTrue(engine.available())` that renders known text into an image-only PDF and finds its key words.
    Install Tesseract locally with Homebrew and in CI with the `tesseract-ocr` apt package so that test runs.
-Decisions in `docs/decisions/F11.md` (D-160 to D-169). If a `Dockerfile` exists on `main` when you finish,
+Decisions in `DECISIONS.md (D-160 to D-169)` (D-160 to D-169). If a `Dockerfile` exists on `main` when you finish,
 add Tesseract to the runtime stage and set `LEXVAY_OCR=tesseract` there; otherwise say so in the report.
 
 ## F7 — Retrieval quality (slot 3; no schema change)
@@ -534,13 +534,13 @@ dilutes the model's attention. Everything below is measured before and after wit
    verifies; quote spanning `[...]` is rejected by the verifier because it is not in the page.
 Decisions in `docs/decisions/F7.md` (D-170 to D-179).
 
-## F12 — Rule source monitoring (backend only; slot 8; migration `V010__rule_source.sql`)
+## F12 — Rule source monitoring (backend only; slot 8; migration `V011__rule_source.sql`)
 Purpose: change tracking today starts only when a person uploads a new rule text. Real boards publish rule
 changes on a web page or PDF without notice; the product must notice them. The system fetches, detects a
 textual change, creates an **unapproved** draft rule version and opens the existing change flow. It never
 approves anything and never alters an approved version (product rules 1, 5, 6). Decisions D-180 to D-189 in
 `docs/decisions/F12.md`.
-1. **Schema** (`V010__rule_source.sql`; RLS + FORCE + policy as in V002, so the schema tests pick it up):
+1. **Schema** (`V011__rule_source.sql`; RLS + FORCE + policy as in V002, so the schema tests pick it up):
    `rule_source` (`id`, `tenant_id`, `jurisdiction_id` → jurisdiction, `license_type`, `label`, `url`
    (http or https only, CHECK with a regex on the scheme), `check_interval_hours` int CHECK ≥ 1 AND ≤ 720,
    `active` boolean default true, `last_checked_at` timestamptz, `last_content_hash` text, `created_at`,
@@ -599,7 +599,7 @@ approves anything and never alters an approved version (product rules 1, 5, 6). 
    isolation on both tables; audit coverage. Nothing in this item can approve a version (assert
    `requirements_approved_at IS NULL` after a CHANGED run).
 
-## F13 — Work queue API (backend only; slot 9; after WS-PERF merges; no schema change unless EXPLAIN demands, then `V013__work_queue_indexes.sql`)
+## F13 — Work queue API (backend only; slot 9; after WS-PERF merges; no schema change unless EXPLAIN demands, then `V014__work_queue_indexes.sql`)
 Purpose: a reviewer, signer, contributor or administrator should open the product and see what needs them,
 across programs and states, without visiting each overview. One read endpoint, one SQL statement, under the
 read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
@@ -627,7 +627,7 @@ read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
 2. One statement: CTEs per kind joined with `UNION ALL`, filtered by the caller's role in SQL (bind the role,
    do not branch in Java). Measure with the WS-PERF harness; budget p95 ≤ 40 ms on the seeded tenant. Add an
    index only if `EXPLAIN (ANALYZE, BUFFERS)` shows a sequential scan on `mapping`, `review_event` or `job`
-   for this statement; if so, the migration is `V013__work_queue_indexes.sql` and the plan goes in
+   for this statement; if so, the migration is `V014__work_queue_indexes.sql` and the plan goes in
    `docs/PERF.md`.
 3. Also `GET /api/v1/work-queue/count` → `{ total }` for the shell badge, same CTEs, `count(*)` only.
 4. Tests: visibility per role (a CONTRIBUTOR never sees `READY_TO_SIGN`); counts move when a reviewer
@@ -637,6 +637,8 @@ read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
    kinds above contain no forbidden words). Read-only endpoint, so nothing to add to the audit coverage set.
 
 ## Follow-ups recorded from reviews
+- F12 deployment note: the SSRF guard resolves the host before connecting and the JDK client resolves it
+  again, so a DNS-rebinding window remains; production egress must also block private ranges (Terraform).
 - WS-UI: the overview still finds the latest assessment through the audit log; switch it to the WS-PERF
   `GET /programs/{id}/overview` endpoint (do this in F1). Audit filtering is client-side over the newest 500
   entries; switch to the WS-PERF server filters (F5). Add a build check that the production `index.html` has no

@@ -1,5 +1,6 @@
 package com.lexvay.assessment;
 
+import com.lexvay.document.TextSource;
 import com.lexvay.rule.NumericField;
 import com.lexvay.rule.RequirementType;
 import java.util.List;
@@ -18,7 +19,7 @@ public class MappingRepository {
                    r.id AS requirement_id, r.ref, r.title, r.text, r.type, r.numeric_field, r.numeric_operator, r.numeric_value,
                    m.finding, m.method, m.rationale, m.stale, m.evidence_span_id,
                    es.document_id, d.filename, d.kind, d.course_version_id, c.code AS course_code, cv.required AS course_required,
-                   es.page_number, es.char_start, es.char_end, es.quote,
+                   es.page_number, es.char_start, es.char_end, es.quote, dp.text_source, CAST(dp.ocr_confidence AS double precision) AS ocr_confidence,
                    le.kind AS decision_kind, le.note AS decision_note, le.user_id AS decision_user_id,
                    le.created_at AS decision_at, u.display_name AS decision_user_name
             FROM mapping m
@@ -26,6 +27,7 @@ public class MappingRepository {
             JOIN requirement r ON r.id = m.requirement_id
             LEFT JOIN evidence_span es ON es.id = m.evidence_span_id
             LEFT JOIN document d ON d.id = es.document_id
+            LEFT JOIN document_page dp ON dp.document_id = es.document_id AND dp.page_number = es.page_number
             LEFT JOIN course_version cv ON cv.id = d.course_version_id
             LEFT JOIN course c ON c.id = cv.course_id
             LEFT JOIN LATERAL (
@@ -52,7 +54,8 @@ public class MappingRepository {
             evidence = new Mapping.Evidence(rs.getObject("evidence_span_id", UUID.class), rs.getObject("document_id", UUID.class),
                     rs.getString("filename"), rs.getString("kind"), rs.getObject("course_version_id", UUID.class),
                     rs.getString("course_code"), rs.getObject("course_required", Boolean.class), rs.getInt("page_number"),
-                    rs.getInt("char_start"), rs.getInt("char_end"), rs.getString("quote"));
+                    rs.getInt("char_start"), rs.getInt("char_end"), rs.getString("quote"),
+                    TextSource.valueOf(rs.getString("text_source")), rs.getObject("ocr_confidence", Double.class));
         }
         Mapping.Decision decision = null;
         String decisionKind = rs.getString("decision_kind");
@@ -91,6 +94,10 @@ public class MappingRepository {
     public boolean exists(UUID assessmentId, UUID requirementId) {
         return jdbc.sql("SELECT count(*) FROM mapping WHERE assessment_id = :a AND requirement_id = :r")
                 .param("a", assessmentId).param("r", requirementId).query(Long.class).single() > 0;
+    }
+
+    public boolean existsById(UUID id) {
+        return jdbc.sql("SELECT EXISTS (SELECT 1 FROM mapping WHERE id = :id)").param("id", id).query(Boolean.class).single();
     }
 
     public Optional<Mapping> findById(UUID id) {

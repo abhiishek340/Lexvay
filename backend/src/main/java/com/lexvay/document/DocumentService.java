@@ -30,7 +30,13 @@ public class DocumentService {
     public record UploadResult(UUID documentId, UUID jobId) {
     }
 
-    public record PageSummary(int pageNumber, int charStart, int charEnd, int length) {
+    public record PageSummary(int pageNumber, int charStart, int charEnd, int length, TextSource textSource,
+                              Double ocrConfidence) {
+    }
+
+    /** A single page of extracted text with where it belongs. Pages never change once ingested. */
+    public record PageView(UUID documentId, String filename, DocumentKind kind, String courseCode, Boolean courseRequired,
+                           int pageNumber, int pageCount, String text) {
     }
 
     public record IngestStatus(UUID jobId, String status, String error) {
@@ -102,15 +108,22 @@ public class DocumentService {
         return new UploadResult(documentId, jobId);
     }
 
+    @Transactional(readOnly = true)
     public DocumentView get(UUID id) {
         Document document = documents.findById(id).orElseThrow(() -> new NotFoundException("Document not found"));
         List<PageSummary> pages = documents.pages(id).stream()
-                .map(p -> new PageSummary(p.pageNumber(), p.charStart(), p.charEnd(), p.text().length()))
+                .map(p -> new PageSummary(p.pageNumber(), p.charStart(), p.charEnd(), p.text().length(), p.textSource(),
+                        p.ocrConfidence()))
                 .toList();
         Optional<IngestStatus> ingest = jobs.latest(JobType.INGEST_DOCUMENT, "documentId", id)
                 .map(j -> new IngestStatus(j.id(), j.status().name(), j.error()));
         return new DocumentView(document.id(), document.programId(), document.courseVersionId(), document.filename(),
                 document.sha256(), document.kind(), document.createdAt(), document.createdBy(), pages, ingest.orElse(null));
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentRepository.PageWithContext page(UUID id, int pageNumber) {
+        return documents.pageWithContext(id, pageNumber).orElseThrow(() -> new NotFoundException("Document page not found"));
     }
 
     private static void requireUsableFilename(String filename) {

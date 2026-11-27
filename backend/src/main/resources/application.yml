@@ -50,7 +50,13 @@ lexvay:
     idle-expiry: 10m
   matching:
     min-quote-chars: ${LEXVAY_MIN_QUOTE_CHARS:40}
+    min-ocr-confidence: 80
     shortlist-size: 8
+  ocr:
+    engine: ${LEXVAY_OCR:off}                              # off | tesseract
+    tesseract-path: ${LEXVAY_OCR_TESSERACT_PATH:tesseract}
+    language: ${LEXVAY_OCR_LANGUAGE:eng}
+    max-pages: 200
   jobs:
     polling-enabled: true
     poll-interval-ms: 1000
@@ -59,6 +65,10 @@ lexvay:
 server:
   port: ${LEXVAY_PORT:8080}
   shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json,application/problem+json
+    min-response-size: 1KB
   # Behind a load balancer set LEXVAY_FORWARD_HEADERS=native so the client address (rate limits) and the
   # scheme (HSTS, secure cookies) come from the trusted proxy headers (D-093).
   forward-headers-strategy: ${LEXVAY_FORWARD_HEADERS:none}

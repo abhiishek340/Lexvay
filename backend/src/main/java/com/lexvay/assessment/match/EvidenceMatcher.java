@@ -27,8 +27,9 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Pipeline stage 4 for SUBJECT, ACCREDITATION and JURISDICTION_SPECIFIC requirements. Shortlists pages,
  * asks the model for one of three findings with a verbatim quote, then applies the code-side guardrails:
- * schema and finding check (rule 1), quote verification (rule 2), "when unsure, ambiguous" (rule 4) for
- * non-required courses and thin quotes. Every proposal's raw input and output is stored.
+ * schema and finding check (rule 1), quote verification (rule 2), and "when unsure, ambiguous" (rule 4) through
+ * the ordered {@link DowngradeRule}s: non-required course, thin quote, low OCR confidence. Every proposal's raw
+ * input and output is stored.
  */
 @Component
 public class EvidenceMatcher {
@@ -48,7 +49,7 @@ public class EvidenceMatcher {
     private final ObjectMapper json;
     private final LexvayMetrics metrics;
     private final int shortlistSize;
-    private final int minQuoteChars;
+    private final List<DowngradeRule> downgrades;
     private final int maxOutputTokens;
     private final String systemPrompt;
 
@@ -56,6 +57,7 @@ public class EvidenceMatcher {
                            ObjectMapper json, LexvayMetrics metrics,
                            @Value("${lexvay.matching.shortlist-size:8}") int shortlistSize,
                            @Value("${lexvay.matching.min-quote-chars:40}") int minQuoteChars,
+                           @Value("${lexvay.matching.min-ocr-confidence:80}") double minOcrConfidence,
                            @Value("${lexvay.llm.max-output-tokens:16000}") int maxOutputTokens) {
         this.search = search;
         this.llm = llm;
@@ -65,7 +67,7 @@ public class EvidenceMatcher {
         this.metrics = metrics;
         this.validator = new JsonSchemaValidator(json, SCHEMA);
         this.shortlistSize = shortlistSize;
-        this.minQuoteChars = minQuoteChars;
+        this.downgrades = DowngradeRule.ordered(minQuoteChars, minOcrConfidence);
         this.maxOutputTokens = maxOutputTokens;
         try {
             this.systemPrompt = new String(new ClassPathResource("llm/" + PROMPT_VERSION + ".system.txt").getInputStream()
@@ -109,15 +111,14 @@ public class EvidenceMatcher {
 
         Finding finding = proposal.finding();
         String rationale = proposal.rationale();
-        if (finding == Finding.EVIDENCE_FOUND && Boolean.FALSE.equals(passage.courseRequired())) {
-            finding = Finding.AMBIGUOUS;
-            rationale += " Downgraded to ambiguous: the cited course " + passage.courseCode()
-                    + " is not required of every student in this program.";
-        }
-        if (finding == Finding.EVIDENCE_FOUND && QuoteVerifier.normalizeWhitespace(match.exactText()).length() < minQuoteChars) {
-            finding = Finding.AMBIGUOUS;
-            rationale += " Downgraded to ambiguous: the quoted passage is shorter than " + minQuoteChars
-                    + " characters and is too thin to establish coverage on its own.";
+        if (finding == Finding.EVIDENCE_FOUND) {
+            for (DowngradeRule rule : downgrades) {
+                Optional<String> reason = rule.reason(passage, match);
+                if (reason.isPresent()) {
+                    finding = Finding.AMBIGUOUS;
+                    rationale += " Downgraded to ambiguous: " + reason.get();
+                }
+            }
         }
         return new Outcome(finding, rationale, spanId);
     }

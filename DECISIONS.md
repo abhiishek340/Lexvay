@@ -391,7 +391,7 @@ End-to-end stacks are slot-based (`LEXVAY_E2E_SLOT`) so several checkouts can te
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F12, V011 FIX-1, V012 FIX-2, V013 F13 if needed.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F13 if needed. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -762,6 +762,130 @@ lookup, which is the part that matters); mocking `ClientRegistrationRepository`.
 `oidc` profile declare their own and get their own cached Spring context (five extra contexts, about 8 seconds each).
 `spring-security-test`'s `csrf()` is still not used; `TestCsrf.csrf()` stays.
 
+### WS-PERF — Read-path latency and read APIs (D-110 to D-119)
+
+### D-110 One connection per read request; the tenant is bound on checkout only
+
+Every service method that only reads is `@Transactional(readOnly = true)`, so a request checks out one
+connection, binds the tenant once, and runs all its statements and its commit on it. `TenantAwareDataSource`
+no longer wraps the connection in a proxy and no longer issues `RESET lexvay.tenant_id` on return: checkout
+always runs `set_config` (tenant present) or `RESET` (no tenant), so the value an idle pooled connection holds
+cannot be used before the next checkout replaces it. Tenant isolation stays fail closed (product rule 7).
+`Rule7_PooledConnectionRebindsTest` proves it on one physical connection (a pool of size one lends the same
+backend to tenant A, to no tenant and to tenant B). `ReadPathConnectionsTest` asserts exactly one checkout per
+read endpoint.
+
+Reads that run a single statement and have no service method (audit list, jurisdictions, jobs) stay in
+autocommit: one checkout and no extra COMMIT round trip.
+
+Rejected:
+- Remembering the last bound tenant per physical connection to skip `set_config` when it matches. It saves a
+  round trip but makes isolation depend on state the application tracks about the connection; anything that
+  changes the setting behind its back (a bug, `RESET ALL`, a future SQL function) would leak. Not worth it.
+- `connectionInitSql` or a pool-level hook for the tenant. The tenant changes per request; the pool cannot know it.
+- Keeping the close-time `RESET` as a second line of defence. It costs a statement on every return and defends
+  nothing, because the checkout rebind is the only protection that matters.
+
+### D-111 Program overview: contents and package
+
+`GET /programs/{id}/overview` returns `{ program, assessment, determinations, openChangeEvents, undecidedTotal }`
+in one read-only transaction. `assessment` is the latest FINISHED one (null before the first run).
+`undecidedTotal` is the sum over jurisdictions of `total - decided` from that assessment, which is exactly the
+set the signing gate counts (stale, undecided or reopened mappings), so it needs no extra query.
+`openChangeEvents` is a list of the same views as `GET /change-events`, limited to OPEN events that touch this
+program: a new version of one of its courses, or a new rule version for one of its target jurisdictions and its
+license type. The spec did not say whether the list is program-scoped; an unscoped list would show another
+program's course changes on this program's screen. Confirmed by the orchestrator on review.
+
+The service lives in a new package `overview` because it composes assessment, determination and change data and
+nothing depends on it; putting it in `program` would create a package cycle (assessment already depends on program).
+
+Rejected: a count instead of a list (the screen needs to link to the events); embedding mappings (too large).
+
+### D-112 Document page caching
+
+`GET /documents/{id}/pages/{n}` answers with `Cache-Control: private, max-age=31536000, immutable` and a strong
+ETag `"<document sha256>-<page number>"`. Pages never change (the database rejects updates), so a year is safe.
+`private` keeps shared caches and proxies out. `If-None-Match` is answered with 304 by Spring's
+`HttpEntityMethodProcessor` from the ETag on the response entity; the 304 keeps ETag and Cache-Control. The header
+is written as a literal string because the order of its directives is part of the specified contract. A 404 is
+never marked cacheable.
+
+Known edge: the browser cache is keyed by URL, not by user. A second user on the same browser profile who
+requests the same document id would be served the first user's cached copy without a request, but only for a
+document id the first user could read, and the second user cannot learn that id from the API unless they can read
+it. Accepted; `Vary: Cookie` would remove it at the cost of losing the cache across logins.
+
+Rejected: `public` (cross-tenant risk), `ShallowEtagHeaderFilter` (hashes the body, so it still reads and
+serialises the page), a weak ETag (the content is byte-identical for a given document and page), `must-revalidate`
+(defeats the point for an immutable resource).
+
+### D-113 Review history
+
+`GET /mappings/{id}/reviews` returns every review event of the mapping oldest first, including REOPENED events
+that the system recorded (user id and display name null). An unknown id, or another tenant's, is 404 (row-level
+security hides the mapping). No role restriction: like every GET it is open to any authenticated user of the tenant.
+
+### D-114 N+1 removal
+
+Done in SQL, not in Java: determinations aggregate course version ids with an `ARRAY(SELECT ...)` in the main
+query; change event views are one statement with LEFT JOINs and correlated subqueries for "has a document" and the
+reopened determination ids (it also serves the overview and the re-run precondition); the rule version list takes
+requirement counts from a subquery and the latest extraction jobs from one `DISTINCT ON` statement. The benchmark
+exposed the rule version list (13 connections per call before) beyond the two repositories the spec named.
+
+Rejected: an in-process cache (a stale-tenant risk and not needed once queries are set-based); batch loading with
+`IN` lists per child table (more round trips than one joined statement).
+
+### D-115 Indexes
+
+V008 creates nine indexes, each chosen by the planner for its query on a database of about 200 tenants
+(`IndexUsageTest`, evidence in docs/PERF.md). Four of the fourteen candidates in the spec are not created:
+- `document (program_id)`: covered by the unique index `(tenant_id, program_id, sha256)`, because every query
+  also carries the row-level security condition on `tenant_id`.
+- `requirement (rule_version_id)`: covered by the unique index `(rule_version_id, ref)`.
+- `change_event (status, created_at DESC)`: the planner prefers the tenant index; a tenant has few events.
+- `job ((payload->>'documentId'))` and `job ((payload->>'ruleVersionId'))`: usable without row-level security
+  but never chosen with it. The job table's policy has an OR branch for the worker flag, and `jsonb ->>` is not a
+  leakproof function, so the planner may not use it as an index condition below the policy.
+
+`IndexUsageTest` creates the rejected candidates inside its own database and asserts the planner still ignores
+them, so a future Postgres or policy change that makes one useful fails the test and says so.
+
+Finding for the orchestrator, not implemented because it is a schema change outside the spec: the ingest and
+extraction status lookups (`GET /documents/{id}`, rule version views) scan the whole job table under row-level
+security, and jobs are never deleted. A generated column `payload_ref uuid` (the payload id, compared with a
+leakproof `=`) with an index would make them index lookups.
+
+### D-116 Audit filters
+
+`GET /audit` takes optional `action`, `entityType`, `entityId`, `userId`, `from`, `to` (ISO-8601 instants, both
+ends inclusive). The SQL text contains only the predicates that were given, so each combination gets its own
+plan. The response shape is unchanged. Rejected: `(:x IS NULL OR col = :x)`, which forces a generic plan that
+cannot use an index on the filtered column.
+
+### D-117 Response compression
+
+`server.compression` is on for `application/json` and `application/problem+json` from 1 kB. `spring.jackson`
+settings are untouched. `CompressionTest` checks over real HTTP that a large response is gzipped and a small one
+is not. On loopback compression costs CPU and saves no time; it pays on a real network.
+
+### D-118 Benchmark method
+
+`EndpointLatencyTest` sends `Accept-Encoding: gzip` like a browser, so the "after" numbers include compression
+CPU on the 30 to 45 kB responses. It signs one jurisdiction through the API first so the determination, review and
+change views have data (the seed's course and rule changes leave the other jurisdictions stale, which blocks
+signing). It runs twice: on the two seeded tenants, then after loading 30 renamed copies of both (62 tenants).
+Connections per call are counted by wrapping the data source. Each result in docs/PERF.md is the median of three
+runs, chosen by the sum of its p95 values; other agents were building on the same machine, so absolute numbers
+vary and the comparison between before and after is what matters.
+
+### D-119 Job payload key inside the SQL text
+
+`JobRepository.latest` used a bind parameter for the payload key (`payload->>:key`), which the planner cannot
+match to an expression index. The key is now part of the SQL text, restricted to letters, and the same helper
+builds the set-based variant. Rejected: one method per key (more API for no benefit).
+
 ### F3a — Rule version diff API (D-120 to D-129)
 
 **D-120 — One definition of "same requirement": `RequirementComparison`.** `com.lexvay.rule.RequirementComparison.changes(a, b)`
@@ -962,3 +1086,85 @@ through the upload API, using the course and document lists from `seed/manifest.
 `SeedLoader`. The loader creates the shared demo tenants once per database and `SeedLoaderTest` asserts that
 first load, so a second test calling it would make that test depend on class order. The search tests need no
 model and no scripts.
+
+### F11 — OCR for scanned documents (D-160 to D-169)
+
+**D-160 — Engine seam and selection.** `OcrEngine { boolean available(); Optional<OcrPage> recognize(BufferedImage) }`
+with `NoOcrEngine` (the default, `LEXVAY_OCR=off`) and `TesseractCliOcrEngine` (`LEXVAY_OCR=tesseract`, binary
+`LEXVAY_OCR_TESSERACT_PATH`, language `LEXVAY_OCR_LANGUAGE`). `OcrConfig` picks the bean like `FileStoreConfig` and
+rejects an unknown value at start. Decided by the CTO. Rejected: a Java binding (JavaCPP or Tess4J: native
+libraries inside the JVM, a crash takes the server down, a larger supply chain) and a cloud OCR service (student
+and institutional documents leave the deployment; no network in tests).
+
+**D-161 — The command line and its safety.** `tesseract <png> stdout -l <lang> --psm 3 tsv`, an argument array
+(never a shell), a private temporary directory per call that is always deleted, standard error redirected to a file
+in that directory, 60 s timeout then `destroyForcibly`, `OMP_THREAD_LIMIT=1` so concurrent runs do not oversubscribe
+cores. The language is validated against `[A-Za-z0-9_]+(+...)*` so a configuration value cannot become an option.
+`available()` runs `<binary> --version` once (10 s timeout) and caches the answer; a configured but missing binary
+is logged once at WARN and behaves as "not enabled". Decided by the CTO; validation and the thread limit are
+additions.
+
+**D-162 — No page text in logs or messages.** Neither the engine nor the extractor logs recognised text. A
+failure message carries the exit code and the first line of Tesseract's standard error (at most 200 characters),
+which reports configuration problems such as a missing language file, not page content. `OcrFailedException` is
+retryable (the job runner requeues it up to `lexvay.jobs.max-attempts`), because a timeout or a killed process can
+be transient. `recognize` returning empty means "no words found", not "failed".
+
+**D-163 — TSV parsing.** Recorded from a real run (`src/test/resources/ocr/tesseract-5.5.5-page.tsv`, 32 words).
+Words are level-5 rows with `conf >= 0` and non-empty text; control characters are dropped from words (PostgreSQL
+`text` rejects NUL); words of one (block, paragraph, line) are joined by a space, lines by a line feed, paragraphs by
+a blank line. The mean confidence is the plain average over the words kept. Decided by the CTO.
+
+**D-164 — Per-page ingest rule.** A PDF page keeps its text layer when it has at least 20 non-whitespace characters
+(`TEXT_LAYER`). Any other page is rendered at 300 DPI in grayscale and read when the engine is available; the result
+replaces the text layer only when it also has at least 20 non-whitespace characters (`OCR`, confidence rounded to two
+decimals to fit `numeric(5,2)`). In every other case (no engine, or too little recognised) the page keeps its text
+layer, however short, as `TEXT_LAYER`. The first version of the spec emptied such pages; the CTO changed it after
+review because discarding extracted text silently loses data that the product could cite (a short heading, a figure
+such as "60 credits"), and nothing is gained by it: the length threshold exists to decide when OCR is worth trying,
+not to delete text. The "no extractable text" rejection therefore applies only when every page's text layer is
+blank. A page whose image would exceed 25 megapixels is rendered at the largest DPI that stays under the cap.
+`TextExtractor` became an injected component (engine and page cap) instead of a static utility; DOCX and TXT are
+unchanged. Rejected: always running OCR and preferring the better text (slow, and a text layer is more reliable
+than any recognition) and emptying thin pages (data loss).
+
+**D-165 — Page cap and the "scanned" hint.** At most `lexvay.ocr.max-pages` (200) pages per document are sent to
+OCR. The check counts the pages that need OCR and runs before any recognition, so an oversized upload fails at
+once with `TooManyScannedPagesException`, a permanent job failure, and no CPU is spent. A document whose pages are
+all empty still fails with "Document has no extractable text"; for a PDF whose engine is unavailable the message
+continues ". It looks scanned; OCR is not enabled on this server". Decided by the CTO.
+
+**D-166 — Schema (V009).** `document_page.text_source` (default `TEXT_LAYER`, `CHECK IN ('TEXT_LAYER','OCR')`),
+`ocr_confidence numeric(5,2)` and `CHECK ((text_source = 'OCR') = (ocr_confidence IS NOT NULL))`, as specified;
+one addition, `CHECK` that the confidence lies in 0..100. The default makes existing rows `TEXT_LAYER` without a
+backfill. `document_page` stays immutable (V003 trigger); the columns are written only on insert. V006 and V008
+remain reserved. The repositories read the confidence with `CAST(... AS double precision)` because the PostgreSQL
+driver does not convert `numeric` to `Double`.
+
+**D-167 — Product rule 4 for OCR pages.** Evidence cited from an OCR page with confidence below
+`lexvay.matching.min-ocr-confidence` (80, exclusive: exactly 80 passes) cannot be `EVIDENCE_FOUND`; it becomes
+`AMBIGUOUS` with "the cited page was read by OCR with NN % confidence; check the original". NN is rounded down so a
+page under the threshold never displays as the threshold. The quote is verified against the stored OCR text exactly
+as against a text layer (rule 2); a quote that is not in the OCR text is still `EVIDENCE_MISSING`. The threshold has
+no `LEXVAY_*` alias on purpose; it is a safety setting.
+
+**D-168 — Downgrade rules as an ordered list.** `DowngradeRule` is a functional interface returning an optional
+reason for a passage and a verified quote; `DowngradeRule.ordered(minQuoteChars, minOcrConfidence)` lists
+`notRequiredCourse`, `thinQuote`, `lowOcrConfidence`. `EvidenceMatcher` walks the list for an `EVIDENCE_FOUND`
+proposal; every rule that applies appends " Downgraded to ambiguous: <reason>". This differs from the two `if`
+blocks it replaces in one visible way: when two rules apply (an elective course and a thin quote) the rationale now
+names both, where the second used to be hidden behind the first. The finding is the same either way. A fourth
+rule is one more list entry.
+
+**D-169 — Read models and audit.** `PageSummary` (document view) and `Mapping.Evidence` expose `textSource` and
+`ocrConfidence` (null for text layers). `MappingRepository` joins `document_page` on (document, page number) to
+fill them; `Passage` carries the same two fields from the one shared search template. `DOCUMENT_INGESTED` audit
+detail gains `ocrPages`. Docker: no `Dockerfile` exists on `main` at the time of writing, so there is no runtime
+stage to extend; whoever adds one must install Tesseract (`apt-get install tesseract-ocr`) and set
+`LEXVAY_OCR=tesseract`.
+
+**Content limits (after WS-SEC).** OCR goes through the existing `ContentLimits`: `TextExtractor.pdfPages` calls
+`ContentLimits.requirePdfPages` (500 pages) before any text is read or any page is rendered, and DOCX still passes
+`requireSafeDocx`. The OCR cap (`lexvay.ocr.max-pages`, 200) is not a parallel copy of that limit: it counts only the
+pages that need recognition, which is where the CPU cost is. F11 adds no endpoint, so `InputValidationTableTest`
+needs no new row (upload and document read are already covered).

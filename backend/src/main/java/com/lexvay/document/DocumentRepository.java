@@ -29,7 +29,12 @@ public class DocumentRepository {
             rs.getInt("page_number"),
             rs.getString("text"),
             rs.getInt("char_start"),
-            rs.getInt("char_end"));
+            rs.getInt("char_end"),
+            TextSource.valueOf(rs.getString("text_source")),
+            rs.getObject("ocr_confidence", Double.class));
+
+    private static final String PAGE_COLUMNS = "id, document_id, page_number, text, char_start, char_end, text_source, "
+            + "CAST(ocr_confidence AS double precision) AS ocr_confidence";
 
     private final JdbcClient jdbc;
 
@@ -68,23 +73,47 @@ public class DocumentRepository {
 
     /** Idempotent: a retried ingest does not duplicate or overwrite pages. */
     public int insertPage(UUID tenantId, UUID documentId, ExtractedPage page, UUID createdBy) {
-        return jdbc.sql("INSERT INTO document_page (tenant_id, document_id, page_number, text, char_start, char_end, created_by) "
-                        + "VALUES (:tenantId, :documentId, :pageNumber, :text, :charStart, :charEnd, :createdBy) "
+        return jdbc.sql("INSERT INTO document_page (tenant_id, document_id, page_number, text, char_start, char_end, text_source, ocr_confidence, created_by) "
+                        + "VALUES (:tenantId, :documentId, :pageNumber, :text, :charStart, :charEnd, :textSource, :ocrConfidence, :createdBy) "
                         + "ON CONFLICT (document_id, page_number) DO NOTHING")
                 .param("tenantId", tenantId).param("documentId", documentId).param("pageNumber", page.pageNumber())
                 .param("text", page.text()).param("charStart", page.charStart()).param("charEnd", page.charEnd())
+                .param("textSource", page.textSource().name()).param("ocrConfidence", page.ocrConfidence())
                 .param("createdBy", createdBy)
                 .update();
     }
 
     public List<DocumentPage> pages(UUID documentId) {
-        return jdbc.sql("SELECT id, document_id, page_number, text, char_start, char_end FROM document_page "
+        return jdbc.sql("SELECT " + PAGE_COLUMNS + " FROM document_page "
                         + "WHERE document_id = :documentId ORDER BY page_number")
                 .param("documentId", documentId).query(PAGE).list();
     }
 
+    /** One page with its document and course context, in a single statement. */
+    public Optional<PageWithContext> pageWithContext(UUID documentId, int pageNumber) {
+        return jdbc.sql("""
+                SELECT d.id, d.filename, d.kind, d.sha256, c.code AS course_code, cv.required AS course_required,
+                       p.page_number, p.text,
+                       (SELECT count(*) FROM document_page pc WHERE pc.document_id = d.id) AS page_count
+                FROM document d
+                JOIN document_page p ON p.document_id = d.id AND p.page_number = :pageNumber
+                LEFT JOIN course_version cv ON cv.id = d.course_version_id
+                LEFT JOIN course c ON c.id = cv.course_id
+                WHERE d.id = :documentId
+                """).param("documentId", documentId).param("pageNumber", pageNumber)
+                .query((rs, i) -> new PageWithContext(rs.getString("sha256"), new DocumentService.PageView(
+                        rs.getObject("id", UUID.class), rs.getString("filename"), DocumentKind.valueOf(rs.getString("kind")),
+                        rs.getString("course_code"), rs.getObject("course_required", Boolean.class), rs.getInt("page_number"),
+                        rs.getInt("page_count"), rs.getString("text"))))
+                .optional();
+    }
+
+    /** The page as served, plus the document hash that identifies it for caching. */
+    public record PageWithContext(String documentSha256, DocumentService.PageView view) {
+    }
+
     public Optional<DocumentPage> page(UUID documentId, int pageNumber) {
-        return jdbc.sql("SELECT id, document_id, page_number, text, char_start, char_end FROM document_page "
+        return jdbc.sql("SELECT " + PAGE_COLUMNS + " FROM document_page "
                         + "WHERE document_id = :documentId AND page_number = :pageNumber")
                 .param("documentId", documentId).param("pageNumber", pageNumber).query(PAGE).optional();
     }
