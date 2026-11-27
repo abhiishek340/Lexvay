@@ -202,7 +202,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | merged (#42) |
 | F12b Rule sources in the Rules workspace (v3) | `ui3-rule-sources` | 5 | Opus 5.5 | queued (after UI3-3) |
 | FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | merged (#45) |
-| F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | in progress |
+| F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | merged (#47) |
 | INFRA-2 Remote state, WAF, flow logs, egress | `infra-hardening` | — | Sonnet 5.5 | merged (#46) |
 | FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | in progress |
 | UI3-0 Design v3 foundation, shell, sign-in, overview | `ui3-foundation` | 1 | Opus 5.5 | in progress |
