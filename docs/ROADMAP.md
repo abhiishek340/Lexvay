@@ -1121,6 +1121,10 @@ D-259 in `docs/decisions/F7c.md`.
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
 ## Follow-ups recorded from reviews
+- FIX-5 (rule 9): `LOGOUT` is audited after the session is cleared, so its audit entry has no actor. Capture the
+  user before the logout handler clears the context and record `LOGOUT` with that user as actor and `entity_id`;
+  `Rule9_AuditCoverageTest` asserts the actor. UI2-3's `audit-sentence.spec.ts` now fails for any new audited action
+  without a sentence and label, so backend items that add an audited action also touch that frontend file.
 - F10a: the work queue's `latest` CTE (F13) still has its own copy of the "latest finished assessment" ordering; switch it
   to `AssessmentRepository.LATEST_FINISHED` with a parity test.
 - F5a security: any ADMIN can issue a setup code for any user, including a SIGNER, and so could sign in as them; the
