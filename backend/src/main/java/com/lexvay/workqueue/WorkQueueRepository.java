@@ -3,6 +3,7 @@ package com.lexvay.workqueue;
 import com.lexvay.assessment.MappingRepository;
 import com.lexvay.auth.Role;
 import com.lexvay.change.ChangeEventRepository;
+import com.lexvay.determination.DeterminationRepository;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -24,20 +25,23 @@ public class WorkQueueRepository {
     private static final int MAX_IDS = 20;
 
     /**
-     * latest: each program's latest finished assessment, the one the signing gate reads.
-     * current_mappings: its current (D-066) mappings with their latest review event (D-003).
+     * latest: each program's latest finished assessment (with its creation time), the one the signing gate reads.
+     * current_mappings: its current (D-066) mappings with their latest review event (D-003); request_blocked: the
+     * latest event is an evidence request that cannot be answered, because the mapping is stale or a signed
+     * determination covers its assessment and jurisdiction (D-361). The signed test runs only for requests.
      * affected: open change events with the programs they touch.
      */
     private static final String SHARED = """
             WITH latest AS (
-                SELECT p.id AS program_id, p.name AS program_name, a.id AS assessment_id
+                SELECT p.id AS program_id, p.name AS program_name, a.id AS assessment_id, a.created_at
                 FROM program p
-                JOIN LATERAL (SELECT a.id FROM assessment a WHERE a.program_id = p.id AND a.status = 'FINISHED'
+                JOIN LATERAL (SELECT a.id, a.created_at FROM assessment a WHERE a.program_id = p.id AND a.status = 'FINISHED'
                               ORDER BY a.finished_at DESC, a.created_at DESC LIMIT 1) a ON true
             ), current_mappings AS (
                 SELECT l.program_id, l.program_name, l.assessment_id, m.jurisdiction_id, j.code AS jurisdiction_code,
                        m.id AS mapping_id, m.stale, m.created_at, le.kind AS last_kind, le.created_at AS last_at,
-                       %1$s AS needs_decision, %2$s AS undecided
+                       %1$s AS needs_decision, %2$s AS undecided,
+                       (le.kind = 'EVIDENCE_REQUESTED' AND (m.stale OR %6$s)) AS request_blocked
                 FROM latest l
                 JOIN mapping m ON m.assessment_id = l.assessment_id
                 JOIN requirement r ON r.id = m.requirement_id
@@ -54,7 +58,8 @@ public class WorkQueueRepository {
                 WHERE ce.status = 'OPEN'
             )
             """.formatted(MappingRepository.NEEDS_DECISION, MappingRepository.UNDECIDED, MappingRepository.LATEST_EVENT,
-            MappingRepository.CURRENT, ChangeEventRepository.AFFECTS_PROGRAM);
+            MappingRepository.current("IN (SELECT assessment_id FROM latest)"), ChangeEventRepository.AFFECTS_PROGRAM,
+            DeterminationRepository.signedFor("m.assessment_id", "m.jurisdiction_id"));
 
     /**
      * Current mappings without a decision, or reopened. Stale ones cannot be reviewed (the review endpoint
@@ -71,19 +76,20 @@ public class WorkQueueRepository {
 
     /**
      * Mappings whose latest event is an evidence request. Stale ones cannot be answered until the change is
-     * re-run, so they are only counted (blockedCount), and a group with nothing answerable is not listed.
+     * re-run and signed ones are covered by a determination (the answer endpoint refuses both with 409), so
+     * they are only counted (blockedCount), and a group with nothing answerable is not listed.
      * Visible to every role: anyone may answer.
      */
     private static final String EVIDENCE_REQUESTS_OPEN = """
             SELECT 2, 'EVIDENCE_REQUESTS_OPEN', cm.program_id, cm.program_name, cm.jurisdiction_code,
-                   count(*) FILTER (WHERE NOT cm.stale), min(cm.last_at) FILTER (WHERE NOT cm.stale),
+                   count(*) FILTER (WHERE NOT cm.request_blocked), min(cm.last_at) FILTER (WHERE NOT cm.request_blocked),
                    jsonb_build_object('assessmentId', cm.assessment_id, 'mappingIds', %s,
-                                      'blockedCount', count(*) FILTER (WHERE cm.stale))
+                                      'blockedCount', count(*) FILTER (WHERE cm.request_blocked))
             FROM current_mappings cm
             WHERE cm.last_kind = 'EVIDENCE_REQUESTED'
             GROUP BY cm.program_id, cm.program_name, cm.jurisdiction_code, cm.assessment_id
-            HAVING count(*) FILTER (WHERE NOT cm.stale) > 0
-            """.formatted(ids("cm.mapping_id", "cm.last_at, cm.mapping_id", "NOT cm.stale"));
+            HAVING count(*) FILTER (WHERE NOT cm.request_blocked) > 0
+            """.formatted(ids("cm.mapping_id", "cm.last_at, cm.mapping_id", "NOT cm.request_blocked"));
 
     /** Rule versions whose extracted requirements wait for a reviewer's approval. */
     private static final String RULE_VERSIONS_TO_APPROVE = """
@@ -142,13 +148,18 @@ public class WorkQueueRepository {
             HAVING count(*) FILTER (WHERE cm.undecided) = 0
             """;
 
-    /** Assessments that failed, per program. */
+    /**
+     * Assessments that failed after the program's latest finished one, or all of them when none finished: a
+     * failure followed by a successful run needs no attention any more (D-360).
+     */
     private static final String ASSESSMENTS_FAILED = """
             SELECT 7, 'ASSESSMENTS_FAILED', p.id, p.name, NULL, count(*), min(coalesce(a.finished_at, a.created_at)),
                    jsonb_build_object('assessmentIds', %s)
             FROM assessment a
             JOIN program p ON p.id = a.program_id
+            LEFT JOIN latest l ON l.program_id = a.program_id
             WHERE CAST(:role AS text) = 'ADMIN' AND a.status = 'FAILED'
+              AND (l.created_at IS NULL OR a.created_at > l.created_at)
             GROUP BY p.id, p.name
             """.formatted(ids("a.id", "coalesce(a.finished_at, a.created_at), a.id", null));
 

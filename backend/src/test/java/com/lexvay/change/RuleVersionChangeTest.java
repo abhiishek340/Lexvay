@@ -6,6 +6,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 import com.lexvay.assessment.AbstractAssessmentTest;
 import com.lexvay.assessment.AssessmentFixtures;
+import com.lexvay.assessment.LegacyCurrentFilter;
+import com.lexvay.assessment.MappingRepository;
 import com.lexvay.audit.AuditRepository;
 import com.lexvay.common.TenantContext;
 import com.lexvay.review.ReviewFixtures;
@@ -16,12 +18,14 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import tools.jackson.databind.JsonNode;
 
 class RuleVersionChangeTest extends AbstractAssessmentTest {
 
     @Autowired AuditRepository audit;
+    @Autowired JdbcClient jdbc;
 
     private MvcTestResult createVersion(String label, String jurisdiction, UUID supersedes, String requirementsJson) {
         fake.script("EXTRACT:" + label, requirementsJson);
@@ -106,6 +110,7 @@ class RuleVersionChangeTest extends AbstractAssessmentTest {
         assertThat(oldList).as("old list stays visible until the new version is approved and re-run").hasSize(3);
         assertThat(oldList).allSatisfy(m -> assertThat(m.get("stale").asBoolean()).isTrue());
         assertThat(rf.review(t.reviewer(), s.foundMapping(), "ACCEPTED", null)).as("stale mappings cannot be reviewed").hasStatus(409);
+        assertCurrentFilterAgrees(s.assessmentId(), 4, 4);
 
         var tooEarly = mvc.post().uri("/api/v1/change-events/" + eventId + "/rerun").with(user(t.reviewer())).with(csrf()).exchange();
         assertThat(tooEarly).hasStatus(409);
@@ -117,6 +122,7 @@ class RuleVersionChangeTest extends AbstractAssessmentTest {
         assertThat(rerun).hasStatus(202);
         runner.runPending();
 
+        assertCurrentFilterAgrees(s.assessmentId(), 4, 7);
         var newList = fx.mappings(t, s.assessmentId(), "CA");
         assertThat(newList).hasSize(3);
         assertThat(newList).allSatisfy(m -> assertThat(m.get("ruleVersionId").asString()).isEqualTo(newVersion.toString()));
@@ -140,8 +146,41 @@ class RuleVersionChangeTest extends AbstractAssessmentTest {
 
         assertThat(rf.sign(t.signer(), s.programId(), "CA", "DOES_NOT_MEET")).as("the changed requirement is undecided").hasStatus(409);
         assertThat(rf.review(t.reviewer(), UUID.fromString(credits.get("id").asString()), "GAP_CONFIRMED", "60 credits is below the new 66.")).hasStatus(201);
+        assertThat(readyToSign()).as("the superseded mappings no longer block signing in the work queue").contains("CA");
         var resigned = rf.sign(t.signer(), s.programId(), "CA", "DOES_NOT_MEET");
         assertThat(resigned).as("a reopened determination can be replaced by a new signature").hasStatus(201);
         assertThat(fx.read(resigned).get("ruleVersionId").asString()).isEqualTo(newVersion.toString());
+    }
+
+    /**
+     * The set-based filter and its previous per-mapping form return the same mappings of the assessment, for the
+     * assessment's own statement ({@code = :a}) and for the work queue's ({@code IN (SELECT ...)}).
+     * {@code current}: how many mappings are current; {@code all}: how many the assessment holds.
+     */
+    private void assertCurrentFilterAgrees(UUID assessmentId, int current, int all) {
+        String base = "SELECT m.id FROM mapping m JOIN requirement r ON r.id = m.requirement_id WHERE m.assessment_id = :a";
+        List<UUID> previous = TenantContext.runAs(t.tenantId(),
+                () -> jdbc.sql(base + LegacyCurrentFilter.SQL + " ORDER BY m.id").param("a", assessmentId).query(UUID.class).list());
+        List<UUID> single = TenantContext.runAs(t.tenantId(),
+                () -> jdbc.sql(base + MappingRepository.current("= :a") + " ORDER BY m.id").param("a", assessmentId).query(UUID.class).list());
+        List<UUID> several = TenantContext.runAs(t.tenantId(), () -> jdbc.sql(base + MappingRepository.current("IN (SELECT :a)")
+                + " ORDER BY m.id").param("a", assessmentId).query(UUID.class).list());
+        assertThat(previous).hasSize(current);
+        assertThat(single).isEqualTo(previous);
+        assertThat(several).isEqualTo(previous);
+        assertThat(TenantContext.runAs(t.tenantId(), () -> jdbc.sql("SELECT count(*) FROM mapping WHERE assessment_id = :a")
+                .param("a", assessmentId).query(Long.class).single())).isEqualTo(all);
+    }
+
+    /** Jurisdiction codes of the READY_TO_SIGN items the signer sees. */
+    private List<String> readyToSign() {
+        var queue = fx.read(mvc.get().uri("/api/v1/work-queue").with(user(t.signer())).exchange());
+        List<String> codes = new java.util.ArrayList<>();
+        for (JsonNode item : queue.get("items")) {
+            if (item.get("kind").asString().equals("READY_TO_SIGN")) {
+                codes.add(item.get("jurisdictionCode").asString());
+            }
+        }
+        return codes;
     }
 }

@@ -174,6 +174,16 @@ class WorkQueueApiTest extends AbstractAssessmentTest {
                 mappingId(mappings, "CA-3"), first.ruleVersionId(), course, null);
     }
 
+    /** The evidence request of the scenario's ethics mapping, as the program's request list shows it. */
+    private JsonNode evidenceRequest(ReviewFixtures.Scenario s) {
+        var result = mvc.get().uri("/api/v1/programs/" + s.programId() + "/evidence-requests?status=ALL").with(user(t.contributor())).exchange();
+        assertThat(result).hasStatus(200);
+        JsonNode requests = fx.read(result);
+        assertThat(requests).hasSize(1);
+        assertThat(requests.get(0).get("mappingId").asString()).isEqualTo(s.ambiguousMapping().toString());
+        return requests.get(0);
+    }
+
     private UUID mappingId(JsonNode mappings, String ref) {
         return UUID.fromString(fx.mappingFor(mappings, ref).get("id").asString());
     }
@@ -402,6 +412,63 @@ class WorkQueueApiTest extends AbstractAssessmentTest {
 
         markStale(s.ambiguousMapping());
         assertThat(item(queue(t.contributor()), "EVIDENCE_REQUESTS_OPEN", "CA")).as("nothing answerable is not listed").isNull();
+    }
+
+    @Test
+    void aSignedRequestIsNotAnswerableAndNoLongerListed() throws Exception {
+        var s = california();
+        rf.decideAll(t, s);                                      // CA: the ethics request stays open; every mapping decided
+        assertThat(count(queue(t.contributor()), "EVIDENCE_REQUESTS_OPEN", "CA")).isEqualTo(1);
+        assertThat(evidenceRequest(s).get("signed").asBoolean()).isFalse();
+
+        assertThat(rf.sign(t.signer(), s.programId(), "CA", "DOES_NOT_MEET")).hasStatus(201);
+
+        JsonNode view = evidenceRequest(s);
+        assertThat(view.get("status").asString()).as("the status does not change").isEqualTo("OPEN");
+        assertThat(view.get("signed").asBoolean()).isTrue();
+        assertThat(item(queue(t.contributor()), "EVIDENCE_REQUESTS_OPEN", "CA")).as("nothing answerable is not listed").isNull();
+        assertThat(total(t.contributor())).isZero();
+        UUID schedule = fx.document(t, s.programId(), "ethics-schedule.txt", "HANDBOOK", null, ETHICS_SCHEDULE);
+        var body = Map.of("documentId", schedule.toString(), "pageNumber", 1, "quote", "Week 2: Legal standards");
+        assertThat(mvc.post().uri("/api/v1/mappings/" + s.ambiguousMapping() + "/evidence-responses").with(user(t.contributor())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)).exchange()).hasStatus(409);
+    }
+
+    @Test
+    void aRequestOfAnotherJurisdictionStaysAnswerableWhenOnlyThisOneIsSigned() throws Exception {
+        var s = california();
+        rf.decideAll(t, s);
+        review(utMapping(s), "EVIDENCE_REQUESTED", "Is the credit total documented?");
+        assertThat(rf.sign(t.signer(), s.programId(), "CA", "MEETS")).hasStatus(201);
+
+        JsonNode queue = queue(t.contributor());
+        assertThat(item(queue, "EVIDENCE_REQUESTS_OPEN", "CA")).isNull();
+        assertThat(ids(item(queue, "EVIDENCE_REQUESTS_OPEN", "UT"), "mappingIds")).containsExactly(utMapping(s).toString());
+        assertThat(item(queue, "EVIDENCE_REQUESTS_OPEN", "UT").get("ids").get("blockedCount").asLong()).isZero();
+    }
+
+    @Test
+    void aFailedAssessmentLeavesTheQueueOnceALaterRunFinishes() throws Exception {
+        UUID programId = failedAssessmentProgram("CO");
+        UUID second = fx.runAssessment(t, programId);
+        assertThat(fx.assessment(t, second).get("status").asString()).isEqualTo("FAILED");
+        JsonNode failures = item(queue(t.admin()), "ASSESSMENTS_FAILED", null);
+        assertThat(failures.get("count").asLong()).as("no run finished yet: every failure is listed").isEqualTo(2);
+        assertThat(ids(failures, "assessmentIds")).hasSize(2).contains(second.toString());
+
+        fx.fakeScript("MATCH:CO-1", fx.matchOutput("EVIDENCE_MISSING", null, null, null, "Nothing mentions it."));
+        UUID finished = fx.runAssessment(t, programId);
+        assertThat(fx.assessment(t, finished).get("status").asString()).isEqualTo("FINISHED");
+        assertThat(item(queue(t.admin()), "ASSESSMENTS_FAILED", null)).as("both earlier failures are followed by a success").isNull();
+        assertThat(total(t.admin())).isZero();
+
+        fake.reset();
+        UUID third = fx.runAssessment(t, programId);
+        assertThat(fx.assessment(t, third).get("status").asString()).isEqualTo("FAILED");
+        JsonNode after = item(queue(t.admin()), "ASSESSMENTS_FAILED", null);
+        assertThat(after.get("count").asLong()).isEqualTo(1);
+        assertThat(ids(after, "assessmentIds")).containsExactly(third.toString());
+        assertThat(total(t.admin())).isEqualTo(1);
     }
 
     @Test
