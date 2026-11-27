@@ -2,7 +2,8 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { NgIcon } from '@ng-icons/core';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { phosphorCopy, phosphorPrinter } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -18,9 +19,11 @@ import { OUTCOME_ICON, OUTCOME_LABEL, STATUS_ICON, STATUS_LABEL } from '../../co
 import { DeterminationLists, DeterminationStatus, Jurisdiction, Outcome, Program, RegisterFilter, RegisterRow } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
-import { NO_FILTER, disclosureSections, registerCsvUrl } from '../../core/register';
+import { NO_FILTER, registerCsvUrl } from '../../core/register';
 import { SessionService } from '../../core/session.service';
 import { IconName } from '../../theme/icons';
+import { registerRegisterTheme } from './register-theme';
+import { disclosureSections } from './register-view';
 
 type TabId = 'register' | 'by-program';
 type Severity = 'success' | 'danger' | 'secondary' | 'warn';
@@ -38,6 +41,8 @@ const STATUS_SEVERITY: Record<DeterminationStatus, Severity> = { SIGNED: 'succes
   selector: 'lx-register',
   imports: [DatePipe, FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, Select, Skeleton, TableModule,
     Tab, TabList, TabPanel, TabPanels, Tabs, Tag, ToggleSwitch],
+  // Icons only this screen shows ship in its chunk, not in the initial bundle's registry (theme/icons.ts).
+  viewProviders: [provideIcons({ phosphorCopy, phosphorPrinter })],
   templateUrl: './register.html',
   styleUrl: './register.css',
 })
@@ -89,6 +94,7 @@ export class Register {
   readonly printGeneratedAt = computed(() => (this.tab() === 'by-program' ? this.lists()?.generatedAt ?? null : this.loadedAt()));
 
   constructor() {
+    registerRegisterTheme();
     Promise.all([firstValueFrom(this.api.programs()), firstValueFrom(this.api.jurisdictions())])
       .then(([programs, jurisdictions]) => {
         this.jurisdictions.set(jurisdictions);
