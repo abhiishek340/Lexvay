@@ -23,6 +23,7 @@ describe('audit rows', () => {
   it('words the details instead of showing enum values', () => {
     expect(detailSummary(entries[1].detail)).toBe('Jurisdiction: CA · Outcome: Determined not to meet');
     expect(detailSummary(entries[0].detail)).toBe('Requirement: CA-3 · Decision: Gap confirmed · Note: No telehealth content.');
+    expect(detailSummary({ kind: 'SYLLABUS', filename: 'coun625.pdf' })).toBe('Kind: syllabus · File: coun625.pdf');
     expect(detailSummary({ unknownKey: 'x', note: '' })).toBe('');
   });
 

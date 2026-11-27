@@ -63,6 +63,8 @@ export class Review {
   readonly outcome = signal<Outcome | null>(null);
   readonly wide = signal(typeof matchMedia === 'function' ? matchMedia(WIDE).matches : true);
 
+  /** A jurisdiction asked for before the assessment was known. */
+  private requested: string | null = null;
   private readonly noteField = viewChild<ElementRef<HTMLTextAreaElement>>('noteField');
   private readonly listPane = viewChild<ElementRef<HTMLElement>>('listPane');
 
@@ -93,7 +95,7 @@ export class Review {
         untracked(() => this.error.set('No finished assessment exists for this program yet. Requirements appear here after one runs.'));
         return;
       }
-      const wanted = this.route.snapshot.queryParamMap.get('jurisdiction');
+      const wanted = this.requested ?? this.route.snapshot.queryParamMap.get('jurisdiction');
       untracked(() => this.selectJurisdiction(wanted && program.jurisdictions.includes(wanted) ? wanted : program.jurisdictions[0]));
     });
     if (typeof matchMedia === 'function') {
@@ -106,8 +108,14 @@ export class Review {
 
   async selectJurisdiction(code: string | number | undefined): Promise<void> {
     const assessment = this.context.assessment();
-    if (typeof code !== 'string' || !assessment || code === this.jurisdiction()) { return; }
+    if (typeof code !== 'string' || code === this.jurisdiction()) { return; }
+    if (!assessment || !this.context.ready()) {
+      // A tab chosen before the program finished loading is opened once it has.
+      this.requested = code;
+      return;
+    }
     this.jurisdiction.set(code);
+    this.workspace.load([]);
     this.message.set(null);
     this.error.set(null);
     this.loading.set(true);

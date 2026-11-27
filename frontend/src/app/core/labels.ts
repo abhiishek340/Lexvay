@@ -77,6 +77,12 @@ export function actionLabel(action: string): string {
   return ACTION_LABEL[action] ?? humanize(action);
 }
 
+/** "CLINICAL_MENTAL_HEALTH_COUNSELING" becomes "Clinical mental health counseling license". */
+export function licenseLabel(program: { licenseType: string }): string {
+  const words = humanize(program.licenseType);
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)} license`;
+}
+
 /** "COURSE_VERSION" and "courseVersion" both become "course version". */
 export function humanize(value: string): string {
   return value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toLowerCase();

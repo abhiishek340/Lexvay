@@ -12,7 +12,7 @@
 :host ::ng-deep .lx-review-tabs .p-tabpanels { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 :host ::ng-deep .lx-review-tabs .p-tabpanel:not([hidden]) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
-.lx-splitter { flex: 1; min-height: 0; display: block; }
+.lx-splitter { flex: 1; min-height: 0; }
 :host ::ng-deep .lx-splitter.p-splitter { height: 100%; border: 0; border-radius: 0; background: transparent; }
 :host ::ng-deep .lx-splitter .p-splitter-panel { display: flex; flex-direction: column; min-height: 0; }
 :host ::ng-deep .lx-splitter .p-splitter-gutter:hover, :host ::ng-deep .lx-splitter .p-splitter-gutter:focus-visible { background: var(--p-lx-primary); }

@@ -2,7 +2,7 @@ import { AssessmentView, Determination, JurisdictionSummary, Program } from './m
 
 export interface OverviewCounts { jurisdictions: number; requirements: number; waitingForReview: number; determinationsSigned: number; }
 
-/** Where a jurisdiction stands, so the screen can pick an icon and tag severity as well as the words. */
+/** Where a jurisdiction's determination stands; status is the same in words (review counts are shown separately). */
 export type JurisdictionState = 'SIGNED' | 'READY' | 'IN_REVIEW' | 'NOT_ASSESSED';
 
 export interface JurisdictionRow {
@@ -11,7 +11,6 @@ export interface JurisdictionRow {
   state: JurisdictionState;
   status: string;
   signed: Determination | null;
-  reopened: boolean;
 }
 
 /** The four counts on the Program overview, computed from the latest assessment and the determinations. */
@@ -45,9 +44,9 @@ export function jurisdictionRows(program: Program, assessment: AssessmentView | 
       status = reopened ? 'Reopened, ready to sign' : 'Ready to sign';
     } else {
       state = 'IN_REVIEW';
-      status = reopened ? `Reopened, ${summary.decided} of ${summary.total} reviewed` : `${summary.decided} of ${summary.total} reviewed`;
+      status = reopened ? 'Reopened, not signed' : 'Not signed';
     }
-    return { code, summary, state, status, signed, reopened: !signed && reopened !== null };
+    return { code, summary, state, status, signed };
   });
 }
 

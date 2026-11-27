@@ -20,7 +20,7 @@
       <header class="lx-doc-head">
         <p class="lx-label">Evidence report</p>
         <h2 id="report-title">{{ context.jurisdictionName(jurisdiction()) }} <span class="lx-mono">{{ jurisdiction() }}</span></h2>
-        <p class="lx-doc-sub">{{ p.name }}, {{ p.licenseType.replaceAll('_', ' ') }} license, catalog year {{ p.catalogYear }}</p>
+        <p class="lx-doc-sub">{{ p.name }} · {{ license(p) }} · catalog year {{ p.catalogYear }}</p>
       </header>
 
       @if (signed(); as d) {

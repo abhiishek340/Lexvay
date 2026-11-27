@@ -50,9 +50,9 @@
             </td>
             <td>
               @if (e.status === 'OPEN') {
-                <p-tag severity="warn"><ng-template #icon><ng-icon name="phosphorWarning" size="14" aria-hidden="true" /></ng-template><span>Open</span></p-tag>
+                <p-tag severity="warn" value="Open"><ng-template #icon><ng-icon name="phosphorWarning" size="14" aria-hidden="true" /></ng-template></p-tag>
               } @else {
-                <p-tag severity="success"><ng-template #icon><ng-icon name="phosphorCheckCircle" size="14" aria-hidden="true" /></ng-template><span>Handled</span></p-tag>
+                <p-tag severity="success" value="Handled"><ng-template #icon><ng-icon name="phosphorCheckCircle" size="14" aria-hidden="true" /></ng-template></p-tag>
               }
             </td>
             <td class="lx-action">

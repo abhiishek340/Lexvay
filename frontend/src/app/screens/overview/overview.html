@@ -7,7 +7,7 @@
       <div>
         <p class="lx-label">Program overview</p>
         <h1>{{ p.name }}</h1>
-        <p>{{ p.licenseType.replaceAll('_', ' ') }} license · catalog year {{ p.catalogYear }}</p>
+        <p>{{ license(p) }} · catalog year {{ p.catalogYear }}</p>
       </div>
     </header>
 
@@ -58,9 +58,8 @@
               }
             </td>
             <td>
-              <p-tag [severity]="stateTag(row.state).severity">
+              <p-tag [severity]="stateTag(row.state).severity" [value]="row.status">
                 <ng-template #icon><ng-icon [name]="stateTag(row.state).icon" size="14" aria-hidden="true" /></ng-template>
-                <span>{{ row.status }}</span>
               </p-tag>
               @if (row.signed; as d) {
                 <p class="lx-help lx-signed-meta">{{ outcome(d) }} · {{ d.signedByName }} · {{ d.signedAt | date: 'd MMM y' }}</p>

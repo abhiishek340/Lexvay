@@ -5,6 +5,7 @@ import { Message } from 'primeng/message';
 import { Skeleton } from 'primeng/skeleton';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../core/api.service';
+import { licenseLabel } from '../core/labels';
 import { Program } from '../core/models';
 import { problemDetail } from '../core/problem';
 
@@ -25,7 +26,7 @@ import { problemDetail } from '../core/problem';
             @for (p of list; track p.id) {
               <li>
                 <a [routerLink]="['/programs', p.id, 'overview']">{{ p.name }}</a>
-                <span class="lx-muted">{{ p.licenseType.replaceAll('_', ' ') }} · catalog year {{ p.catalogYear }}</span>
+                <span class="lx-muted">{{ license(p) }} · catalog year {{ p.catalogYear }}</span>
                 <ng-icon name="phosphorArrowRight" size="16" aria-hidden="true" />
               </li>
             }
@@ -49,6 +50,7 @@ export class Home {
   private readonly router = inject(Router);
   readonly programs = signal<Program[] | null>(null);
   readonly error = signal<string | null>(null);
+  readonly license = licenseLabel;
 
   constructor() {
     firstValueFrom(this.api.programs()).then((list) => {

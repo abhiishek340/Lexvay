@@ -26,6 +26,7 @@
 .lx-stamp-actions button, .lx-stamp-actions a { gap: 6px; }
 
 .lx-doc-section { margin-bottom: 8px; }
+:host ::ng-deep .lx-table { font-family: var(--lx-font-sans); font-size: 14px; line-height: 20px; }
 .lx-col-req { min-width: 220px; }
 .lx-req-title { display: block; font-family: var(--lx-font-sans); font-weight: 500; margin: 2px 0 4px; }
 .lx-req-text { display: block; font-family: var(--lx-font-serif); font-size: 14px; line-height: 21px; color: var(--p-lx-text-secondary); }

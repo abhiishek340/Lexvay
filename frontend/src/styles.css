@@ -88,7 +88,10 @@ kbd {
 
 /* PrimeNG refinements that belong to the whole product, not one screen. */
 @layer lexvay {
-  .p-datatable-column-title { text-transform: uppercase; letter-spacing: 0.06em; }
+  .p-datatable-thead > tr > th {
+    font-family: var(--lx-font-sans); font-size: 11px; line-height: 16px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--p-lx-text-secondary);
+  }
   .p-datatable-tbody > tr > td { font-size: 13px; line-height: 18px; vertical-align: top; }
   .p-tag { line-height: 16px; }
   .p-button { font-family: var(--lx-font-sans); }

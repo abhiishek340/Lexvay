@@ -11,7 +11,7 @@ import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
-import { OUTCOME_LABEL } from '../../core/labels';
+import { OUTCOME_LABEL, licenseLabel } from '../../core/labels';
 import { Mapping } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
@@ -34,6 +34,7 @@ export class Report {
   readonly context = inject(ProgramContext);
   readonly programId = input.required<string>();
   readonly outcomeLabel = OUTCOME_LABEL;
+  readonly license = licenseLabel;
 
   readonly jurisdiction = signal('');
   readonly mappings = signal<Mapping[] | null>(null);

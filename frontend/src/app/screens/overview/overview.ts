@@ -8,14 +8,16 @@ import { ProgressBar } from 'primeng/progressbar';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { Tag } from 'primeng/tag';
-import { OUTCOME_LABEL } from '../../core/labels';
+import { OUTCOME_LABEL, licenseLabel } from '../../core/labels';
 import { Determination } from '../../core/models';
 import { JurisdictionRow, JurisdictionState, jurisdictionRows } from '../../core/overview';
 import { ProgramContext } from '../../core/program-context';
 import { IconName } from '../../theme/icons';
 import { FindingsBar } from '../../ui/findings-bar';
 
-const STATE_TAG: Record<JurisdictionState, { severity: 'success' | 'info' | 'warn' | 'secondary'; icon: IconName }> = {
+interface StateTag { severity: 'success' | 'info' | 'warn' | 'secondary'; icon: IconName }
+
+const STATE_TAG: Record<JurisdictionState, StateTag> = {
   SIGNED: { severity: 'success', icon: 'phosphorSealCheck' },
   READY: { severity: 'info', icon: 'phosphorSignature' },
   IN_REVIEW: { severity: 'secondary', icon: 'phosphorCircleDashed' },
@@ -37,7 +39,9 @@ export class Overview {
     return OUTCOME_LABEL[d.outcome];
   }
 
-  stateTag(state: JurisdictionState): { severity: 'success' | 'info' | 'warn' | 'secondary'; icon: IconName } {
+  readonly license = licenseLabel;
+
+  stateTag(state: JurisdictionState): StateTag {
     return STATE_TAG[state];
   }
 

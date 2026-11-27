@@ -16,10 +16,11 @@ export interface AuditRow {
 export interface AuditFilter { action: string | null; entityType: string | null }
 
 /** Detail keys worth showing, in reading order, with how to word each value. */
-const DETAIL_KEYS: { key: string; label: string; format?: (v: unknown) => string }[] = [
+const DETAIL_KEYS: { key: string; label: string; format?: (v: unknown) => string; describe?: (v: unknown) => string }[] = [
   { key: 'jurisdiction', label: 'Jurisdiction' },
   { key: 'requirementRef', label: 'Requirement' },
-  { key: 'kind', label: 'Decision', format: (v) => DECISION_LABEL[v as DecisionKind] ?? humanize(String(v)) },
+  // "kind" is the decision on review entries and a document or change kind elsewhere.
+  { key: 'kind', label: 'Kind', describe: (v) => (isDecision(v) ? `Decision: ${DECISION_LABEL[v]}` : `Kind: ${humanize(String(v))}`) },
   { key: 'outcome', label: 'Outcome', format: (v) => OUTCOME_LABEL[v as Outcome] ?? humanize(String(v)) },
   { key: 'filename', label: 'File' },
   { key: 'label', label: 'Version' },
@@ -28,10 +29,14 @@ const DETAIL_KEYS: { key: string; label: string; format?: (v: unknown) => string
   { key: 'note', label: 'Note' },
 ];
 
+function isDecision(v: unknown): v is DecisionKind {
+  return typeof v === 'string' && v in DECISION_LABEL;
+}
+
 export function detailSummary(detail: Record<string, unknown>): string {
   return DETAIL_KEYS
     .filter(({ key }) => detail[key] !== undefined && detail[key] !== null && detail[key] !== '')
-    .map(({ key, label, format }) => `${label}: ${format ? format(detail[key]) : String(detail[key])}`)
+    .map(({ key, label, format, describe }) => (describe ? describe(detail[key]) : `${label}: ${format ? format(detail[key]) : String(detail[key])}`))
     .join(' · ');
 }
 

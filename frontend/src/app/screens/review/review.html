@@ -215,7 +215,8 @@
 </ng-template>
 
 <p-dialog header="Sign determination for {{ jurisdiction() }}" [visible]="signOpen()" (visibleChange)="signOpen.set($event)" [modal]="true"
-          [draggable]="false" [resizable]="false" [style]="{ width: '34rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body">
+          [draggable]="false" [resizable]="false" [style]="{ width: '34rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body"
+          closeAriaLabel="Cancel signing">
   <p class="lx-dialog-text">
     All {{ workspace.total() }} requirements for {{ context.jurisdictionName(jurisdiction()) }} have a review decision.
     Signing records a determination in your name and locks it to the rule version and course versions in use now.
@@ -237,7 +238,8 @@
 </p-dialog>
 
 <p-dialog header="Keyboard shortcuts" [visible]="helpOpen()" (visibleChange)="helpOpen.set($event)" [modal]="true" [draggable]="false"
-          [resizable]="false" [dismissableMask]="true" [style]="{ width: '28rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body">
+          [resizable]="false" [dismissableMask]="true" [style]="{ width: '28rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body"
+          closeAriaLabel="Close shortcuts">
   <dl class="lx-shortcuts">
     @for (s of shortcuts; track s.command) {
       <div><dt><kbd>{{ s.keys }}</kbd></dt><dd>{{ s.description }}</dd></div>

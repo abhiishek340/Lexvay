@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LEXVAY_ICONS } from '../theme/icons';
-import { ACTION_LABEL, CHANGE_KIND, DECISION_ICON, DECISION_LABEL, FINDING_ICON, FINDING_LABEL, OUTCOME_LABEL, ROLE_LABEL, actionLabel, humanize } from './labels';
+import { ACTION_LABEL, CHANGE_KIND, DECISION_ICON, DECISION_LABEL, FINDING_ICON, FINDING_LABEL, OUTCOME_LABEL, ROLE_LABEL, actionLabel, humanize, licenseLabel } from './labels';
 
 describe('labels', () => {
   it('never use the forbidden phrases', () => {
@@ -22,5 +22,6 @@ describe('labels', () => {
   it('unknown actions and keys fall back to readable text', () => {
     expect(actionLabel('SOMETHING_NEW')).toBe('something new');
     expect(humanize('requirementRef')).toBe('requirement ref');
+    expect(licenseLabel({ licenseType: 'CLINICAL_MENTAL_HEALTH_COUNSELING' })).toBe('Clinical mental health counseling license');
   });
 });

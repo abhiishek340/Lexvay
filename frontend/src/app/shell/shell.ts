@@ -59,19 +59,21 @@ export class Shell {
   private readonly menu = viewChild<Menu>('accountMenu');
 
   constructor() {
-    let first = true;
+    let previousPath: string | null = null;
     const sub = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {
       this.url.set(e.urlAfterRedirects);
+      const path = e.urlAfterRedirects.split(/[?#]/)[0];
       const programId = findParam(this.router.routerState.snapshot.root, 'programId');
       this.programId.set(programId);
       if (programId) {
         this.context.ensure(programId);
       }
-      // A route change moves focus to the new page's heading; the first page load keeps the browser's start.
-      if (!first) {
+      // Moving to another screen puts focus on its heading. The first page load keeps the browser's start, and
+      // a query-only change (a jurisdiction tab) keeps focus where the person is working.
+      if (previousPath !== null && path !== previousPath) {
         focusHeadingWhenRendered();
       }
-      first = false;
+      previousPath = path;
     });
     inject(DestroyRef).onDestroy(() => sub.unsubscribe());
   }

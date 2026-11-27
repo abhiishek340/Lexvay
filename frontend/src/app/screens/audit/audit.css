@@ -5,6 +5,7 @@
 .lx-when { white-space: nowrap; }
 .lx-action { font-weight: 500; white-space: nowrap; }
 .lx-record { white-space: nowrap; }
+.lx-record .lx-mono { margin-left: 6px; }
 .lx-details { min-width: 16rem; }
 .lx-actor { white-space: nowrap; }
 .lx-skeleton { display: flex; flex-direction: column; gap: 6px; }

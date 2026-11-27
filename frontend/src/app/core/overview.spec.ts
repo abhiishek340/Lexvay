@@ -25,14 +25,14 @@ describe('overview counts', () => {
 describe('jurisdiction rows', () => {
   it('reports signed, in-progress and not-assessed states in words', () => {
     const rows = jurisdictionRows(program, assessment, [signed]);
-    expect(rows[0]).toMatchObject({ state: 'SIGNED', status: 'Signed', reopened: false });
-    expect(rows[1]).toMatchObject({ state: 'IN_REVIEW', status: '3 of 9 reviewed' });
+    expect(rows[0]).toMatchObject({ state: 'SIGNED', status: 'Signed' });
+    expect(rows[1]).toMatchObject({ state: 'IN_REVIEW', status: 'Not signed' });
     expect(jurisdictionRows(program, null, [])[0]).toMatchObject({ state: 'NOT_ASSESSED', status: 'Not assessed' });
   });
   it('says when a determination was reopened by a change', () => {
     const reopened: Determination = { ...signed, status: 'REOPENED' };
     const [ca] = jurisdictionRows(program, assessment, [reopened]);
-    expect(ca).toMatchObject({ state: 'READY', status: 'Reopened, ready to sign', reopened: true, signed: null });
+    expect(ca).toMatchObject({ state: 'READY', status: 'Reopened, ready to sign', signed: null });
   });
   it('bar segments add up to 100 percent', () => {
     const total = barSegments(assessment.jurisdictions[0]).reduce((n, s) => n + s.percent, 0);
