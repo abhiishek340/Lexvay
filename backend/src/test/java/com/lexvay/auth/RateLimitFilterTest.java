@@ -49,7 +49,7 @@ class RateLimitFilterTest {
     }
 
     private static void signInAs(UUID userId) {
-        var user = new LexvayUser(userId, UUID.randomUUID(), "u@x.test", "U", Role.ADMIN, "hash");
+        var user = new LexvayUser(userId, UUID.randomUUID(), "u@x.test", "U", Role.ADMIN, "hash", 0);
         SecurityContextHolder.getContext().setAuthentication(UsernamePasswordAuthenticationToken.authenticated(user, null, user.getAuthorities()));
     }
 

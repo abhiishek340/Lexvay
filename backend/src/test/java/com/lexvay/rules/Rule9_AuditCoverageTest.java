@@ -35,15 +35,21 @@ class Rule9_AuditCoverageTest extends AbstractDatabaseTest {
             "POST /api/v1/determinations/{id}/report",             // ReportTest.signedDeterminationReportIsGeneratedAndDownloadable
             "POST /api/v1/rule-sources",                           // RuleSourceApiTest.createStoresTheSourceQueuesTheFirstCheckAndIsAudited
             "POST /api/v1/rule-sources/{id}/check",                // RuleSourceApiTest.aCheckCanBeRequestedOnceAtATimeAndIsAudited
-            "PUT /api/v1/rule-sources/{id}/active"                 // RuleSourceApiTest.onlyAnAdminTurnsMonitoringOffAndOnAndItIsAudited
+            "PUT /api/v1/rule-sources/{id}/active",                // RuleSourceApiTest.onlyAnAdminTurnsMonitoringOffAndOnAndItIsAudited
+            "POST /api/v1/users",                                 // UserAdminApiTest.creatingAUserIsAuditedWithoutTheCode
+            "POST /api/v1/users/{id}/setup-code",                 // UserAdminApiTest.aNewCodeClosesTheEarlierOnesAndIsAudited
+            "PUT /api/v1/users/{id}/role",                        // UserAdminApiTest.aRoleChangeIsAuditedWithTheOldAndNewRole
+            "PUT /api/v1/users/{id}/active",                      // UserAdminApiTest.deactivationAndReactivationAreAudited
+            "POST /api/v1/auth/setup"                             // PasswordSetupApiTest.aValidCodeSetsThePasswordOnceAndIsAuditedAsThePerson
     );
 
     /**
      * Reads that are audited all the same, because they hand signed records out of the system (D-274 in
-     * docs/decisions/F8.md). Endpoint → test that asserts its audit row.
+     * docs/decisions/F8.md; the audit export, D-377). Endpoint → test that asserts its audit row.
      */
     static final Set<String> AUDITED_READ_ENDPOINTS = Set.of(
-            "GET /api/v1/determinations/register.csv"              // RegisterApiTest.theCsvExportIsRfc4180WithLabelsAndIsAudited
+            "GET /api/v1/determinations/register.csv",             // RegisterApiTest.theCsvExportIsRfc4180WithLabelsAndIsAudited
+            "GET /api/v1/audit.csv"                               // AuditExportApiTest.theExportIsAuditedWithItsFiltersAndRowCount
     );
 
     @Autowired @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping;

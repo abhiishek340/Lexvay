@@ -19,7 +19,7 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * The single rate-limiting filter (D-092): login attempts per client address, authenticated API calls and
+ * The single rate-limiting filter (D-092): login and setup-code attempts per client address, authenticated API calls and
  * uploads per user. A rejected request gets a 429 problem detail with {@code Retry-After}. Buckets live in a
  * bounded Caffeine cache that evicts idle keys, so the number of distinct addresses or users cannot grow
  * memory without limit.
@@ -29,6 +29,9 @@ public final class RateLimitFilter extends OncePerRequestFilter {
     private static final Duration WINDOW = Duration.ofMinutes(1);
     private static final PathPatternRequestMatcher LOGIN_POST =
             PathPatternRequestMatcher.pathPattern(HttpMethod.POST, SecurityConfig.LOGIN_URL);
+    /** Guessing a setup code is guessing a password, so it draws on the login budget (D-373). */
+    private static final PathPatternRequestMatcher SETUP_POST =
+            PathPatternRequestMatcher.pathPattern(HttpMethod.POST, SecurityConfig.SETUP_URL);
     private static final PathPatternRequestMatcher OIDC_CALLBACK =
             PathPatternRequestMatcher.pathPattern(HttpMethod.GET, SecurityConfig.OIDC_CALLBACK_PATTERN);
     private static final PathPatternRequestMatcher API = PathPatternRequestMatcher.pathPattern("/api/**");
@@ -79,7 +82,7 @@ public final class RateLimitFilter extends OncePerRequestFilter {
 
     /** Consumes one token from every budget that applies to the request; returns the first refusal, if any. */
     private ConsumptionProbe firstRejection(HttpServletRequest request) {
-        if (LOGIN_POST.matches(request) || OIDC_CALLBACK.matches(request)) {
+        if (LOGIN_POST.matches(request) || SETUP_POST.matches(request) || OIDC_CALLBACK.matches(request)) {
             return refusal(consume(Budget.LOGIN, request.getRemoteAddr(), limits.loginPerMinute()));
         }
         var user = CurrentUser.get();
