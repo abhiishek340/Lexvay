@@ -325,10 +325,9 @@ test('a reviewer enters the list by hand, corrects it, saves, reloads and approv
   await expectAccessible(page, 'Approved version');
 
   await nav(page, 'Audit trail').click();
-  const audit = page.getByRole('table', { name: 'Audit trail' });
-  await expect(audit).toContainText('Requirement list approved');
-  await expect(audit).toContainText('Requirement list replaced');
-  await expect(audit.locator('tbody tr', { hasText: 'Requirement list approved' }).first()).toContainText('Dr. Priya Raman');
+  const audit = page.getByRole('main');
+  await expect(audit).toContainText(/Dr\. Priya Raman approved \d+ requirements?/);
+  await expect(audit).toContainText(/Dr\. Priya Raman edited a requirement list \(\d+ requirements?\)/);
 });
 
 test('at 400 px the rule workspace stacks without horizontal page scroll', async ({ page }) => {

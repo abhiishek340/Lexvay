@@ -1,34 +1,47 @@
 import { DatePipe } from '@angular/common';
-import { Component, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorArrowsClockwise, phosphorBookOpen, phosphorCheckCircle, phosphorWarning } from '@ng-icons/phosphor-icons/regular';
+import { phosphorGitDiffDuotone } from '@ng-icons/phosphor-icons/duotone';
+import {
+  phosphorArrowsClockwise, phosphorBookOpen, phosphorCaretDown, phosphorCheckCircle, phosphorWarning,
+} from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { ProgressSpinner } from 'primeng/progressspinner';
 import { Skeleton } from 'primeng/skeleton';
-import { TableModule } from 'primeng/table';
 import { Tag } from 'primeng/tag';
+import { Timeline } from 'primeng/timeline';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
-import { ChangeEvent } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import { CHANGE_KIND } from './change-kind';
-import { rerunBlocker } from './change-rules';
+import { Enter } from '../../ui/enter';
+import { InfoTip } from '../../ui/info-tip';
+import { ChangeCard, changeCards } from './change-card';
 import { CHANGES_TOKENS } from './changes-theme';
 
 /** The icons the Changes screen shows beyond SHELL_ICONS, provided by its route (changes.routes.ts). */
-export const CHANGES_ICONS = { phosphorArrowsClockwise, phosphorBookOpen, phosphorCheckCircle, phosphorWarning };
+export const CHANGES_ICONS = {
+  phosphorArrowsClockwise, phosphorBookOpen, phosphorCaretDown, phosphorCheckCircle, phosphorGitDiffDuotone, phosphorWarning,
+};
 
 const POLL_MS = 1000;
 const POLL_LIMIT = 90;
 
+/** Where a re-run stands, in the words its card shows. */
+export type RerunPhase = 'Queued' | 'Re-running' | 'Updating';
+
+/**
+ * Changes (DESIGN.md "Changes"): every new rule or course version as a card on a vertical timeline, newest first, with
+ * the old and new version as two pills, its status, one action (the re-run) and what it affects folded under it.
+ */
 @Component({
   selector: 'lx-changes',
-  imports: [DatePipe, NgIcon, ButtonDirective, ButtonLabel, Message, ProgressSpinner, Skeleton, TableModule, Tag],
+  imports: [DatePipe, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, ProgressSpinner, Skeleton, Tag, Timeline, Enter, InfoTip],
   templateUrl: './changes.html',
   styleUrl: './changes.css',
 })
@@ -38,12 +51,15 @@ export class Changes {
   readonly session = inject(SessionService);
   readonly context = inject(ProgramContext);
   readonly programId = input.required<string>();
-  readonly blocker = rerunBlocker;
 
   readonly error = signal<string | null>(null);
   readonly message = signal<string | null>(null);
-  /** The change event whose re-run is in progress. */
-  readonly running = signal<string | null>(null);
+  /** The change whose re-run is in progress, and how far it is. */
+  readonly running = signal<{ id: string; phase: RerunPhase } | null>(null);
+  private readonly expanded = signal<ReadonlySet<string>>(new Set());
+
+  readonly cards = computed(() => changeCards(this.context.changeEvents(), (code) => this.context.jurisdictionName(code), this.context.determinations()));
+  readonly openCount = computed(() => this.cards().filter((c) => c.open).length);
 
   constructor() {
     registerComponentTokens(CHANGES_TOKENS);
@@ -53,17 +69,29 @@ export class Changes {
     });
   }
 
-  async rerun(e: ChangeEvent): Promise<void> {
-    this.running.set(e.id);
+  isOpen(id: string): boolean {
+    return this.expanded().has(id);
+  }
+
+  toggle(id: string): void {
+    this.expanded.update((open) => {
+      const next = new Set(open);
+      if (!next.delete(id)) { next.add(id); }
+      return next;
+    });
+  }
+
+  async rerun(card: ChangeCard): Promise<void> {
+    this.running.set({ id: card.id, phase: 'Queued' });
     this.error.set(null);
-    this.message.set(`${CHANGE_KIND[e.kind].action} for ${subject(e)} is running.`);
+    this.message.set(`${card.action} for ${card.title} is running.`);
     try {
-      const started = await firstValueFrom(this.api.rerunChange(e.id));
-      await this.waitForJob(started.jobId);
+      const started = await firstValueFrom(this.api.rerunChange(card.id));
+      await this.waitForJob(card.id, started.jobId);
+      this.running.set({ id: card.id, phase: 'Updating' });
       await this.context.refreshAfterChange();
-      const text = `${CHANGE_KIND[e.kind].label} for ${subject(e)} handled. Requirements whose evidence changed are back in review.`;
-      this.message.set(text);
-      this.toast.add({ severity: 'success', summary: 'Re-run finished', detail: text });
+      this.message.set(`${card.title} handled. Requirements whose evidence changed are back in review.`);
+      this.toast.add({ severity: 'success', summary: 'Re-run finished', detail: `${card.title}: changed requirements are back in review.` });
     } catch (err: unknown) {
       this.message.set(null);
       this.error.set(problemDetail(err, 'The re-run could not be completed.'));
@@ -72,31 +100,14 @@ export class Changes {
     }
   }
 
-  kind(e: ChangeEvent): (typeof CHANGE_KIND)[ChangeEvent['kind']] {
-    return CHANGE_KIND[e.kind];
-  }
-
-  what(e: ChangeEvent): { old: string; next: string } {
-    return e.kind === 'RULE_VERSION'
-      ? { old: e.oldLabel ?? 'previous rule version', next: e.newLabel ?? 'new rule version' }
-      : { old: `catalog year ${e.oldCatalogYear ?? 'unknown'}`, next: `catalog year ${e.newCatalogYear ?? 'unknown'}` };
-  }
-
-  subject(e: ChangeEvent): string {
-    return subject(e);
-  }
-
-  private async waitForJob(jobId: string): Promise<void> {
+  private async waitForJob(id: string, jobId: string): Promise<void> {
     for (let i = 0; i < POLL_LIMIT; i++) {
       const job = await firstValueFrom(this.api.jobStatus(jobId));
       if (job.status === 'DONE') { return; }
       if (job.status === 'FAILED') { throw new Error(job.error ?? 'The re-run failed.'); }
+      this.running.set({ id, phase: job.status === 'RUNNING' ? 'Re-running' : 'Queued' });
       await new Promise((resolve) => setTimeout(resolve, POLL_MS));
     }
     throw new Error('The re-run is taking longer than expected. Reload this page later to see its result.');
   }
-}
-
-function subject(e: ChangeEvent): string {
-  return (e.kind === 'RULE_VERSION' ? e.jurisdiction : e.courseCode) ?? 'this change';
 }

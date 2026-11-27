@@ -2163,3 +2163,250 @@ the slowest p95 is 6.63 ms (program overview), budget 40 ms.
 - Review change (D-407): every hash goes through a fair gate of `lexvay.security.password-hash-concurrency` permits (default
   `max(2, processors)`); a caller that waits 2 s gets 503 "Sign-in is busy. Try again in a moment." with `Retry-After: 2` and nothing is
   hashed. Tests: `PasswordHashGateTest`, `PasswordHashBusyApiTest`.
+
+## UI2-3 — Changes, audit trail and evidence report in v2 (PR #38)
+
+Branch `ui2-changes-audit-report`, end-to-end slot 7. Decisions D-340 to D-349 in `docs/decisions/UI2-3.md`.
+
+### Plan
+1. Audit trail: one pure sentence function per audited action (complete against the backend's sources), worded
+   details, day grouping, server-side filters as chips, "Download CSV" for administrators with the same filters.
+2. Changes: a timeline of cards built by one pure card model (title, version pills, status, one action, what it
+   affects), re-run progress from the job status, then a toast.
+3. Evidence report: a document sheet with the Seal or a Draft stamp, requirements as a list with StatusIcon and quotes,
+   a floating "Download PDF" pill.
+4. Explanations into InfoTips; icons and token sets per chunk; initial bundle under the 680 kB warning.
+5. Tests: Vitest for sentences, details, grouping, filters and the change card; end-to-end for the re-run from a card,
+   the filter chips, the administrator's CSV (header row), the report download, axe in both themes at 1440 and 400 px.
+
+### What was built
+- `screens/audit/audit-sentence.ts`: `AUDIT_SENTENCES` (37 actions, one function each) and `ACTION_LABEL`, moved
+  out of `core/labels.ts`; `audit-view.ts`: rows (actor, initials, sentence), `detailRows`, `groupByDay`,
+  `auditParams` / `auditCsvUrl`, the filter options. The screen pages through `GET /audit` 100 entries at a time.
+- `screens/changes/change-card.ts`: `versionPills`, `affects`, `changeCard`, `changeCards`; the screen renders them on
+  PrimeNG Timeline with list semantics.
+- `screens/report/`: the sheet, the stamp moment, the pill; `core/report-answer.ts` reads the report poll as JSON status
+  or the PDF itself. This fixed a v1 defect: the poll parsed the ready PDF as JSON, so "Generate PDF" always ended in
+  "The PDF could not be generated." once the PDF was ready.
+- `theme/timeline-tokens.ts` (shared by Changes and Audit), Avatar tokens in `audit-theme.ts`; `audit.routes.ts`
+  provides `AUDIT_ICONS`.
+
+### Results (2026-11-27, after merging `origin/main` at 5f58ab9 with SEC-2 and F10a)
+
+`make frontend-test`:
+```
+ Test Files  28 passed (28)
+      Tests  281 passed (281)
+```
+
+`LEXVAY_SCREENSHOTS=1 LEXVAY_E2E_SLOT=7 make test` (backend, frontend unit, end-to-end; exit 0):
+```
+[INFO] Tests run: 1070, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  07:59 min
+ Test Files  28 passed (28)
+      Tests  281 passed (281)
+  ✓  15 [suite] › e2e/screens.spec.ts:153:1 › screenshots of changes, the audit trail and the evidence report at 1440 and 400 px (17.2s)
+  ✓  30 [records] › e2e/records.spec.ts:20:1 › the audit filter chips ask the server, details open in place, and the administrator downloads the same entries as CSV (4.7s)
+  ✓  31 [records] › e2e/records.spec.ts:59:1 › an empty filter result says so with one action that clears it (2.8s)
+  ✓  32 [records] › e2e/records.spec.ts:69:1 › the signed report carries the seal and downloads its PDF; a draft carries the Draft stamp (3.4s)
+  ✓  33 [records] › e2e/records.spec.ts:92:3 › changes, the audit trail and both report states pass axe at 1440 px without horizontal scroll (7.2s)
+  ✓  34 [records] › e2e/records.spec.ts:92:3 › changes, the audit trail and both report states pass axe at 400 px without horizontal scroll (7.9s)
+  34 passed (5.1m)
+```
+The re-run from a timeline card is `review-and-sign.spec.ts:181` (passed, 5.1 s). Every end-to-end test also fails on
+a request to a host other than localhost and on an unregistered icon; none did.
+
+Production build (`npx ng build`), initial bundle under the 680 kB warning:
+```
+main-5S4N4VJ4.js    | main            | 598.52 kB |               153.92 kB
+styles-VLABZARL.css | styles          |   9.22 kB |                 2.39 kB
+                    | Initial total   | 607.74 kB |               156.31 kB
+chunk-g_02x9GH.js   | audit-routes    |  34.00 kB |                  9.94 kB
+```
+UI2-0 measured 606.77 kB (D-317); the +1 kB is the Blob reading of the report poll in the eager `ApiService` and
+`isAdmin`, less the action labels that left the shell.
+
+Screenshots (`docs/screens/`, light and dark each): `ui2-3-changes-1440`, `ui2-3-changes-400`, `ui2-3-audit-1440`,
+`ui2-3-audit-400`, `ui2-3-report-draft-1440`, `ui2-3-report-draft-400`, `ui2-3-report-signed-1440`,
+`ui2-3-report-signed-400`; the v1 names `changes`, `evidence-report`, `evidence-report-ca` and `audit-trail` were
+retaken with the new screens. Screenshots of other items' screens that the run retook were left as they were.
+
+### Follow-ups outside this item
+- Backend: `LOGOUT` is recorded after the session is cleared, so its entry has no user (rule 9, "who"). The screen
+  attributes own-account actions to the account they are recorded on (D-344); the backend should record the actor.
+- A new audited action fails `audit-sentence.spec.ts` until it has a sentence and a label (D-341): intended, but it
+  couples backend items to one frontend file.
+
+## FIX-5 — Logout audit actor and work queue predicate (PR #40)
+
+- Logout: `SecurityConfig` records `LOGOUT` with `recordAs(user.id(), ...)` (D-410). `LogoutAuditTest` (real HTTP, session
+  cookie, CSRF header) asserts actor, `entity_type = app_user`, `entity_id` for two users and that an anonymous logout records
+  nothing. Run against the unfixed handler, the two tests that expect an actor failed.
+- Work queue: `latest` CTE uses `AssessmentRepository.LATEST_FINISHED` (D-411); `WorkQueueSeedParityTest` (D-412).
+- Before/after on the seed (one-off scratch test, not kept): the SIGNER, REVIEWER, CONTRIBUTOR and ADMIN views (kind, program,
+  jurisdiction, count, id list lengths; 18 lines) are identical with the old and the new statement.
+- Frontend: UI2-3 had merged by the time of the PR; `audit-view.ts` keeps its fallback for `LOGOUT` only, with a spec for recorded and old entries (D-413). `make frontend-test`: 28 files, 282 tests passed.
+- Test order: `runPending()` before `fake.reset()` in 11 test classes (D-415).
+- Not done: `MappingRepository.latestAssessmentsUsing` still has its own copy of the ordering (D-411).
+
+## UI2-1 — Program overview and determination register in v2 (PR #39)
+
+Branch `ui2-overview-register`, decisions D-320 to D-329 in `docs/decisions/UI2-1.md`. Built on UI2-0's shared
+components; `origin/main` (F10a) merged before the pull request.
+
+### Spec points
+1. **Overview title**: the program's name in Display type, license and catalog year as two pills (PrimeNG Tag).
+2. **Hero panel**: StateMap `hero` with its one legend (the statuses on the map and "Not a target"), three Stats beside
+   it: To review (count-up, accent ring of reviewed of all), Evidence found (percentage, segmented findings ring),
+   Signed ("1 of 5", seal ring). One InfoTip ("About these figures") holds the only explanation: findings are proposals,
+   reviewers decide, only a signer signs. Without a finished assessment the hero says so in one sentence with "Run
+   assessment".
+3. **Needs you**: at most three work-queue items of this program, soonest-to-finish first, each a compact row with one
+   verb-first action; "Run again" for a failed assessment runs it in place (D-322, D-324).
+4. **State cards**: one per target, name and code, segmented findings ring, status chip (icon and words), one
+   stage-dependent action: Review, Sign (signers only, else Review), View report; none before an assessment. Cards enter
+   staggered and the whole card is the action's link and lifts on hover (D-321).
+5. **Shared element**: the tile or card whose action runs takes `view-transition-name: state-<code>` (upper-case code)
+   for that navigation only, so the name is unique; Review's state header takes the same name in UI2-2 (D-325).
+6. **Register**: StateMap `compact` of the signed states coloured by current outcome (common outcome or "Different
+   outcomes" across programs) with its card opening the evidence report; the filters and the count (a Stat) in a panel
+   beside it; the table on its own surface with 52 px rows and hover tint; an empty table says one sentence with "Clear
+   filters" (D-327).
+7. **By program**: three lists as cards with counts, each signed row with its Seal, unsigned rows with a dashed
+   placeholder and the note (D-329).
+8. **Explanations**: register subtitle and the lists' paragraph moved into InfoTips; the lists' paragraph still prints
+   (print-only copy), the rest of the print view unchanged in content (D-328).
+9. **Motion**: map wave, count-ups, ring sweeps, staggered card and row entrances, hover lift; all off under reduced
+   motion through the UI2-0 tokens and `MotionPreferences`.
+
+### Shared changes (called out in the pull request)
+- `ui/state-map`: `legend` input, `MIXED` tile status, no progress ring or "not assessed" for `total` 0, the
+  `departing` shared-element name (D-325, D-326). `ui/progress-ring`: `seal` tone.
+- `core/assessment-runner.ts` from the command palette (D-324); `ui/initials.ts` out of `ui/seal.ts` (bundle, D-329).
+- `styles.css`: link buttons keep the button's colours and no underline (D-329).
+- Removed: `ui/findings-bar.ts` and `barSegments` (only the v1 overview used them).
+- `e2e/evidence-requests.spec.ts` (F4): the blocked-request step now waits for Review to open before going back to the
+  inbox; without it the second click could land while the first navigation was still loading and the router ignored
+  it (failed in two of three runs on this branch).
+
+### Unit tests (`make frontend-test`)
+New `screens/overview/overview-view.spec.ts` (card stage and action per stage and role, reopened wording, seal tone,
+findings ring and label, map facts, hero numbers, "Needs you" scoping, priority, limit, run-again and change rows);
+`screens/register/register-view.spec.ts` gains the register map (single program, common outcome, mixed, reopened);
+`ui/state-map/state-map-model.spec.ts` gains the legend and progress-free names; `core/overview.spec.ts` follows the
+stage and `reopened` flag.
+
+### End-to-end
+New `e2e/overview.spec.ts`: map keyboard (one tab stop, arrows, Home, End, Escape, Enter runs the action), a tile card's
+action by pointer, axe with a card open, every card has one stage action and its ring is named, the Texas card's
+Review lands on Review for Texas (URL and heading), hero numbers match the API, "Needs you" has at most three rows with
+one action each, a reviewer is never offered Sign, reduced motion shows final numbers, axe in both themes at 1440 and
+400 px without horizontal scroll. `e2e/register.spec.ts`: the map (one signed tile, its card's report link, axe with the
+card open, empty map under a filter that matches nothing), the InfoTips, "Clear filters", the lists as list items with
+the seal's sentence, the print-only note. `review-and-sign`, `shell` and `screens` specs follow the new overview.
+
+### Screenshots
+`docs/screens/ui2-1-*`: overview, overview with a map card, overview cards, register, register lists, each at 1440 and
+400 px in light and dark. `program-overview-*`, `register-*`, `register-by-program-*`, `register-print-*` and
+`ui2-overview-*` were retaken because their screens changed.
+
+### Bundle
+Initial 605.46 kB raw, 155.80 kB estimated transfer after merging UI2-3 (606.36 kB against 606.77 kB on `origin/main` before it). Budget 680 kB warning.
+
+## UI2-2 — Review and signing in design v2 (PR #37)
+
+Branch `ui2-review`, end-to-end slot 1. Decisions D-330 to D-339 in `docs/decisions/UI2-2.md`.
+
+### What changed
+- **Header**: the states as pills with full names and 20 px rings (decided of total; the numbers are each tab's
+  accessible description), the active pill named `state-<code>` for the overview's shared-element morph, a 40 px ring
+  with "6 of 8", "Sign <state>" once every requirement is decided (one pulse, then still), the Seal and outcome once
+  signed, a Reopened chip, the keyboard button. Under 640 px the signing action has its own row.
+- **List rail** (288 px, `RequirementList`): a segmented icon filter whose segment names and tooltips carry the counts
+  ("7 to review"), rows of ref, title and one StatusIcon, the "evidence provided" marker, the selected row kept in view
+  inside the list only.
+- **Requirement hero** (`RequirementCard`): ref chip, title at Title size, rule text in the Document type in a quiet
+  inset with its version and source, the finding as a large chip with the check method in one line and an InfoTip,
+  the model's rationale clamped, the current decision with who, when and its note, the stale warning.
+- **DecisionBar** (`ui/decision-bar/`): Accept (A), Request (R), Gap (G) on the raised, blurred bar floating at the foot
+  of the centre pane; Gap, G or the note button open the note in place and the third action becomes Confirm gap;
+  Escape closes an empty note. The note opens by itself where a person answered an evidence request.
+- **Decision motion**: the row's ring draws around its new filled icon, the row settles on the spring, the next
+  requirement slides in from the side it comes from, the rings advance. Nothing waits for motion; reduced motion
+  removes it.
+- **Signing** (`SignDialog`): "Sign California", "8 of 8 decided" with an InfoTip, three outcome cards, a faint Seal
+  preview hidden from assistive technology; after the server signs, the recorded Seal stamps down with one ink ring,
+  then Done (focused). `Seal` has a `stamp` input.
+- **DocumentViewer**: `softWrap(text)` shows sentence-wrapping line breaks as spaces, one character for one, so the
+  mark, selections and stored offsets are unchanged; the header is an icon pager with the same accessible names.
+- **Evidence pane** (`EvidencePane`): the viewer on the right, a compact meta line, "Quote only", F4's provided
+  passages, "Show on page" under 1024 px.
+- Every keyboard shortcut (J, K, A, R, G, ?) and the polite live region (`data-testid="message"`) are kept; the live
+  region is visually hidden (the toast and the motion show the result).
+
+### Tests
+- Vitest: `softWrap` (joins, kept breaks, non-ASCII lower case, equal length with only joined newlines differing, a DOM
+  selection over the shown text with the mark mapping back to the stored text exactly); `review-workspace.spec.ts`
+  (filter labels, filter icons equal to the StatusIcon's, travel direction by J, K, click and after a decision, header
+  and pill progress, `checkMethod`); `icons.spec.ts` (a unit for the DecisionBar).
+- End to end: the California review under reduced motion with no running animation after each decision, the gap note,
+  a request with a note, signing through the outcome cards with the preview hidden and the stamped seal named, keys
+  during the card's entrance, G and Escape in the note, the bar in view at 400 px, the pill descriptions, axe in both
+  themes on Review at 1440 and 400 px, the gap note, the signing dialog at 1440 and 400 px with and without an outcome,
+  the signed seal. The viewer suite compares the page with `softWrap` of the stored page and selects across a joined
+  break. `evidence-requests.spec.ts` waits for Review before returning to the inbox (a click during the route's view
+  transition superseded the first navigation, seen once in a full run).
+
+### Bundle
+Initial 609.25 kB raw, 156.79 kB estimated transfer (budget 680 kB warning). Review's chunk is 67.47 kB raw.
+
+### Screenshots (`docs/screens/`, light and dark)
+`ui2-2-review-{1440,400}`, `ui2-2-decided-{1440,400}`, `ui2-2-gap-note-{1440,400}`, `ui2-2-ready-to-sign-{1440,400}`,
+`ui2-2-signing-{1440,400}`, `ui2-2-signed-1440`; the existing `review-*` and `evidence-request-drawer` captures
+regenerated.
+
+### Test tails (2026-11-27, after merging origin/main)
+`LEXVAY_E2E_SLOT=1 make test` (backend and frontend unit green; its end-to-end stage failed once in
+`evidence-requests.spec.ts`, the navigation race fixed above), then `LEXVAY_E2E_SLOT=1 make e2e`:
+```
+[INFO] Tests run: 1044, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  25 passed (25)
+      Tests  277 passed (277)
+  26 passed (3.5m)
+```
+`LEXVAY_SCREENSHOTS=1`, slot 1 (the suite plus the three screenshot tests): `29 passed (4.2m)`.
+
+### Review round 1 (2026-11-27)
+- The DecisionBar sits in flow 24 px under the requirement and sticks to the pane's foot (16 px) only when the
+  requirement is longer than the pane; checked on TX-2 (short) and a lengthened rule text at 1440 and 400 px in both
+  themes. `ui2-2-*` screenshots regenerated.
+- CI on the PR head failed in `shell.spec.ts` (UI2-0's avatar menu at 400 px): the test clicked the avatar right after
+  `setViewportSize`, and PrimeNG's Popover closes itself on a window resize (after a reload the menu is also a deferred
+  chunk), so the menu was not open. The test now waits two animation frames for the resize to pass and opens the menu
+  until it is there. Not the Maven download problem.
+- After merging `origin/main`: `make frontend-test` `Test Files 25 passed (25)`, `Tests 277 passed (277)`;
+  `LEXVAY_SCREENSHOTS=1 LEXVAY_E2E_SLOT=1 make e2e` (the whole suite plus the three screenshot tests) `29 passed (3.8m)`.
+
+### Review round 2 (2026-11-27)
+- Merged UI2-3 (PR #38); `screens.spec.ts` keeps both screenshot tests, `review-and-sign.spec.ts` merged cleanly.
+- CI run 46026619701 failed `review-and-sign.spec.ts:3` with a strict-mode violation: the faint Seal preview in the
+  signing dialog carried the signed-seal sentence ("Signed by Dana Whitfield on ...: determined not to meet") as its
+  `aria-label`, and `getByLabel` matches `aria-label` text, so the chosen outcome's label was not unique. Whether the
+  preview had rendered when the locator resolved decided the result, hence green locally and red on the slower runner.
+  `review-and-sign.spec.ts:150` failed only because California was then never signed. Fix in the product: `Seal` has a
+  `preview` input (no role, no name, `aria-hidden`), used by the dialog; the test asserts the radio is the only element
+  with that label and that no image claims a signature before signing.
+- A local run showed a second race: switching states quickly could pull Review back to the previous state when that
+  state's `?jurisdiction=` landed after the person had moved on (the param effect read it as an external link). Review
+  now ignores the parameters it is writing itself (`ownNavigations`).
+- `make frontend-test`: `Test Files 28 passed (28)`, `Tests 296 passed (296)`. `LEXVAY_E2E_SLOT=1 make e2e` twice in a
+  row: `31 passed (3.4m)`, `31 passed (3.7m)`.
+
+### Merge of UI2-1, FIX-5 and the shell fix (2026-11-27)
+Main's opening overview checks in `review-and-sign.spec.ts` kept with the `stateTab` helper and the Review steps;
+`screens.spec.ts` keeps the UI2-1, UI2-2 and UI2-3 screenshot tests; `evidence-requests.spec.ts` takes main's wait
+(equivalent to this branch's); `initials` imported from `ui/initials.ts`. `make frontend-test`: `Test Files 29 passed
+(29)`, `Tests 312 passed (312)`. `LEXVAY_E2E_SLOT=1 make e2e` twice in a row: `37 passed (4.0m)`, `37 passed (3.7m)`.
+Initial bundle 605.33 kB raw, 155.71 kB transfer.

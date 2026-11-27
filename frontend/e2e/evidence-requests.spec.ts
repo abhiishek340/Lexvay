@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { JORDAN, PRIYA, apiPost, expect, expectAccessible, nav, openRequirement, signIn, switchUser, test } from './support';
+import { JORDAN, PRIYA, apiPost, expect, expectAccessible, nav, openRequirement, signIn, stateTab, switchUser, test } from './support';
 
 const NOTE = 'Please send the passage that covers clinical supervision for this requirement.';
 
@@ -24,8 +24,9 @@ test('a reviewer asks for evidence, a contributor answers with a verified passag
   const ref = missing.requirement.ref;
   await openRequirement(page, 'UT', ref);
   await expect(page.getByTestId('proposed-finding')).toContainText('Evidence missing');
-  await page.getByLabel('Note').fill(NOTE);
-  await page.getByRole('button', { name: 'Request evidence from program director' }).click();
+  await page.getByRole('button', { name: 'Add note' }).click();
+  await page.getByLabel('Note', { exact: true }).fill(NOTE);
+  await page.getByRole('button', { name: 'Request evidence' }).click();
   await expect(page.getByTestId('message')).toContainText(`${ref}: Evidence requested.`);
   await expect(nav(page, 'Evidence requests')).toHaveAccessibleDescription('1 open evidence request');
 
@@ -142,8 +143,8 @@ test('a reviewer asks for evidence, a contributor answers with a verified passag
   // The reviewer sees the requirement back in "Needs review" with the provided evidence, and accepts it.
   await switchUser(page, PRIYA);
   await nav(page, 'Review').click();
-  await page.getByRole('tab', { name: 'UT', exact: true }).click();
-  await page.locator('p-selectbutton.lx-filters').getByText('Needs review').click();
+  await stateTab(page, 'UT').click();
+  await page.getByRole('region', { name: 'Requirements' }).getByRole('button', { name: / to review$/ }).click();
   const listed = page.getByRole('region', { name: 'Requirements' }).getByRole('button').filter({ hasText: new RegExp(`^${ref}(?!\\d)`) });
   await expect(listed).toContainText('evidence provided');
   await listed.click();
@@ -154,9 +155,9 @@ test('a reviewer asks for evidence, a contributor answers with a verified passag
   await expect(provided.getByRole('heading')).toHaveText(/Evidence provided by Jordan Ellis, \d{1,2} [A-Z][a-z]{2} \d{4}/);
   await expect(provided.getByTestId('evidence-mark')).toHaveText(quote);
   await expect(provided).toContainText('Week 2 of the syllabus covers this.');
-  await expect(page.getByLabel('Note')).toHaveAttribute('placeholder', 'Note the evidence you relied on');
+  await expect(page.getByLabel('Note', { exact: true })).toHaveAttribute('placeholder', 'Note the evidence you relied on');
   await expectAccessible(page, 'Review with provided evidence');
-  await page.getByLabel('Note').fill('The syllabus passage answers it.');
+  await page.getByLabel('Note', { exact: true }).fill('The syllabus passage answers it.');
   await page.getByRole('button', { name: 'Accept evidence' }).click();
   await expect(page.getByTestId('message')).toContainText(`${ref}: Accepted.`);
 
@@ -211,7 +212,10 @@ test('at 400 px: the inbox, the drawer, a blocked request and the provided evide
   ] as const;
   for (const [reason, short, why] of reasons) {
     flag = reason;
+    // Leave the screen and come back, so it fetches the list again; Review must have opened first, or the second click
+    // is a navigation to the screen already shown, which the router ignores.
     await nav(page, 'Review').click();
+    await expect(nav(page, 'Review')).toHaveAttribute('aria-current', 'page');
     await nav(page, 'Evidence requests').click();
     await expect(row).toContainText('Blocked');
     await expect(row.getByTestId('blocked-reason')).toContainText(short);

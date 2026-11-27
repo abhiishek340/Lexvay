@@ -49,8 +49,8 @@ class CoverageSeedTest extends AbstractDatabaseTest {
 
     private LexvayUser priya() {
         if (!loaded) {
-            ((FakeLlmClient) llm).reset();
             runner.runPending();
+            ((FakeLlmClient) llm).reset();
             assertThat(loader.load(seedCopy, "demo-pass", ScriptedFakeModel.load(seedCopy, llm, json))).singleElement()
                     .satisfies(r -> assertThat(r.skipped()).isFalse());
             loaded = true;

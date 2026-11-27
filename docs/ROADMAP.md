@@ -103,25 +103,27 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | merged (PR #28) |
 | F5a User administration and audit export API | `feat-admin-api` | 5 | Sonnet 5.5 | merged (PR #32) |
-| F5b Administration and audit screens (v2) | `ui2-admin` | — | Opus 5.5 | queued (after F5a, UI2-0) |
+| F5b Administration screens (v2) | `ui2-admin` | 2 | Opus 5.5 | in progress |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
 | F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
 | TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | merged (PR #25) |
 | PERF-FE-1 Icons and theme tokens per chunk | `perf-frontend-chunks` | 6 | Sonnet 5.5 | merged (PR #29); remaining cuts in UI2-0 |
 | UI2-0 Design v2 foundation, shell and sign-in | `ui2-foundation` | 1 | Opus 5.5 | merged (PR #34) |
-| UI2-1 Overview and register in v2 | `ui2-overview-register` | 2 | Opus 5.5 | in progress |
-| UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | in progress |
-| UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | in progress |
+| UI2-1 Overview and register in v2 | `ui2-overview-register` | 2 | Opus 5.5 | merged (PR #39) |
+| UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | merged (#37) |
+| UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | merged (PR #38) |
 | UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | in progress |
 | FIX-3 Work queue and evidence request follow-ups | `fix-queue-followups` | 9 | Sonnet 5.5 | merged (PR #31) |
 | FIX-4 Rule source backoff, live search terms, PDF page cap at upload | `fix-backoff-terms-pages` | 7 | Sonnet 5.5 | merged (PR #33) |
 | SEC-2 Argon2id passwords and audit list index | `sec-argon2-audit-index` | 5 | Sonnet 5.5 | merged (PR #36) |
+| FIX-5 Logout audit actor, work queue predicate | `fix-logout-actor` | 11 | Sonnet 5.5 | merged (PR #40) |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | merged (PR #30); screen cell in UI2-4 |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10a Coverage matrix API | `feat-coverage-api` | 8 | Sonnet 5.5 | merged (PR #35) |
-| F10b Coverage matrix screen (v2) | `ui2-coverage` | — | Opus 5.5 | queued (after F10a, UI2-0) |
+| F10b Coverage matrix screen (v2) | `ui2-coverage` | 7 | Opus 5.5 | in progress |
+| FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | in progress |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
@@ -720,6 +722,76 @@ Decisions D-390 to D-399 in `docs/decisions/F10a.md`.
    (change-tracking fixture), tenant isolation 404, and `ForbiddenWordsTest` green.
 Done when `make backend-test`, `make perf` and `LEXVAY_E2E_SLOT=8 make e2e` are green.
 
+## F10b — Coverage matrix screen (frontend, v2; slot 7; Opus 5.5; uses F10a)
+Purpose: show a program director, for one state, which course carries the evidence for each requirement and where a
+requirement rests on an elective, on one course, on outdated evidence or on nothing, at a glance and without words.
+Decisions D-416 to D-425 in `docs/decisions/F10b.md`.
+1. **Route and navigation**: `programs/:programId/coverage` ("Coverage" in the rail, icon `phosphorGridFour`, after
+   Review); state pills like Review's (full names, mini rings of the share of requirements with risk `NONE`); the
+   selected state in the URL (`?jurisdiction=CA`); one request per state to `GET /programs/{id}/coverage`.
+2. **Matrix**: rows are requirements in `ordinal` order (ref mono, title), columns are the program's current courses
+   (code mono, rotated 0°, with a small "required" or "elective" marker under the code), plus a last column "Program"
+   for program-level documents. A cell is a 20 px dot: filled accent for `SYSTEM` evidence, ringed accent for
+   `PERSON` evidence, both shown as a dot with a ring; an outdated cell from `outdatedCells` sits under its
+   `supersededBy` column as a dashed ring with a small clock icon. Hovering or focusing a cell opens a popover: course
+   code and title, source, quote count, and an action "Open in Review" that deep-links to the requirement
+   (`review?jurisdiction=XX&ref=REF`, UI2-0's query parameters). Rules-engine requirements show "Checked by the rules
+   engine" in the row instead of cells.
+3. **Risk column** (sticky right): one chip per row with icon and text: "Rests on an elective" (ambiguous colour),
+   "Rests on one course" (neutral with outline), "Outdated evidence" (ambiguous with clock), "No evidence cited"
+   (missing colour), nothing for `NONE`. Above the matrix, filter chips by risk with counts; clicking one dims rows that
+   do not match (opacity .35, 200 ms) rather than hiding them, so the matrix keeps its shape.
+4. **Motion**: the matrix enters column by column (stagger 20 ms, at most 12) under the motion table; dots scale in
+   from .6; reduced motion shows everything at once.
+5. **Accessibility**: the matrix is a real `table` with row and column headers; each cell has an accessible name
+   ("COUN 605, evidence from the system, 1 quote") and is reachable with the keyboard (roving tabindex across cells,
+   arrow keys); the popover opens on Enter or focus and closes on Escape; colour is never the only carrier (dot vs ring
+   vs dashed ring, chip icons and text). Under 900 px the matrix scrolls horizontally inside its own container with the
+   requirement column sticky left and the risk column sticky right; the page never scrolls sideways.
+6. **Word budget**: no paragraph; one InfoTip next to the title explains the dots and the risk chips.
+7. **Bundle**: lazy route chunk; icons and tokens per chunk (PERF-FE-1 pattern); the initial bundle stays under the
+   680 kB warning.
+8. **Tests**: Vitest for the view model (column order, cell lookup including outdated cells, risk filter counts);
+   e2e (`frontend/e2e/coverage.spec.ts`): California shows CA-2's COUN 605 dot, CA-6 is "Rests on an elective",
+   Utah's UT-7 is "Outdated evidence" with a dashed cell under COUN 625, keyboard navigation across cells, the
+   popover's "Open in Review" lands on the requirement, the risk filter dims rows, axe in both themes at 1440 and 400 px.
+Done when `make frontend-test` and `LEXVAY_E2E_SLOT=7 make test` are green with screenshots `f10b-*` in both themes at 1440
+and 400 px.
+
+## F5b — Administration screens (frontend, v2; slot 2; Opus 5.5; uses F5a, SEC-2)
+Purpose: an administrator manages colleagues in the product: add, change role, remove access, reissue a setup code.
+A new colleague sets their own password from the code. Sessions that lost access end cleanly. Decisions D-426 to
+D-435 in `docs/decisions/F5b.md`.
+1. **People** (`/people`, tenant-wide rail entry under Determination register, icon `phosphorUsers`, ADMIN only; other
+   roles never see the entry and the route guard sends them to the overview): a table of users (avatar initials, name,
+   email, role chip, status chip Active / Deactivated / Setup pending when `passwordSet` is false, created date),
+   search by name or email, filter chips by role and status. Row actions in a menu: Change role, Deactivate or
+   Reactivate, New setup code. An administrator's own row has no role or deactivate action (the API refuses them; the
+   screen does not offer them).
+2. **Add person** (Dialog): name, email, role (Select with one-line role descriptions in an InfoTip). On success the
+   dialog turns into a one-time code view: the setup link (`<origin>/setup?code=…`) in mono with a Copy button and
+   the expiry ("valid for 72 hours, until 30 Nov 15:04"), a clear sentence that the code is shown once, and Done. The
+   code is never stored in the browser (no storage, no logs; cleared from component state on close). "New setup code"
+   shows the same view.
+3. **Change role / deactivate** (ConfirmDialog with the consequence in one sentence: "Their current session ends.");
+   the 409 messages from the API (last administrator, self) appear inline in the dialog.
+4. **Set password** (`/setup?code=…`, anonymous, uses the sign-in layout from UI2-0 without the map story): two
+   password fields with show/hide, live rules (12 to 128 characters, not the email) shown as a checklist with icons,
+   a strength meter based on length and character variety only (no dictionary library), Submit to
+   `POST /auth/setup`; the generic invalid-code message for 400s; on success go to sign-in with a toast "Password set.
+   Sign in." The page strips the code from the address bar with `history.replaceState` right after reading it.
+5. **Session and busy handling** (shared, in `core/`): a 401 with the problem detail "Your access changed. Sign in
+   again." (F5a session revocation) signs the user out locally, routes to sign-in and shows that sentence; a 503 with
+   `Retry-After` on sign-in or setup (SEC-2's hashing gate) shows "Sign-in is busy. Try again in a moment." and
+   disables the button for the `Retry-After` seconds with a visible countdown.
+6. **Tests**: Vitest for the password rule model and strength meter, the role/status filters, and the 401/503 handling;
+   e2e (`frontend/e2e/people.spec.ts`): the admin adds a Contributor, copies the code (read it from the dialog), signs
+   out, sets the password through the setup page, signs in as the new person; the admin changes the role and the
+   new person's next request lands on sign-in with the access-changed sentence; deactivate and reactivate; an
+   administrator cannot act on their own row; a reviewer never sees People; axe in both themes at 1440 and 400 px.
+Done when `make frontend-test` and `LEXVAY_E2E_SLOT=2 make test` are green with screenshots `f5b-*` in both themes at 1440 and
+400 px.
+
 ## FIX-4 — Rule source backoff, live search terms, PDF page cap at upload (backend; slot 7; migration `V016__rule_source_schedule.sql`)
 Three follow-ups from the F12, F7c and WS-SEC reviews. Decisions D-380 to D-389 in `docs/decisions/FIX-4.md`.
 1. **Rule source schedule.** `rule_source` gains `next_check_at timestamptz` and `consecutive_failures integer NOT
@@ -1120,7 +1192,63 @@ D-259 in `docs/decisions/F7c.md`.
    `SEARCH_TERMS`, replace endpoint stores terms and rejects 13, extraction with the fake model stores the
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
+## FIX-6 — OCR checkpoints per page (backend only; slot 5; Sonnet 5.5; migration `V017__document_ocr_page.sql`)
+Problem (F11 follow-up): `IngestDocumentHandler` OCRs every scanned page inside the job's single transaction. A
+failure on page 150 of a 200-page scan rolls everything back, and the retry runs Tesseract on all 200 pages again
+(minutes of CPU each time, three attempts). Decided design: each page's OCR result is checkpointed in its own
+committed transaction, and a retry reuses those checkpoints. No job-per-page, no change to `JobRunner`.
+
+1. **Table** `document_ocr_page` (V017): `tenant_id uuid NOT NULL REFERENCES tenant`, `document_id uuid NOT NULL
+   REFERENCES document`, `page_number int NOT NULL CHECK (page_number > 0)`, `text text NOT NULL` (normalized OCR
+   output, possibly empty), `mean_confidence numeric(5,2)` (NULL when the engine returned nothing), `render_dpi int
+   NOT NULL CHECK (render_dpi > 0)`, `created_at timestamptz NOT NULL DEFAULT now()`, `PRIMARY KEY (document_id,
+   page_number)`. RLS enabled and forced, with the same tenant policy and grants as `document_page`. It is
+   immutable: `forbid_change()` trigger on UPDATE and DELETE (V003 pattern). No other index: the PK serves the
+   one read. Rows stay after ingest; they record how a page's text was obtained (rule 5).
+2. **What is stored:** the raw normalized OCR result of every page that was sent to the engine, including pages
+   whose result is too short to count as read. The "enough text" decision (`TextExtractor.hasEnoughText`) is
+   made in code every time, from the stored text, so a checkpoint never changes the outcome.
+3. **`OcrCheckpoints`** (interface, package `document`): `Optional<OcrPage> find(int pageNumber)` and
+   `void save(int pageNumber, OcrPage page, int renderDpi)`, with `OcrCheckpoints.NONE` (finds nothing, saves
+   nothing). `TextExtractor.extract(FileType, byte[], OcrCheckpoints)` is the full form. `extract(FileType,
+   byte[])` delegates with `NONE` and stays for rule texts, rule sources and tests. In `pdfPages`, a page that
+   needs OCR first asks `find`. On a hit it uses the stored text and confidence, without rendering or calling
+   the engine. On a miss it renders, recognizes and calls `save` before moving to the next page. When the engine
+   returns `Optional.empty()`, save `text = ''` with a NULL confidence. A hit whose `render_dpi` differs from
+   `renderDpi(page)` is ignored and the page is OCR'd again (the DPI rule changed). The insert is still
+   `ON CONFLICT DO NOTHING`, and the in-memory result uses the new OCR.
+4. **`DocumentOcrCheckpoints`** (`@Component`, backed by `DocumentRepository`):
+   `OcrCheckpoints forDocument(UUID tenantId, UUID documentId)`. It loads every checkpoint of the document in one
+   query when created. `save` runs its INSERT ... ON CONFLICT DO NOTHING through a `TransactionTemplate` with
+   `PROPAGATION_REQUIRES_NEW`, so the row commits even when the job's transaction later rolls back.
+   `TenantAwareDataSource` sets `lexvay.tenant_id` on the new connection; prove it with a test, do not assume it.
+   It needs no worker flag: the ingest job already runs as its tenant.
+5. **`IngestDocumentHandler`** passes `forDocument(...)`. The `DOCUMENT_INGESTED` audit details gain
+   `ocrPagesReused` (count of checkpoint hits). This is not a new action, so `audit-sentence.spec.ts` needs no row.
+   No endpoint changes.
+6. **Tests** (no network; Tesseract only where the existing OCR test already uses it):
+   - `TextExtractorTest`: a counting fake `OcrEngine` plus in-memory checkpoints. A second extract performs zero
+     engine calls and returns pages equal to the first, with the same text, offsets, source and confidence. A
+     short-text checkpoint still falls back to the text layer. A DPI mismatch triggers a fresh OCR.
+   - Integration, existing Testcontainers harness: the fake engine throws on page 3 of a 4-page scanned PDF on the
+     first attempt only.
+     - After the failed attempt, rows for pages 1 and 2 exist, committed despite the rollback.
+     - The retry calls the engine for pages 3 and 4 only.
+     - The final `document_page` rows equal those of a clean single run.
+     - The audit shows `ocrPagesReused = 2`.
+   - Rule 7: tenant B cannot see tenant A's checkpoints, and `Rule7_EveryTableHasPolicyTest` covers the table.
+   - Rule 5: UPDATE and DELETE are rejected.
+7. **Docs:** decisions D-436 to D-441 in `docs/decisions/FIX-6.md`, progress in `docs/progress/FIX-6.md`,
+   `docs/OPERATIONS.md` (one sentence: checkpoints make OCR retries resume). Do not edit DECISIONS.md, PROGRESS.md
+   or the ROADMAP board; the orchestrator folds them.
+
 ## Follow-ups recorded from reviews
+- FIX-5: `MappingRepository.latestAssessmentsUsing` still has its own correlated copy of the "latest finished"
+  ordering (alias `a2`); give `AssessmentRepository` a correlated form of `LATEST_FINISHED` and use it there.
+- FIX-5 (rule 9): `LOGOUT` is audited after the session is cleared, so its audit entry has no actor. Capture the
+  user before the logout handler clears the context and record `LOGOUT` with that user as actor and `entity_id`;
+  `Rule9_AuditCoverageTest` asserts the actor. UI2-3's `audit-sentence.spec.ts` now fails for any new audited action
+  without a sentence and label, so backend items that add an audited action also touch that frontend file.
 - F10a: the work queue's `latest` CTE (F13) still has its own copy of the "latest finished assessment" ordering; switch it
   to `AssessmentRepository.LATEST_FINISHED` with a parity test.
 - F5a security: any ADMIN can issue a setup code for any user, including a SIGNER, and so could sign in as them; the
@@ -1172,8 +1300,8 @@ D-259 in `docs/decisions/F7c.md`.
   RLS because `jsonb ->>` is not leakproof and the payload expression indexes are ignored. FIX-2: add a generated
   `payload_entity_id uuid` column on `job` (from the payload's entity id), index it, and compare with `=`. Decided
   by the orchestrator when scheduled; spec to follow.
-- F11: OCR of a 200-page scan runs inside the job's single transaction and a retry redoes every page. Follow-up:
-  OCR per page in its own transaction (or a job per page) inside `JobRunner`.
+- F11: OCR of a 200-page scan runs inside the job's single transaction and a retry redoes every page. Scheduled as
+  FIX-6 (per-page checkpoints committed in their own transactions).
 - F11 spec change (decided during review): a PDF page's text layer is never discarded; OCR replaces it only when
   the layer is under 20 characters and OCR yields at least 20.
 - WS-SEC: every new endpoint must add a row to `InputValidationTableTest` (its `everyEndpointHasARow` guard fails

@@ -1,55 +1,143 @@
 import { describe, expect, it } from 'vitest';
 import { AuditEntry, UserSummary } from '../../core/models';
-import { auditRows, detailSummary, filterOptions, filterRows } from './audit-view';
+import {
+  ACTION_OPTIONS, NO_QUERY, RECORD_TYPE_OPTIONS, auditCsvUrl, auditParams, auditRows, detailRows, groupByDay, periodStart, personOptions,
+} from './audit-view';
 
-const users: UserSummary[] = [{ id: 'u1', displayName: 'Dana Whitfield', role: 'SIGNER', email: 'dana@northfield.example' }];
+const users: UserSummary[] = [
+  { id: 'u1', displayName: 'Dana Whitfield', role: 'SIGNER', email: 'dana@northfield.example' },
+  { id: 'u2', displayName: 'Dr. Priya Raman', role: 'REVIEWER', email: 'priya@northfield.example' },
+];
+const names = (code: string): string => ({ CA: 'California' }[code] ?? code);
+
+/** A local time on a day of November 2026, as the ISO instant the server sends. */
+const at = (day: number, hour: number): string => new Date(2026, 10, day, hour, 0).toISOString();
 
 function entry(id: string, action: string, entityType: string, createdAt: string, userId: string | null, detail: Record<string, unknown> = {}): AuditEntry {
   return { id, userId, action, entityType, entityId: 'e-' + id, detail, createdAt };
 }
 
 const entries = [
-  entry('1', 'REVIEW_RECORDED', 'mapping', '2026-11-26T10:00:00Z', 'u1', { requirementRef: 'CA-3', kind: 'GAP_CONFIRMED', note: 'No telehealth content.' }),
-  entry('2', 'DETERMINATION_SIGNED', 'determination', '2026-11-26T11:00:00Z', 'u1', { jurisdiction: 'CA', outcome: 'DOES_NOT_MEET' }),
-  entry('3', 'ASSESSMENT_FINISHED', 'assessment', '2026-11-26T09:00:00Z', null),
-  entry('4', 'LOGIN_SUCCEEDED', 'app_user', '2026-11-26T08:00:00Z', 'gone'),
+  entry('1', 'DETERMINATION_SIGNED', 'determination', at(27, 11), 'u1', { jurisdiction: 'CA', outcome: 'DOES_NOT_MEET', versionsHash: 'abc' }),
+  entry('2', 'REVIEW_RECORDED', 'mapping', at(27, 10), 'u2', { requirementRef: 'CA-3', kind: 'GAP_CONFIRMED', note: 'No telehealth content.', reviewEventId: 'r1' }),
+  entry('3', 'ASSESSMENT_FINISHED', 'assessment', at(26, 9), null, { mappingsProduced: 40, jobId: 'j1' }),
+  entry('4', 'LOGIN_SUCCEEDED', 'app_user', at(20, 8), 'gone', { email: 'old@northfield.example', method: 'password' }),
 ];
 
 describe('audit rows', () => {
-  it('resolves actors to names, background work to System', () => {
-    expect(auditRows(entries, users).map((r) => r.actor)).toEqual(['Dana Whitfield', 'Dana Whitfield', 'System', 'Former user']);
+  const rows = auditRows(entries, users, names);
+
+  it('resolves actors to names with initials; background work is System, unknown ids a former user', () => {
+    expect(rows.map((r) => [r.actor, r.actorKind, r.initials])).toEqual([
+      ['Dana Whitfield', 'person', 'DW'], ['Dr. Priya Raman', 'person', 'PR'], ['System', 'system', ''], ['Former user', 'former', ''],
+    ]);
   });
 
-  it('words the details instead of showing enum values', () => {
-    expect(detailSummary(entries[1].detail)).toBe('Jurisdiction: CA · Outcome: Determined not to meet');
-    expect(detailSummary(entries[0].detail)).toBe('Requirement: CA-3 · Decision: Gap confirmed · Note: No telehealth content.');
-    expect(detailSummary({ kind: 'SYLLABUS', filename: 'coun625.pdf' })).toBe('Kind: syllabus · File: coun625.pdf');
-    expect(detailSummary({ unknownKey: 'x', note: '' })).toBe('');
+  it('names the person on a sign-out, recorded with its actor since FIX-5 or without one before, never "System"', () => {
+    const [recorded, legacy, job] = auditRows([
+      { ...entry('5', 'LOGOUT', 'app_user', at(27, 12), 'u1'), entityId: 'u1' },
+      { ...entry('6', 'LOGOUT', 'app_user', at(26, 12), null), entityId: 'u2' },
+      entry('7', 'REPORT_GENERATED', 'report', at(26, 12), null),
+    ], users, names);
+    expect([recorded.actor, recorded.actorKind, recorded.sentence]).toEqual(['Dana Whitfield', 'person', 'Dana Whitfield signed out']);
+    expect([legacy.actor, legacy.actorKind, legacy.sentence]).toEqual(['Dr. Priya Raman', 'person', 'Dr. Priya Raman signed out']);
+    expect(job.actor).toBe('System');
   });
 
-  it('labels actions and record types in plain words', () => {
-    const [review, , , login] = auditRows(entries, users);
-    expect(review.actionLabel).toBe('Review decision recorded');
-    expect(login.entityLabel).toBe('app user');
+  it('does not borrow an account for other actions recorded without a user', () => {
+    const [signIn] = auditRows([{ ...entry('8', 'LOGIN_SUCCEEDED', 'app_user', at(27, 12), null), entityId: 'u1' }], users, names);
+    expect([signIn.actor, signIn.actorKind]).toEqual(['System', 'system']);
+  });
+
+  it('carries one sentence per entry and the record type in words', () => {
+    expect(rows.map((r) => r.sentence)).toEqual([
+      'Dana Whitfield signed California: determined not to meet',
+      'Dr. Priya Raman confirmed a gap on CA-3',
+      'System finished an assessment with 40 proposed findings',
+      'Former user signed in',
+    ]);
+    expect(rows[1].rest).toBe(' confirmed a gap on CA-3');
+    expect(rows.map((r) => r.recordLabel)).toEqual(['Determination', 'Requirement finding', 'Assessment', 'User']);
+    expect(rows.map((r) => r.enter)).toEqual([0, 1, 2, 3]);
   });
 });
 
-describe('audit filters', () => {
-  const rows = auditRows(entries, users);
-
-  it('lists newest first and filters by action and by record type', () => {
-    expect(filterRows(rows, { action: null, entityType: null }).map((r) => r.id)).toEqual(['2', '1', '3', '4']);
-    expect(filterRows(rows, { action: 'REVIEW_RECORDED', entityType: null }).map((r) => r.id)).toEqual(['1']);
-    expect(filterRows(rows, { action: null, entityType: 'assessment' }).map((r) => r.id)).toEqual(['3']);
-    expect(filterRows(rows, { action: 'REVIEW_RECORDED', entityType: 'assessment' })).toEqual([]);
+describe('detail rows', () => {
+  it('word the known keys in reading order, ids and hashes in mono', () => {
+    expect(detailRows(entries[1].detail, names)).toEqual([
+      { label: 'Requirement', value: 'CA-3', mono: false },
+      { label: 'Kind', value: 'Gap confirmed', mono: false },
+      { label: 'Note', value: 'No telehealth content.', mono: false },
+      { label: 'Review event ID', value: 'r1', mono: true },
+    ]);
+    expect(detailRows(entries[0].detail, names)).toEqual([
+      { label: 'Jurisdiction', value: 'California (CA)', mono: false },
+      { label: 'Outcome', value: 'Determined not to meet', mono: false },
+      { label: 'Versions hash', value: 'abc', mono: true },
+    ]);
   });
 
-  it('offers each value once with a readable label', () => {
-    expect(filterOptions(rows, (r) => [r.entityType, r.entityLabel])).toEqual([
-      { value: 'app_user', label: 'App user' },
-      { value: 'assessment', label: 'Assessment' },
-      { value: 'determination', label: 'Determination' },
-      { value: 'mapping', label: 'Mapping' },
+  it('summarise lists, word yes and no, and leave out empty values and nested objects', () => {
+    expect(detailRows({ before: [{ ref: 'A' }], after: [{ ref: 'A' }, { ref: 'B' }], note: '', extra: { a: 1 }, complete: false, required: true }, names)).toEqual([
+      { label: 'Required', value: 'Yes', mono: false },
+      { label: 'Before', value: '1 requirement', mono: false },
+      { label: 'After', value: '2 requirements', mono: false },
+      { label: 'Complete', value: 'No', mono: false },
     ]);
+    expect(detailRows({ sha256: 'f00', somethingNew: 'x', tags: ['a', 'b'] }, names)).toEqual([
+      { label: 'SHA-256', value: 'f00', mono: true },
+      { label: 'Something new', value: 'x', mono: false },
+      { label: 'Tags', value: 'a, b', mono: false },
+    ]);
+  });
+
+  it('read roles where a role is stored and dates where a filter is', () => {
+    expect(detailRows({ email: 'j@x', from: 'REVIEWER', to: 'SIGNER' }, names).map((r) => r.value)).toEqual(['j@x', 'Reviewer', 'Signer']);
+    expect(detailRows({ from: '2026-11-01T00:00:00Z' }, names).map((r) => r.value)).toEqual(['2026-11-01T00:00:00Z']);
+  });
+});
+
+describe('timeline grouping', () => {
+  const rows = auditRows(entries, users, names);
+
+  it('groups by local day in the order given, naming today and yesterday', () => {
+    const groups = groupByDay(rows, new Date(2026, 10, 27, 15, 0));
+    expect(groups.map((g) => [g.key, g.label, g.rows.map((r) => r.id)])).toEqual([
+      ['2026-11-27', 'Today', ['1', '2']],
+      ['2026-11-26', 'Yesterday', ['3']],
+      ['2026-11-20', 'Friday 20 November', ['4']],
+    ]);
+  });
+
+  it('adds the year to a day of another year', () => {
+    const [group] = groupByDay(rows.slice(3), new Date(2027, 0, 2, 9, 0));
+    expect(group.label).toBe('Friday 20 November 2026');
+    expect(groupByDay([], new Date())).toEqual([]);
+  });
+});
+
+describe('server-side filters', () => {
+  const now = new Date(2026, 10, 27, 15, 30);
+
+  it('send only the filters that are set, the period as its local start', () => {
+    expect(auditParams(NO_QUERY, now)).toEqual({});
+    expect(periodStart('today', now)).toEqual(new Date(2026, 10, 27));
+    expect(periodStart('week', now)).toEqual(new Date(2026, 10, 21));
+    expect(periodStart('month', now)).toEqual(new Date(2026, 9, 29));
+    expect(auditParams({ userId: 'u1', action: 'REVIEW_RECORDED', entityType: 'mapping', period: 'week' }, now)).toEqual({
+      userId: 'u1', action: 'REVIEW_RECORDED', entityType: 'mapping', from: new Date(2026, 10, 21).toISOString(),
+    });
+  });
+
+  it('build the CSV link with the same filters', () => {
+    expect(auditCsvUrl(NO_QUERY, now)).toBe('/api/v1/audit.csv');
+    expect(auditCsvUrl({ ...NO_QUERY, action: 'DETERMINATION_SIGNED', userId: 'u1' }, now)).toBe('/api/v1/audit.csv?userId=u1&action=DETERMINATION_SIGNED');
+  });
+
+  it('offer every audited action and record type once, and people by name', () => {
+    expect(new Set(ACTION_OPTIONS.map((o) => o.value)).size).toBe(ACTION_OPTIONS.length);
+    expect(ACTION_OPTIONS.find((o) => o.value === 'REVIEW_RECORDED')?.label).toBe('Review decision recorded');
+    expect(RECORD_TYPE_OPTIONS.map((o) => o.label)).toEqual([...RECORD_TYPE_OPTIONS.map((o) => o.label)].sort((a, b) => a.localeCompare(b)));
+    expect(personOptions(users).map((o) => o.label)).toEqual(['Dana Whitfield', 'Dr. Priya Raman']);
   });
 });

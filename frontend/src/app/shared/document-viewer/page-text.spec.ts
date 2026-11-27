@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { isRange, ocrNote, rangeOffsets, splitForHighlight } from './page-text';
+import { isRange, ocrNote, rangeOffsets, softWrap, splitForHighlight } from './page-text';
 
 /** A fictional page with a line break, a double space and a tab, so whitespace must be counted as stored. */
 const PAGE = 'COUN 605 Ethics\nStudents complete  40 hours of\tsupervised practice.\nFictional syllabus.';
@@ -114,4 +114,66 @@ describe('rangeOffsets', () => {
 function bounds(offsets: { charStart: number; charEnd: number } | null): [number, number] {
   expect(offsets).not.toBeNull();
   return [offsets!.charStart, offsets!.charEnd];
+}
+
+/** A fictional PDF page the way text extraction stores it: one line per printed line. */
+const WRAPPED = 'Course description\nStudents examine the ACA Code of\nEthics, state licensing law,\nconfidentiality, duty to warn,\nand the legal standards (with\n(case studies) in 3\n12 weeks. Required course.\nfinal line\n\nnew paragraph';
+
+describe('softWrap', () => {
+  it('joins a line that continues in lower case, a digit or a parenthesis, and keeps every other break', () => {
+    expect(softWrap(WRAPPED)).toBe('Course description\nStudents examine the ACA Code of\nEthics, state licensing law, confidentiality, duty to warn, and the legal standards (with (case studies) in 3 12 weeks. Required course.\nfinal line\n\nnew paragraph');
+  });
+
+  it('keeps a break after sentence-final punctuation even when the next line starts in lower case', () => {
+    expect(softWrap('One.\ntwo! three?\nfour')).toBe('One.\ntwo! three?\nfour');
+  });
+
+  it('keeps a break before an upper-case letter, at either end of the text and after another break', () => {
+    expect(softWrap('Code of\nEthics')).toBe('Code of\nEthics');
+    expect(softWrap('\nstart')).toBe('\nstart');
+    expect(softWrap('end\n')).toBe('end\n');
+    expect(softWrap('a\n\nb')).toBe('a\n\nb');
+  });
+
+  it('treats lower-case letters beyond ASCII as continuing the sentence', () => {
+    expect(softWrap('la\nédition')).toBe('la édition');
+  });
+
+  it('is one character for one character: same length, and only joined breaks differ', () => {
+    const shown = softWrap(WRAPPED);
+    expect(shown.length).toBe(WRAPPED.length);
+    for (let i = 0; i < WRAPPED.length; i++) {
+      if (shown[i] !== WRAPPED[i]) {
+        expect([WRAPPED[i], shown[i]]).toEqual(['\n', ' ']);
+      }
+    }
+  });
+
+  it('maps a selection on the shown text back to the stored text exactly, across the mark and joined breaks', () => {
+    const quote = 'state licensing law,\nconfidentiality';
+    const start = WRAPPED.indexOf(quote);
+    const end = start + quote.length;
+    const cut = splitForHighlight(softWrap(WRAPPED), start, end)!;
+    expect(cut.quote).toBe('state licensing law, confidentiality');
+    // The viewer renders the shown text: text node, mark, text node.
+    document.body.replaceChildren();
+    const pre = document.createElement('pre');
+    const mark = document.createElement('mark');
+    mark.append(cut.quote);
+    pre.append(cut.before, mark, cut.after);
+    document.body.append(pre);
+    const [before, , after] = Array.from(pre.childNodes);
+    const range = document.createRange();
+    range.setStart(before, WRAPPED.indexOf('Ethics'));
+    range.setEnd(after, WRAPPED.indexOf('warn') + 'warn'.length - end);
+    const offsets = rangeOffsets(pre, range)!;
+    expect(WRAPPED.slice(offsets.charStart, offsets.charEnd)).toBe('Ethics, state licensing law,\nconfidentiality, duty to warn');
+    expect(rangeOffsets(pre, rangeOver(mark.firstChild!))).toEqual({ charStart: start, charEnd: end });
+  });
+});
+
+function rangeOver(node: Node): Range {
+  const r = document.createRange();
+  r.selectNodeContents(node);
+  return r;
 }

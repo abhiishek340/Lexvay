@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, no V017 (SEC-2 found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6 (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -3259,3 +3259,344 @@ Rejected: sizing by Tomcat threads (`server.tomcat.threads.max`; it also limits 
 limit (threads pile up and every request times out at the proxy); a separate pool of hashing threads (a handoff for no gain, since
 the request thread must wait for the result anyway); refusing immediately when no permit is free (a burst of a few more callers
 than permits would be refused although they would be served in milliseconds).
+
+### UI2-3 — Changes, audit trail and evidence report in v2 (D-340 to D-349)
+
+**D-340 — Both timelines are PrimeNG Timeline, given list semantics.** Changes and the audit trail use `p-timeline`
+(PrimeNG provides it, so it is not hand-built) with the screens' own marker and content templates. Timeline renders
+plain `div`s, so pass-through gives the root `role="list"` and each event `role="listitem"`, which is what a screen
+reader and the end-to-end tests navigate by (`list` "Change events", one `list` per audit day named by its heading). The
+opposite column is hidden (`display: none`), the connector is a 1 px `line` rule (`theme/timeline-tokens.ts`, one set
+shared by both chunks, registered by each). Expanding in place is a native disclosure button (`aria-expanded`,
+`aria-controls` only while open, so it never names a missing element) whose details rise into view with a 200 ms
+opacity and transform keyframe; height is never animated. Rejected: an Accordion per entry (a panel per timeline row,
+heavier markup and a second focusable header) and `<details>` (its open state cannot be driven by the screen's signal,
+and its marker differs per browser).
+
+**D-341 — One sentence function per audited action, kept complete by reading the backend.** `audit-sentence.ts` holds
+`AUDIT_SENTENCES`, one pure function per action, each starting with who acted ("Dana Whitfield accepted CA-3", "System
+finished re-running COUN 625: 1 quote still present, 2 back in review"), and `ACTION_LABEL`, the short name of each for
+the filter. `audit-sentence.spec.ts` reads `backend/src/main/java` for every `audit.record(...)` and `recordAs(...)`
+action and requires both tables to hold exactly that set (37 actions, with SEC-2's `PASSWORD_REHASHED`), so a new backend action fails the frontend
+unit suite until it has words. A missing or malformed detail falls back to a general noun ("a requirement"); the spec
+runs every sentence with an empty and a malformed detail and fails on `undefined`, `null`, `NaN`, `[object` or a brace.
+An unknown action reads "Dana Whitfield: Password rehashed" (its words, never its detail). `ACTION_LABEL` and
+`actionLabel` moved out of `core/labels.ts`, which the shell imports, into the audit chunk.
+
+**D-342 — The audit list filters on the server; the chips are Selects drawn as pills.** The list now asks `GET
+/audit` with the filters on screen (`auditParams`: only the filters that are set, D-116) instead of loading 500 entries
+and filtering them in the browser, so a filter reaches every entry, not the newest 500. Chips: Person (`userId`, from
+`GET /users`), Action (every audited action, with a search box), Record type (every record type the backend writes),
+Period (Today, Last 7 days, Last 30 days, sent as `from` at local midnight). The option lists are fixed rather than
+derived from the loaded rows, because a server-filtered page holds only a slice. Each chip is a PrimeNG Select with the
+pill look of the shell's program switcher, accent-tint once it holds a value, with its clear icon; the accessible names
+are the dimension ("Action"), so the value never renames the control. Pages of 100 ("Show older" asks for the next
+offset with the same filters); an answer to an earlier filter that arrives late is dropped. "Download CSV" is shown to
+administrators only (`SessionService.isAdmin`, the endpoint's `hasRole('ADMIN')`) and links `GET /audit.csv` with the
+same parameters from the same function (`auditCsvUrl`), so the file and the screen cannot disagree. Entries written by
+background work cannot be chosen under Person: `userId` cannot express "no user".
+
+**D-343 — Days are local calendar days.** `groupByDay(rows, now)` keeps the server's newest-first order and starts a
+group at each new local date: "Today", "Yesterday", then "Friday 20 November" (day before month, the order the rest of
+the product uses for dates), with the year only when it is not the current one. Times on the entries are local `HH:mm`;
+the expanded details give the full local timestamp in mono.
+
+**D-344 — Details in words; avatars from the Seal's initials.** `detailRows` words the detail keys the backend writes
+(a table of labels and formats in reading order: "Decision: Gap confirmed", "Jurisdiction: California (CA)", "Before:
+9 requirements"); a key not in the table still shows by its name in words when its value is plain text, a number, a yes
+or no, or a list of those; nested objects never show (they stay in the CSV); ids and hashes are mono. The record type and
+id lead the details. The avatar is a PrimeNG Avatar with `initials()` from `ui/seal.ts` (one implementation of
+initials); background work shows a gear, a user id the tenant no longer lists shows a person icon and reads "Former
+user". Avatars are `aria-hidden`: the sentence already names who acted. Sign-out is recorded after the session is
+cleared, so its entry carries no user and read "System signed out"; for the actions a person takes on their own account
+(sign-in, sign-out, setting a password), an entry without a user is attributed to the account it is recorded on.
+The backend should record the actor of `LOGOUT` itself (rule 9: who); that is a backend change outside this item.
+
+**D-345 — Change cards.** `change-card.ts` (pure, tested) builds each card. Titles: "Colorado rules, revision 2" (the
+state's name and the words only the new label has) and "COUN 625, new catalog year". The two pills are the parts of
+the two version names that differ (`versionPills`: drop the shared leading words but keep the last shared one when one
+name extends the other, so "... 2026" and "... 2026 revision 2" read "2026" and "2026 revision 2"); the full names are
+in the details. "What it affects" names the states of this program whose signed determination the change reopened and
+counts the others ("Colorado, 1 in another program"), because the change list is tenant-wide and the screen holds only
+this program's determinations. Newest change first. The one action is the re-run; when it cannot run yet, the reason
+sits beside the disabled button (as before). While it runs, the card shows a spinner with the job's phase from `GET
+/jobs/{id}` (Queued, Re-running, then Updating while the program reloads), then a toast. Status chips are Tags with an
+icon and a word.
+
+**D-346 — The report sheet.** An 880 px sheet at e2 in Document type: the jurisdiction as a 32/40 serif heading, the
+program line under it, and at the top right the Seal (112 px) when the determination is signed or a dashed "Draft"
+stamp when it is not. The Draft stamp keeps D-027's words: its accessible name is "Draft. Not a determination." and it
+prints "Draft" over "Not a determination". The seal stamps once when it appears (scale 1.12 to 1 and -8° to 0 with
+`--lx-spring` over 420 ms, one ink ring fading out over 600 ms), the motion table's signing moment, in this screen's
+CSS; reduced motion zeroes both. The signature (outcome, signer, date, rule version, course versions locked and the
+versions hash) stays under the heading, because rule 6 makes the report name its exact versions. Requirements are an
+ordered list: ref, title (a heading, level 4), one StatusIcon with its words, the quote in Document type with its
+citation, and the reviewer's note when there is one. The rule text of each requirement left the screen (word budget;
+Review and the PDF carry it).
+
+**D-347 — "Download PDF" is one action in a floating pill.** The pill (raised, e3, 999 px radius, no blur: the blur
+stays the DecisionBar's) is sticky at the bottom of the view under the sheet. One click generates the PDF (the report
+job), waits for it and saves it; later clicks on the same determination save the same file without a new job; a toast
+says it is ready. `GET /reports/{id}` answers with the status as JSON while the job runs and with the PDF itself once
+it is ready (D-069), so the poll asks for a Blob and `core/report-answer.ts` (`readReport`, tested) reads either: the
+last poll already carries the file, which is saved under the server's `Content-Disposition` name through an object
+URL. v1 polled with `Accept: application/json` and parsed the answer as JSON, so the poll that found the PDF ready
+failed with "The PDF could not be generated." (found by the new end-to-end test; no earlier test generated a PDF). For a draft the button is
+disabled and the pill says "After signing" (D-089: the PDF exists only for a signed determination). Rejected: the two
+buttons of v1 (Generate, then Download).
+
+**D-348 — Chunks and bundle.** The audit trail now shows icons, so it is loaded with `loadChildren` from
+`audit.routes.ts`, which provides `AUDIT_ICONS` (PERF-FE-1); `theme/icons.spec.ts` checks the set. Token sets moved
+with their screens: Timeline in Changes and Audit, Avatar (accent on accent-tint, a pair the contrast test already
+covers through Tag) in Audit; DataTable left all three screens. `ACTION_LABEL` left the initial bundle (D-341). Initial
+bundle: see `docs/progress/UI2-3.md`.
+
+**D-349 — End-to-end changes.** `records.spec.ts` is a new project that runs after the suite (like the register spec),
+because the signed report and the signing entry need the California signature of `review-and-sign.spec.ts`: audit
+chips (the request carries `userId` and `action`, one entry remains, its details open), the administrator's CSV (file
+name, header row, the one filtered row), the empty state's "Clear filters", the report (Draft stamp and disabled
+download; seal, eight requirements, the PDF download checked by its `%PDF-` header, the toast), and axe in both themes
+with no horizontal scroll at 1440 and 400 px on Changes, the audit trail and both report states.
+`review-and-sign.spec.ts` follows the new names (lists, the seal's name, the note) and its re-run test runs from the
+course card, holding job status answers back 400 ms so the card's progress is visible long enough to assert; `rules.spec.ts`
+reads the audit sentences; `screens.spec.ts` adds the `ui2-3-*` screenshots.
+
+### FIX-5 — Logout audit actor and work queue predicate (D-410 to D-415)
+
+#### D-410 `LOGOUT` takes its actor from the `Authentication` Spring hands the success handler
+
+`LogoutFilter` reads the authentication once, runs its handlers (`SecurityContextLogoutHandler` clears the security context
+and the session), and then calls the success handler with the authentication it read first. The handler already used that
+argument to find the user and the tenant, but wrote the entry through `AuditService.record`, which asks `CurrentUser` for the
+actor, and by then the context is empty. The entry therefore had `user_id = NULL` (rule 9: "who" was missing). The handler now
+calls `AuditService.recordAs(user.id(), "LOGOUT", "app_user", user.id(), Map.of())` inside `TenantContext.runAs(user.tenantId())`.
+The actor and the record are the same person, as for `LOGIN_SUCCEEDED`.
+
+Rejected: a `LogoutHandler` placed before the context-clearing one that stashes the user in a request attribute (a second place
+that has to run in the right order, to hand over what the success handler already receives); reading `SecurityContextHolder`
+in a handler that Spring does not guarantee to run first.
+
+#### D-411 The work queue's `latest` CTE uses `AssessmentRepository.LATEST_FINISHED`
+
+The CTE kept its own copy of "the program's latest finished assessment" (status FINISHED, newest `finished_at`, then newest
+`created_at`). It now takes the predicate from `AssessmentRepository.LATEST_FINISHED` (`%7$s` in `SHARED`), as the coverage
+matrix and the signing gate already do, so a change to the ordering reaches the queue with them. The lateral subquery keeps
+the alias `a` that the constant expects. The statement the database runs is the same text as before, so `IndexUsageTest` and
+the latency budget are unchanged. Not touched: `MappingRepository.latestAssessmentsUsing`, which has the same ordering as a
+correlated subquery over `a2`; the constant carries `LIMIT 1` and the alias `a`, so it does not fit there, and it is outside
+this item.
+
+#### D-412 Parity test: the queue reads the same assessment as `latestFinished`
+
+`WorkQueueSeedParityTest` loads the seeded Northfield tenant from a copy of the manifest and, for the SIGNER, REVIEWER and
+ADMIN, asserts that every queue item naming an assessment names the one `AssessmentRepository.latestFinished` returns for its
+program, that the badge total equals the sum of the list's counts, and that the check was not vacuous. The queue before and
+after the switch was also compared on the same seed (item kinds, programs, jurisdictions, counts and id list lengths for
+four roles: 18 lines, identical; see `docs/progress/FIX-5.md`). The test compares against the repository method, not a
+frozen copy of the old ordering, so it stays valid when the ordering is changed on purpose. The READY_TO_SIGN parity test
+(`WorkQueueApiTest.readyToSignAgreesWithTheSigningEndpointForEveryProgramAndJurisdiction`) is unchanged and green.
+
+#### D-413 Older `LOGOUT` entries keep no actor; the audit view reads them as before, for `LOGOUT` only
+
+The audit log is append-only (rule 5), so entries recorded before this fix keep `user_id = NULL`; nothing back-fills them.
+`audit-view.ts` (UI2-3, D-340 to D-349) attributed an entry without a user to the account it is recorded on for three actions of
+a person on their own account. Only `LOGOUT` ever lacked a user (`LOGIN_SUCCEEDED` and `PASSWORD_SET` are recorded with their
+actor), so the rule is now narrowed to `LOGOUT` and documented as the reading of entries recorded before FIX-5; an entry that
+carries its actor takes the first branch. `audit-view.spec.ts` covers a recorded sign-out, an old one, and that another action
+without a user is still the System. `audit-sentence.ts` needed no change: it takes the actor's name as input.
+
+#### D-414 Signing out without a session records nothing
+
+A request to the logout URL without a session has no `Authentication`, no tenant and no user to name; the entry would have no
+tenant to be recorded in. The handler still answers 204. `LogoutAuditTest.signingOutWithoutASessionRecordsNothing` asserts
+this for a request with no cookie and one with an unknown session id.
+
+#### D-415 Tests drain queued jobs before they clear the fake model
+
+Several test classes began with `fake.reset(); runner.runPending();`. `runPending()` runs every queued job of every tenant,
+including jobs other classes left behind, and each of those calls the fake model after the reset; a class that then asserted
+a global `fake.callCount(...)` (`RuleVersionApiTest.createStoresRuleTextAndExtractsRequirements`: "expected 1 but was 4" in CI)
+failed depending on the order the classes ran in. The two calls are swapped to `runner.runPending(); fake.reset();` in
+`AbstractAssessmentTest` (which the other counting tests extend: `AssessmentApiTest`, `AssessmentUsageApiTest`,
+`RuleVersionChangeTest`, `Rule1_FindingValuesTest`, `Rule3_NoModelCallForNumericTest`, `SearchTermsMatchingTest`),
+`RuleVersionApiTest`, `Rule5_ApprovedRequirementsRejectEditsTest`, `EvalServiceTest`, `EvalModelTest` and the classes that load
+the seed (`SeedLoaderTest`, `CoverageSeedTest`, `RegisterSeedTest`, `RuleVersionDiffSeedTest`, `FindingCountsParityTest`,
+and this item's `WorkQueueSeedParityTest`). Draining first leaves the fake empty when the test starts, whatever ran before.
+
+### UI2-1 — Program overview and determination register in v2 (D-320 to D-329)
+
+**D-320 — The overview's view model is one pure file next to the screen.** `screens/overview/overview-view.ts` turns the
+program, its latest assessment, its determinations, the signer flag and the work queue into what the screen shows:
+`stateCards` (one per target, in the program's order), `mapStates` (the same facts for the map, so a tile and its card
+never disagree), `heroStats` and `needsYou`. `core/overview.ts` keeps `overviewCounts` (the rail badge) and
+`jurisdictionRows`, which now reports the stage and a `reopened` flag instead of v1 words; the words live with the
+cards. The v1 table, the findings bar (`ui/findings-bar.ts`, `barSegments`) and the overview's ProgressBar, DataTable
+and Tag-only token sets are gone with it: nothing else used them. Vitest: `overview-view.spec.ts`, `core/overview.spec.ts`.
+
+**D-321 — A card's one action follows the stage.** Signed: "View report" (the evidence report on that state). All
+requirements decided: "Sign" for a signer, "Review" for everyone else (the signing endpoint is the signer's; offering
+Sign to a reviewer would lead to a refusal). Requirements waiting: "Review". Not assessed: no action, and the chip says
+so. Sign and Review open Review on the state (`review?jurisdiction=`), where signing happens. The chip carries the
+stage in words and an icon: the outcome label once signed (found, missing, or the seal colour for "No determination
+made"), "Ready to sign", "<n> to review", "Not assessed", with "Reopened" first when a signature was reopened by a
+change. The card's ring is the findings mix (found, ambiguous, missing) of the state's requirements; review progress is
+in the chip and on the map tile's fill. Only "Sign" is a filled button; the others are text buttons, so five cards do
+not shout. The action's hit area covers the card (a stretched link): the whole card is one link that lifts on hover,
+and its focus ring outlines the card.
+
+**D-322 — "Needs you": this program's items, what finishes work soonest first, at most three.** The overview fetches
+`GET /work-queue` (role filtered in SQL, F13) alongside the program context and keeps the items that concern this
+program: its own (`programId`), open changes whose `programIds` include it, and rule versions or failed extractions of
+the states it targets (those kinds carry no program). Order: ready to sign, failed assessment, open changes (they make
+decisions stale), evidence requests, reviews, rule versions to approve, failed extractions; within a kind the queue's
+own order (oldest first). Each row reuses `workItemView` (icon, count-first title, screen) with the state's name as the
+detail (the program's name says nothing on its own overview) and one verb-first action. A failed assessment's screen
+is this overview, so its action is "Run again", which starts an assessment in place. The section is absent when nothing
+concerns the program (no empty card under the hero); a failed fetch shows the server's message in the section.
+
+**D-323 — The overview appears once the program and the queue are both in.** "Needs you" sits between the hero and the
+cards, so drawing the page before the queue arrives would push the cards down (layout shift). The skeleton (title,
+hero, five cards) stays until both have settled; the queue is one indexed statement (F13, 40 ms budget) fetched in
+parallel with the program's six reads, so it adds no round trip.
+
+**D-324 — `AssessmentRunner` is shared.** "Run assessment" lived inside the command palette; the overview needs it for
+an empty program and for "Run again". It moved to `core/assessment-runner.ts` (start, follow the job, toast, refresh the
+program context) and both call it; behaviour unchanged.
+
+**D-325 — Shared-element transition: the departing element alone carries `state-<code>`.** The state's tile and its
+card both live on the overview, and a `view-transition-name` must be unique in the document or the browser abandons the
+transition. So neither carries it at rest: activating a tile (click, Enter, or its card's link) sets
+`view-transition-name: state-<code>` on that tile (StateMap's `departing` signal), and a card's action sets it on that
+card's head (name and ring). The name is in place when the router calls `startViewTransition` (checked in Chromium: the
+names at that moment are `root` and `state-TX`). `<code>` is the upper-case postal code, `state-CA`; UI2-2 gives
+Review's state header the same name. Reduced motion skips route transitions altogether (D-307).
+
+**D-326 — StateMap gains a legend, a "different outcomes" status and progress-free states.** For the register's map
+the shared component needed three small additions, all backwards compatible: `legend` (input, default off) draws the
+one legend below the map with only the statuses on it ("Not a target" for the quiet tiles), from the pure
+`legendEntries`; `TileStatus` gains `MIXED` (a dashed ring, `phosphorCircleHalf` in the card) for a state signed with
+different outcomes in different programs; and a state with `total` 0 has no progress to show, so its card has no ring
+and its accessible name no "not assessed" (the old name read "Utah, not assessed, not assessed"). ProgressRing gains a
+`seal` tone for the hero's "Signed" ring.
+
+**D-327 — The register's map shows what its table shows.** `registerMapStates` colours every state with a current
+(`SIGNED`) row among the rows on screen by its outcome; reopened rows colour nothing ("current outcome"). Signed in one
+program, the tile's card opens that program's evidence report; signed in several, the tile shows their common outcome
+("Determined to meet in 2 programs") or `MIXED` ("Different outcomes in 2 programs") and has no action, since there is
+no single report to open; the table lists each. The map follows the filters and keeps its last picture while a new
+filter loads (it is never torn down, so the wave plays once). The filters moved into a panel beside the map with the
+row count as a Stat (still `aria-live`); "Download CSV" is unchanged.
+
+**D-328 — Explanations behind InfoTips; paper keeps the disclosure note.** The register's subtitle and the By program
+paragraph moved into InfoTips ("About the register", "About these lists"); the overview's single explanation, that
+findings are proposals and only a signer signs, is the hero's InfoTip ("About these figures"). The lists' paragraph is
+regulatory context a printed list must carry, so a print-only copy (`DISCLOSURE_NOTE`, one constant) prints exactly as
+before; the rest of the print view is unchanged in content (tenant, program, generated time, the three lists with
+signer, date and rule version, the notes), the map and the filter panel are screen-only. The empty register says "No
+signed determination matches these filters." with "Clear filters", or "Nothing is signed yet."
+
+**D-329 — By program as three clean lists with seals; bundle.** Each list is a card (title and count) of rows: the
+`Seal` of the signature (outcome of the list, signer's initials, date; its accessible name is the full sentence) or a
+dashed placeholder where there is none, the state, and the signer with date and rule version or the note. They are
+lists (`ul`), not tables. `initials` moved from `ui/seal.ts` to `ui/initials.ts`: the shell used it, and once the
+register imported the Seal component the bundler put the whole Seal module in the initial chunk (+2.3 kB). Initial
+bundle 605.46 kB raw (main 596.16 kB, styles 9.30 kB), 155.80 kB estimated transfer, measured after merging UI2-3; before it, this branch measured 606.36 kB against 606.77 kB on `origin/main`.
+Also global (`styles.css`): a link button (`<a pButton>`) takes the button's colours and no underline. The global link
+rule is unlayered, so it beat PrimeNG's layered button colours: a filled link button (the map card's action) drew
+accent text on the accent fill. The rule now reads `a:not(.p-button)`.
+
+### UI2-2 — Review and signing in design v2 (D-330 to D-339)
+
+**D-330 — Review is split into parts, each with its own styles.** The screen (`review.ts`) keeps the state, the data and
+the keys; `RequirementList` (the 288 px rail), `RequirementCard` (the hero), `EvidencePane` (the DocumentViewer and the
+provided passages) and `SignDialog` live beside it in `screens/review/`, and `DecisionBar` is a shared component in
+`ui/decision-bar/` as DESIGN.md lists it. One component with every pane's styles would cross the 10 kB component style
+budget (D-083); each part now stays well under it. The parts have no `viewProviders`, so `REVIEW_ICONS` names their
+icons; `DecisionBar` registers its own (`DECISION_BAR_ICONS`, a unit in `icons.spec.ts`) and its Textarea and Message
+token sets. Splitter and ProgressBar are no longer rendered by Review and left `REVIEW_TOKENS`. Rejected: keeping the
+Splitter between the centre and the evidence (its gutter is the hairline v2 removes, and the rail is a fixed 288 px).
+
+**D-331 — Header: pills as tabs, the active pill as the shared element.** The states stay a PrimeNG `Tabs` list (arrow,
+Home and End keys, `selectOnFocus`), restyled as pills: a 20 px ProgressRing (decided of total, from the assessment's
+per-state summary, `stateProgress`) and the full name. The tab's accessible name is the full name ("California"); its
+ring is hidden from assistive technology and its numbers are the tab's description ("6 of 8 reviewed") through
+`aria-describedby` on hidden text outside the tab, so the name stays the name. The active pill carries
+`view-transition-name: state-<code>`, the target UI2-1's map tile morphs into. The header progress is a 40 px ring
+(hidden) beside "6 of 8" with " reviewed" for screen readers. The pills scroll sideways when they do not fit
+(PrimeNG's scrollable list without navigator buttons). The page title stays "Review": the shell focuses `main h1` after
+navigation, and the program name left the header (the top bar's pill shows it).
+
+**D-332 — "Sign <state>" exists only once every requirement is decided.** Before that the header shows progress and
+nothing to sign (v1 showed a disabled button with a help line). The button enters with one pulse (scale and opacity,
+720 ms, `animate.enter`), then stays still. A reviewer who is not a signer sees it disabled with an InfoTip "Only a
+signer can sign." A signed state shows its Seal (40 px, named in one sentence) with "Signed" and the outcome; a reopened
+determination shows a "Reopened" chip with an InfoTip. Under 640 px the action takes its own row under the pills.
+
+**D-333 — The DecisionBar and the note.** Accept (A), Request (R) and Gap (G) on the raised, blurred bar. It sits in
+flow 24 px under the requirement and is sticky at 16 px from the foot of the centre pane, so it follows a short
+requirement and sticks to the foot only when the requirement is longer than the pane (orchestrator review: pinning it
+to the foot left a band of empty space under short requirements). Under 1024 px it is the last item of the one-column
+layout, so it stays at the foot of the window while the list, the requirement or the evidence is in view. Visible words follow the spec; the accessible names
+of Accept and Request stay full ("Accept evidence", "Request evidence") and contain the visible word. Gap, its key and a
+note button open the note field in place; with the note open the third action reads "Confirm gap", and Accept and
+Request send the note too. The note button ("Add note") exists because a request's note is what the program reads (F4)
+and an accept after provided evidence asks which evidence was relied on (D-267): the spec opens the field only for
+Gap, which would have left requests without a note. Where a person answered an evidence request the note opens by
+itself. Escape in an empty note closes it and returns focus to Gap; a note with words stays open. A gap without a note
+opens the field and says why, as before. Under 640 px the key hints are hidden (a phone has no keys) and the actions
+keep one row.
+
+**D-334 — The decision sequence, never in the way.** After the server records a decision: the decided row's StatusIcon
+turns filled and pops in on the spring, an ink ring draws around it in its status colour (stroke-dashoffset, 240 ms)
+and fades, the row settles (520 ms, `--lx-spring`), the next requirement's card slides in 16 px from the right (from
+the left when the selection moved up the list: `ReviewWorkspace.travel`), and both rings advance by their stroke
+transitions. Only transform, opacity and stroke-dashoffset move. The card is keyed by mapping (`@for` over the
+selection) and enters with `animate.enter`; it starts at 20 % opacity rather than 0 so it is never invisible. Nothing
+waits for motion: the bar is outside the keyed card and keeps focus, keys act during the entrance (the e2e test presses
+K and J while the card slides in), and the global reduced-motion rule removes every animation (the e2e test runs the
+whole California review under reduced motion and asserts that no animation is running after each decision).
+
+**D-335 — The signing dialog and the stamp.** "Sign California": a subtitle "8 of 8 decided" with an InfoTip holding the
+explanation that used to be a paragraph, the three outcomes as large cards (each a label around a PrimeNG RadioButton,
+in a fieldset, with its own icon and colour, the chosen one ringed in the accent), and a preview of the Seal with the
+signer's initials and today's date, faint and hidden from assistive technology (nothing is signed until the server says
+so). Nothing is preselected. After the server signs, the dialog shows the recorded determination's Seal stamping down
+(scale 1.12 to 1, -8 degrees to 0, `--lx-spring`, 420 ms, one ink ring fading over 600 ms), the outcome in words, who
+and when, and Done, which takes the focus; the header behind it already shows the seal. `Seal` gained a `stamp` input
+for this (the stamp is on the host, as D-315 foresaw). Rejected: closing the dialog at once (the moment would happen
+off screen) and closing it on a timer (motion must not decide when the person moves on).
+
+**D-336 — `softWrap`, display only.** `softWrap(text)` in `page-text.ts`: a newline becomes a space when the next
+character is a lower-case letter (`\p{Ll}`), a digit (`\p{Nd}`) or "(" and the previous one is not ".", "!" or "?".
+One refinement of the spec: a newline after another newline also stays, so a blank line between paragraphs is never
+turned into a line break plus a space (a blank line is a paragraph, not a wrap). The viewer renders `softWrap(page.text)`
+and cuts the mark out of that, at the stored offsets; selection offsets are measured on the shown text and the quote is
+still sliced from the stored text, so a passage chosen across a joined line break carries the stored newline. Vitest
+proves equal length, that only joined newlines differ, and that a DOM selection over the shown text with the mark maps
+back to the stored text exactly; the viewer e2e test compares the page with `softWrap` of the stored page and selects
+across a joined break on the harness. The "Quote only" disclosure still shows the stored quote as is.
+
+**D-337 — Hero card and evidence pane, in few words.** The hero: ref chip (mono), title at Title size, rule text in the
+Document type in a `surface-2` inset with its rule version, date and source link, the finding as a large tinted chip,
+how it was checked in one line (`checkMethod`: "Rules engine: Internship hours >= 600", "Quote verified on page 1",
+"No passage found"; the explanation behind an InfoTip "How it was checked"), the model's rationale in three lines with
+"Show all" (`lxClamp`), and the current decision with who and when and its note. The evidence pane drops its "Evidence"
+label (screen-reader heading only) and the "File" entry in the three-pane layout (the viewer names the file), and its
+"No quoted evidence" reason moved to the hero's method line. The DocumentViewer header became an icon pager (Previous
+page, "Page 1 of 2", Next page) and an icon link "Open original", all with their words as accessible names and
+tooltips; the names are unchanged, so Rules and the evidence drawer keep working as before.
+
+**D-338 — Filter as a segmented icon control.** Five icons (list, dashed circle, and the three finding icons the
+StatusIcon uses before review, which a unit test pins). Each segment's name and tooltip put the count first ("7 to
+review", "1 ambiguous", "9 requirements"): SelectButton gives the option label to its toggle as `aria-label`, so the
+count reaches assistive technology without a second text. The list keeps the selected row in view by scrolling the
+list itself, never the page (under 1024 px the page scrolls, and a decision there must not jump it to the list).
+
+**D-339 — End-to-end changes.** Names that changed: the state tabs (full names; `stateTab(page, code)` and `STATE` in
+`support.ts`), "Request evidence", "Gap" then "Confirm gap", "Sign California", the dialogs "Sign California" and
+"Signed", the filter segments, `getByLabel('Note', { exact: true })` (the note button's name contains "note"). Flows
+that changed with the design: a request with a note opens the note first ("Add note"); "Sign <state>" is absent until
+everything is decided. New checks: reduced motion with no running animation after each decision, keys during the
+entrance, Escape in the note, the bar staying in view at 400 px, the pill descriptions, the seal preview hidden from
+assistive technology, the stamped seal and Done's focus, axe on Review at 1440 and 400 px, the gap note, the signing
+dialog at 1440 and 400 px with and without an outcome, and the signed seal, each in both themes.

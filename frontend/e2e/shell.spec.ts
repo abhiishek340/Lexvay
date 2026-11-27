@@ -1,4 +1,4 @@
-import { DANA, PRIYA, expect, expectAccessible, nav, signIn, test } from './support';
+import { DANA, PRIYA, expect, expectAccessible, nav, signIn, stateTab, test } from './support';
 
 const story = (page: import('@playwright/test').Page) => page.locator('[data-story]');
 
@@ -53,7 +53,7 @@ test('the command palette opens with the shortcut and jumps to Review for a stat
   await expect(palette.getByRole('menuitem').first()).toContainText('Review Texas');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/review\?jurisdiction=TX$/);
-  await expect(page.getByRole('tab', { name: 'TX', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(stateTab(page, 'TX')).toHaveAttribute('aria-selected', 'true');
   await expect(palette).toBeHidden();
 
   // The command used last comes first the next time, and the shortcuts list names the palette.
@@ -110,16 +110,22 @@ test('the theme chosen in the avatar menu persists across a reload, and the menu
   await page.reload();
   await expect(html).toHaveAttribute('data-theme', 'light');
 
+  // PrimeNG's Popover closes itself on a window resize, and after a reload the menu is a deferred chunk: let the resize
+  // event pass (it fires before the next animation frames), then open the menu until it is there.
   await page.setViewportSize({ width: 400, height: 860 });
-  await account.click();
-  await expect(page.getByRole('dialog', { name: 'Account' })).toContainText('Reviewer');
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const menu = page.getByRole('dialog', { name: 'Account' });
+  await expect(async () => {
+    if (!(await menu.isVisible())) { await account.click(); }
+    await expect(menu).toContainText('Reviewer', { timeout: 1000 });
+  }).toPass();
   await expectAccessible(page, 'Avatar menu at 400 px');
 });
 
 test('the overview with the v2 shell is accessible in both themes at 1440 and 400 px, and the rail collapses', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await signIn(page, PRIYA);
-  await expect(page.getByRole('table', { name: 'Jurisdictions' })).toContainText('California');
+  await expect(page.getByTestId('state-card-CA')).toContainText('California');
   await expectAccessible(page, 'Overview at 1440 px');
   await page.getByRole('button', { name: 'Collapse navigation' }).click();
   await expect(page.getByRole('button', { name: 'Expand navigation' })).toBeVisible();

@@ -18,7 +18,7 @@ import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
 import { Sheet } from '../../shared/sheet/sheet';
 import { PassageSelection } from '../../shared/document-viewer/page-text';
 import { Enter } from '../../ui/enter';
-import { initials } from '../../ui/seal';
+import { initials } from '../../ui/initials';
 import { COMMENT_MAX, responseBody } from './answer';
 
 /**

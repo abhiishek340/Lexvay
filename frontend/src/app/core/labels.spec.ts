@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { ACTION_LABEL } from '../screens/audit/audit-sentence';
 import { CHANGE_KIND } from '../screens/changes/change-kind';
 import { DIFF_STATUS } from '../screens/rules/diff-status';
 import { RULE_STATUS } from '../screens/rules/rule-status';
 import { DECISION_ICON, FINDING_ICON } from '../ui/finding';
 import {
-  ACTION_LABEL, DECISION_LABEL, FINDING_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, REQUIREMENT_TYPE_LABEL,
-  ROLE_LABEL, actionLabel, humanize, licenseLabel, numericCheck,
+  DECISION_LABEL, FINDING_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, REQUIREMENT_TYPE_LABEL,
+  ROLE_LABEL, humanize, licenseLabel, numericCheck,
 } from './labels';
 
 describe('labels', () => {
@@ -29,8 +30,7 @@ describe('labels', () => {
     expect(numericCheck({ numericField: null, numericOperator: null, numericValue: null })).toBeNull();
   });
 
-  it('unknown actions and keys fall back to readable text', () => {
-    expect(actionLabel('SOMETHING_NEW')).toBe('something new');
+  it('unknown keys fall back to readable text', () => {
     expect(humanize('requirementRef')).toBe('requirement ref');
     expect(licenseLabel({ licenseType: 'CLINICAL_MENTAL_HEALTH_COUNSELING' })).toBe('Clinical mental health counseling license');
   });

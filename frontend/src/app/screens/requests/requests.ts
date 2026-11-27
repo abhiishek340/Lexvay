@@ -20,7 +20,7 @@ import { registerComponentTokens } from '../../theme/component-tokens';
 import type { IconName } from '../../theme/icons';
 import { Enter } from '../../ui/enter';
 import { InfoTip } from '../../ui/info-tip';
-import { initials } from '../../ui/seal';
+import { initials } from '../../ui/initials';
 import { EvidenceDrawer } from './evidence-drawer';
 import { REQUESTS_TOKENS } from './requests-theme';
 
