@@ -2,12 +2,11 @@ import { Component, ElementRef, afterRenderEffect, inject, input } from '@angula
 import { Tab, TabList } from 'primeng/tabs';
 import { ProgressRing } from './progress-ring';
 
-/** One state as a pill: its code, full name and, once known, the numbers of its 20 px ring. */
-export interface StatePill {
-  readonly code: string;
-  readonly name: string;
-  readonly progress: { readonly value: number; readonly total: number; readonly label: string } | null;
-}
+/** The numbers of a pill's 20 px ring; `label` states them in words (the tab's description). */
+export interface PillProgress { readonly value: number; readonly total: number; readonly label: string }
+
+/** One state as a pill: its code, full name and, once known, its ring. */
+export interface StatePill { readonly code: string; readonly name: string; readonly progress: PillProgress | null }
 
 /**
  * The target states as pills (DESIGN.md "Review" header), shared by Review and Coverage. It is the tab list of the
