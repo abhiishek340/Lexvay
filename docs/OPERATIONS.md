@@ -97,6 +97,8 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 | `LEXVAY_RATELIMIT_LOGIN_PER_MINUTE`, `LEXVAY_RATELIMIT_API_PER_MINUTE`, `LEXVAY_RATELIMIT_UPLOAD_PER_MINUTE`, `LEXVAY_UPLOAD_MAX_MB` | Rate limits and upload size (WS-SEC) | 10, 600, 30, 25 |
 | `LEXVAY_PASSWORD_HASH_CONCURRENCY` | How many password hashes (sign-in, choosing a password) may run at once, 32 MiB of heap each; a caller that waits 2 seconds gets 503 with `Retry-After: 2` (D-407) | processors, at least 2 |
 
+OCR of scanned PDFs (`LEXVAY_OCR`) checkpoints every page in its own committed transaction (`document_ocr_page`, FIX-6), so a retried ingest resumes after the last page that was read instead of recognising the whole document again.
+
 The JVM options are in `JAVA_OPTS` (default `-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -XX:-UsePerfData
 -Djava.io.tmpdir=/var/lexvay/tmp`); override the variable to change them. Password hashing needs heap headroom of
 `LEXVAY_PASSWORD_HASH_CONCURRENCY` x 32 MiB on top of the application's own use (64 MiB with the minimum of 2 permits, 256 MiB on

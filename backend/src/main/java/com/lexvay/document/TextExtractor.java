@@ -32,6 +32,9 @@ import org.springframework.stereotype.Component;
  * confidence when that yields {@value #MIN_PAGE_CHARS} characters. In every other case (no engine, or too little
  * recognised) the page keeps its text layer, however short, as {@code TEXT_LAYER}: a text layer is never discarded
  * (D-164). A document whose pages all have a blank text layer after that is rejected.
+ *
+ * <p>Every page sent to the engine is handed to {@link OcrCheckpoints} before the next one starts, so a retried
+ * ingest reuses the results of the pages that were already read (FIX-6).
  */
 @Component
 public class TextExtractor {
@@ -57,8 +60,13 @@ public class TextExtractor {
     }
 
     public List<ExtractedPage> extract(FileType type, byte[] bytes) {
+        return extract(type, bytes, OcrCheckpoints.NONE);
+    }
+
+    /** As {@link #extract(FileType, byte[])}, reading scanned pages from {@code checkpoints} and saving each one it recognises. */
+    public List<ExtractedPage> extract(FileType type, byte[] bytes, OcrCheckpoints checkpoints) {
         List<PageText> pages = switch (type) {
-            case PDF -> pdfPages(bytes);
+            case PDF -> pdfPages(bytes, checkpoints);
             case DOCX -> List.of(PageText.textLayer(docxText(bytes)));
             case TXT -> List.of(PageText.textLayer(normalize(new String(bytes, StandardCharsets.UTF_8))));
             case HTML -> HtmlText.pages(bytes).stream().map(PageText::textLayer).toList();
@@ -80,7 +88,7 @@ public class TextExtractor {
         return result;
     }
 
-    private List<PageText> pdfPages(byte[] bytes) {
+    private List<PageText> pdfPages(byte[] bytes, OcrCheckpoints checkpoints) {
         try (PDDocument document = Loader.loadPDF(bytes)) {
             ContentLimits.requirePdfPages(document.getNumberOfPages());
             PDFTextStripper stripper = new PDFTextStripper();
@@ -102,7 +110,7 @@ public class TextExtractor {
                 if (hasEnoughText(layer)) {
                     pages.add(PageText.textLayer(layer));
                 } else if (recognise) {
-                    pages.add(recogniseScan(renderer, document.getPage(i), i).orElseGet(() -> PageText.textLayer(layer)));
+                    pages.add(recogniseScan(renderer, document.getPage(i), i, checkpoints).orElseGet(() -> PageText.textLayer(layer)));
                 } else {
                     pages.add(PageText.textLayer(layer));
                 }
@@ -115,12 +123,27 @@ public class TextExtractor {
         }
     }
 
-    /** The OCR text of a page, or empty when the engine found too little for the page to count as read. */
-    private Optional<PageText> recogniseScan(PDFRenderer renderer, PDPage page, int index) throws IOException {
-        BufferedImage image = renderer.renderImageWithDPI(index, renderDpi(page.getCropBox()), ImageType.GRAY);
-        return ocr.recognize(image).map(p -> new OcrPage(normalize(p.text()), p.meanConfidence()))
-                .filter(p -> hasEnoughText(p.text()))
-                .map(p -> new PageText(p.text(), TextSource.OCR, confidence(p.meanConfidence())));
+    /**
+     * The OCR text of a page, or empty when the engine found too little for the page to count as read. The page is
+     * read from its checkpoint when there is one at this DPI; otherwise it is recognised and checkpointed before the
+     * next page starts, whatever the result, so that "enough text" is always decided here from the stored text.
+     */
+    private Optional<PageText> recogniseScan(PDFRenderer renderer, PDPage page, int index, OcrCheckpoints checkpoints)
+            throws IOException {
+        int pageNumber = index + 1;
+        int dpi = renderDpi(page.getCropBox());
+        Optional<OcrPage> stored = checkpoints.find(pageNumber, dpi);
+        OcrPage recognised;
+        if (stored.isPresent()) {
+            recognised = stored.get();
+        } else {
+            BufferedImage image = renderer.renderImageWithDPI(index, dpi, ImageType.GRAY);
+            recognised = ocr.recognize(image).map(p -> new OcrPage(normalize(p.text()), confidence(p.meanConfidence())))
+                    .orElse(OcrPage.NOTHING);
+            checkpoints.save(pageNumber, recognised, dpi);
+        }
+        return Optional.of(recognised).filter(p -> hasEnoughText(p.text()))
+                .map(p -> new PageText(p.text(), TextSource.OCR, p.meanConfidence()));
     }
 
     /** 300 DPI, or lower for a page so large that its image would exceed {@link #MAX_OCR_PIXELS}. */

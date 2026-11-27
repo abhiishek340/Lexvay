@@ -1,6 +1,7 @@
 package com.lexvay.document;
 
 import com.lexvay.program.CourseRepository;
+import java.sql.Types;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -105,6 +106,31 @@ public class DocumentRepository {
                 .param("text", page.text()).param("charStart", page.charStart()).param("charEnd", page.charEnd())
                 .param("textSource", page.textSource().name()).param("ocrConfidence", page.ocrConfidence())
                 .param("createdBy", createdBy)
+                .update();
+    }
+
+    /** A page's OCR result as it was checkpointed, with the DPI it was rendered at. */
+    public record OcrCheckpoint(int pageNumber, OcrPage page, int renderDpi) {
+    }
+
+    /** Every OCR checkpoint of a document, in one statement served by the primary key. */
+    public List<OcrCheckpoint> ocrCheckpoints(UUID documentId) {
+        return jdbc.sql("SELECT page_number, text, CAST(mean_confidence AS double precision) AS mean_confidence, render_dpi "
+                        + "FROM document_ocr_page WHERE document_id = :documentId")
+                .param("documentId", documentId)
+                .query((rs, i) -> new OcrCheckpoint(rs.getInt("page_number"),
+                        new OcrPage(rs.getString("text"), rs.getDouble("mean_confidence")), rs.getInt("render_dpi")))
+                .list();
+    }
+
+    /** Idempotent: a checkpoint that exists is kept. A page without words stores no confidence. */
+    public int insertOcrCheckpoint(UUID tenantId, UUID documentId, int pageNumber, OcrPage page, int renderDpi) {
+        return jdbc.sql("INSERT INTO document_ocr_page (tenant_id, document_id, page_number, text, mean_confidence, render_dpi) "
+                        + "VALUES (:tenantId, :documentId, :pageNumber, :text, :meanConfidence, :renderDpi) "
+                        + "ON CONFLICT (document_id, page_number) DO NOTHING")
+                .param("tenantId", tenantId).param("documentId", documentId).param("pageNumber", pageNumber)
+                .param("text", page.text()).param("meanConfidence", page.isNothing() ? null : page.meanConfidence(), Types.NUMERIC)
+                .param("renderDpi", renderDpi)
                 .update();
     }
 
