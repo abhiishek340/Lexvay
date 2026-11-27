@@ -32,6 +32,38 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await shoot(page, 'review-shortcuts');
   await page.keyboard.press('Escape');
 
+  // Evidence requests: the evidence-requests suite leaves one open request on Utah and one answered and accepted.
+  await nav(page, 'Evidence requests').click();
+  const open = page.getByRole('table', { name: 'Evidence requests' }).getByRole('button', { name: /^Provide evidence for / }).first();
+  await expect(open).toBeVisible();
+  await shoot(page, 'evidence-requests');
+  await open.click();
+  const drawer = page.getByRole('dialog', { name: 'Provide evidence' });
+  await drawer.getByRole('combobox', { name: 'Program document' }).click();
+  await page.getByRole('option', { name: /^coun605-syllabus\.pdf syllabus$/ }).click();
+  await expect(drawer.locator('lx-document-viewer pre')).toBeVisible();
+  await drawer.locator('lx-document-viewer pre').evaluate((pre) => {
+    const text = Array.from(pre.childNodes).find((n) => n.nodeType === Node.TEXT_NODE)!;
+    const sentence = /[A-Z][^.\n]{30,}\./.exec(text.textContent!)!;
+    const range = document.createRange();
+    range.setStart(text, sentence.index);
+    range.setEnd(text, sentence.index + sentence[0].length);
+    document.getSelection()!.removeAllRanges();
+    document.getSelection()!.addRange(range);
+    pre.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+  });
+  await expect(drawer.getByTestId('selected-passage').locator('blockquote')).toBeVisible();
+  await shoot(page, 'evidence-request-drawer');
+  await page.keyboard.press('Escape');
+  await expect(drawer).toBeHidden();
+
+  const overview = await (await page.request.get(`/api/v1/programs/${cited.programId}/overview`)).json();
+  const ut = await (await page.request.get(`/api/v1/assessments/${overview.assessment.id}/mappings?jurisdiction=UT`)).json();
+  const answered = (ut.mappings as { responseCount: number; requirement: { ref: string } }[]).find((m) => m.responseCount > 0)!;
+  await openRequirement(page, 'UT', answered.requirement.ref);
+  await expect(page.getByTestId('provided-evidence').getByTestId('evidence-mark')).toBeVisible();
+  await shoot(page, 'review-provided-evidence');
+
   await nav(page, 'Changes').click();
   await expect(page.getByRole('table', { name: 'Change events' })).toBeVisible();
   await shoot(page, 'changes');

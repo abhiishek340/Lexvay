@@ -1,5 +1,5 @@
 import { computed, signal } from '@angular/core';
-import { DecisionKind, Finding, Mapping } from '../../core/models';
+import { DecisionKind, Evidence, EvidenceResponse, Finding, Mapping } from '../../core/models';
 
 export type ReviewFilter = 'ALL' | 'NEEDS_REVIEW' | Finding;
 
@@ -59,6 +59,30 @@ export function decisionBlocker(kind: DecisionKind, note: string): string | null
 }
 
 /**
+ * What the Evidence pane shows for one requirement: the system's proposed evidence first and unchanged, then the
+ * passages people provided in answer to evidence requests, newest first (F4). `answered`: a person answered and no
+ * decision has been made since, so the decision note asks which evidence the reviewer relied on.
+ */
+export interface EvidenceView {
+  system: Evidence | null;
+  provided: readonly EvidenceResponse[];
+  /** Responses exist but are not fetched yet (or more arrived since). */
+  providedLoading: boolean;
+  answered: boolean;
+}
+
+export function evidenceView(m: Mapping, responses: ReadonlyMap<string, readonly EvidenceResponse[]>): EvidenceView {
+  const cached = responses.get(m.id);
+  const fresh = cached !== undefined && cached.length === m.responseCount;
+  return {
+    system: m.evidence,
+    provided: cached ?? [],
+    providedLoading: m.responseCount > 0 && !fresh,
+    answered: m.responseCount > 0 && m.decision === null,
+  };
+}
+
+/**
  * The review workspace for one jurisdiction: the requirement list, its filter, the selection and the
  * progress. Plain signals with no Angular dependencies so every rule here is unit-tested.
  */
@@ -66,9 +90,15 @@ export class ReviewWorkspace {
   readonly mappings = signal<Mapping[]>([]);
   readonly filter = signal<ReviewFilter>('ALL');
   readonly selectedId = signal<string | null>(null);
+  /** Evidence responses per mapping id, fetched with the selected mapping and kept for the screen's lifetime. */
+  readonly responses = signal<ReadonlyMap<string, readonly EvidenceResponse[]>>(new Map());
 
   readonly visible = computed(() => this.mappings().filter((m) => matchesFilter(m, this.filter())));
   readonly selected = computed(() => this.mappings().find((m) => m.id === this.selectedId()) ?? null);
+  readonly evidence = computed(() => {
+    const m = this.selected();
+    return m ? evidenceView(m, this.responses()) : null;
+  });
   readonly decided = computed(() => this.mappings().filter(isDecided).length);
   readonly total = computed(() => this.mappings().length);
   readonly allDecided = computed(() => this.total() > 0 && this.decided() === this.total());
@@ -86,6 +116,10 @@ export class ReviewWorkspace {
     this.mappings.set(mappings);
     this.filter.set('ALL');
     this.selectedId.set((mappings.find((m) => !isDecided(m)) ?? mappings[0])?.id ?? null);
+  }
+
+  setResponses(mappingId: string, responses: readonly EvidenceResponse[]): void {
+    this.responses.update((all) => new Map(all).set(mappingId, responses));
   }
 
   select(id: string): void {
