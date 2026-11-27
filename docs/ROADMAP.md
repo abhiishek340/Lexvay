@@ -101,7 +101,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | merged (PR #21) |
 | F2 Program setup workspace | `feat-setup-workspace` | 3 | Opus 5.5 | folded into UI2-4 (built directly in v2) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
-| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | in progress |
+| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | merged (PR #28) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
 | F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
