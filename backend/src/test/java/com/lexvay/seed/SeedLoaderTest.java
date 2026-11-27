@@ -38,8 +38,8 @@ class SeedLoaderTest extends AbstractDatabaseTest {
 
     @Test
     void seedLoadsBothTenantsWithTheExpectedFindingMixAndIsIdempotent() throws Exception {
-        ((FakeLlmClient) llm).reset();
         runner.runPending();
+        ((FakeLlmClient) llm).reset();
         ModelStrategy model = ScriptedFakeModel.load(Path.of("..", "seed"), llm, json);
         List<SeedLoader.Result> results = loader.load(Path.of("..", "seed"), "demo-pass", model);
         assertThat(results).hasSize(2);

@@ -46,8 +46,8 @@ class FindingCountsParityTest extends AbstractDatabaseTest {
 
     @Test
     void theSharedPredicatesGiveTheSameCountsOnTheSeededTenant() throws Exception {
-        ((FakeLlmClient) llm).reset();
         runner.runPending();
+        ((FakeLlmClient) llm).reset();
         var seed = SeedCopy.northfield("Finding Counts University", "finding-counts.example");
         SeedLoader.Result loaded = loader.load(seed, "demo-pass", ScriptedFakeModel.load(seed, llm, json)).get(0);
         UUID tenantId = loaded.tenantId();
