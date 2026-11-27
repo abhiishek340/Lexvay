@@ -106,7 +106,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
 | F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
 | TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | merged (PR #25) |
-| PERF-FE-1 Icons and theme tokens per chunk | `perf-frontend-chunks` | 6 | Sonnet 5.5 | in progress |
+| PERF-FE-1 Icons and theme tokens per chunk | `perf-frontend-chunks` | 6 | Sonnet 5.5 | merged (PR #29); remaining cuts in UI2-0 |
 | UI2-0 Design v2 foundation, shell and sign-in | `ui2-foundation` | 1 | Opus 5.5 | in progress |
 | UI2-1 Overview and register in v2 | `ui2-overview-register` | 2 | Opus 5.5 | queued (after UI2-0) |
 | UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | queued (after UI2-0) |
