@@ -34,7 +34,7 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 public class EvidenceMatcher {
 
-    public static final String PROMPT_VERSION = "match-v1";
+    public static final String PROMPT_VERSION = "match-v2";
     public static final String SCHEMA = "llm/evidence-match.schema.json";
     public static final String NO_VERIFIABLE_PASSAGE = "No verifiable passage found";
 
@@ -78,7 +78,7 @@ public class EvidenceMatcher {
     }
 
     public Outcome match(UUID assessmentId, UUID programId, Requirement requirement, UUID actor) {
-        List<Passage> passages = search.search(programId, requirement.title() + " " + requirement.text(), shortlistSize);
+        List<Passage> passages = search.search(programId, requirement.title(), requirement.text(), shortlistSize);
         if (passages.isEmpty()) {
             return new Outcome(Finding.EVIDENCE_MISSING, "No candidate passages found in the program's documents", null);
         }
@@ -176,7 +176,7 @@ public class EvidenceMatcher {
             if (p.courseCode() != null) {
                 sb.append("course: ").append(p.courseCode()).append(Boolean.TRUE.equals(p.courseRequired()) ? " (required)" : " (elective)").append('\n');
             }
-            sb.append("text:\n").append(p.text()).append('\n');
+            sb.append("text:\n").append(p.excerpt()).append('\n');
         }
         return sb.toString();
     }

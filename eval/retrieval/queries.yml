@@ -1,0 +1,55 @@
+# Retrieval queries for `make eval` (ROADMAP F7). Fictional: the requirements are written in the style of licensing
+# rules but come from no regulator, and the documents they are asked of (seed/docs and eval/retrieval/docs) do not exist.
+#
+# Each query is what the matcher sends to the search: a requirement's title and text. The expected answer is one page of
+# one document and a substring of the passage that carries the evidence (whitespace-insensitive), so a query is
+# recalled when that page is among the top eight and its excerpt coverage is met when the substring is inside the
+# excerpt that would be shown to the model. The page numbers are those of the PDFs, which RetrievalFileTest checks.
+#
+# lexicalGap: true marks a query whose document says the thing in other words than the requirement does (for
+# example "marital" against "couples"). Those are reported in their own table and never count toward a threshold:
+# they measure what lexical search cannot do. They are not expected to be recalled.
+#
+# R01-R15 ask for the 13 added syllabi (eval/retrieval/docs), S01-S14 are the matcher's questions of the demo seed,
+# G01-G06 are the lexical gaps.
+fictional: true
+queries:
+  # ---- Added syllabi: the evidence is on a long page (page 2, the weekly schedule) or on a short one --------------
+  - { id: R01, title: Multicultural counseling, text: coursework in multicultural counseling and social justice advocacy, file: coun705-syllabus.pdf, page: 2, contains: Multicultural counseling competencies and cultural humility }
+  - { id: R02, title: Counseling theories, text: coursework in the major theories of counseling and psychotherapy, file: coun710-syllabus.pdf, page: 1, contains: major theories of counseling and psychotherapy }
+  - { id: R03, title: Family systems, text: coursework in family systems theory, file: coun715-syllabus.pdf, page: 2, contains: Bowen family systems theory }
+  - { id: R04, title: Children and adolescents, text: coursework in counseling children and adolescents, file: coun720-syllabus.pdf, page: 2, contains: Developmental assessment of children and adolescents }
+  - { id: R05, title: Counseling skills, text: supervised laboratory practice in counseling skills with recorded sessions, file: coun725-syllabus.pdf, page: 3, contains: three recorded practice sessions }
+  - { id: R06, title: Clinical supervision, text: coursework in models of clinical supervision, file: coun730-syllabus.pdf, page: 2, contains: discrimination model and the developmental model of clinical supervision }
+  - { id: R07, title: Grief and loss, text: "coursework in grief, bereavement and loss", file: coun735-syllabus.pdf, page: 2, contains: "Grief, bereavement and complicated loss" }
+  - { id: R08, title: Human sexuality, text: coursework in human sexuality and gender identity, file: coun740-syllabus.pdf, page: 2, contains: Gender identity and sexual orientation across the lifespan }
+  - { id: R09, title: Consultation, text: coursework in consultation models and advocacy, file: coun755-syllabus.pdf, page: 2, contains: "Consultation models: mental health, behavioral and process consultation" }
+  - { id: R10, title: Statistics, text: "coursework in statistics, correlation and analysis of variance", file: coun760-syllabus.pdf, page: 2, contains: analysis of variance and post hoc comparisons }
+  - { id: R11, title: Psychopathology, text: coursework in psychopathology and abnormal behavior, file: coun701-syllabus.pdf, page: 1, contains: psychopathology }
+  # ---- Requirements phrased in the everyday words of a licensing rule, which the policy page of every syllabus also uses ---
+  - { id: R12, title: Supervised practice, text: a course in which students practice counseling skills under supervision, file: coun725-syllabus.pdf, page: 2, contains: "Triad practice with counselor, client and observer" }
+  - { id: R13, title: Research literacy, text: a course in which counseling students learn to read and apply research, file: coun760-syllabus.pdf, page: 3, contains: quantitative study from a counseling journal }
+  - { id: R14, title: Diverse clients, text: a course that prepares counseling students to work with clients of different cultural backgrounds, file: coun705-syllabus.pdf, page: 1, contains: counsel clients across cultures }
+  - { id: R15, title: Death and loss, text: a course on counseling clients who have experienced a death, file: coun735-syllabus.pdf, page: 1, contains: how people experience death, loss and major change }
+  # ---- The demo seed: the questions its requirements put to the matcher (eval/golden.yml) ---------------------------
+  - { id: S01, title: Ethics coursework, text: coursework in professional ethics and legal standards for counselors, file: coun605-syllabus.pdf, page: 1, contains: ACA Code of Ethics }
+  - { id: S02, title: Human growth, text: coursework in human growth and development across the lifespan, file: coun610-syllabus.pdf, page: 1, contains: human growth and development across the lifespan }
+  - { id: S03, title: Diagnosis, text: coursework in the diagnosis and treatment planning of mental disorders, file: coun615-syllabus.pdf, page: 1, contains: formulate diagnoses }
+  - { id: S04, title: Accreditation, text: accredited by a counseling program accrediting body recognized by the board, file: accreditation-letter.pdf, page: 1, contains: is accredited by the Fictional Accreditation Council }
+  - { id: S05, title: Group counseling, text: coursework in group counseling theory and practice, file: coun625-syllabus.pdf, page: 1, contains: group dynamics }
+  - { id: S06, title: Addictions, text: coursework in substance use and addictive disorders, file: coun650-syllabus.pdf, page: 1, contains: substance use and addictive disorders }
+  - { id: S07, title: Crisis and trauma, text: coursework in crisis intervention and trauma-informed counseling, file: coun620-syllabus.pdf, page: 1, contains: trauma-informed counseling }
+  - { id: S08, title: Career development, text: coursework in career development and career counseling, file: coun630-syllabus.pdf, page: 1, contains: One class session introduces career development theory }
+  - { id: S09, title: Research, text: coursework in research methods and program evaluation, file: coun635-syllabus.pdf, page: 1, contains: program evaluation methods }
+  - { id: S10, title: Assessment, text: coursework in assessment and testing in counseling, file: coun640-syllabus.pdf, page: 1, contains: assessment instruments }
+  - { id: S11, title: Psychopharmacology, text: coursework in psychopharmacology for counselors, file: coun655-syllabus.pdf, page: 1, contains: psychotropic medications }
+  - { id: S12, title: Ethics and law, text: coursework in professional ethics and law for counselors, file: coun605-syllabus.pdf, page: 1, contains: ACA Code of Ethics }
+  - { id: S13, title: Crisis and trauma, text: coursework in crisis and trauma counseling, file: coun620-syllabus.pdf, page: 1, contains: trauma-informed counseling }
+  - { id: S14, title: Assessment, text: "coursework in assessment, appraisal and testing", file: coun640-syllabus.pdf, page: 1, contains: assessment instruments }
+  # ---- Lexical gaps: the document uses other words than the requirement ------------------------------------------------
+  - { id: G01, title: Mental and emotional disorders, text: coursework in the diagnosis of mental and emotional disorders, file: coun701-syllabus.pdf, page: 1, contains: classification of psychiatric syndromes, lexicalGap: true }
+  - { id: G02, title: Marital counseling, text: coursework in marital and relationship counseling, file: coun715-syllabus.pdf, page: 1, contains: "systemic therapy with couples, parents and children", lexicalGap: true }
+  - { id: G03, title: Chemical dependency, text: coursework in the treatment of chemical dependency, file: coun650-syllabus.pdf, page: 1, contains: substance use and addictive disorders, lexicalGap: true }
+  - { id: G04, title: Minors and youth, text: coursework in counseling minors and youth, file: coun720-syllabus.pdf, page: 1, contains: play based and developmentally informed interventions, lexicalGap: true }
+  - { id: G05, title: Telehealth, text: coursework in telehealth and technology assisted counseling, file: coun750-syllabus.pdf, page: 1, contains: secure videoconferencing, lexicalGap: true }
+  - { id: G06, title: Documentation, text: coursework in clinical documentation and record keeping, file: coun765-syllabus.pdf, page: 1, contains: "progress notes, charting, treatment file retention practices", lexicalGap: true }

@@ -6,9 +6,10 @@
 #   scripts/eval.sh          scripted model (FakeLlmClient): deterministic, no network, no key
 #   scripts/eval.sh --live   real model: only when ANTHROPIC_API_KEY is set, otherwise says so and exits 0
 #
-# Conventions follow scripts/e2e.sh: LEXVAY_E2E_SLOT (0-9) shifts the PostgreSQL port (5433 + slot) and the
-# compose project is lexvay-eval-<slot>, which cannot collide with lexvay-e2e-<slot>. The development database
-# (:5432) is never touched. LEXVAY_EVAL_DIR overrides the directory holding golden.yml and thresholds.yml.
+# The stack comes from scripts/lib/stack.sh, shared with scripts/e2e.sh: LEXVAY_E2E_SLOT (0-9) shifts the PostgreSQL
+# port (5433 + slot) and the compose project is lexvay-eval-<slot>, which cannot collide with lexvay-e2e-<slot>.
+# The development database (:5432) is never touched. LEXVAY_EVAL_DIR overrides the directory holding golden.yml,
+# thresholds.yml and retrieval/. The retrieval measurement also rewrites docs/RETRIEVAL.md.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -34,26 +35,11 @@ else
   export LEXVAY_LLM_PROVIDER=fake
 fi
 
-SLOT="${LEXVAY_E2E_SLOT:-0}"
-DB_PORT=$((5433 + SLOT))
-export LEXVAY_DB_PORT="$DB_PORT"
-export LEXVAY_DB_URL="jdbc:postgresql://localhost:$DB_PORT/lexvay"
-export LEXVAY_FILESTORE_PATH="$(mktemp -d)"
-COMPOSE="docker compose -p lexvay-eval-$SLOT -f docker-compose.yml"
-cleanup() {
-  $COMPOSE down -v >/dev/null 2>&1 || true
-  rm -rf "$LEXVAY_FILESTORE_PATH"
-}
-trap cleanup EXIT
+source scripts/lib/stack.sh
+stack_init eval
+stack_start_database
+stack_package_backend
 
-echo "eval: starting isolated database (project lexvay-eval-$SLOT, port $DB_PORT)"
-$COMPOSE down -v >/dev/null 2>&1 || true
-$COMPOSE up -d --wait
-
-echo "eval: packaging backend"
-( cd backend && ./mvnw -q -B -DskipTests package )
-JAR=$(ls backend/target/lexvay-backend-*.jar | grep -v original | head -1)
-
-echo "eval: running the pipeline ($MODE model)"
+echo "eval: running the pipeline ($MODE model) and the retrieval measurement"
 java -jar "$JAR" --spring.profiles.active=eval --lexvay.seed.dir=seed --lexvay.eval.dir="${LEXVAY_EVAL_DIR:-eval}" \
-  --logging.level.root=WARN --spring.main.banner-mode=off
+  --lexvay.eval.retrieval-report=docs/RETRIEVAL.md --logging.level.root=WARN --spring.main.banner-mode=off

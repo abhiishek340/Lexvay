@@ -18,3 +18,8 @@ live:
   minNumericAccuracy: 1.0
   minExtractionAgreement: 0.9
   minEvidenceAgreement: 0.8
+# retrieval: limits on the BM25 ranker over eval/retrieval/queries.yml, lexical-gap queries excluded. They do not
+#   depend on the model. Beyond these floors BM25 may not fall below the ts_rank baseline in recall@8 or recall@3.
+retrieval:
+  minRecallAtDeep: 0.95
+  minExcerptCoverage: 1.0
