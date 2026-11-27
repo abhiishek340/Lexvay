@@ -20,7 +20,7 @@ class EvalScorerTest {
 
     static Golden.Entry golden(String ref, RequirementType type, Finding finding, String document, String quote) {
         Golden.Numeric numeric = type.isNumeric() ? new Golden.Numeric(NumericField.TOTAL_CREDITS, ">=", BigDecimal.valueOf(60)) : null;
-        return new Golden.Entry(ref, "UT", "title", "text", type, numeric, finding, document, quote, "reason");
+        return new Golden.Entry(ref, "UT", "title", "text", type, numeric, finding, document, quote, List.of("term"), "reason");
     }
 
     static Mapping mapping(String ref, RequirementType type, Finding finding, MappingMethod method, String document, String quote) {

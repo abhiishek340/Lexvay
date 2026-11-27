@@ -54,6 +54,8 @@ class EvalServiceTest extends AbstractDatabaseTest {
         assertThat(report.render()).contains("False EVIDENCE_FOUND rate", "Recall on golden EVIDENCE_FOUND", "Quote verification",
                 "Numeric accuracy", "Requirement extraction agreement", "Input tokens", "Output tokens", "Cost per assessment",
                 "Wall time per assessment", "RESULT: pass");
+        assertThat(report.termOverlap()).as("the scripted model's terms are the seed's, not a measurement").isNull();
+        assertThat(report.render()).doesNotContain("Search terms");
     }
 
     @Test
@@ -84,6 +86,6 @@ class EvalServiceTest extends AbstractDatabaseTest {
 
     private static Golden.Entry withFinding(Golden.Entry e, Finding finding) {
         return new Golden.Entry(e.ref(), e.jurisdiction(), e.title(), e.text(), e.type(), e.numeric(), finding, e.document(),
-                e.quoteContains(), e.reason());
+                e.quoteContains(), e.searchTerms(), e.reason());
     }
 }
