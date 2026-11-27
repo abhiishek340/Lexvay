@@ -1069,3 +1069,12 @@ services in one read-only transaction, N+1 removed from determinations, change e
 filters, gzip over 1 kB, nine planner-verified indexes in V008 (`IndexUsageTest`), `make perf` with
 `EndpointLatencyTest` (every p95 under 40 ms on the seeded and the 62-tenant database; tables and method in
 `docs/PERF.md`). Final run: 487 backend tests, 6 end-to-end tests passed. Decisions D-110 to D-119.
+
+## F11 — OCR for scanned documents (PR #13)
+
+`OcrEngine` seam with a Tesseract CLI engine (`LEXVAY_OCR=tesseract`; `FakeOcrEngine` in tests), V009 adds
+`document_page.text_source` and `ocr_confidence`; a PDF page's text layer is never discarded, OCR replaces it only
+when the layer is under 20 characters and OCR yields at least 20; evidence cited from an OCR page under 80 %
+confidence is downgraded to AMBIGUOUS through the ordered `DowngradeRule` list (`Rule4_LowOcrConfidenceForcesAmbiguousTest`).
+Real-binary test against Tesseract 5.5.5 (31 words, mean confidence 96.29). Final run after merging main: 531
+backend tests, 6 end-to-end tests passed. Decisions D-160 to D-169.

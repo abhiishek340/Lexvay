@@ -23,7 +23,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | merged (PR #8) |
 | F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | PR #16 in review (renumber to V010, merge after #14, #13) |
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
-| F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | PR #13 approved (merges after #14) |
+| F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (merges after V011) |
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | in progress |
@@ -637,6 +637,8 @@ read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
    kinds above contain no forbidden words). Read-only endpoint, so nothing to add to the audit coverage set.
 
 ## Follow-ups recorded from reviews
+- F12 deployment note: the SSRF guard resolves the host before connecting and the JDK client resolves it
+  again, so a DNS-rebinding window remains; production egress must also block private ranges (Terraform).
 - WS-UI: the overview still finds the latest assessment through the audit log; switch it to the WS-PERF
   `GET /programs/{id}/overview` endpoint (do this in F1). Audit filtering is client-side over the newest 500
   entries; switch to the WS-PERF server filters (F5). Add a build check that the production `index.html` has no
