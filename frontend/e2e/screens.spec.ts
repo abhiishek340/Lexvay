@@ -1,4 +1,4 @@
-import { DANA, SCREENSHOTS, citedRequirement, expect, nav, openRequirement, shoot, signIn, test } from './support';
+import { DANA, JORDAN, SCREENSHOTS, citedRequirement, expect, nav, openRequirement, shoot, signIn, test } from './support';
 
 /**
  * Screenshots of every screen in both themes for docs/screens. Not part of the regular suite:
@@ -146,5 +146,37 @@ test('screenshots of the v2 shell and sign-in at 1440 and 400 px', async ({ page
     await shoot(page, `ui2-avatar-menu-${width}`);
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL(/\/login$/);
+  }
+});
+
+/** UI2-4: the evidence request inbox and the answer drawer with a selected passage, at 1440 and 400 px. */
+test('screenshots of the v2 evidence requests at 1440 and 400 px', async ({ page }) => {
+  await signIn(page, JORDAN);
+  for (const [width, height] of [[1440, 900], [400, 860]] as const) {
+    await page.setViewportSize({ width, height });
+    await nav(page, 'Evidence requests').click();
+    await page.locator('p-selectbutton').getByText('All').click();
+    const open = page.getByRole('table', { name: 'Evidence requests' }).getByRole('button', { name: /^Provide evidence for / }).first();
+    await expect(open).toBeVisible();
+    await shoot(page, `ui2-4-requests-inbox-${width}`);
+    await open.click();
+    const drawer = page.getByRole('dialog', { name: 'Provide evidence' });
+    await drawer.getByRole('combobox', { name: 'Program document' }).click();
+    await page.getByRole('option', { name: /^coun605-syllabus\.pdf syllabus$/ }).click();
+    await expect(drawer.locator('lx-document-viewer pre')).toBeVisible();
+    await drawer.locator('lx-document-viewer pre').evaluate((pre) => {
+      const text = Array.from(pre.childNodes).find((n) => n.nodeType === Node.TEXT_NODE)!;
+      const sentence = /[A-Z][^.\n]{30,}\./.exec(text.textContent!)!;
+      const range = document.createRange();
+      range.setStart(text, sentence.index);
+      range.setEnd(text, sentence.index + sentence[0].length);
+      document.getSelection()!.removeAllRanges();
+      document.getSelection()!.addRange(range);
+      pre.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    });
+    await expect(drawer.getByTestId('selected-passage').locator('blockquote')).toBeVisible();
+    await shoot(page, `ui2-4-requests-drawer-${width}`);
+    await page.keyboard.press('Escape');
+    await expect(drawer).toBeHidden();
   }
 });

@@ -75,6 +75,8 @@ export class SetupWorkspace {
   readonly programId = input<string>();
 
   readonly steps = SETUP_STEPS;
+  /** A panel is not a tabpanel here (see the template); its region inside is named by its step's button. */
+  readonly panelPt = { root: { role: null, 'aria-controls': null } };
   readonly label = STEP_LABEL;
   readonly license = licenseLabel;
   readonly form = signal<ProgramForm>({ ...EMPTY });
@@ -86,9 +88,9 @@ export class SetupWorkspace {
 
   readonly licenseOptions = computed(() => licenseTypes(this.store.ruleVersions()));
   readonly stateOptions = computed(() => this.store.jurisdictions().map((j) => ({ code: j.code, label: `${j.name} (${j.code})` })));
-  /** The states as the mini map draws them: chosen (or the program's) in the accent tint. */
+  /** The states as the mini map draws them: the chosen ones (or the program's) filled in accent, a picture beside the MultiSelect. */
   readonly mapStates = computed<MapState[]>(() => (this.store.program()?.jurisdictions ?? this.form().jurisdictions)
-    .map((code) => ({ code, tile: 'IN_REVIEW', reviewed: 0, total: 0, status: 'Target state', action: null })));
+    .map((code) => ({ code, tile: 'IN_REVIEW', reviewed: 1, total: 1, status: 'Target state', action: null })));
   readonly stateNames = computed(() => {
     const names = new Map(this.store.jurisdictions().map((j) => [j.code, j.name]));
     return (this.store.program()?.jurisdictions ?? []).map((code) => ({ code, name: names.get(code) ?? code }));
@@ -97,11 +99,12 @@ export class SetupWorkspace {
   /** The open step: the first one with work left once the program has loaded, Details on a new program. */
   readonly step = linkedSignal<boolean, SetupStep>({
     source: () => this.store.loaded(),
-    computation: (loaded, previous) => {
+    // Read once when the program has loaded, not on every later change: adding a course must not move the person on.
+    computation: (loaded, previous) => untracked(() => {
       const readiness = this.store.readiness();
-      if (!loaded || !readiness) { return this.store.programId() ? (previous?.value ?? 'COURSES') : (previous?.value ?? 'DETAILS'); }
+      if (!loaded || !readiness) { return previous?.value ?? (this.store.programId() ? 'COURSES' : 'DETAILS'); }
       return firstOpenStep(this.store.courses() ?? [], this.store.setupDocuments(), readiness);
-    },
+    }),
   });
   readonly stepValue = computed(() => SETUP_STEPS.indexOf(this.step()) + 1);
   readonly summaries = computed<Record<SetupStep, string>>(() => this.summarise());
@@ -198,7 +201,7 @@ export class SetupWorkspace {
       COURSES: courses ? plural(courses, 'course') : 'None yet',
       DOCUMENTS: reading ? `${reading} still reading` : documents.length ? plural(documents.length, 'document') : 'None yet',
       FACTS: !readiness?.fieldsUsed.length ? 'None needed' : missing ? `${missing} missing` : 'All recorded',
-      READINESS: this.store.run()?.view.status === 'FINISHED' ? 'Assessed' : !readiness ? '' : blocking ? `${blocking} to fix` : 'Ready',
+      READINESS: this.store.run()?.view.status === 'FINISHED' ? 'Assessed' : !readiness ? 'Not yet' : blocking ? `${blocking} to fix` : 'Ready',
     };
   }
 }

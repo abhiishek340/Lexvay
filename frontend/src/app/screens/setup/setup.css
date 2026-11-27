@@ -30,7 +30,7 @@
 .lx-step-status { font-size: 12px; line-height: 16px; color: var(--p-lx-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* The open step enters from where the person is going (right), short and calm. */
-.lx-panel { padding: 8px 16px 0; animation: lx-panel-in var(--lx-t-3) var(--lx-ease-out) both; }
+.lx-step-panel { padding: 8px 16px 0; animation: lx-panel-in var(--lx-t-3) var(--lx-ease-out) both; }
 @keyframes lx-panel-in { from { opacity: 0; transform: translateX(12px); } }
 .lx-panel-title { font-size: 20px; line-height: 28px; font-weight: 620; letter-spacing: -0.012em; margin-bottom: 16px; }
 .lx-panel-skeleton { display: flex; flex-direction: column; gap: 8px; max-width: 40rem; }
@@ -51,7 +51,8 @@
 
 .lx-states { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px 40px; align-items: start; }
 .lx-states-pick { display: flex; flex-direction: column; gap: 16px; max-width: 32rem; }
-.lx-states-map { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px; border-radius: var(--lx-r-card); background: var(--p-lx-surface-2); }
+.lx-states-map { width: 16.5rem; box-sizing: border-box; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px; border-radius: var(--lx-r-card); background: var(--p-lx-surface-2); }
+.lx-states-map lx-state-map { width: 100%; }
 .lx-state-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .lx-state-list li { display: flex; align-items: center; gap: 10px; font-weight: 550; }
 
@@ -65,6 +66,6 @@
 }
 @media (max-width: 640px) {
   .lx-setup-hero { padding: 8px 4px 20px; }
-  .lx-panel { padding: 8px 8px 0; }
+  .lx-step-panel { padding: 8px 8px 0; }
   .lx-field-row { grid-template-columns: minmax(0, 1fr); }
 }

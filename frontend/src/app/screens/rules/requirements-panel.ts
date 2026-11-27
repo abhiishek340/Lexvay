@@ -24,7 +24,7 @@ import { Clamp } from '../../ui/clamp';
 import { Enter } from '../../ui/enter';
 import { InfoTip } from '../../ui/info-tip';
 import { EditableRequirement, RequirementListEditor } from './requirement-list-editor';
-import { MAX_TERMS, applyTerms, droppedTerms } from './search-terms';
+import { MAX_TERMS, applyTerms, droppedTerms, sameTerms } from './search-terms';
 import { UnsavedChanges } from './unsaved-changes';
 import type { Notice } from './rule-version-detail';
 
@@ -71,6 +71,12 @@ export class RequirementsPanel {
   readonly canChange = computed(() => this.session.canReview() && !this.approved() && this.requirements() !== null && this.status() !== 'EXTRACTING');
   readonly canApprove = computed(() => this.canChange() && !this.editing() && (this.requirements()?.length ?? 0) > 0);
   readonly rowLabels = computed(() => new Map(this.editor.rows().map((r, i) => [r.key, r.ref.trim() || `Row ${i + 1}`])));
+  /** Per row: the search term chips as a named list of items, not PrimeNG's unnamed listbox of options holding controls. */
+  readonly termsPt = computed(() => new Map([...this.rowLabels()].map(([key, label]) => [key, {
+    inputMultiple: { role: 'list', 'aria-label': `${label} search terms chosen`, 'aria-orientation': null, 'aria-activedescendant': null },
+    chipItem: { role: 'listitem', 'aria-selected': null },
+    inputChip: { role: 'listitem' },
+  }])));
 
   /** What the list was last loaded for: the version, its requirement count and its approval. */
   private loadedFor = '';
@@ -110,6 +116,8 @@ export class RequirementsPanel {
   /** The chips control proposes a new list; the chip model decides what is kept (search-terms.ts). */
   setTerms(row: EditableRequirement, next: readonly string[] | null): void {
     const change = applyTerms(next ?? []);
+    // The control echoes the list back once it is reset to the kept terms; that echo changes nothing and keeps the message.
+    if (!change.problem && sameTerms(change.terms, row.searchTerms)) { return; }
     this.editor.update(row.key, { searchTerms: change.terms });
     this.termsProblems.update((problems) => {
       const updated = new Map(problems);

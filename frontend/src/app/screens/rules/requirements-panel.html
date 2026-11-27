@@ -106,10 +106,12 @@
                   </div>
                   <div class="lx-f lx-f-terms">
                     <span class="lx-f-label" aria-hidden="true">Search terms <span class="lx-term-count">{{ row.searchTerms.length }} of {{ maxTerms }}</span></span>
+                    <!-- Enter adds the typed term; it must not also submit the list (the grid is one form). PrimeNG marks the chips an
+                         unnamed listbox of options that hold controls; here they are a named list (pass-through, D-087). -->
                     <p-autocomplete [ngModel]="row.searchTerms" [ngModelOptions]="{ standalone: true }" (ngModelChange)="setTerms(row, $event)"
                                     [multiple]="true" [typeahead]="false" separator="," [addOnBlur]="true" [inputId]="controlId(row, 'terms')"
                                     [ariaLabel]="cellLabel(row, 'search terms')" [placeholder]="row.searchTerms.length ? '' : 'Add a term'" [fluid]="true"
-                                    data-testid="terms-input" />
+                                    [pt]="termsPt().get(row.key)" (keydown.enter)="$event.preventDefault()" data-testid="terms-input" />
                     @if (termsProblems().get(row.key); as tp) {
                       <p class="lx-row-problem" role="status" data-testid="terms-problem"><ng-icon name="phosphorWarningCircle" size="14" aria-hidden="true" />{{ tp }}</p>
                     }

@@ -17,10 +17,12 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
   },
   // Every spec shares one seeded stack, and a jurisdiction can be signed once. The register spec reads the
-  // California signature that review-and-sign.spec.ts records, so it runs after the rest of the suite.
+  // California signature that review-and-sign.spec.ts records, so it runs after the rest of the suite. The setup spec
+  // creates a second program, after which the home screen lists programs instead of opening the only one, so it runs last.
   projects: [
-    { name: 'suite', testIgnore: /register\.spec\.ts$/ },
+    { name: 'suite', testIgnore: /(register|setup)\.spec\.ts$/ },
     { name: 'register', testMatch: /register\.spec\.ts$/, dependencies: ['suite'] },
+    { name: 'setup', testMatch: /setup\.spec\.ts$/, dependencies: ['register'] },
   ],
   webServer: {
     command: `npm start -- --port ${webPort} --proxy-config proxy.e2e.conf.mjs`,
