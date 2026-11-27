@@ -1,4 +1,3 @@
-import type { IconName } from '../theme/icons';
 import { EvidenceRequest } from './models';
 
 /**
@@ -14,12 +13,6 @@ export const REQUEST_FILTERS: { value: RequestFilter; label: string }[] = [
   { value: 'ANSWERED', label: 'Answered' },
   { value: 'ALL', label: 'All' },
 ];
-
-export const REQUEST_STATE: Record<RequestState, { label: string; icon: IconName; severity: 'info' | 'success' | 'warn' }> = {
-  OPEN: { label: 'Open', icon: 'phosphorEnvelopeOpen', severity: 'info' },
-  ANSWERED: { label: 'Answered, awaiting review', icon: 'phosphorCheckCircle', severity: 'success' },
-  BLOCKED: { label: 'Blocked', icon: 'phosphorArrowsClockwise', severity: 'warn' },
-};
 
 export function requestState(row: EvidenceRequest): RequestState {
   if (row.status === 'OPEN') {

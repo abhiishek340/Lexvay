@@ -1,16 +1,6 @@
-import type { IconName } from '../theme/icons';
 import { RuleVersionView } from './models';
 
 export type RuleVersionStatus = 'EXTRACTING' | 'EXTRACTION_FAILED' | 'NEEDS_APPROVAL' | 'APPROVED' | 'SUPERSEDED';
-
-/** Each status has its own word and shape; the Tag colour only repeats what they say. */
-export const RULE_STATUS: Record<RuleVersionStatus, { label: string; icon: IconName; severity: 'info' | 'danger' | 'warn' | 'success' | 'secondary' }> = {
-  EXTRACTING: { label: 'Extracting', icon: 'phosphorSpinner', severity: 'info' },
-  EXTRACTION_FAILED: { label: 'Extraction failed', icon: 'phosphorWarningCircle', severity: 'danger' },
-  NEEDS_APPROVAL: { label: 'Needs approval', icon: 'phosphorCircleDashed', severity: 'warn' },
-  APPROVED: { label: 'Approved', icon: 'phosphorSealCheck', severity: 'success' },
-  SUPERSEDED: { label: 'Superseded', icon: 'phosphorArchive', severity: 'secondary' },
-};
 
 /**
  * Where a rule version stands. A version another version supersedes is Superseded whatever else is true of it.

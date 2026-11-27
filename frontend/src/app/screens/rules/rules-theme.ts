@@ -1,18 +1,18 @@
-import { updatePreset } from '@primeuix/themes';
 import auraAccordion from '@primeuix/themes/aura/accordion';
 import auraConfirmdialog from '@primeuix/themes/aura/confirmdialog';
 import auraDatepicker from '@primeuix/themes/aura/datepicker';
+import auraDialog from '@primeuix/themes/aura/dialog';
+import auraInputnumber from '@primeuix/themes/aura/inputnumber';
 import auraListbox from '@primeuix/themes/aura/listbox';
+import auraTextarea from '@primeuix/themes/aura/textarea';
 
-let registered = false;
-
-/**
- * The Aura token sets of the PrimeNG components only the Rules screen renders (Accordion, ConfirmDialog, DatePicker,
- * Listbox). They join the active preset when the Rules chunk first runs, so the initial bundle carries only the
- * tokens of components the shell and every screen need (D-082, D-083). Called before any of them is created.
- */
-export function registerRulesTheme(): void {
-  if (registered) { return; }
-  registered = true;
-  updatePreset({ components: { accordion: auraAccordion, confirmdialog: auraConfirmdialog, datepicker: auraDatepicker, listbox: auraListbox } });
-}
+/** Component token sets the Rules screen renders and the shell does not (registered with registerComponentTokens, D-246). */
+export const RULES_TOKENS = {
+  accordion: auraAccordion,
+  confirmdialog: auraConfirmdialog,
+  datepicker: auraDatepicker,
+  dialog: auraDialog,
+  inputnumber: auraInputnumber,
+  listbox: auraListbox,
+  textarea: auraTextarea,
+};

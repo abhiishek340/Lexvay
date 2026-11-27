@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgIcon } from '@ng-icons/core';
+import { phosphorArrowsClockwise, phosphorCaretRight, phosphorEnvelopeOpen, phosphorPaperPlaneTilt, phosphorQuotes } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -9,11 +10,23 @@ import { SelectButton } from 'primeng/selectbutton';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { Tag } from 'primeng/tag';
-import { REQUEST_FILTERS, REQUEST_STATE, RequestFilter, canAnswer, matchesRequestFilter, requestCounts, requestState } from '../../core/evidence-requests';
+import { REQUEST_FILTERS, RequestFilter, RequestState, canAnswer, matchesRequestFilter, requestCounts, requestState } from '../../core/evidence-requests';
 import { EvidenceRequest, EvidenceResponse } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
+import { registerComponentTokens } from '../../theme/component-tokens';
+import type { IconName } from '../../theme/icons';
 import { EvidenceDrawer } from './evidence-drawer';
+import { REQUESTS_TOKENS } from './requests-theme';
+
+/** The icons the inbox and its answer drawer show beyond SHELL_ICONS, provided by its route (requests.routes.ts). */
+export const REQUESTS_ICONS = { phosphorArrowsClockwise, phosphorCaretRight, phosphorEnvelopeOpen, phosphorPaperPlaneTilt, phosphorQuotes };
+
+export const REQUEST_STATE: Record<RequestState, { label: string; icon: IconName; severity: 'info' | 'success' | 'warn' }> = {
+  OPEN: { label: 'Open', icon: 'phosphorEnvelopeOpen', severity: 'info' },
+  ANSWERED: { label: 'Answered, awaiting review', icon: 'phosphorCheckCircle', severity: 'success' },
+  BLOCKED: { label: 'Blocked', icon: 'phosphorArrowsClockwise', severity: 'warn' },
+};
 
 /**
  * The evidence request inbox (F4): what reviewers asked the program for, and the drawer in which anyone signed in
@@ -48,6 +61,7 @@ export class Requests {
   private opener: HTMLElement | null = null;
 
   constructor() {
+    registerComponentTokens(REQUESTS_TOKENS);
     // A program another screen already loaded is fetched again here: the requests are other people's work.
     effect(() => {
       const id = this.programId();

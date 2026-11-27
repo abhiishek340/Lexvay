@@ -3,23 +3,16 @@ import auraBase from '@primeuix/themes/aura/base';
 import auraBadge from '@primeuix/themes/aura/badge';
 import auraButton from '@primeuix/themes/aura/button';
 import auraDatatable from '@primeuix/themes/aura/datatable';
-import auraDialog from '@primeuix/themes/aura/dialog';
 import auraIconfield from '@primeuix/themes/aura/iconfield';
-import auraInputnumber from '@primeuix/themes/aura/inputnumber';
 import auraInputtext from '@primeuix/themes/aura/inputtext';
 import auraMenu from '@primeuix/themes/aura/menu';
 import auraMessage from '@primeuix/themes/aura/message';
 import auraPassword from '@primeuix/themes/aura/password';
-import auraProgressbar from '@primeuix/themes/aura/progressbar';
-import auraProgressspinner from '@primeuix/themes/aura/progressspinner';
-import auraRadiobutton from '@primeuix/themes/aura/radiobutton';
 import auraSelect from '@primeuix/themes/aura/select';
 import auraSelectbutton from '@primeuix/themes/aura/selectbutton';
 import auraSkeleton from '@primeuix/themes/aura/skeleton';
-import auraSplitter from '@primeuix/themes/aura/splitter';
 import auraTabs from '@primeuix/themes/aura/tabs';
 import auraTag from '@primeuix/themes/aura/tag';
-import auraTextarea from '@primeuix/themes/aura/textarea';
 import auraToast from '@primeuix/themes/aura/toast';
 import auraTogglebutton from '@primeuix/themes/aura/togglebutton';
 import auraTooltip from '@primeuix/themes/aura/tooltip';
@@ -62,7 +55,7 @@ const t = {
   shadow: '0 8px 24px rgba(15, 17, 19, 0.14), 0 1px 3px rgba(15, 17, 19, 0.08)',
 };
 
-/** The design tokens, for lazy screens that register their own component token sets (screens/register/register-theme.ts). */
+/** The design tokens, for lazy screens that register their own component token sets (each screen's `<screen>-theme.ts`). */
 export const lexvayTokens = t;
 
 const severity = (fg: string, bg: string, border: string) => ({
@@ -84,14 +77,14 @@ const ink = {
 
 
 /**
- * Aura limited to the components Lexvay renders. The full Aura preset carries token sets for about 90
- * components (130 kB of the initial bundle); PrimeNG needs tokens only for components on the page.
- * A component added to a template must be added here too, or it renders without its theme. Components that only
- * one lazy screen renders register their token sets from that screen's chunk instead (screens/rules/rules-theme.ts).
+ * Aura limited to the components the shell and first paint render (D-082): the full Aura preset carries token sets
+ * for about 90 components (130 kB of the initial bundle). A component that only some screens render registers its
+ * token set from the chunk that renders it (registerComponentTokens in component-tokens.ts; each screen's
+ * `<screen>-theme.ts`), never here. A component added to the shell or to a first paint must be added here.
  */
 const Aura = {
   ...auraBase,
-  components: { badge: auraBadge, button: auraButton, datatable: auraDatatable, dialog: auraDialog, iconfield: auraIconfield, inputnumber: auraInputnumber, inputtext: auraInputtext, menu: auraMenu, message: auraMessage, password: auraPassword, progressbar: auraProgressbar, progressspinner: auraProgressspinner, radiobutton: auraRadiobutton, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, splitter: auraSplitter, tabs: auraTabs, tag: auraTag, textarea: auraTextarea, toast: auraToast, togglebutton: auraTogglebutton, tooltip: auraTooltip },
+  components: { badge: auraBadge, button: auraButton, datatable: auraDatatable, iconfield: auraIconfield, inputtext: auraInputtext, menu: auraMenu, message: auraMessage, password: auraPassword, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, tabs: auraTabs, tag: auraTag, toast: auraToast, togglebutton: auraTogglebutton, tooltip: auraTooltip },
 };
 
 export const LexvayPreset = definePreset(Aura, {
@@ -212,14 +205,6 @@ export const LexvayPreset = definePreset(Aura, {
       tabpanel: { background: 'transparent', padding: '0' },
       activeBar: { height: '2px', background: t.primary },
     },
-    splitter: {
-      root: { background: 'transparent', borderColor: t.hairline },
-      gutter: { background: t.hairline },
-      handle: { size: '2.5rem', background: t.textSecondary },
-    },
-    dialog: {
-      title: { fontSize: '1.125rem', fontWeight: '600' },
-    },
     selectbutton: {
       root: { borderRadius: '4px' },
     },
@@ -232,10 +217,6 @@ export const LexvayPreset = definePreset(Aura, {
       },
       content: { checkedBackground: 'transparent', checkedShadow: 'none', padding: '0', borderRadius: '2px' },
       icon: { color: t.textSecondary, hoverColor: t.text, checkedColor: t.selectedText },
-    },
-    progressbar: {
-      root: { background: t.sunken, borderRadius: '2px', height: '4px' },
-      value: { background: t.primary },
     },
     skeleton: {
       root: { background: t.sunken, animationBackground: ld('rgba(255, 255, 255, 0.5)', 'rgba(255, 255, 255, 0.04)') },
