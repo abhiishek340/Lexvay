@@ -54,11 +54,13 @@ public class RuleVersionService {
     private final AuditService audit;
     private final RequirementListParser parser;
     private final ChangeService changes;
+    private final TextExtractor extractor;
 
     public RuleVersionService(RuleVersionRepository ruleVersions, JurisdictionRepository jurisdictions,
                               DocumentRepository documents, DocumentService documentService, JobRepository jobs, AuditService audit,
-                              RequirementListParser parser, ChangeService changes) {
+                              RequirementListParser parser, ChangeService changes, TextExtractor extractor) {
         this.changes = changes;
+        this.extractor = extractor;
         this.ruleVersions = ruleVersions;
         this.jurisdictions = jurisdictions;
         this.documents = documents;
@@ -81,7 +83,7 @@ public class RuleVersionService {
         Jurisdiction jurisdiction = validate(version);
         byte[] bytes = request.text().getBytes(StandardCharsets.UTF_8);
         UUID documentId = documentService.storeRuleText(bytes, slug(request.label()) + "." + FileType.TXT.extension(),
-                TextExtractor.extract(FileType.TXT, bytes));
+                extractor.extract(FileType.TXT, bytes));
         return insert(jurisdiction, version, documentId);
     }
 

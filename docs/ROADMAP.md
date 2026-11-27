@@ -24,7 +24,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | PR #16 in review (renumber to V010, merge after #14, #13) |
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | PR #13 approved (merges after #14) |
-| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | in progress |
+| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (merges after V011) |
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | in progress |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
@@ -36,7 +36,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | in progress |
-| F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | queued (after WS-PERF) |
+| F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | in progress |
 
 ---
 
@@ -482,7 +482,7 @@ reliable than a text layer, so it is stored with its source and confidence and i
    `Rule4_LowOcrConfidenceForcesAmbiguousTest`; one test with the real binary guarded by
    `assumeTrue(engine.available())` that renders known text into an image-only PDF and finds its key words.
    Install Tesseract locally with Homebrew and in CI with the `tesseract-ocr` apt package so that test runs.
-Decisions in `docs/decisions/F11.md` (D-160 to D-169). If a `Dockerfile` exists on `main` when you finish,
+Decisions in `DECISIONS.md (D-160 to D-169)` (D-160 to D-169). If a `Dockerfile` exists on `main` when you finish,
 add Tesseract to the runtime stage and set `LEXVAY_OCR=tesseract` there; otherwise say so in the report.
 
 ## F7 — Retrieval quality (slot 3; no schema change)

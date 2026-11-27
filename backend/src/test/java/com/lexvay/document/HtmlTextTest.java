@@ -10,8 +10,10 @@ import org.junit.jupiter.api.Test;
 /** HTML as a source of rule text (D-183): page chrome is dropped, paragraphs stay lines, pages hold about 4 000 characters. */
 class HtmlTextTest {
 
+    private static final TextExtractor EXTRACTOR = new TextExtractor(new NoOcrEngine(), 200);
+
     private static List<ExtractedPage> extract(String html) {
-        return TextExtractor.extract(FileType.HTML, html.getBytes(StandardCharsets.UTF_8));
+        return EXTRACTOR.extract(FileType.HTML, html.getBytes(StandardCharsets.UTF_8));
     }
 
     private static String text(String html) {
@@ -53,7 +55,7 @@ class HtmlTextTest {
         byte[] latin1 = "<html><head><meta charset=\"iso-8859-1\"></head><body><p>Café hours</p></body></html>"
                 .getBytes(StandardCharsets.ISO_8859_1);
 
-        assertThat(TextExtractor.extract(FileType.HTML, latin1).get(0).text()).isEqualTo("Café hours");
+        assertThat(EXTRACTOR.extract(FileType.HTML, latin1).get(0).text()).isEqualTo("Café hours");
     }
 
     @Test
@@ -61,7 +63,7 @@ class HtmlTextTest {
         var pages = extract("<p>One</p><p>Two</p>");
 
         assertThat(pages).hasSize(1);
-        assertThat(pages.get(0)).isEqualTo(new ExtractedPage(1, "One\nTwo", 0, 7));
+        assertThat(pages.get(0)).isEqualTo(ExtractedPage.textLayer(1, "One\nTwo", 0, 7));
     }
 
     @Test

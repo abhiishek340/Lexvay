@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.lexvay.document.ExtractedPage;
 import com.lexvay.document.FileType;
 import com.lexvay.document.QuoteVerifier;
+import com.lexvay.document.NoOcrEngine;
 import com.lexvay.document.TextExtractor;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,7 +25,7 @@ class SeedQuotesExistTest {
 
     List<ExtractedPage> pages(String file) throws IOException {
         if (!cache.containsKey(file)) {
-            cache.put(file, TextExtractor.extract(FileType.PDF, Files.readAllBytes(SEED.resolve("pdf").resolve(file))));
+            cache.put(file, new TextExtractor(new NoOcrEngine(), 200).extract(FileType.PDF, Files.readAllBytes(SEED.resolve("pdf").resolve(file))));
         }
         return cache.get(file);
     }

@@ -8,6 +8,7 @@ import com.lexvay.document.EmptyDocumentException;
 import com.lexvay.document.ExtractedPage;
 import com.lexvay.document.FileType;
 import com.lexvay.document.TextExtractor;
+import com.lexvay.document.TooManyScannedPagesException;
 import com.lexvay.document.UnparsableDocumentException;
 import com.lexvay.job.Job;
 import com.lexvay.job.JobHandler;
@@ -52,16 +53,18 @@ public class CheckRuleSourceHandler implements JobHandler {
     private final RuleVersionRepository ruleVersions;
     private final RuleVersionService ruleVersionService;
     private final DocumentService documents;
+    private final TextExtractor extractor;
     private final HttpFetcher fetcher;
     private final AuditService audit;
 
     public CheckRuleSourceHandler(RuleSourceRepository sources, RuleVersionRepository ruleVersions,
-                                  RuleVersionService ruleVersionService, DocumentService documents, HttpFetcher fetcher,
-                                  AuditService audit) {
+                                  RuleVersionService ruleVersionService, DocumentService documents, TextExtractor extractor,
+                                  HttpFetcher fetcher, AuditService audit) {
         this.sources = sources;
         this.ruleVersions = ruleVersions;
         this.ruleVersionService = ruleVersionService;
         this.documents = documents;
+        this.extractor = extractor;
         this.fetcher = fetcher;
         this.audit = audit;
     }
@@ -99,8 +102,8 @@ public class CheckRuleSourceHandler implements JobHandler {
         List<ExtractedPage> pages;
         try {
             type = FileType.detectFetched(fetched.contentType(), fetched.body());
-            pages = TextExtractor.extract(type, fetched.body());
-        } catch (IllegalArgumentException | UnparsableDocumentException | EmptyDocumentException e) {
+            pages = extractor.extract(type, fetched.body());
+        } catch (IllegalArgumentException | UnparsableDocumentException | EmptyDocumentException | TooManyScannedPagesException e) {
             return Finding.failed(fetched.status(), e.getMessage());
         }
         String hash = ContentHash.of(pages);
