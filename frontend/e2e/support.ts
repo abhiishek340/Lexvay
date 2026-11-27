@@ -12,7 +12,7 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
  * Every test fails if the page asked any host other than localhost for anything: fonts, icons and
  * scripts are bundled, and the product makes no third-party requests.
  */
-export const test = base.extend<{ thirdPartyGuard: void }>({
+export const test = base.extend<{ thirdPartyGuard: void; iconGuard: void }>({
   thirdPartyGuard: [async ({ page }, use) => {
     const foreign: string[] = [];
     page.on('request', (request) => {
@@ -23,6 +23,18 @@ export const test = base.extend<{ thirdPartyGuard: void }>({
     });
     await use();
     expect(foreign, 'requests to third-party hosts').toEqual([]);
+  }, { auto: true }],
+  /**
+   * Every test fails if an `ng-icon` was asked for a name no provider registers (ng-icons only warns). The unit test
+   * theme/icons.spec.ts checks the sources; this checks what the screens really render.
+   */
+  iconGuard: [async ({ page }, use) => {
+    const missing: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'warning' && message.text().includes('No icon named')) { missing.push(message.text()); }
+    });
+    await use();
+    expect(missing, 'icons that no provider registers').toEqual([]);
   }, { auto: true }],
 });
 export { expect };
