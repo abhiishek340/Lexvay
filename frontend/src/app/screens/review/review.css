@@ -52,13 +52,14 @@
   min-width: 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding: 32px 28px 0;
   background: var(--p-lx-surface); border-radius: var(--lx-r-hero); box-shadow: var(--p-lx-e1);
 }
-.lx-centre lx-decision-bar, .lx-readonly { margin-top: auto; }
-.lx-centre lx-decision-bar { margin-inline: -16px; }
+/* The bar follows the requirement in flow, 24 px below it, and sticks to the foot of the pane once the requirement is
+   longer than the pane (sticky, bottom 16 px, in the bar's own styles). */
+.lx-centre lx-decision-bar { margin: 24px -16px 16px; }
 .lx-subject { min-width: 0; padding-bottom: 8px; }
 .lx-subject-skeleton { display: flex; flex-direction: column; gap: 16px; }
 .lx-empty { color: var(--p-lx-text-2); }
 .lx-readonly {
-  position: sticky; bottom: 16px; align-self: center; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 16px;
+  position: sticky; bottom: 16px; align-self: center; display: inline-flex; align-items: center; gap: 4px; margin: 24px 0 16px;
   padding: 6px 8px 6px 14px; border-radius: var(--lx-r-pill); background: var(--p-lx-surface-2); color: var(--p-lx-text-2); font-size: 13px; font-weight: 550;
 }
 
