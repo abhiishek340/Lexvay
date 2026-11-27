@@ -7,7 +7,11 @@ WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
-RUN npx ng build --configuration production
+# The PrimeNG license key is a build-time constant of the bundle (never a runtime variable, never committed).
+# It ends up in the JavaScript the browser downloads, like any front-end constant, and not in any layer of its
+# own: this stage is discarded. Empty by default; the app then shows a license notice but works.
+ARG LEXVAY_PRIMEUI_LICENSE=""
+RUN npx ng build --configuration production --define "LEXVAY_PRIMEUI_LICENSE='${LEXVAY_PRIMEUI_LICENSE}'"
 
 # Stage 2: the backend jar with the bundle inside it, split into layers (Maven comes from the wrapper).
 FROM eclipse-temurin:21.0.13_9-jdk-noble AS build

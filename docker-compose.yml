@@ -23,7 +23,10 @@ services:
   # The production image: API and single-page app on :8080, metrics on :8090. `docker compose --profile app up`.
   app:
     profiles: ["app"]
-    build: .
+    build:
+      context: .
+      args:
+        LEXVAY_PRIMEUI_LICENSE: ${LEXVAY_PRIMEUI_LICENSE:-}
     image: lexvay:local
     depends_on:
       db:

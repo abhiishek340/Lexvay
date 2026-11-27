@@ -16,7 +16,7 @@ help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
 
 image: ## Build the production image (API and single-page app in one) as lexvay:local
-	docker build -t lexvay:local .
+	docker build --build-arg LEXVAY_PRIMEUI_LICENSE="$(LEXVAY_PRIMEUI_LICENSE)" -t lexvay:local .
 
 smoke: ## Build the image, run it with PostgreSQL, sign in through it and scrape its metrics (LEXVAY_E2E_SLOT shifts ports)
 	scripts/smoke.sh

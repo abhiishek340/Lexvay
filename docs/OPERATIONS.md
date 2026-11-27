@@ -13,6 +13,11 @@ One image serves the API and the Angular app. The `Dockerfile` has three stages:
 builds the jar with the bundle inside and splits it into layers, the JRE runs it. Nothing from the first two stages
 (source, tests, Maven and npm caches) reaches the runtime image; `make smoke` checks that.
 
+The PrimeNG license key is a **build-time** argument: `LEXVAY_PRIMEUI_LICENSE=<key> make image` (or in `.env` for
+`docker compose build`). It is passed to `ng build --define` and compiled into the bundle the browser downloads; it is
+not read at runtime and not stored in any image layer other than that bundle (the Node stage is discarded). Do not
+push an image built with a real key to a public registry. Without it the app builds and runs and shows a license notice.
+
 ### Pinned base images (checked 2026-11-26)
 
 | Stage | Tag | Digest |
@@ -28,10 +33,10 @@ digest, write `FROM image:tag@sha256:...`. Maven comes from the wrapper (3.10.2,
 
 | Measure | Value |
 |---|---|
-| Image, compressed content | 223 MB (`docker image ls`, CONTENT SIZE) |
-| Image, unpacked on disk | 710 MB (`docker image ls`, DISK USAGE); the JRE base is 159 MB of JVM plus Ubuntu, the application layer 126 MB of libraries and 0.6 MB of application code |
-| `Started LexvayApplication in` | 1.8 s and 3.0 s in two runs (JVM start to ready, with Flyway validating 7 migrations) |
-| `docker compose up --wait app` to healthy | 6 s (compose polls the health check, so this is an upper bound) |
+| Image, compressed content | 227 MB (`docker image ls`, CONTENT SIZE) |
+| Image, unpacked on disk | 718 MB (`docker image ls`, DISK USAGE); the JRE base is 159 MB of JVM plus Ubuntu, the application layer 126 MB of libraries and 0.6 MB of application code |
+| `Started LexvayApplication in` | 1.8 s, 3.0 s and 4.1 s in three runs (JVM start to ready, with Flyway validating 7 migrations) |
+| `docker compose up --wait app` to healthy | 5 to 6 s (compose polls the health check, so this is an upper bound) |
 
 These were measured with the other agents' builds running on the same machine; treat them as order of magnitude.
 
