@@ -65,6 +65,9 @@ lexvay:
     polling-enabled: true
     poll-interval-ms: 1000
     max-attempts: 3
+  audit:                                  # SEC-3: the sealer that chains audit entries into a tamper-evident trail
+    sealing-enabled: true
+    seal-interval-ms: ${LEXVAY_AUDIT_SEAL_INTERVAL_MS:2000}
   rule-sources:                           # F12: fetch the pages where licensing boards publish rules (D-185)
     enabled: ${LEXVAY_RULE_SOURCES_ENABLED:false}
     poll-interval-ms: ${LEXVAY_RULE_SOURCES_POLL_INTERVAL_MS:300000}
@@ -162,6 +165,8 @@ management:
 lexvay:
   jobs:
     polling-enabled: false
+  audit:
+    sealing-enabled: false
   seed:
     dir: ${LEXVAY_SEED_DIR:../seed}
     demo-password: ${LEXVAY_DEMO_PASSWORD:lexvay-demo}
@@ -180,6 +185,8 @@ management:
 lexvay:
   jobs:
     polling-enabled: false
+  audit:
+    sealing-enabled: false
   seed:
     dir: ${LEXVAY_SEED_DIR:../seed}
   eval:
