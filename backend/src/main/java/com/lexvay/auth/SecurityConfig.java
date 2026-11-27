@@ -2,6 +2,8 @@ package com.lexvay.auth;
 
 import com.lexvay.audit.AuditService;
 import com.lexvay.common.TenantContext;
+import com.lexvay.observability.ProblemDetailRequestId;
+import com.lexvay.web.SpaRoutes;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Map;
@@ -58,6 +60,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(LOGIN_URL, SESSION_URL).permitAll()
+                        .requestMatchers(SpaRoutes.APP_REQUESTS).permitAll()
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .loginProcessingUrl(LOGIN_URL)
@@ -92,6 +95,7 @@ public class SecurityConfig {
     private void writeProblem(HttpServletResponse response, HttpStatus status, String detail) throws IOException {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
         problem.setTitle(status.getReasonPhrase());
+        ProblemDetailRequestId.stamp(problem);
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         json.writeValue(response.getOutputStream(), problem);
