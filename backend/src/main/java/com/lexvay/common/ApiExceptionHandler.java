@@ -1,9 +1,12 @@
 package com.lexvay.common;
 
+import com.lexvay.auth.PasswordHashBusyException;
 import java.sql.SQLException;
 import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -26,6 +29,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     ProblemDetail badRequest(IllegalArgumentException e) {
         return problem(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+    /** Setting a password while every password hash is busy (D-407); the setup code is not used up. */
+    @ExceptionHandler(PasswordHashBusyException.class)
+    ResponseEntity<ProblemDetail> passwordHashBusy(PasswordHashBusyException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, Integer.toString(PasswordHashBusyException.RETRY_AFTER_SECONDS))
+                .body(problem(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage()));
     }
 
     @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)

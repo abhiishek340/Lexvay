@@ -33,6 +33,16 @@ public class AuditRepository {
     private static final String SELECT =
             "SELECT id, user_id, action, entity_type, entity_id, detail::text AS detail, created_at FROM audit_log";
 
+    /** The statement of the audit list for the predicates of {@code where}; public so that {@code IndexUsageTest} runs the real text. */
+    public static String listSql(WhereClause where) {
+        return SELECT + where.sql() + " ORDER BY created_at DESC, id DESC LIMIT :limit OFFSET :offset";
+    }
+
+    /** The statement of the CSV export for the predicates of {@code where}; public for the same reason as {@link #listSql}. */
+    public static String exportSql(WhereClause where) {
+        return EXPORT_SELECT + where.sql() + " ORDER BY audit_log.created_at DESC, audit_log.id DESC";
+    }
+
     private final JdbcClient jdbc;
     private final ObjectMapper json;
 
@@ -57,7 +67,7 @@ public class AuditRepository {
     /** Newest first; only the filters that are set become predicates (WhereClause, D-116). */
     public List<AuditEntry> newestFirst(AuditFilter filter, int limit, int offset) {
         WhereClause where = filter.where();
-        return where.bind(jdbc.sql(SELECT + where.sql() + " ORDER BY created_at DESC, id DESC LIMIT :limit OFFSET :offset"))
+        return where.bind(jdbc.sql(listSql(where)))
                 .param("limit", limit).param("offset", offset).query(this::map).list();
     }
 
@@ -69,7 +79,7 @@ public class AuditRepository {
     @Transactional(readOnly = true)
     public void streamForExport(AuditFilter filter, Consumer<ExportRow> sink) {
         WhereClause where = filter.where();
-        where.bind(jdbc.sql(EXPORT_SELECT + where.sql() + " ORDER BY audit_log.created_at DESC, audit_log.id DESC"))
+        where.bind(jdbc.sql(exportSql(where)))
                 .withFetchSize(EXPORT_FETCH_SIZE)
                 .query((RowCallbackHandler) rs -> sink.accept(new ExportRow(
                         rs.getObject("created_at", OffsetDateTime.class).toInstant(),
