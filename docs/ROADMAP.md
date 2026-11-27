@@ -28,7 +28,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
-| F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 3 | Opus 5.5 | queued (after WS-UI, F3a) |
+| F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | in progress |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | queued (after WS-UI, F4a) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | in progress |
@@ -191,6 +191,85 @@ requirement, before approving the new list and re-running. Slot 5. No migration.
    merged); API tests using the seeded Colorado revision (exactly one CHANGED: CO-5 with `NUMERIC` and
    `TEXT`, eight UNCHANGED), tenant isolation 404, 400 cases. `RuleVersionChangeTest` and
    `CourseVersionChangeTest` must stay green unmodified.
+
+## F3 — Rule workspace screens (frontend; slot 10; Opus 5.5; uses F3a, WS-UI)
+Purpose: today a reviewer can approve a requirement list only through the API. The rule workspace is where a
+jurisdiction's rule versions are entered, the extracted list is corrected and approved, and a revision is
+compared with the version it supersedes. The product rules apply on screen exactly as in the API: the model
+proposes the list, a person approves it; nothing approved is ever edited. Decisions D-210 to D-219 in
+`docs/decisions/F3.md`. Everything is built from PrimeNG 22 components with the existing `LexvayPreset`, Phosphor
+icons, the tokens in `docs/DESIGN.md`, and the patterns WS-UI set (skeleton loading, inline `Message` for
+problem details, toast for completed operations, focus on the heading after navigation, `data-testid="message"`).
+1. **Route and navigation**: `programs/:programId/rules` ("Rules" in the rail, icon `phosphorScales`, placed
+   after Changes; badge = number of unapproved versions that have requirements, text "n rule versions waiting
+   for approval"). Lazy chunk. Also `programs/:programId/rules/:ruleVersionId` opens one version.
+2. **Version list** (left pane, 320 px, PrimeNG Listbox or a plain list with `role="list"`): grouped by
+   jurisdiction code in the order of the program's target jurisdictions, then other jurisdictions. Each row:
+   jurisdiction code (mono), label, effective date, and one status Tag with icon and text: *Extracting*
+   (extraction job QUEUED or RUNNING, `phosphorSpinner` animated), *Extraction failed* (job FAILED, with the
+   error as helper text), *Needs approval* (requirements present, not approved), *Approved*, *Superseded*
+   (another version's `supersedesId` points at it). Data from `GET /rule-versions` (one request; the API
+   already returns `extraction`, `approval`, `requirementCount`, `supersedesId`). The list polls every 5 s
+   only while a version is *Extracting*, then stops.
+3. **New version** (PrimeNG Dialog, from a "New rule version" button; CONTRIBUTOR and ADMIN; others do not see
+   the button): fields jurisdiction (Select over the tenant's jurisdictions, code and name), license type
+   (InputText, default the program's license type), label, source URL, effective date (DatePicker, ISO
+   output), supersedes (Select listing approved versions of the chosen jurisdiction and license type, optional,
+   with helper text "Choose the version this one replaces; a change event opens when it is approved"), rule
+   text (Textarea, mono, counter of characters against 500 000). Submit → `POST /rule-versions` (202) → close,
+   toast "Extraction started", select the new version, which shows *Extracting*. Server validation problems
+   are shown inline under the dialog's fields when the problem detail names a field, otherwise in a Message.
+4. **Version detail** (right pane, scrolls): header with label, jurisdiction name and code, license type,
+   effective date, source link (external, icon), the status Tag, and the approval line ("Approved by Dana
+   Whitfield on 2026-11-26" or "Not approved"). Tabs (PrimeNG Tabs): **Requirements**, **Rule text**,
+   **Compare**.
+   - **Requirements tab**: PrimeNG Table of `GET /rule-versions/{id}/requirements`, columns ref (mono),
+     title, type (Tag, text only), check (for NUMERIC and SUPERVISED_HOURS: `field operator value`, mono),
+     text (serif, truncated to three lines with an expand control). When the version is **not approved** and the
+     user is REVIEWER, SIGNER or ADMIN: an "Edit list" toggle switches the table to row editing (PrimeNG Table
+     `editMode="row"` is not used; instead each cell becomes a form control in place so every row is editable at
+     once): ref InputText, title InputText, text Textarea, type Select, numeric field Select / operator Select /
+     value InputNumber shown only for numeric types; row actions move up, move down, delete; "Add requirement"
+     appends an empty row and focuses its ref. "Save list" sends the whole list to `PUT
+     /rule-versions/{id}/requirements` in the API's body shape; a 400 problem detail whose message names a ref or
+     row is shown as an inline error under that row, otherwise as a Message above the table. "Discard" restores
+     the server list. Order is the list order (FIX-1 makes the server keep it; until FIX-1 merges the server may
+     reorder by ref and the screen must simply show what comes back).
+     "Approve requirements" (primary, same roles, only when not approved and at least one requirement exists)
+     opens a confirmation Dialog: "Approving locks this list. Assessments for <jurisdiction> will use these N
+     requirements. The list can no longer be edited." with "Approve" and "Cancel"; on success toast "Requirements
+     approved", status becomes *Approved*, the edit controls disappear. Approved lists show no edit controls at
+     all; a 409 from the server (already approved) is shown as a Message and the view reloads.
+   - **Rule text tab**: the stored rule text pages in serif inside the document frame (fetch pages through
+     `GET /documents/{documentId}/pages/{n}` from WS-PERF once it merges; until then `GET /documents/{id}`; use
+     whichever exists on `origin/main` when you start, and say which in the PR), page navigation, mono page
+     numbers.
+   - **Compare tab**: `GET /rule-versions/{id}/diff` (default against the superseded version; a Select offers
+     any other approved version of the same jurisdiction and license type as `against`). Summary line
+     "3 changed · 1 added · 0 removed · 8 unchanged" with icons. Table rows by status with a Tag (Added,
+     Removed, Changed, Unchanged, and "ref changed" as a second small Tag); CHANGED rows show the word diff
+     with inserted words in `ins` (underline, success colour) and deleted words in `del` (strike-through,
+     danger colour), never colour alone; the numeric check before → after when `NUMERIC` changed. A
+     "Rule text" expander shows `ruleTextDiff` the same way. If the version supersedes nothing and no
+     `against` is chosen: one sentence "This is the first version for <jurisdiction>; choose a version to
+     compare with."
+5. **Keyboard and accessibility**: the version list is arrow-key navigable with `aria-selected`; the edit
+   grid is a real form (labels via `aria-label` per cell naming the ref and column); Tab order left to
+   right; the approve dialog returns focus to the button; axe clean in light and dark, at 1280 and 400 px
+   (panes stack under 1024 px).
+6. **Unit tests** (Vitest): the version status derivation (one pure function `ruleVersionStatus(view, all)`
+   with every state), the grouping and ordering, the edit-list model (add, move, delete, dirty flag,
+   restore), the problem-detail-to-row mapping.
+7. **End-to-end tests** (Playwright, `frontend/e2e/rules.spec.ts`, slot 10, seeded Northfield data): a
+   reviewer opens Rules, sees the seeded Colorado revision as *Needs approval*, edits one requirement's title,
+   saves, reloads and sees it; approves it through the dialog and sees *Approved* and the audit entry; the
+   Compare tab shows exactly one Changed row (CO-5, numeric and text) and the `ins`/`del` marks; a contributor
+   creates a new version through the dialog and sees *Extracting* then (FakeLlmClient) *Needs approval*; axe on
+   every state in both themes. Every e2e test keeps the WS-UI rule that no request leaves localhost.
+8. No backend change is expected. If one is needed (for example a missing field in a view), add it with
+   tests, a validation-table row if it is an endpoint, and call it out in the PR.
+Done when: `LEXVAY_E2E_SLOT=10 make test` green; screenshots of the list, the edit grid, the approve dialog and the
+compare tab in both themes under `docs/screens/`; `docs/decisions/F3.md` and `docs/progress/F3.md` written.
 
 ## F4a — Evidence requests API (backend only)
 Purpose: "Request evidence from program director" must start a real loop: the contributor sees the open
