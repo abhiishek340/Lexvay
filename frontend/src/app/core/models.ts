@@ -62,6 +62,13 @@ export interface ChangeEvent {
   reopenedDeterminationIds: string[];
 }
 export interface ReportStatusView { id: string; determinationId: string; status: 'QUEUED' | 'READY' | 'FAILED'; }
+/** The report a checked file is exactly, and its determination as it stands now (POST /reports/check, F14). */
+export interface ReportCheckMatch {
+  reportId: string; generatedAt: string; determinationId: string; programId: string; programName: string; jurisdictionCode: string;
+  ruleVersionLabel: string; outcome: Outcome; signedByName: string; signedAt: string; determinationStatus: 'SIGNED' | 'REOPENED';
+  reopenedAt: string | null; versionsHash: string;
+}
+export interface ReportCheck { match: boolean; sha256: string; matchDetails: ReportCheckMatch | null; }
 export interface AuditEntry { id: string; userId: string | null; action: string; entityType: string; entityId: string | null; detail: Record<string, unknown>; createdAt: string; }
 export type JobStatus = 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED';
 export interface RuleVersionView {

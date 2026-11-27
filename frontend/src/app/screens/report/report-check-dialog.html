@@ -1,0 +1,70 @@
+<p-dialog header="Check a file" [visible]="open()" (visibleChange)="open.set($event)" [modal]="true" [draggable]="false" [resizable]="false"
+          [style]="{ width: '32rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Close file check">
+  @let p = phase();
+  <div class="lx-check" aria-live="polite">
+    @if (p.step === 'checking') {
+      <div class="lx-check-busy" data-testid="check-progress">
+        <lx-progress-ring [size]="96" [value]="p.percent" [total]="100" [label]="progressLabel()">{{ p.sent ? '' : p.percent + '%' }}</lx-progress-ring>
+        <p class="lx-help">{{ p.sent ? 'Checking' : 'Uploading' }}</p>
+      </div>
+    } @else if (p.step === 'done') {
+      @let v = p.view;
+      <div class="lx-result" [attr.data-result]="v.kind" data-testid="check-result">
+        @if (v.kind === 'signed') {
+          <lx-seal class="lx-result-seal" [preview]="true" [outcome]="v.seal.outcome" [signer]="v.seal.signer" [signedAt]="v.seal.signedAt" [size]="112" />
+          <h3 #headline class="lx-result-headline" tabindex="-1">{{ v.headline }}</h3>
+          <ul class="lx-facts" aria-label="Report facts">
+            <li>{{ v.place }}</li>
+            <li>{{ v.signature }}</li>
+            <li>{{ v.ruleVersion }}</li>
+          </ul>
+          <a class="lx-open" [routerLink]="['/programs', v.report.programId, 'report']" [queryParams]="{ jurisdiction: v.report.jurisdiction }"
+             (click)="open.set(false)">
+            Open report <ng-icon name="phosphorArrowRight" size="16" aria-hidden="true" />
+          </a>
+        } @else if (v.kind === 'reopened') {
+          <ng-icon class="lx-result-icon lx-tone-ambiguous" name="phosphorWarningDuotone" size="40" aria-hidden="true" />
+          <h3 #headline class="lx-result-headline" tabindex="-1"><span class="lx-sr-only">Warning: </span>{{ v.headline }}</h3>
+          <ul class="lx-facts" aria-label="Report facts"><li>{{ v.place }}</li></ul>
+        } @else {
+          <ng-icon class="lx-result-icon lx-tone-neutral" name="phosphorFileDashedDuotone" size="40" aria-hidden="true" />
+          <div class="lx-result-title">
+            <h3 #headline class="lx-result-headline" tabindex="-1">{{ v.headline }}</h3>
+            <lx-info-tip label="About file fingerprints">
+              The check compares the file's fingerprint (SHA-256) with the reports generated here. Any change to the file, even saving it
+              again, changes its fingerprint.
+            </lx-info-tip>
+          </div>
+        }
+        <p class="lx-fingerprint">
+          <span class="lx-fingerprint-label">SHA-256</span>
+          <span class="lx-mono" [attr.title]="v.fingerprint.sha256" data-testid="check-sha">{{ v.fingerprint.short }}</span>
+          <button pButton type="button" class="lx-copy" [text]="true" severity="secondary" size="small" aria-label="Copy SHA-256"
+                  (click)="copy(v.fingerprint.sha256)">
+            <ng-icon name="phosphorCopy" size="16" aria-hidden="true" />
+          </button>
+        </p>
+      </div>
+    } @else {
+      <p-fileupload mode="advanced" [customUpload]="true" [auto]="true" styleClass="lx-check-upload" (uploadHandler)="check($event.files[0])">
+        <ng-template #header></ng-template>
+        <ng-template #content let-choose="chooseCallback">
+          <div class="lx-drop">
+            <ng-icon name="phosphorFilePdfDuotone" size="32" aria-hidden="true" />
+            <p class="lx-drop-title">Drop a PDF here</p>
+            <button pButton type="button" severity="secondary" [outlined]="true" size="small" (click)="choose()"><span pButtonLabel>Choose a file</span></button>
+          </div>
+        </ng-template>
+      </p-fileupload>
+      @if (p.error; as error) {
+        <p-message class="lx-check-error" severity="error" data-testid="message">{{ error }}</p-message>
+      }
+    }
+  </div>
+  <ng-template #footer>
+    @if (p.step === 'done') {
+      <button pButton type="button" severity="secondary" [outlined]="true" (click)="reset()"><span pButtonLabel>Check another</span></button>
+    }
+    <button pButton type="button" (click)="open.set(false)"><span pButtonLabel>Close</span></button>
+  </ng-template>
+</p-dialog>

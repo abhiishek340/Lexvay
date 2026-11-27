@@ -1,0 +1,44 @@
+/* The dialog is appended to the body; its content keeps this component's scoped attributes, so these rules reach it. */
+.lx-check { min-height: 15rem; display: flex; flex-direction: column; justify-content: center; }
+
+/* The drop zone: FileUpload's content area, drawn as one dashed surface that tints while a file is dragged over it. */
+:host ::ng-deep .lx-check-upload .p-fileupload-header { display: none; }
+:host ::ng-deep .lx-check-upload .p-fileupload-content { border-radius: var(--lx-r-card); }
+.lx-drop {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 24px; text-align: center;
+  border: 1.5px dashed var(--p-lx-line-strong); border-radius: var(--lx-r-card); background: var(--p-lx-surface-2);
+  transition: background-color var(--lx-t-1) var(--lx-ease-out), border-color var(--lx-t-1) var(--lx-ease-out);
+}
+.lx-drop ng-icon { color: var(--p-lx-accent); }
+:host ::ng-deep .p-fileupload-content[data-p-highlight='true'] .lx-drop { border-color: var(--p-lx-accent); background: var(--p-lx-accent-tint); }
+.lx-drop-title { font-size: 15px; line-height: 22px; font-weight: 600; }
+.lx-check-error { display: block; margin-top: 12px; }
+
+.lx-check-busy { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+
+/* One result: its mark, a headline that is the focal point, the facts in quieter type, then the fingerprint. */
+.lx-result { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; animation: lx-result-in var(--lx-t-3) var(--lx-ease-out) both; }
+@keyframes lx-result-in { from { opacity: 0; transform: translateY(6px); } }
+.lx-result-seal { opacity: 0.9; margin-bottom: 6px; }
+.lx-result-icon { margin-bottom: 2px; }
+.lx-tone-ambiguous { color: var(--p-lx-ambiguous); }
+.lx-tone-neutral { color: var(--p-lx-text-2); }
+.lx-result-title { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.lx-result-headline { margin: 0; font-size: 18px; line-height: 26px; font-weight: 620; letter-spacing: -0.01em; text-wrap: balance; }
+.lx-result-headline:focus { outline: none; }
+.lx-facts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; color: var(--p-lx-text-2); }
+.lx-open {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; border-radius: var(--lx-r-control);
+  color: var(--p-lx-accent); font-weight: 550; text-decoration: none;
+}
+.lx-open:hover { text-decoration: underline; }
+.lx-open ng-icon { transition: transform var(--lx-t-1) var(--lx-ease-out); }
+.lx-open:hover ng-icon { transform: translateX(2px); }
+
+.lx-fingerprint {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; padding: 4px 4px 4px 12px;
+  border-radius: var(--lx-r-pill); background: var(--p-lx-surface-2);
+}
+.lx-fingerprint-label { font-size: 12px; line-height: 16px; font-weight: 550; color: var(--p-lx-text-2); }
+.lx-copy { width: 28px; height: 28px; padding: 0; border-radius: var(--lx-r-pill); }
+

@@ -1,9 +1,9 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, switchMap } from 'rxjs';
 import {
   AssessmentView, AuditEntry, ChangeEvent, CoverageMatrix, DecisionKind, Determination, DeterminationLists, DocumentPage, EvidenceRequest, EvidenceResponse, EvidenceResponseBody,
-  Jurisdiction, Mapping, MappingsView, NewRuleVersion, Outcome, Program, ProgramDocument, ProgramOverview, RegisterFilter, RegisterRow,
+  Jurisdiction, Mapping, MappingsView, NewRuleVersion, Outcome, Program, ProgramDocument, ProgramOverview, RegisterFilter, RegisterRow, ReportCheck,
   RequirementDraft, RequirementsView, RuleVersionDiff, RuleVersionView, SessionView, UserSummary, UserView, WorkQueue,
 } from './models';
 import { REGISTER_PATH, registerQuery } from './register';
@@ -93,6 +93,12 @@ export class ApiService {
   /** The status while the PDF is generated, then the PDF itself (D-069, readReport). */
   report(reportId: string): Observable<ReportAnswer> {
     return this.http.get(`${this.base}/reports/${reportId}`, { observe: 'response', responseType: 'blob' }).pipe(switchMap(readReport));
+  }
+  /** Whether a PDF is exactly a report of this workspace; the events carry the upload progress (F14). */
+  checkReport(file: File): Observable<HttpEvent<ReportCheck>> {
+    const body = new FormData();
+    body.append('file', file, file.name);
+    return this.http.post<ReportCheck>(`${this.base}/reports/check`, body, { reportProgress: true, observe: 'events' });
   }
   jobStatus(jobId: string): Observable<{ id: string; status: string; error: string | null }> {
     return this.http.get<{ id: string; status: string; error: string | null }>(`${this.base}/jobs/${jobId}`);
