@@ -110,9 +110,15 @@ test('the theme chosen in the avatar menu persists across a reload, and the menu
   await page.reload();
   await expect(html).toHaveAttribute('data-theme', 'light');
 
+  // PrimeNG's Popover closes itself on a window resize, and after a reload the menu is a deferred chunk: let the resize
+  // event pass (it fires before the next animation frames), then open the menu until it is there.
   await page.setViewportSize({ width: 400, height: 860 });
-  await account.click();
-  await expect(page.getByRole('dialog', { name: 'Account' })).toContainText('Reviewer');
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const menu = page.getByRole('dialog', { name: 'Account' });
+  await expect(async () => {
+    if (!(await menu.isVisible())) { await account.click(); }
+    await expect(menu).toContainText('Reviewer', { timeout: 1000 });
+  }).toPass();
   await expectAccessible(page, 'Avatar menu at 400 px');
 });
 
