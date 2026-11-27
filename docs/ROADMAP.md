@@ -631,8 +631,8 @@ Every job payload today holds exactly one id (`documentId`, `ruleVersionId`, `as
 `reportId`, and `ruleSourceId` from F12), so the id becomes a real column.
 1. Migration: `ALTER TABLE job ADD COLUMN entity_id uuid`; backfill with the single value of the payload
    object (`(SELECT value::uuid FROM jsonb_each_text(payload) LIMIT 1)`, guarded by
-   `jsonb_typeof(payload) = 'object'`); `SET NOT NULL`; `CREATE INDEX job_entity_idx ON job (tenant_id, type,
-   entity_id, created_at DESC)`. Prove the backfill expression with a SQL-level test on a temporary table, as
+   `jsonb_typeof(payload) = 'object'`); `SET NOT NULL`; `CREATE INDEX job_entity_idx ON job (type, entity_id,
+   created_at DESC)` (key decided in review, D-202). Prove the backfill expression with a SQL-level test on a temporary table, as
    FIX-1 does. The job policies in V002 are unchanged; `entity_id = :id` is leakproof, so the planner may use
    the index under the policy. `IndexUsageTest` (WS-PERF) gains this index and the lookup query.
 2. `JobRepository.enqueue(JobType type, UUID entityId, Map<String, ?> payload)` writes both columns; the five
