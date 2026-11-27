@@ -1,10 +1,44 @@
-# One customer-managed key encrypts the database, its credentials and the document bucket.
+# One customer-managed key encrypts the database, its credentials, the document bucket and the flow log group.
 resource "aws_kms_key" "data" {
-  description             = "${local.name} data at rest: database, secrets and uploaded documents"
+  description             = "${local.name} data at rest: database, secrets, uploaded documents and flow logs"
   enable_key_rotation     = true
   deletion_window_in_days = 30
+  policy                  = data.aws_iam_policy_document.data_key.json
 
   tags = { Name = "${local.name}-data" }
+}
+
+# The first statement is what the default key policy grants: the account's IAM policies decide who may use the key
+# (the task roles, RDS, S3 and Secrets Manager rely on it). The second lets CloudWatch Logs encrypt the flow log
+# group, and only that one: the encryption context names the log group.
+data "aws_iam_policy_document" "data_key" {
+  statement {
+    sid       = "EnableIamPolicies"
+    actions   = ["kms:*"]
+    resources = ["*"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+
+  statement {
+    sid       = "CloudWatchLogsEncryptsTheFlowLogGroup"
+    actions   = ["kms:Encrypt*", "kms:Decrypt*", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:Describe*"]
+    resources = ["*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["logs.${var.region}.amazonaws.com"]
+    }
+
+    condition {
+      test     = "ArnEquals"
+      variable = "kms:EncryptionContext:aws:logs:arn"
+      values   = [local.flow_log_group_arn]
+    }
+  }
 }
 
 resource "aws_kms_alias" "data" {
