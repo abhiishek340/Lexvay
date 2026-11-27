@@ -56,3 +56,28 @@ export async function expectAccessible(page: Page, screen: string): Promise<void
 export function nav(page: Page, name: string) {
   return page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name, exact: true });
 }
+
+export interface Evidence { documentId: string; filename: string; pageNumber: number; charStart: number; charEnd: number; quote: string; }
+
+/**
+ * The signed-in user's program (from the URL) and, read from the API, the first requirement of a state whose
+ * evidence is quoted from a syllabus. The seed syllabi have two pages, so the viewer can page through them.
+ */
+export async function citedRequirement(page: Page, jurisdiction: string): Promise<{ programId: string; ref: string; evidence: Evidence }> {
+  await page.waitForURL(/\/programs\/[^/]+\//);
+  const programId = new URL(page.url()).pathname.split('/')[2];
+  const overview = await (await page.request.get(`/api/v1/programs/${programId}/overview`)).json();
+  const view = await (await page.request.get(`/api/v1/assessments/${overview.assessment.id}/mappings?jurisdiction=${jurisdiction}`)).json();
+  const mapping = (view.mappings as { requirement: { ref: string }; evidence: Evidence | null }[])
+    .find((m) => m.evidence?.filename.endsWith('-syllabus.pdf'))!;
+  return { programId, ref: mapping.requirement.ref, evidence: mapping.evidence! };
+}
+
+/** Opens Review on a state and selects one requirement by its ref. */
+export async function openRequirement(page: Page, jurisdiction: string, ref: string): Promise<void> {
+  await nav(page, 'Review').click();
+  await page.getByRole('tab', { name: jurisdiction, exact: true }).click();
+  await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', new RegExp(`^${jurisdiction}-`));
+  await page.getByRole('region', { name: 'Requirements' }).getByRole('button').filter({ hasText: new RegExp(`^${ref}(?!\\d)`) }).click();
+  await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', ref);
+}
