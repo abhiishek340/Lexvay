@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { Page } from '@playwright/test';
-import { ADMIN, DANA, expect, expectAccessible, nav, signIn, test } from './support';
+import { ADMIN, DANA, expect, expectAccessible, goTo, nav, signIn, test } from './support';
 
 /**
  * The record screens of UI2-3: the audit trail's filter chips and CSV export, and the evidence report's PDF. Runs after
@@ -102,12 +102,12 @@ for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await noHorizontalScroll(page);
     await expectAccessible(page, `Changes at ${width} px`);
 
-    await nav(page, 'Audit trail').click();
+    await goTo(page, 'Audit trail');
     await page.getByRole('main').getByRole('listitem').first().getByRole('button').click();
     await noHorizontalScroll(page);
     await expectAccessible(page, `Audit trail at ${width} px`);
 
-    await nav(page, 'Evidence report').click();
+    await goTo(page, 'Evidence report');
     await expect(page.getByRole('note', { name: 'Draft. Not a determination.' })).toBeVisible();
     await noHorizontalScroll(page);
     await expectAccessible(page, `Draft report at ${width} px`);

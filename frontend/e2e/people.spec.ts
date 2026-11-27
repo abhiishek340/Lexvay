@@ -1,11 +1,11 @@
 import { Page } from '@playwright/test';
-import { ADMIN, PASSWORD, PRIYA, SCREENSHOTS, expect, expectAccessible, nav, shoot, signIn, test } from './support';
+import { ADMIN, PASSWORD, PRIYA, SCREENSHOTS, expect, expectAccessible, goTo, nav, shoot, signIn, test } from './support';
 
 /** Passwords the new people choose: long enough for the rules, never an address. */
 const CHOSEN = 'Granite river lantern 42';
 
 async function openPeople(page: Page): Promise<void> {
-  await nav(page, 'People').click();
+  await goTo(page, 'People');
   await expect(page.getByRole('heading', { name: 'People', level: 1 })).toBeVisible();
   await expect(page.getByRole('table', { name: 'People' })).toBeVisible();
 }
@@ -225,6 +225,35 @@ test('a busy sign-in holds the button for the seconds the server asks', async ({
   const button = page.getByRole('button', { name: /^Retry in \d s$/ });
   await expect(button).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 4000 });
+});
+
+test("at 400 px an administrator's bottom bar fits, with the least used screens under More", async ({ page }) => {
+  await page.setViewportSize({ width: 400, height: 860 });
+  await signIn(page, ADMIN);
+  const bar = page.getByRole('navigation', { name: 'Screens' });
+  expect(await bar.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  await expect(nav(page, 'People')).toBeHidden();
+  await expect(nav(page, 'Audit trail')).toBeHidden();
+  await expect(nav(page, 'Evidence report')).toBeVisible();
+
+  const more = bar.getByRole('button', { name: 'More screens' });
+  await expect(more).toHaveAttribute('aria-haspopup', 'menu');
+  await more.focus();
+  await page.keyboard.press('Enter');
+  const menu = page.getByRole('menu', { name: 'More screens' });
+  await expect(menu.getByRole('menuitem')).toHaveText(['People', 'Audit trail']);
+  await expect(more).toHaveAttribute('aria-expanded', 'true');
+  await expectAccessible(page, 'More menu at 400 px');
+  if (SCREENSHOTS) { await shoot(page, 'f5b-more-menu-400'); }
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/people$/);
+  // The tab shows that the screen open is one of its own.
+  await expect(bar.getByRole('button', { name: 'More screens, People open' })).toHaveClass(/lx-active/);
+  await more.click();
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
 });
 
 for (const [width, height] of [[1440, 900], [400, 860]] as const) {

@@ -1,4 +1,4 @@
-import { ADMIN, DANA, SCREENSHOTS, apiPost, citedRequirement, expect, nav, openRequirement, shoot, signIn, stateTab, test } from './support';
+import { ADMIN, DANA, SCREENSHOTS, apiPost, citedRequirement, expect, goTo, nav, openRequirement, shoot, signIn, stateTab, test } from './support';
 
 /**
  * Screenshots of every screen in both themes for docs/screens. Not part of the regular suite:
@@ -244,7 +244,7 @@ test('screenshots of changes, the audit trail and the evidence report at 1440 an
     await changes.getByRole('button', { name: 'Details' }).first().click();
     await shoot(page, `ui2-3-changes-${width}`);
 
-    await nav(page, 'Audit trail').click();
+    await goTo(page, 'Audit trail');
     const entries = page.getByRole('main').getByRole('listitem');
     await expect(entries.nth(2)).toBeVisible();
     await entries.nth(1).getByRole('button').click();
