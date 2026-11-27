@@ -3,11 +3,19 @@
 Owned by the orchestrator (CTO). Agents implement one work item each, exactly as specified, on the named
 branch, and open a pull request. Status values: `queued`, `in progress`, `in review`, `merged`.
 
+## Owner decisions needed
+- **PrimeUI license key (D-080).** PrimeNG 22 is distributed under the PrimeUI License and verifies a key offline.
+  Without one every page shows an "Invalid PrimeUI License" badge. The Community License is free for individuals
+  and organisations under USD 1 M revenue with fewer than 5 developers (renewed yearly); register at
+  https://primeui.dev, claim the key, and pass it at build time: `ng build --define
+  "LEXVAY_PRIMEUI_LICENSE='<key>'"` (never commit it). Alternative if declined: Angular 21 with PrimeNG 21 (MIT),
+  a framework downgrade the orchestrator does not recommend.
+
 ## Status board
 
 | Item | Branch | E2E slot | Model | Status |
 |---|---|---|---|---|
-| WS-UI Design system and screen rebuild | `ui-foundation` | 1 | Opus 5.5 | in progress |
+| WS-UI Design system and screen rebuild | `ui-foundation` | 1 | Opus 5.5 | merged (PR #15) |
 | WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | merged (PR #12) |
 | WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | merged (PR #11) |
 | WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
@@ -18,9 +26,9 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | in progress |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | queued (after WS-PERF) |
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
-| F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
+| F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | ready (starts when PR #14 merges) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
-| F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 3 | Opus 5.5 | queued (after WS-UI, F3a) |
+| F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | in progress |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | queued (after WS-UI, F4a) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | in progress |
@@ -183,6 +191,137 @@ requirement, before approving the new list and re-running. Slot 5. No migration.
    merged); API tests using the seeded Colorado revision (exactly one CHANGED: CO-5 with `NUMERIC` and
    `TEXT`, eight UNCHANGED), tenant isolation 404, 400 cases. `RuleVersionChangeTest` and
    `CourseVersionChangeTest` must stay green unmodified.
+
+## F1 — Evidence viewer with in-context highlight (slot 1; Opus 5.5; after WS-PERF)
+Purpose: a reviewer must see a quote where it sits on the page, not only the quote. One reusable
+`DocumentViewer` serves the review screen now and the evidence-request and program-setup screens later. The
+quote is highlighted from the stored character offsets; the browser never searches text (the server verified
+the quote; the viewer only shows what was verified). Decisions D-220 to D-229 in `docs/decisions/F1.md`.
+1. **Backend** (small, with tests): `GET /api/v1/documents/{id}/file` streams the original bytes from
+   `FileStore` with `Content-Type` from the stored kind (`application/pdf`, DOCX media type, `text/plain`),
+   `Content-Disposition: inline; filename="<stored filename, RFC 5987 encoded>"`, `Cache-Control: private,
+   max-age=31536000, immutable` and the same ETag scheme as the page endpoint (document sha256); 404 for
+   another tenant; any role; read-only so no audit entry; a row in `InputValidationTableTest`; one
+   statement plus the store read. The `PageView` from WS-PERF is used as is.
+2. **`DocumentViewer`** (`frontend/src/app/shared/document-viewer/`, standalone): inputs `documentId`,
+   `pageNumber`, `highlight: { charStart, charEnd } | null` (page-relative offsets exactly as `Evidence`
+   carries them), `selectable: boolean`. Renders the page text in serif inside the document frame used by
+   the review screen (move that frame's styles into the viewer so there is one copy), with the file name,
+   page `n of N`, previous and next page buttons (PrimeNG Button, icon and text, disabled at the ends), and
+   "Open original" linking to the file endpoint in a new tab (`rel="noopener"`, external icon). The
+   highlight is a single `mark` element wrapping `text.slice(charStart, charEnd)` with the rest as text
+   nodes (never `innerHTML`); after the page renders the mark is scrolled into view (`block: 'center'`)
+   and receives `tabindex="-1"` focus only when the viewer was opened for that quote; `mark` is styled with
+   the warning tint plus a 2 px underline so it does not rely on colour alone. If the offsets fall outside
+   the text (should not happen; the server verified them), the viewer shows the page without a mark and an
+   inline Message "The stored quote position does not match this page".
+3. **Page cache**: `DocumentPageCache` service (one per app) with an LRU of 40 pages keyed by
+   `documentId:pageNumber`, in front of `GET /documents/{id}/pages/{n}`; requests in flight are shared
+   (same observable); the browser cache does the rest (WS-PERF headers). Vitest tests for eviction order and
+   in-flight sharing.
+4. **Selection** (`selectable` true): when the user selects text inside the page element, the viewer emits
+   `selection = { pageNumber, quote, charStart, charEnd }` computed from the DOM Range against the page text
+   (offsets measured within the page `pre`/`p` element, whitespace exactly as stored); a small floating
+   toolbar (PrimeNG Button "Use this passage") appears next to the selection and also emits on click;
+   Escape clears it. Keyboard alternative: a "Select passage by character range" Button opens a Dialog
+   with start and end InputNumber fields that shows the resulting quote live and emits the same event.
+   Vitest tests for the offset computation on a fixture page (selection inside one text node, across the
+   mark boundary, and collapsed selection ignored).
+5. **Review screen**: the Evidence pane keeps its header (file, course, required or elective, page,
+   characters) and replaces the blockquote with `DocumentViewer` showing the cited page with the quote
+   highlighted; the quote stays available above the viewer in a collapsed "Quote only" disclosure for
+   screen readers and small screens (under 1024 px the viewer is collapsed by default behind "Show on
+   page"). The viewer in Review is read-only (`selectable` false).
+6. **Overview**: replace the audit-log route to the latest assessment with WS-PERF's
+   `GET /programs/{id}/overview` (follow-up from WS-UI). Delete the old code path.
+7. **Tests**: Vitest for the cache, the offset computation and the highlight splitting (pure function
+   `splitForHighlight(text, start, end)`); end-to-end (`frontend/e2e/viewer.spec.ts`, slot 1): the cited
+   page opens with the quote marked and scrolled into view (assert the `mark` text equals the evidence quote
+   from the API), next and previous page work and are announced, "Open original" responds 200 with
+   `application/pdf`, keyboard range selection emits the quote (exercised through a test harness route or
+   the first screen that uses `selectable`), axe in both themes at 1280 and 400 px. Backend tests for the file
+   endpoint (headers, 404 other tenant, 304 on If-None-Match).
+Done when: `LEXVAY_E2E_SLOT=1 make test` green; screenshots of the review screen with the viewer in both themes
+in `docs/screens/`; `docs/decisions/F1.md` and `docs/progress/F1.md` written.
+
+## F3 — Rule workspace screens (frontend; slot 10; Opus 5.5; uses F3a, WS-UI)
+Purpose: today a reviewer can approve a requirement list only through the API. The rule workspace is where a
+jurisdiction's rule versions are entered, the extracted list is corrected and approved, and a revision is
+compared with the version it supersedes. The product rules apply on screen exactly as in the API: the model
+proposes the list, a person approves it; nothing approved is ever edited. Decisions D-210 to D-219 in
+`docs/decisions/F3.md`. Everything is built from PrimeNG 22 components with the existing `LexvayPreset`, Phosphor
+icons, the tokens in `docs/DESIGN.md`, and the patterns WS-UI set (skeleton loading, inline `Message` for
+problem details, toast for completed operations, focus on the heading after navigation, `data-testid="message"`).
+1. **Route and navigation**: `programs/:programId/rules` ("Rules" in the rail, icon `phosphorScales`, placed
+   after Changes; badge = number of unapproved versions that have requirements, text "n rule versions waiting
+   for approval"). Lazy chunk. Also `programs/:programId/rules/:ruleVersionId` opens one version.
+2. **Version list** (left pane, 320 px, PrimeNG Listbox or a plain list with `role="list"`): grouped by
+   jurisdiction code in the order of the program's target jurisdictions, then other jurisdictions. Each row:
+   jurisdiction code (mono), label, effective date, and one status Tag with icon and text: *Extracting*
+   (extraction job QUEUED or RUNNING, `phosphorSpinner` animated), *Extraction failed* (job FAILED, with the
+   error as helper text), *Needs approval* (requirements present, not approved), *Approved*, *Superseded*
+   (another version's `supersedesId` points at it). Data from `GET /rule-versions` (one request; the API
+   already returns `extraction`, `approval`, `requirementCount`, `supersedesId`). The list polls every 5 s
+   only while a version is *Extracting*, then stops.
+3. **New version** (PrimeNG Dialog, from a "New rule version" button; CONTRIBUTOR and ADMIN; others do not see
+   the button): fields jurisdiction (Select over the tenant's jurisdictions, code and name), license type
+   (InputText, default the program's license type), label, source URL, effective date (DatePicker, ISO
+   output), supersedes (Select listing approved versions of the chosen jurisdiction and license type, optional,
+   with helper text "Choose the version this one replaces; a change event opens when it is approved"), rule
+   text (Textarea, mono, counter of characters against 500 000). Submit → `POST /rule-versions` (202) → close,
+   toast "Extraction started", select the new version, which shows *Extracting*. Server validation problems
+   are shown inline under the dialog's fields when the problem detail names a field, otherwise in a Message.
+4. **Version detail** (right pane, scrolls): header with label, jurisdiction name and code, license type,
+   effective date, source link (external, icon), the status Tag, and the approval line ("Approved by Dana
+   Whitfield on 2026-11-26" or "Not approved"). Tabs (PrimeNG Tabs): **Requirements**, **Rule text**,
+   **Compare**.
+   - **Requirements tab**: PrimeNG Table of `GET /rule-versions/{id}/requirements`, columns ref (mono),
+     title, type (Tag, text only), check (for NUMERIC and SUPERVISED_HOURS: `field operator value`, mono),
+     text (serif, truncated to three lines with an expand control). When the version is **not approved** and the
+     user is REVIEWER, SIGNER or ADMIN: an "Edit list" toggle switches the table to row editing (PrimeNG Table
+     `editMode="row"` is not used; instead each cell becomes a form control in place so every row is editable at
+     once): ref InputText, title InputText, text Textarea, type Select, numeric field Select / operator Select /
+     value InputNumber shown only for numeric types; row actions move up, move down, delete; "Add requirement"
+     appends an empty row and focuses its ref. "Save list" sends the whole list to `PUT
+     /rule-versions/{id}/requirements` in the API's body shape; a 400 problem detail whose message names a ref or
+     row is shown as an inline error under that row, otherwise as a Message above the table. "Discard" restores
+     the server list. Order is the list order (FIX-1 makes the server keep it; until FIX-1 merges the server may
+     reorder by ref and the screen must simply show what comes back).
+     "Approve requirements" (primary, same roles, only when not approved and at least one requirement exists)
+     opens a confirmation Dialog: "Approving locks this list. Assessments for <jurisdiction> will use these N
+     requirements. The list can no longer be edited." with "Approve" and "Cancel"; on success toast "Requirements
+     approved", status becomes *Approved*, the edit controls disappear. Approved lists show no edit controls at
+     all; a 409 from the server (already approved) is shown as a Message and the view reloads.
+   - **Rule text tab**: the stored rule text pages in serif inside the document frame (fetch pages through
+     `GET /documents/{documentId}/pages/{n}` from WS-PERF once it merges; until then `GET /documents/{id}`; use
+     whichever exists on `origin/main` when you start, and say which in the PR), page navigation, mono page
+     numbers.
+   - **Compare tab**: `GET /rule-versions/{id}/diff` (default against the superseded version; a Select offers
+     any other approved version of the same jurisdiction and license type as `against`). Summary line
+     "3 changed · 1 added · 0 removed · 8 unchanged" with icons. Table rows by status with a Tag (Added,
+     Removed, Changed, Unchanged, and "ref changed" as a second small Tag); CHANGED rows show the word diff
+     with inserted words in `ins` (underline, success colour) and deleted words in `del` (strike-through,
+     danger colour), never colour alone; the numeric check before → after when `NUMERIC` changed. A
+     "Rule text" expander shows `ruleTextDiff` the same way. If the version supersedes nothing and no
+     `against` is chosen: one sentence "This is the first version for <jurisdiction>; choose a version to
+     compare with."
+5. **Keyboard and accessibility**: the version list is arrow-key navigable with `aria-selected`; the edit
+   grid is a real form (labels via `aria-label` per cell naming the ref and column); Tab order left to
+   right; the approve dialog returns focus to the button; axe clean in light and dark, at 1280 and 400 px
+   (panes stack under 1024 px).
+6. **Unit tests** (Vitest): the version status derivation (one pure function `ruleVersionStatus(view, all)`
+   with every state), the grouping and ordering, the edit-list model (add, move, delete, dirty flag,
+   restore), the problem-detail-to-row mapping.
+7. **End-to-end tests** (Playwright, `frontend/e2e/rules.spec.ts`, slot 10, seeded Northfield data): a
+   reviewer opens Rules, sees the seeded Colorado revision as *Needs approval*, edits one requirement's title,
+   saves, reloads and sees it; approves it through the dialog and sees *Approved* and the audit entry; the
+   Compare tab shows exactly one Changed row (CO-5, numeric and text) and the `ins`/`del` marks; a contributor
+   creates a new version through the dialog and sees *Extracting* then (FakeLlmClient) *Needs approval*; axe on
+   every state in both themes. Every e2e test keeps the WS-UI rule that no request leaves localhost.
+8. No backend change is expected. If one is needed (for example a missing field in a view), add it with
+   tests, a validation-table row if it is an endpoint, and call it out in the PR.
+Done when: `LEXVAY_E2E_SLOT=10 make test` green; screenshots of the list, the edit grid, the approve dialog and the
+compare tab in both themes under `docs/screens/`; `docs/decisions/F3.md` and `docs/progress/F3.md` written.
 
 ## F4a — Evidence requests API (backend only)
 Purpose: "Request evidence from program director" must start a real loop: the contributor sees the open
@@ -498,6 +637,10 @@ read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
    kinds above contain no forbidden words). Read-only endpoint, so nothing to add to the audit coverage set.
 
 ## Follow-ups recorded from reviews
+- WS-UI: the overview still finds the latest assessment through the audit log; switch it to the WS-PERF
+  `GET /programs/{id}/overview` endpoint (do this in F1). Audit filtering is client-side over the newest 500
+  entries; switch to the WS-PERF server filters (F5). Add a build check that the production `index.html` has no
+  inline script (F6 or F1). PrimeNG's own dialog-close and select-chevron SVGs are not Phosphor.
 - WS-PERF: `GET /documents/{id}` and the rule version views look up job status by scanning the `job` table under
   RLS because `jsonb ->>` is not leakproof and the payload expression indexes are ignored. FIX-2: add a generated
   `payload_entity_id uuid` column on `job` (from the payload's entity id), index it, and compare with `=`. Decided
