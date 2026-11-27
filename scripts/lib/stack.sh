@@ -1,5 +1,5 @@
-# Shared by scripts/e2e.sh and scripts/eval.sh: an isolated, slot-numbered database stack that is always torn down.
-# Source it from the repository root, then call stack_init <name> ("e2e" or "eval") once and the other functions in order.
+# Shared by scripts/smoke.sh, scripts/e2e.sh and scripts/eval.sh: an isolated, slot-numbered database stack that is always torn down.
+# Source it from the repository root, then call stack_init <name> ("smoke", "e2e" or "eval") once and the other functions in order.
 #
 # LEXVAY_E2E_SLOT (0-9) shifts every port and the compose project, so several checkouts can run at once. The
 # development database (:5432) is never touched. Callers may set BACKEND_PID; it is killed on exit.

@@ -985,7 +985,7 @@ New tests: `EvalScorerTest` (9), `GoldenFileTest` (3), `EvalServiceTest` (3), `E
 ## WS-SEC — OIDC and hardening (PR #12; spec milestone 8)
 
 Branch `sec-oidc-hardening`, merged with `origin/main` (including PRs 8 to 11) on 2026-11-26. Decisions D-090 to D-099
-are in `docs/decisions/WS-SEC.md`.
+are in `DECISIONS.md` (D-090 to D-099).
 
 ### What was built
 
@@ -1050,3 +1050,96 @@ Mutation check: setting `sessionFixation` to `none()` makes `SessionSecurityTest
 - Production behind a load balancer needs `LEXVAY_FORWARD_HEADERS=native` (D-093), otherwise the login budget is one
   shared bucket.
 - `scripts/e2e.sh` sets the login budget to 1000 (the browser tests sign in repeatedly from one address).
+
+## WS-UI — Design system and screen rebuild (PR #15)
+
+PrimeNG 22.1.5 with `LexvayPreset` (tokens once as light-dark pairs), Phosphor icons, IBM Plex self-hosted; shell,
+sign-in and the five screens rebuilt; three-pane review with J/K/A/R/G/? shortcuts; axe in both themes on every
+screen, dialogs and the 400 px view. `LEXVAY_E2E_SLOT=1 make test` after the WS-SEC merge: 449 backend tests,
+27 frontend unit tests, 6 end-to-end tests passed (one screenshot test skipped unless `LEXVAY_SCREENSHOTS=1`).
+Initial bundle 672.8 kB raw, 161.9 kB estimated transfer. Backend addition: `GET /api/v1/users`. Open owner
+action: the PrimeUI license key (D-080). Screenshots in `docs/screens/`.
+
+## WS-PERF — Read-path latency and read APIs (PR #14)
+
+One connection per read request (tenant bound on checkout only, `Rule7_PooledConnectionRebindsTest`), read
+services in one read-only transaction, N+1 removed from determinations, change events and the rule version list
+(13 → 1 connections), new read endpoints `GET /programs/{id}/overview`, `GET /programs/{id}/assessments`,
+`GET /documents/{id}/pages/{n}` (immutable private cache, ETag, 304) and `GET /mappings/{id}/reviews`, audit
+filters, gzip over 1 kB, nine planner-verified indexes in V008 (`IndexUsageTest`), `make perf` with
+`EndpointLatencyTest` (every p95 under 40 ms on the seeded and the 62-tenant database; tables and method in
+`docs/PERF.md`). Final run: 487 backend tests, 6 end-to-end tests passed. Decisions D-110 to D-119.
+
+## F11 — OCR for scanned documents (PR #13)
+
+`OcrEngine` seam with a Tesseract CLI engine (`LEXVAY_OCR=tesseract`; `FakeOcrEngine` in tests), V009 adds
+`document_page.text_source` and `ocr_confidence`; a PDF page's text layer is never discarded, OCR replaces it only
+when the layer is under 20 characters and OCR yields at least 20; evidence cited from an OCR page under 80 %
+confidence is downgraded to AMBIGUOUS through the ordered `DowngradeRule` list (`Rule4_LowOcrConfidenceForcesAmbiguousTest`).
+Real-binary test against Tesseract 5.5.5 (31 words, mean confidence 96.29). Final run after merging main: 531
+backend tests, 6 end-to-end tests passed. Decisions D-160 to D-169.
+
+## F6 — Production packaging and observability (PR #16)
+
+Three-stage `Dockerfile` (Angular bundle, layered jar, JRE runtime as a non-root user with a read-only root
+filesystem), `make image` and `make smoke` (`scripts/smoke.sh`, 31 checks: health, login, upload, assessment,
+metrics, graceful stop), `/livez` and `/readyz` on the main port and actuator on a management port with its own
+security chain, request ids, ECS structured logs in profile `prod`, Prometheus metrics (`lexvay_job_*`,
+`lexvay_llm_*` with `purpose`, `lexvay_mapping_finding_total`, `lexvay_quote_verification_total`; `MetricsTest`
+proves no id, email or quote text in a scrape), `GET /assessments/{id}/usage` with cost estimate, V010 index on
+`llm_call.assessment_id`, compose `app` profile, `docs/OPERATIONS.md`. Final run on the merged tree: 589 backend
+tests, 6 end-to-end tests, smoke passed; image 216 MiB, cold start to healthy 6 s. Decisions D-140 to D-149.
+
+## F12 — Rule source monitoring (PR #19)
+
+Branch `feat-rule-sources`, migration `V011__rule_source.sql`, decisions in `DECISIONS.md (D-180 to D-189)` (D-180 to D-189).
+Backend only. Tested after merging `origin/main` (WS-PERF, F11 and F6 included, V010 on main) on 2026-11-26.
+
+### What exists
+
+- Schema `rule_source`, `rule_source_check` (RLS, append-only checks, source updates limited to `active`, `last_checked_at`,
+  `last_content_hash`) and two worker-flag policies for the scheduler's cross-tenant statement.
+- `HttpFetcher` seam, `JdkHttpFetcher` (3 redirects, every hop through the `SsrfGuard`, 20 MB cap, 10 s connect, 30 s
+  whole response), `FakeHttpFetcher` and `FakeHostResolver` in tests.
+- `FileType.HTML` (fetched content only) with jsoup 1.24.1, page splitting at 4 000 characters.
+- Job `CHECK_RULE_SOURCE`: UNCHANGED, CHANGED, DRAFT_EXISTS, FETCH_FAILED; a changed page becomes an unapproved draft that
+  supersedes the current approved version, through `RuleVersionService`, so extraction and the change event follow.
+- `RuleSourceScheduler` (off unless `LEXVAY_RULE_SOURCES_ENABLED=true`), API under `/api/v1/rule-sources`, inert seed source.
+
+### Test evidence
+
+`make backend-test` (`./mvnw verify`, JaCoCo checks included):
+
+```
+[INFO] Tests run: 719, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+```
+
+`LEXVAY_E2E_SLOT=8 make e2e`:
+
+```
+  ✓  4 e2e/review-and-sign.spec.ts:160:1 › the theme choice persists across a reload (1.4s)
+  ✓  5 e2e/review-and-sign.spec.ts:175:1 › at 400 px the review screen fits without horizontal page scroll (1.8s)
+  ✓  6 e2e/review-and-sign.spec.ts:191:1 › the Changes screen lists the seeded changes and re-runs matching for the new course version (3.1s)
+  -  7 e2e/screens.spec.ts:23:1 › screenshots of every screen in light and dark
+  1 skipped
+  6 passed (22.1s)
+```
+
+(`screens.spec.ts` is skipped by its own design; it takes screenshots on request.)
+
+`make perf` (read-path budget, p95 under 40 ms): the two new read endpoints, seed only and with 30 renamed copies of both
+tenants: `GET /rule-sources` p95 1.43 ms and 0.93 ms, `GET /rule-sources/{id}/checks` p95 1.07 ms and 0.97 ms, one
+connection each (`ReadPathConnectionsTest` covers both). `BUILD SUCCESS` for `EndpointLatencyTest` and `IndexUsageTest`.
+
+### New test classes
+
+`SsrfGuardTest`, `JdkHttpFetcherTest`, `HtmlTextTest`, `FileTypeTest`, `CheckRuleSourceTest`, `RuleSourceApiTest`,
+`RuleSourceEnqueueTest`, `RuleSourceSchedulerLoopTest`, `Rule7_RuleSourceIsolationTest`, `Rule5_RuleSourceImmutabilityTest`;
+rows in `InputValidationTableTest` (all five endpoints) and `Rule9_AuditCoverageTest` (three mutating endpoints); the seed
+assertion in `SeedLoaderTest`.
+
+### Open points
+
+See D-189: pagination wording of the spec, scheduler package, retry delay after a failed check, DNS rebinding, no screen yet.

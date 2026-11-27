@@ -3,31 +3,42 @@
 Owned by the orchestrator (CTO). Agents implement one work item each, exactly as specified, on the named
 branch, and open a pull request. Status values: `queued`, `in progress`, `in review`, `merged`.
 
+## Owner decisions needed
+- **PrimeUI license key (D-080).** PrimeNG 22 is distributed under the PrimeUI License and verifies a key offline.
+  Without one every page shows an "Invalid PrimeUI License" badge. The Community License is free for individuals
+  and organisations under USD 1 M revenue with fewer than 5 developers (renewed yearly); register at
+  https://primeui.dev, claim the key, and pass it at build time: `ng build --define
+  "LEXVAY_PRIMEUI_LICENSE='<key>'"` (never commit it). Alternative if declined: Angular 21 with PrimeNG 21 (MIT),
+  a framework downgrade the orchestrator does not recommend.
+
 ## Status board
 
 | Item | Branch | E2E slot | Model | Status |
 |---|---|---|---|---|
-| WS-UI Design system and screen rebuild | `ui-foundation` | 1 | Opus 5.5 | in progress |
+| WS-UI Design system and screen rebuild | `ui-foundation` | 1 | Opus 5.5 | merged (PR #15) |
 | WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | merged (PR #12) |
 | WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | merged (PR #11) |
-| WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
+| WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | merged (PR #14) |
 | F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | merged (PR #9) |
 | F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | merged (PR #8) |
-| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | in progress |
+| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | merged (PR #16) |
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
-| F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | in progress |
-| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | queued (after WS-PERF) |
-| F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
+| F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
+| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (final merge of main) |
+| FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
+| F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | PR #21 approved (CI running) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
-| F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 3 | Opus 5.5 | queued (after WS-UI, F3a) |
-| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | queued (after WS-UI, F4a) |
+| F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | PR #22 in review (layout, error text, dirty guard, viewer) |
+| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | specified (starts when F1 merges) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
-| F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | in progress |
+| F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | PR #17 in review (merges after #14, #13, #16) |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
-| F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
+| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | queued (after F7, FIX-1) |
+| OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | in progress |
+| F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | in progress |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
-| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | in progress |
-| F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | queued (after WS-PERF) |
+| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
+| F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | in progress |
 
 ---
 
@@ -183,6 +194,189 @@ requirement, before approving the new list and re-running. Slot 5. No migration.
    `TEXT`, eight UNCHANGED), tenant isolation 404, 400 cases. `RuleVersionChangeTest` and
    `CourseVersionChangeTest` must stay green unmodified.
 
+## F1 — Evidence viewer with in-context highlight (slot 1; Opus 5.5; after WS-PERF)
+Purpose: a reviewer must see a quote where it sits on the page, not only the quote. One reusable
+`DocumentViewer` serves the review screen now and the evidence-request and program-setup screens later. The
+quote is highlighted from the stored character offsets; the browser never searches text (the server verified
+the quote; the viewer only shows what was verified). Decisions D-220 to D-229 in `docs/decisions/F1.md`.
+1. **Backend** (small, with tests): `GET /api/v1/documents/{id}/file` streams the original bytes from
+   `FileStore` with `Content-Type` from the stored kind (`application/pdf`, DOCX media type, `text/plain`),
+   `Content-Disposition: inline; filename="<stored filename, RFC 5987 encoded>"`, `Cache-Control: private,
+   max-age=31536000, immutable` and the same ETag scheme as the page endpoint (document sha256); 404 for
+   another tenant; any role; read-only so no audit entry; a row in `InputValidationTableTest`; one
+   statement plus the store read. The `PageView` from WS-PERF is used as is.
+2. **`DocumentViewer`** (`frontend/src/app/shared/document-viewer/`, standalone): inputs `documentId`,
+   `pageNumber`, `highlight: { charStart, charEnd } | null` (page-relative offsets exactly as `Evidence`
+   carries them), `selectable: boolean`. Renders the page text in serif inside the document frame used by
+   the review screen (move that frame's styles into the viewer so there is one copy), with the file name,
+   page `n of N`, previous and next page buttons (PrimeNG Button, icon and text, disabled at the ends), and
+   "Open original" linking to the file endpoint in a new tab (`rel="noopener"`, external icon). The
+   highlight is a single `mark` element wrapping `text.slice(charStart, charEnd)` with the rest as text
+   nodes (never `innerHTML`); after the page renders the mark is scrolled into view (`block: 'center'`)
+   and receives `tabindex="-1"` focus only when the viewer was opened for that quote; `mark` is styled with
+   the warning tint plus a 2 px underline so it does not rely on colour alone. If the offsets fall outside
+   the text (should not happen; the server verified them), the viewer shows the page without a mark and an
+   inline Message "The stored quote position does not match this page".
+3. **Page cache**: `DocumentPageCache` service (one per app) with an LRU of 40 pages keyed by
+   `documentId:pageNumber`, in front of `GET /documents/{id}/pages/{n}`; requests in flight are shared
+   (same observable); the browser cache does the rest (WS-PERF headers). Vitest tests for eviction order and
+   in-flight sharing.
+4. **Selection** (`selectable` true): when the user selects text inside the page element, the viewer emits
+   `selection = { pageNumber, quote, charStart, charEnd }` computed from the DOM Range against the page text
+   (offsets measured within the page `pre`/`p` element, whitespace exactly as stored); a small floating
+   toolbar (PrimeNG Button "Use this passage") appears next to the selection and also emits on click;
+   Escape clears it. Keyboard alternative: a "Select passage by character range" Button opens a Dialog
+   with start and end InputNumber fields that shows the resulting quote live and emits the same event.
+   Vitest tests for the offset computation on a fixture page (selection inside one text node, across the
+   mark boundary, and collapsed selection ignored).
+5. **Review screen**: the Evidence pane keeps its header (file, course, required or elective, page,
+   characters) and replaces the blockquote with `DocumentViewer` showing the cited page with the quote
+   highlighted; the quote stays available above the viewer in a collapsed "Quote only" disclosure for
+   screen readers and small screens (under 1024 px the viewer is collapsed by default behind "Show on
+   page"). The viewer in Review is read-only (`selectable` false).
+6. **Overview**: replace the audit-log route to the latest assessment with WS-PERF's
+   `GET /programs/{id}/overview` (follow-up from WS-UI). Delete the old code path.
+7. **Tests**: Vitest for the cache, the offset computation and the highlight splitting (pure function
+   `splitForHighlight(text, start, end)`); end-to-end (`frontend/e2e/viewer.spec.ts`, slot 1): the cited
+   page opens with the quote marked and scrolled into view (assert the `mark` text equals the evidence quote
+   from the API), next and previous page work and are announced, "Open original" responds 200 with
+   `application/pdf`, keyboard range selection emits the quote (exercised through a test harness route or
+   the first screen that uses `selectable`), axe in both themes at 1280 and 400 px. Backend tests for the file
+   endpoint (headers, 404 other tenant, 304 on If-None-Match).
+Done when: `LEXVAY_E2E_SLOT=1 make test` green; screenshots of the review screen with the viewer in both themes
+in `docs/screens/`; `docs/decisions/F1.md` and `docs/progress/F1.md` written.
+
+## F3 — Rule workspace screens (frontend; slot 10; Opus 5.5; uses F3a, WS-UI)
+Purpose: today a reviewer can approve a requirement list only through the API. The rule workspace is where a
+jurisdiction's rule versions are entered, the extracted list is corrected and approved, and a revision is
+compared with the version it supersedes. The product rules apply on screen exactly as in the API: the model
+proposes the list, a person approves it; nothing approved is ever edited. Decisions D-210 to D-219 in
+`docs/decisions/F3.md`. Everything is built from PrimeNG 22 components with the existing `LexvayPreset`, Phosphor
+icons, the tokens in `docs/DESIGN.md`, and the patterns WS-UI set (skeleton loading, inline `Message` for
+problem details, toast for completed operations, focus on the heading after navigation, `data-testid="message"`).
+1. **Route and navigation**: `programs/:programId/rules` ("Rules" in the rail, icon `phosphorScales`, placed
+   after Changes; badge = number of unapproved versions that have requirements, text "n rule versions waiting
+   for approval"). Lazy chunk. Also `programs/:programId/rules/:ruleVersionId` opens one version.
+2. **Version list** (left pane, 320 px, PrimeNG Listbox or a plain list with `role="list"`): grouped by
+   jurisdiction code in the order of the program's target jurisdictions, then other jurisdictions. Each row:
+   jurisdiction code (mono), label, effective date, and one status Tag with icon and text: *Extracting*
+   (extraction job QUEUED or RUNNING, `phosphorSpinner` animated), *Extraction failed* (job FAILED, with the
+   error as helper text), *Needs approval* (requirements present, not approved), *Approved*, *Superseded*
+   (another version's `supersedesId` points at it). Data from `GET /rule-versions` (one request; the API
+   already returns `extraction`, `approval`, `requirementCount`, `supersedesId`). The list polls every 5 s
+   only while a version is *Extracting*, then stops.
+3. **New version** (PrimeNG Dialog, from a "New rule version" button; CONTRIBUTOR and ADMIN; others do not see
+   the button): fields jurisdiction (Select over the tenant's jurisdictions, code and name), license type
+   (InputText, default the program's license type), label, source URL, effective date (DatePicker, ISO
+   output), supersedes (Select listing approved versions of the chosen jurisdiction and license type, optional,
+   with helper text "Choose the version this one replaces; a change event opens when it is approved"), rule
+   text (Textarea, mono, counter of characters against 500 000). Submit → `POST /rule-versions` (202) → close,
+   toast "Extraction started", select the new version, which shows *Extracting*. Server validation problems
+   are shown inline under the dialog's fields when the problem detail names a field, otherwise in a Message.
+4. **Version detail** (right pane, scrolls): header with label, jurisdiction name and code, license type,
+   effective date, source link (external, icon), the status Tag, and the approval line ("Approved by Dana
+   Whitfield on 2026-11-26" or "Not approved"). Tabs (PrimeNG Tabs): **Requirements**, **Rule text**,
+   **Compare**.
+   - **Requirements tab**: PrimeNG Table of `GET /rule-versions/{id}/requirements`, columns ref (mono),
+     title, type (Tag, text only), check (for NUMERIC and SUPERVISED_HOURS: `field operator value`, mono),
+     text (serif, truncated to three lines with an expand control). When the version is **not approved** and the
+     user is REVIEWER, SIGNER or ADMIN: an "Edit list" toggle switches the table to row editing (PrimeNG Table
+     `editMode="row"` is not used; instead each cell becomes a form control in place so every row is editable at
+     once): ref InputText, title InputText, text Textarea, type Select, numeric field Select / operator Select /
+     value InputNumber shown only for numeric types; row actions move up, move down, delete; "Add requirement"
+     appends an empty row and focuses its ref. "Save list" sends the whole list to `PUT
+     /rule-versions/{id}/requirements` in the API's body shape; a 400 problem detail whose message names a ref or
+     row is shown as an inline error under that row, otherwise as a Message above the table. "Discard" restores
+     the server list. Order is the list order (FIX-1 makes the server keep it; until FIX-1 merges the server may
+     reorder by ref and the screen must simply show what comes back).
+     "Approve requirements" (primary, same roles, only when not approved and at least one requirement exists)
+     opens a confirmation Dialog: "Approving locks this list. Assessments for <jurisdiction> will use these N
+     requirements. The list can no longer be edited." with "Approve" and "Cancel"; on success toast "Requirements
+     approved", status becomes *Approved*, the edit controls disappear. Approved lists show no edit controls at
+     all; a 409 from the server (already approved) is shown as a Message and the view reloads.
+   - **Rule text tab**: the stored rule text pages in serif inside the document frame (fetch pages through
+     `GET /documents/{documentId}/pages/{n}` from WS-PERF once it merges; until then `GET /documents/{id}`; use
+     whichever exists on `origin/main` when you start, and say which in the PR), page navigation, mono page
+     numbers.
+   - **Compare tab**: `GET /rule-versions/{id}/diff` (default against the superseded version; a Select offers
+     any other approved version of the same jurisdiction and license type as `against`). Summary line
+     "3 changed · 1 added · 0 removed · 8 unchanged" with icons. Table rows by status with a Tag (Added,
+     Removed, Changed, Unchanged, and "ref changed" as a second small Tag); CHANGED rows show the word diff
+     with inserted words in `ins` (underline, success colour) and deleted words in `del` (strike-through,
+     danger colour), never colour alone; the numeric check before → after when `NUMERIC` changed. A
+     "Rule text" expander shows `ruleTextDiff` the same way. If the version supersedes nothing and no
+     `against` is chosen: one sentence "This is the first version for <jurisdiction>; choose a version to
+     compare with."
+5. **Keyboard and accessibility**: the version list is arrow-key navigable with `aria-selected`; the edit
+   grid is a real form (labels via `aria-label` per cell naming the ref and column); Tab order left to
+   right; the approve dialog returns focus to the button; axe clean in light and dark, at 1280 and 400 px
+   (panes stack under 1024 px).
+6. **Unit tests** (Vitest): the version status derivation (one pure function `ruleVersionStatus(view, all)`
+   with every state), the grouping and ordering, the edit-list model (add, move, delete, dirty flag,
+   restore), the problem-detail-to-row mapping.
+7. **End-to-end tests** (Playwright, `frontend/e2e/rules.spec.ts`, slot 10, seeded Northfield data): a
+   reviewer opens Rules, sees the seeded Colorado revision as *Needs approval*, edits one requirement's title,
+   saves, reloads and sees it; approves it through the dialog and sees *Approved* and the audit entry; the
+   Compare tab shows exactly one Changed row (CO-5, numeric and text) and the `ins`/`del` marks; a contributor
+   creates a new version through the dialog and sees *Extracting* then (FakeLlmClient) *Needs approval*; axe on
+   every state in both themes. Every e2e test keeps the WS-UI rule that no request leaves localhost.
+8. No backend change is expected. If one is needed (for example a missing field in a view), add it with
+   tests, a validation-table row if it is an endpoint, and call it out in the PR.
+Done when: `LEXVAY_E2E_SLOT=10 make test` green; screenshots of the list, the edit grid, the approve dialog and the
+compare tab in both themes under `docs/screens/`; `docs/decisions/F3.md` and `docs/progress/F3.md` written.
+
+## F4 — Evidence request screens (frontend; slot 4; Opus 5.5; after F1 merges; uses F4a)
+Purpose: "Request evidence from program director" in Review currently ends in a decision nobody can act on in
+the product. F4 closes the loop on screen: the contributor sees what was asked, opens the program's documents,
+selects the passage, and the requirement returns to the reviewer with that evidence shown next to what the
+system proposed. A person's evidence is held to the same rule as the model's: the quote must be on the stored
+page (product rule 2), which the selection in `DocumentViewer` guarantees and the server re-verifies. The
+system's proposed finding is never changed by an answer. Decisions D-260 to D-269 in `docs/decisions/F4.md`.
+1. **Route and navigation**: `programs/:programId/requests` ("Evidence requests" in the rail, icon
+   `phosphorTray`, after Review; badge = OPEN count, text "n open evidence requests"; visible to every role).
+   Data from `GET /programs/{id}/evidence-requests?status=OPEN|ANSWERED|ALL`.
+2. **Inbox**: a SelectButton for Open / Answered / All with counts; PrimeNG Table rows: jurisdiction code (mono),
+   requirement ref (mono) and title, the request note (truncated to two lines, full text in the row detail),
+   who asked and when ("Dana Whitfield, 26 Nov"), status Tag with icon (Open: `phosphorEnvelopeOpen`; Answered:
+   `phosphorCheckCircle` with "awaiting review"), responses count, and the latest response summary (who, when,
+   file, page). A stale request (follow-up from F4a: the mapping went stale after a change) is shown with a
+   *Blocked* Tag and helper text "This requirement is waiting for a re-run after a change; answer it after the
+   re-run" and no answer action; the inbox derives `blocked` from the mapping's `stale` flag, which the list
+   endpoint must expose (backend: add `stale` to `EvidenceRequestView`, one column in the existing statement,
+   with a test). Empty state: one sentence ("No open evidence requests. Reviewers create them from the Review
+   screen.").
+3. **Answer** (row action "Provide evidence", for CONTRIBUTOR, REVIEWER, SIGNER and ADMIN): opens a full-height
+   PrimeNG Drawer (right, 70 % width, full width under 1024 px) with three parts: the requirement (ref, title,
+   rule text in serif, the request note and who asked); a document picker (Select over the program's
+   documents excluding rule text, grouped by course code, showing file name and kind; data from
+   `GET /programs/{id}/documents` if it exists on main, otherwise the program's courses and their documents
+   through existing endpoints; say which in the PR); and `DocumentViewer` with `selectable` true on the chosen
+   document. Selecting text (or the keyboard range dialog) fills a "Selected passage" box in serif with the
+   page number and character range in mono; a comment Textarea (optional, 4000 characters); "Submit evidence"
+   posts `{ documentId, pageNumber, quote, comment }` to `POST /mappings/{id}/evidence-responses`. A 400 (quote
+   not on page) is shown inline under the selected passage with the server's detail; 409s (stale, signed, no
+   open request) are shown in a Message and the inbox reloads. On success: toast "Evidence sent to review",
+   the drawer closes, the row moves to Answered.
+4. **Review screen**: when a mapping has responses (`GET /mappings/{id}/evidence-responses`, fetched with the
+   selected mapping, cached per mapping in the screen's workspace), the Evidence pane shows a second block under
+   the system's evidence: "Evidence provided by <name>, <date>" (label with `phosphorUser` icon, never colour
+   alone) with the quote shown in `DocumentViewer` highlight exactly like the system's quote, plus the comment.
+   The system's proposed finding and its evidence stay first and unchanged. The decision note placeholder for
+   an answered request reads "Note the evidence you relied on". The requirement list shows a small
+   `phosphorChatCircleText` marker with text "evidence provided" on mappings with responses.
+5. **Accessibility and keyboard**: drawer traps focus and returns it to the row action; the inbox table is
+   keyboard navigable; axe clean in both themes at 1280 and 400 px.
+6. **Unit tests** (Vitest): inbox status derivation including blocked, the selection-to-request mapping, the
+   review workspace merge of responses into the evidence view.
+7. **End-to-end** (`frontend/e2e/evidence-requests.spec.ts`, slot 4, seeded data): a reviewer requests evidence
+   on a Missing requirement with a note; a contributor signs in, sees it in the inbox with the badge, opens it,
+   picks a syllabus, selects a real passage with the keyboard range dialog, submits; the reviewer sees the
+   requirement back in "Needs review" with "Evidence provided by ..." and the highlighted quote, accepts it;
+   the inbox shows nothing open. A tampered quote (submitted through the API in the test) is refused with the
+   server's message. Axe on every state in both themes; no request leaves localhost.
+Done when: `LEXVAY_E2E_SLOT=4 make test` green; screenshots of the inbox, the drawer with a selection and the review
+pane with provided evidence in both themes under `docs/screens/`; `docs/decisions/F4.md` and `docs/progress/F4.md`.
+
 ## F4a — Evidence requests API (backend only)
 Purpose: "Request evidence from program director" must start a real loop: the contributor sees the open
 request, supplies a passage from a program document, and the requirement returns to the reviewer with the
@@ -248,7 +442,7 @@ Migration file name: `V007__evidence_response.sql` (V006 is reserved for WS-PERF
    running job finish within the grace period.
 Tests for the SPA fallback (deep link returns index, `/api/unknown` stays a 404 problem detail), request id
 rules, metrics presence after a pipeline run, usage endpoint with tenant isolation. Decisions in
-`docs/decisions/F6.md` (D-140 to D-149).
+`DECISIONS.md (D-140 to D-149)` (D-140 to D-149).
 
 ## F9 — Curriculum search API (ready to start; slot 8)
 Reviewers must be able to look for a passage themselves instead of trusting the shortlist.
@@ -267,10 +461,10 @@ Reviewers must be able to look for a passage themselves instead of trusting the 
    on the seeded tenant) following the pattern of `EndpointLatencyTest` if it exists on `main`.
 Decisions D-150 to D-159 (folded into `DECISIONS.md`).
 
-## FIX-1 — Requirement order column (after WS-PERF merges; slot 5)
+## FIX-1 — Requirement order column (after WS-PERF merges; slot 5; migration `V012__requirement_ordinal.sql`)
 Defect found in review of F3a: `RuleVersionRepository.requirements` orders by `created_at, ref`; rows of one
 version share a timestamp, so the order is the text order of the ref ("CO-10" before "CO-2").
-1. Migration (next free number; V006 stays unused): inside the migration, `ALTER TABLE requirement NO FORCE
+1. Migration `V012__requirement_ordinal.sql` (V006 stays unused): inside the migration, `ALTER TABLE requirement NO FORCE
    ROW LEVEL SECURITY` and disable the `requirement_locked` trigger, add `ordinal integer`, backfill with
    `row_number() OVER (PARTITION BY rule_version_id ORDER BY created_at, (substring(ref from '(\d+)$'))::int
    NULLS LAST, ref)`, set `NOT NULL`, add `UNIQUE (rule_version_id, ordinal)`, then re-enable the trigger and
@@ -282,6 +476,27 @@ version share a timestamp, so the order is the text order of the ref ("CO-10" be
    version's order" then follows the rule's own order.
 3. Tests: a rule with twelve requirements lists CO-1 … CO-12 in order through the requirements endpoint,
    the mappings endpoint and the diff; replace keeps the submitted order; `Rule5` immutability unchanged.
+
+## FIX-2 — Job entity id column and index (after FIX-1; slot 5; migration `V013__job_entity_id.sql`)
+Defect found in review of WS-PERF (D-115): `JobRepository.latest` filters by `payload->>:key`, which scans the
+whole `job` table under row-level security because `jsonb ->>` is not leakproof and jobs are never deleted.
+Every job payload today holds exactly one id (`documentId`, `ruleVersionId`, `assessmentId`, `changeEventId`,
+`reportId`, and `ruleSourceId` from F12), so the id becomes a real column.
+1. Migration: `ALTER TABLE job ADD COLUMN entity_id uuid`; backfill with the single value of the payload
+   object (`(SELECT value::uuid FROM jsonb_each_text(payload) LIMIT 1)`, guarded by
+   `jsonb_typeof(payload) = 'object'`); `SET NOT NULL`; `CREATE INDEX job_entity_idx ON job (tenant_id, type,
+   entity_id, created_at DESC)`. Prove the backfill expression with a SQL-level test on a temporary table, as
+   FIX-1 does. The job policies in V002 are unchanged; `entity_id = :id` is leakproof, so the planner may use
+   the index under the policy. `IndexUsageTest` (WS-PERF) gains this index and the lookup query.
+2. `JobRepository.enqueue(JobType type, UUID entityId, Map<String, ?> payload)` writes both columns; the five
+   call sites pass the id they already put in the payload (payload stays, for future jobs that need more
+   input). `latest(JobType, UUID entityId)` replaces `latest(JobType, String key, UUID value)`; no string key
+   anywhere. `Job` exposes `entityId`.
+3. Tests: the two lookups return the same job as before (`DocumentService` ingest status, rule version
+   extraction status); `EXPLAIN` under the application role shows an index scan on `job_entity_idx`;
+   `MigrationsApplyCleanlyTest` counts the new file; the WS-PERF latency table in `docs/PERF.md` gets the
+   before and after rows for `GET /documents/{id}` and `GET /rule-versions`.
+Decisions D-200 to D-209 in `docs/decisions/FIX-2.md`.
 
 ## F11 — OCR for scanned documents (slot 6; migration `V009__document_page_text_source.sql`)
 Real syllabi and handbooks are often scans. Today a PDF without a text layer is rejected. OCR text is less
@@ -321,7 +536,7 @@ reliable than a text layer, so it is stored with its source and confidence and i
    `Rule4_LowOcrConfidenceForcesAmbiguousTest`; one test with the real binary guarded by
    `assumeTrue(engine.available())` that renders known text into an image-only PDF and finds its key words.
    Install Tesseract locally with Homebrew and in CI with the `tesseract-ocr` apt package so that test runs.
-Decisions in `docs/decisions/F11.md` (D-160 to D-169). If a `Dockerfile` exists on `main` when you finish,
+Decisions in `DECISIONS.md (D-160 to D-169)` (D-160 to D-169). If a `Dockerfile` exists on `main` when you finish,
 add Tesseract to the runtime stage and set `LEXVAY_OCR=tesseract` there; otherwise say so in the report.
 
 ## F7 — Retrieval quality (slot 3; no schema change)
@@ -373,13 +588,13 @@ dilutes the model's attention. Everything below is measured before and after wit
    verifies; quote spanning `[...]` is rejected by the verifier because it is not in the page.
 Decisions in `docs/decisions/F7.md` (D-170 to D-179).
 
-## F12 — Rule source monitoring (backend only; slot 8; migration `V010__rule_source.sql`)
+## F12 — Rule source monitoring (backend only; slot 8; migration `V011__rule_source.sql`)
 Purpose: change tracking today starts only when a person uploads a new rule text. Real boards publish rule
 changes on a web page or PDF without notice; the product must notice them. The system fetches, detects a
 textual change, creates an **unapproved** draft rule version and opens the existing change flow. It never
 approves anything and never alters an approved version (product rules 1, 5, 6). Decisions D-180 to D-189 in
-`docs/decisions/F12.md`.
-1. **Schema** (`V010__rule_source.sql`; RLS + FORCE + policy as in V002, so the schema tests pick it up):
+`DECISIONS.md (D-180 to D-189)`.
+1. **Schema** (`V011__rule_source.sql`; RLS + FORCE + policy as in V002, so the schema tests pick it up):
    `rule_source` (`id`, `tenant_id`, `jurisdiction_id` → jurisdiction, `license_type`, `label`, `url`
    (http or https only, CHECK with a regex on the scheme), `check_interval_hours` int CHECK ≥ 1 AND ≤ 720,
    `active` boolean default true, `last_checked_at` timestamptz, `last_content_hash` text, `created_at`,
@@ -438,7 +653,7 @@ approves anything and never alters an approved version (product rules 1, 5, 6). 
    isolation on both tables; audit coverage. Nothing in this item can approve a version (assert
    `requirements_approved_at IS NULL` after a CHANGED run).
 
-## F13 — Work queue API (backend only; slot 9; after WS-PERF merges; no schema change unless EXPLAIN demands)
+## F13 — Work queue API (backend only; slot 9; after WS-PERF merges; no schema change unless EXPLAIN demands, then `V014__work_queue_indexes.sql`)
 Purpose: a reviewer, signer, contributor or administrator should open the product and see what needs them,
 across programs and states, without visiting each overview. One read endpoint, one SQL statement, under the
 read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
@@ -466,7 +681,7 @@ read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
 2. One statement: CTEs per kind joined with `UNION ALL`, filtered by the caller's role in SQL (bind the role,
    do not branch in Java). Measure with the WS-PERF harness; budget p95 ≤ 40 ms on the seeded tenant. Add an
    index only if `EXPLAIN (ANALYZE, BUFFERS)` shows a sequential scan on `mapping`, `review_event` or `job`
-   for this statement; if so, the migration is `V011__work_queue_indexes.sql` and the plan goes in
+   for this statement; if so, the migration is `V014__work_queue_indexes.sql` and the plan goes in
    `docs/PERF.md`.
 3. Also `GET /api/v1/work-queue/count` → `{ total }` for the shell badge, same CTEs, `count(*)` only.
 4. Tests: visibility per role (a CONTRIBUTOR never sees `READY_TO_SIGN`); counts move when a reviewer
@@ -475,7 +690,150 @@ read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
    (another tenant's items never appear); the perf-tagged latency test; `ForbiddenWordsTest` stays green (the
    kinds above contain no forbidden words). Read-only endpoint, so nothing to add to the audit coverage set.
 
+## F8 — Determination register (slot 2; Opus 5.5; backend and frontend)
+Purpose: an institution must be able to say, for each program, in which states it has determined the curriculum
+meets the educational requirements for licensure, in which it has determined it does not, and in which it has made
+no determination (34 CFR 668.43(a)(5)(v)). Today signed determinations are visible one program and state at a time.
+The register is the tenant-wide record of every signed determination, exactly as signed, with the versions it
+names, and a per-program view grouped into the three regulatory lists. It reports what people signed; it never
+infers an outcome (product rule 1), and absence of a signature is shown as absence, not as an outcome. Decisions
+D-270 to D-279 in `docs/decisions/F8.md`.
+1. **Read API** `GET /api/v1/determinations/register?programId=&jurisdiction=&outcome=&current=true|false`
+   (any role; `current` defaults to true = status `SIGNED`; false includes `REOPENED`): rows `{ determinationId,
+   programId, programName, licenseType, catalogYear, jurisdictionCode, jurisdictionName, outcome, status,
+   signedBy, signedByName, signedAt, ruleVersionId, ruleVersionLabel, ruleEffectiveFrom, versionsHash,
+   assessmentId, courseVersionCount }`, ordered by program name, jurisdiction code, signed time descending. One
+   statement, `@Transactional(readOnly = true)`, added to `EndpointLatencyTest` (40 ms p95) and
+   `ReadPathConnectionsTest`, rows in `InputValidationTableTest` (bad UUID, bad outcome, bad jurisdiction pattern).
+2. **Program disclosure view** `GET /api/v1/programs/{id}/determination-lists` → `{ program, generatedAt,
+   determinedToMeet: [...], determinedNotToMeet: [...], noDeterminationMade: [...] }`. Each entry: jurisdiction
+   code and name plus either the current signed determination's id, signer, date, rule version label and versions
+   hash, or, in `noDeterminationMade` only, `reason`: `SIGNED_NO_DETERMINATION` (a signed NOT_DETERMINED outcome) or
+   `NO_CURRENT_SIGNATURE` (a target jurisdiction of the program with no current SIGNED determination, including
+   reopened ones; then `reopenedDeterminationId` when one exists). Every target jurisdiction of the program appears
+   in exactly one list; jurisdictions that are not targets never appear. One statement. Test: the three lists
+   partition the targets exactly, on seeded data and on a fixture with each case.
+3. **CSV export** `GET /api/v1/determinations/register.csv` with the same filters: RFC 4180 (CRLF, quotes doubled,
+   every field quoted), UTF-8 with a header row, columns in the order of point 1 with human labels, and
+   spreadsheet-formula protection (a cell that starts with `=`, `+`, `-`, `@`, tab or carriage return is prefixed
+   with `'`). `Content-Disposition: attachment; filename="lexvay-determination-register-<yyyy-mm-dd>.csv"`. Built in
+   memory from the same query (the register is bounded by programs × jurisdictions); one helper `CsvWriter` in
+   `common/` with unit tests (quoting, CRLF, formula prefix, non-ASCII). Exporting signed records is audited:
+   `REGISTER_EXPORTED` with the filters and the row count (add the endpoint to `Rule9_AuditCoverageTest` even
+   though it is a GET, and say why in D-27x).
+4. **Screen** `/register` (top-level, inside the shell; rail entry "Determination register" with
+   `phosphorBookBookmark`, shown above the program entries as a tenant-wide item; reachable without choosing a
+   program). Two tabs (PrimeNG Tabs):
+   - **Register**: filters (program Select, jurisdiction Select, outcome Select with the three outcome labels used
+     in signing, "Include reopened" ToggleSwitch), a PrimeNG Table with sortable columns, outcome as Tag with icon
+     and text, status Tag (Signed, Reopened with `phosphorArrowCounterClockwise`), versions hash in mono truncated
+     to 12 with a copy button (`phosphorCopy`, accessible name "Copy versions hash", toast "Copied"), row click
+     opens the program's Evidence report for that jurisdiction. "Download CSV" button (`phosphorDownloadSimple`)
+     with the current filters.
+   - **By program**: program Select, then three sections titled exactly "Determined to meet", "Determined not to
+     meet", "No determination made", each a short table (jurisdiction, signer, date, rule version) with an empty
+     state sentence; entries with `NO_CURRENT_SIGNATURE` read "No current signed determination" (and "Reopened on
+     <date> after a change" when a reopened id is present), entries with `SIGNED_NO_DETERMINATION` read "Signed
+     as no determination made". A short paragraph above the sections states that the lists show signed records
+     only and that the institution's published disclosure is its own responsibility. "Print" button opens the
+     browser print dialog.
+   - **Print stylesheet**: `@media print` hides the shell, rail, filters and buttons; shows a header with tenant
+     name, program, "Generated <date time>", and keeps the fictional-data notice for demo tenants; tables do not
+     split rows across pages; black on white regardless of theme.
+   The UI never uses the words "compliant" or "meets requirements" (`ForbiddenWordsTest`); outcome labels come
+   from the existing `labels.ts`.
+5. **Tests**: backend as listed; Vitest for the grouping view model and the CSV link builder; Playwright
+   (`frontend/e2e/register.spec.ts`, slot 2): sign California in the seeded program, open the register, see the
+   row, filter by outcome, download the CSV and assert its header and the California row, open By program and
+   see California under the right list and every other target state under "No determination made" with the
+   right reason, emulate print media and assert the shell is hidden; axe in both themes at 1280 and 400 px.
+Done when: `LEXVAY_E2E_SLOT=2 make test` green, `make perf` green, screenshots of both tabs in both themes and of the
+print view in `docs/screens/`, `docs/decisions/F8.md` and `docs/progress/F8.md` written.
+
+## OPS-1 — Image build and smoke in CI (after F6 merges; no slot; Sonnet 5.5)
+Purpose: F6 ships a Dockerfile and `scripts/smoke.sh`; nothing runs them on every change. Decisions D-240 to D-244
+in `docs/decisions/OPS-1.md`.
+1. A third job `image` in `.github/workflows/ci.yml`, after `test` succeeds: build the image with Buildx
+   (`docker/setup-buildx-action`, pinned by major tag and recorded with its version in the decision file) using
+   the GitHub Actions cache (`cache-from`/`cache-to: type=gha`), tag `lexvay:ci-<sha>`, never push. Then run
+   `scripts/smoke.sh` against that tag (the script takes the tag and the slot; slot 0 is free in CI). Fail the
+   job on any smoke check failure. Report the image content size in the job summary (`$GITHUB_STEP_SUMMARY`).
+2. The job runs on `pull_request` and on `push` to `main` with the same concurrency group as the others.
+3. `scripts/smoke.sh` must not need Colima: the Docker socket comes from `DOCKER_HOST` if set, otherwise the
+   default; the compose project name carries the slot like `scripts/lib/stack.sh` does (reuse that file).
+4. Done when a pull request shows the `image` job green with the smoke output in its log, and
+   `docs/OPERATIONS.md` names the job and the tag convention.
+
+## F7c — Search terms proposed at extraction (after F7 and FIX-1 merge; slot 3; migration `V015__requirement_search_terms.sql`)
+Purpose: F7 measured what lexical search cannot do: 2 of 6 lexical-gap queries are recalled, because the rule
+says "diagnosis of mental and emotional disorders" and the syllabus says "psychopathology". The model already
+reads the rule text at extraction; it can propose the vocabulary a syllabus would use, a person can correct it,
+and retrieval can search for it. The model proposes terms; it never decides a finding (product rule 1), and a
+term never produces evidence by itself: quotes are still verified against the page (rule 2). Decisions D-250 to
+D-259 in `docs/decisions/F7c.md`.
+1. **Schema**: `requirement.search_terms text[] NOT NULL DEFAULT '{}'` with a CHECK that the array has at
+   most 12 elements and each is 1 to 40 characters (`array_length` and a `bool_and` over `unnest`, or a
+   helper SQL function `search_terms_valid(text[])` IMMUTABLE). Requirement rows stay immutable after
+   approval as today (the trigger is unchanged; terms are edited through the replace endpoint before
+   approval, like every other field).
+2. **Extraction**: new prompt `extract-v2.system.txt` next to `extract-v1` (kept on disk): same rules plus
+   "for each requirement list up to 8 search terms: single words or two-word phrases that a university
+   syllabus or degree plan would use for this subject, including synonyms and course-title vocabulary; never
+   repeat words already in the requirement text; no state names, no numbers." The schema
+   `requirement-extraction.schema.json` gains `search_terms` (array of strings, `maxItems` 8, `maxLength` 40,
+   required); `RequirementListParser` trims, lower-cases, de-duplicates, drops terms that already occur in
+   the requirement text after `to_tsvector`-style stemming is NOT available in Java, so compare lower-cased
+   whole words only, and drops empty results; the replace endpoint accepts `search_terms` optionally
+   (absent = empty). `seed/fake-llm.yml` extraction scripts gain plausible `search_terms` for every seeded
+   requirement (fictional, hand-written, at least 3 per requirement; the Colorado revision keeps CO-5's terms
+   identical so the diff still shows exactly one CHANGED row). `RequirementComparison` ignores
+   `search_terms` for evaluation sameness (a terms-only edit is not a requirement change) but reports it as a
+   new aspect `SEARCH_TERMS` for the diff view.
+3. **Retrieval**: `PassageSearch.search` receives the terms with the title and text; in the BM25 statement the
+   term lexemes come from `to_tsvector('english', array_to_string(:searchTerms, ' '))` with boost 1.0 and are
+   unioned with the title and text lexemes (a lexeme present in several sources keeps the highest boost).
+   The `ts_rank` ranker ORs them in the same way. The reviewer search is untouched.
+4. **Evaluation**: `eval/retrieval/queries.yml` gains `searchTerms` per query (hand-written, fictional,
+   written before looking at the expected passage, 3 to 8 per query; the file header says so). `make eval`
+   reports a third column "BM25 + terms" for both the counted set and the lexical-gap set; thresholds: the
+   counted-set recall@8 and recall@3 must not fall below "BM25" alone, and the lexical-gap recall@8 must be at
+   least 4 of 6. `docs/RETRIEVAL.md` shows all three columns. The pipeline metrics on the seed must be unchanged
+   (0 false EVIDENCE_FOUND).
+5. **Screens**: the F3 requirement grid gets a "Search terms" cell (PrimeNG Chips or AutoComplete in multiple
+   mode, max 12) shown and editable under the same rules as the other cells; the Review screen's "How it was
+   checked" names the terms that matched when the citation came from a page found only through terms
+   (`Passage.matchedVia`: TITLE, TEXT or TERMS, carried into the mapping rationale as a sentence). Frontend
+   work is a separate small item if F3 has merged before this starts; otherwise it is folded into F3.
+6. **Tests**: parser (dedupe, drop words in text, limits), schema validation rejects 9 terms, BM25 ordering with
+   a term that only occurs in the page title, comparison ignores terms for carry-over but the diff reports
+   `SEARCH_TERMS`, replace endpoint stores terms and rejects 13, extraction with the fake model stores the
+   scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
+
 ## Follow-ups recorded from reviews
+- TEST-1: the end-to-end backend runs FakeLlmClient without the extraction and match scripts that only the seed
+  process loads, so a rule version entered in the browser always ends in "Extraction failed". Load
+  `seed/fake-llm.yml` into the e2e backend (profile `e2e`, same loader as `SeedLoader`) and extend F3's e2e test
+  so a contributor's new version reaches *Needs approval* through extraction.
+- F1: check by hand that Chrome, Firefox and Safari render a PDF opened through "Open original" while the
+  response carries the app's CSP (`object-src 'none'`); if a browser refuses, give `GET /documents/{id}/file` its own
+  CSP (`default-src 'none'; frame-ancestors 'none'`) in `SecurityHeadersFilter`. The OCR note in the viewer is covered
+  only by unit tests until the seed has a scanned document (add one to `seed/` with F7c or later).
+- F12: a failed check waits a full interval (up to 30 days) before the scheduler retries; a shorter backoff
+  needs a `next_check_at` column. No screen lists rule sources yet; add a Sources tab to the F3 rule workspace.
+- F12 deployment note: the SSRF guard resolves the host before connecting and the JDK client resolves it
+  again, so a DNS-rebinding window remains; production egress must also block private ranges (Terraform).
+- WS-UI: the overview still finds the latest assessment through the audit log; switch it to the WS-PERF
+  `GET /programs/{id}/overview` endpoint (do this in F1). Audit filtering is client-side over the newest 500
+  entries; switch to the WS-PERF server filters (F5). Add a build check that the production `index.html` has no
+  inline script (F6 or F1). PrimeNG's own dialog-close and select-chevron SVGs are not Phosphor.
+- WS-PERF: `GET /documents/{id}` and the rule version views look up job status by scanning the `job` table under
+  RLS because `jsonb ->>` is not leakproof and the payload expression indexes are ignored. FIX-2: add a generated
+  `payload_entity_id uuid` column on `job` (from the payload's entity id), index it, and compare with `=`. Decided
+  by the orchestrator when scheduled; spec to follow.
+- F11: OCR of a 200-page scan runs inside the job's single transaction and a retry redoes every page. Follow-up:
+  OCR per page in its own transaction (or a job per page) inside `JobRunner`.
+- F11 spec change (decided during review): a PDF page's text layer is never discarded; OCR replaces it only when
+  the layer is under 20 characters and OCR yields at least 20.
 - WS-SEC: every new endpoint must add a row to `InputValidationTableTest` (its `everyEndpointHasARow` guard fails
   otherwise). The PDF page cap (500) is enforced at ingest, so an oversized PDF fails its job rather than the
   upload; a synchronous page count at upload is a possible follow-up. Form login stays enabled in the `oidc`

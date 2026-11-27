@@ -1,9 +1,36 @@
-.counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .75rem; margin: 1rem 0 1.5rem; }
-.counts div { background: var(--lx-surface); border: 1px solid var(--lx-border); border-radius: 8px; padding: .75rem 1rem; }
-.counts dt { font-size: .85rem; color: var(--lx-muted); }
-.counts dd { margin: 0; font-size: 1.6rem; font-weight: 700; }
-.bar { display: flex; height: .9rem; width: 100%; max-width: 20rem; border-radius: 4px; overflow: hidden; border: 1px solid var(--lx-border); }
-.seg.EVIDENCE_FOUND { background: var(--lx-found); }
-.seg.AMBIGUOUS { background: var(--lx-ambiguous); background-image: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0,0,0,.25) 4px 6px); }
-.seg.EVIDENCE_MISSING { background: var(--lx-missing); }
-.legend { list-style: none; margin: .35rem 0 0; padding: 0; display: flex; gap: .9rem; flex-wrap: wrap; font-size: .85rem; }
+.lx-figures {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 32px;
+  border-top: 1px solid var(--p-lx-hairline); border-bottom: 1px solid var(--p-lx-hairline);
+}
+.lx-figures > div { padding: 14px 20px 16px; }
+.lx-figures > div + div { border-left: 1px solid var(--p-lx-hairline); }
+.lx-figures > div:first-child { padding-left: 0; }
+.lx-figures dd { margin-top: 6px; font-size: 28px; line-height: 32px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.lx-of { font-size: 14px; color: var(--p-lx-text-secondary); font-weight: 400; }
+
+.lx-section { margin-top: 24px; }
+.lx-section-title { font-size: 11px; line-height: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--p-lx-text-secondary); margin-bottom: 8px; }
+
+.lx-row-link { cursor: pointer; }
+.lx-state-name { display: block; font-weight: 500; font-size: 14px; }
+.lx-col-findings { width: 34%; }
+.lx-col-progress { width: 18%; }
+.lx-progress-text { display: block; margin-bottom: 6px; white-space: nowrap; }
+.lx-progress { display: block; max-width: 140px; }
+.lx-signed-meta { margin-top: 6px; }
+.lx-col-action { text-align: right; white-space: nowrap; }
+.lx-col-action a { gap: 6px; }
+
+.lx-skeleton { display: flex; flex-direction: column; gap: 12px; }
+.lx-skeleton-figures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 16px 0 24px; }
+
+@media (max-width: 720px) {
+  .lx-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lx-figures > div:nth-child(3) { border-left: 0; padding-left: 0; border-top: 1px solid var(--p-lx-hairline); }
+  .lx-figures > div:nth-child(4) { border-top: 1px solid var(--p-lx-hairline); }
+  .lx-figures dd { font-size: 22px; line-height: 28px; }
+  /* The table becomes one block per jurisdiction. */
+  :host ::ng-deep .lx-table thead { display: none; }
+  :host ::ng-deep .lx-table tbody tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--p-lx-hairline); }
+  :host ::ng-deep .lx-table tbody td { display: block; border: 0; padding: 4px 0; width: auto; text-align: left; }
+}

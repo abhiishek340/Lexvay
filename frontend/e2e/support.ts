@@ -1,0 +1,83 @@
+import AxeBuilder from '@axe-core/playwright';
+import { expect, Page, test as base } from '@playwright/test';
+
+export const PASSWORD = process.env['LEXVAY_DEMO_PASSWORD'] ?? 'lexvay-demo';
+export const DANA = 'dana.whitfield@northfield.example';
+export const PRIYA = 'priya.raman@northfield.example';
+
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/**
+ * Every test fails if the page asked any host other than localhost for anything: fonts, icons and
+ * scripts are bundled, and the product makes no third-party requests.
+ */
+export const test = base.extend<{ thirdPartyGuard: void }>({
+  thirdPartyGuard: [async ({ page }, use) => {
+    const foreign: string[] = [];
+    page.on('request', (request) => {
+      const url = new URL(request.url());
+      if ((url.protocol === 'http:' || url.protocol === 'https:') && !LOCAL_HOSTS.has(url.hostname)) {
+        foreign.push(request.url());
+      }
+    });
+    await use();
+    expect(foreign, 'requests to third-party hosts').toEqual([]);
+  }, { auto: true }],
+});
+export { expect };
+
+export async function signIn(page: Page, email: string): Promise<void> {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('navigation', { name: 'Screens' })).toBeVisible();
+}
+
+async function axe(page: Page, screen: string): Promise<void> {
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+  const severe = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+  expect(severe, `${screen}: ${severe.map((v) => `${v.id} (${v.nodes.map((n) => n.target.join(' ')).join(', ')})`).join('; ')}`).toEqual([]);
+}
+
+/** Zero serious or critical axe findings on the current screen, in the light theme and in the dark theme. */
+export async function expectAccessible(page: Page, screen: string): Promise<void> {
+  const original = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+  // Colour transitions would otherwise be measured half-way between the two themes.
+  await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; }' });
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await axe(page, `${screen} (${theme})`);
+  }
+  await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t ?? 'light'), original);
+}
+
+export function nav(page: Page, name: string) {
+  return page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name, exact: true });
+}
+
+export interface Evidence { documentId: string; filename: string; pageNumber: number; charStart: number; charEnd: number; quote: string; }
+
+/**
+ * The signed-in user's program (from the URL) and, read from the API, the first requirement of a state whose
+ * evidence is quoted from a syllabus. The seed syllabi have two pages, so the viewer can page through them.
+ */
+export async function citedRequirement(page: Page, jurisdiction: string): Promise<{ programId: string; ref: string; evidence: Evidence }> {
+  await page.waitForURL(/\/programs\/[^/]+\//);
+  const programId = new URL(page.url()).pathname.split('/')[2];
+  const overview = await (await page.request.get(`/api/v1/programs/${programId}/overview`)).json();
+  const view = await (await page.request.get(`/api/v1/assessments/${overview.assessment.id}/mappings?jurisdiction=${jurisdiction}`)).json();
+  const mapping = (view.mappings as { requirement: { ref: string }; evidence: Evidence | null }[])
+    .find((m) => m.evidence?.filename.endsWith('-syllabus.pdf'))!;
+  return { programId, ref: mapping.requirement.ref, evidence: mapping.evidence! };
+}
+
+/** Opens Review on a state and selects one requirement by its ref. */
+export async function openRequirement(page: Page, jurisdiction: string, ref: string): Promise<void> {
+  await nav(page, 'Review').click();
+  await page.getByRole('tab', { name: jurisdiction, exact: true }).click();
+  await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', new RegExp(`^${jurisdiction}-`));
+  await page.getByRole('region', { name: 'Requirements' }).getByRole('button').filter({ hasText: new RegExp(`^${ref}(?!\\d)`) }).click();
+  await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', ref);
+}

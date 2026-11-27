@@ -40,9 +40,12 @@ public class ChangeService {
         this.jdbc = jdbc;
     }
 
-    /** Called inside the transaction that creates the superseding rule version. */
+    /**
+     * Called inside the transaction that creates the superseding rule version. That version comes from a person or
+     * from a rule source check; a check has no signed-in user, so the event is then created by the system (null).
+     */
     public UUID onRuleVersionSuperseded(UUID oldRuleVersionId, UUID newRuleVersionId, String newLabel) {
-        UUID actor = CurrentUser.require().id();
+        UUID actor = CurrentUser.idOrNull();
         UUID eventId = changes.insert(TenantContext.require(), ChangeKind.RULE_VERSION, oldRuleVersionId, newRuleVersionId, actor);
         List<UUID> reopened = jdbc.sql("UPDATE determination SET status = 'REOPENED' WHERE rule_version_id = :old AND status = 'SIGNED' RETURNING id")
                 .param("old", oldRuleVersionId).query(UUID.class).list();
@@ -73,25 +76,25 @@ public class ChangeService {
         return eventId;
     }
 
+    @Transactional(readOnly = true)
     public List<ChangeEventView> list() {
-        return changes.findAll().stream().map(changes::enrich).toList();
+        return changes.findViews();
     }
 
     @Transactional
     public RerunResult rerun(UUID changeEventId) {
-        ChangeEvent event = changes.findById(changeEventId).orElseThrow(() -> new NotFoundException("Change event not found"));
-        if (event.status() == ChangeStatus.HANDLED) {
+        ChangeEventView view = changes.findViewById(changeEventId).orElseThrow(() -> new NotFoundException("Change event not found"));
+        if (view.status() == ChangeStatus.HANDLED) {
             throw new ConflictException("This change has already been re-run");
         }
-        ChangeEventView view = changes.enrich(event);
-        if (event.kind() == ChangeKind.RULE_VERSION && !view.newApproved()) {
+        if (view.kind() == ChangeKind.RULE_VERSION && !view.newApproved()) {
             throw new ConflictException("Approve the new rule version's requirement list before re-running");
         }
-        if (event.kind() == ChangeKind.COURSE_VERSION && !view.newVersionHasDocument()) {
+        if (view.kind() == ChangeKind.COURSE_VERSION && !view.newVersionHasDocument()) {
             throw new ConflictException("Upload a document for the new course version before re-running");
         }
         UUID jobId = jobs.enqueue(JobType.RERUN_CHANGE, Map.of("changeEventId", changeEventId.toString()));
-        audit.record("CHANGE_RERUN_REQUESTED", "change_event", changeEventId, Map.of("kind", event.kind().name(), "jobId", jobId.toString()));
+        audit.record("CHANGE_RERUN_REQUESTED", "change_event", changeEventId, Map.of("kind", view.kind().name(), "jobId", jobId.toString()));
         return new RerunResult(changeEventId, jobId);
     }
 }

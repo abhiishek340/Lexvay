@@ -68,8 +68,18 @@ public class AssessmentFixtures {
 
     /** Uploads a TXT document and runs ingest. Returns the document id. */
     public UUID document(TestTenants.TenantWithUsers t, UUID programId, String filename, String kind, UUID courseVersionId, String text) {
+        return upload(t, programId, filename, "text/plain", kind, courseVersionId, text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Uploads a PDF without a text layer and runs ingest; the OcrEngine of the test decides what its pages read as. */
+    public UUID scannedDocument(TestTenants.TenantWithUsers t, UUID programId, String filename, String kind, UUID courseVersionId, byte[] pdf) {
+        return upload(t, programId, filename, "application/pdf", kind, courseVersionId, pdf);
+    }
+
+    private UUID upload(TestTenants.TenantWithUsers t, UUID programId, String filename, String contentType, String kind,
+                        UUID courseVersionId, byte[] bytes) {
         var request = multipart("/api/v1/programs/" + programId + "/documents")
-                .file(new MockMultipartFile("file", filename, "text/plain", text.getBytes(StandardCharsets.UTF_8)))
+                .file(new MockMultipartFile("file", filename, contentType, bytes))
                 .param("kind", kind).with(user(t.contributor())).with(csrf());
         if (courseVersionId != null) {
             request.param("courseVersionId", courseVersionId.toString());
@@ -91,8 +101,8 @@ public class AssessmentFixtures {
                 .exchange();
     }
 
-    /** Creates a rule version whose extraction (scripted) yields the given requirements JSON, and approves it. */
-    public UUID approvedRuleVersion(TestTenants.TenantWithUsers t, String jurisdiction, String label, String ruleText, String requirementsJson) {
+    /** Creates a rule version whose extraction (scripted) yields the given requirements JSON. Not approved. */
+    public UUID ruleVersion(TestTenants.TenantWithUsers t, String jurisdiction, String label, String ruleText, String requirementsJson) {
         fake.script("EXTRACT:" + label, requirementsJson);
         var created = mvc.post().uri("/api/v1/rule-versions").with(user(t.contributor())).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
@@ -103,6 +113,12 @@ public class AssessmentFixtures {
         assertThat(created).hasStatus(202);
         UUID id = UUID.fromString(read(created).get("ruleVersionId").asString());
         runner.runPending();
+        return id;
+    }
+
+    /** Creates a rule version as {@link #ruleVersion} does, and approves it. */
+    public UUID approvedRuleVersion(TestTenants.TenantWithUsers t, String jurisdiction, String label, String ruleText, String requirementsJson) {
+        UUID id = ruleVersion(t, jurisdiction, label, ruleText, requirementsJson);
         var approved = mvc.post().uri("/api/v1/rule-versions/" + id + "/requirements/approve").with(user(t.reviewer())).with(csrf()).exchange();
         assertThat(approved).hasStatus(200);
         return id;

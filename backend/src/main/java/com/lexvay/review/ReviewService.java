@@ -8,6 +8,7 @@ import com.lexvay.common.ConflictException;
 import com.lexvay.common.NotFoundException;
 import com.lexvay.common.TenantContext;
 import com.lexvay.determination.DeterminationRepository;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,15 @@ public class ReviewService {
         this.reviews = reviews;
         this.determinations = determinations;
         this.audit = audit;
+    }
+
+    /** The decisions and reopenings recorded on one mapping, oldest first. */
+    @Transactional(readOnly = true)
+    public List<ReviewEventView> history(UUID mappingId) {
+        if (!mappings.existsById(mappingId)) {
+            throw new NotFoundException("Mapping not found");
+        }
+        return reviews.findByMapping(mappingId);
     }
 
     @Transactional

@@ -1,20 +1,25 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth.guard';
-import { Audit } from './screens/audit/audit';
-import { Changes } from './screens/changes/changes';
-import { Home } from './screens/home';
-import { Login } from './screens/login/login';
-import { Overview } from './screens/overview/overview';
-import { Report } from './screens/report/report';
-import { Review } from './screens/review/review';
 
+/** Each screen is its own lazy chunk; the shell, session and theme are the only eager code. */
 export const routes: Routes = [
-  { path: 'login', component: Login, title: 'Sign in · Lexvay' },
-  { path: '', component: Home, canActivate: [authGuard], pathMatch: 'full', title: 'Lexvay' },
-  { path: 'programs/:programId/overview', component: Overview, canActivate: [authGuard], title: 'Program overview · Lexvay' },
-  { path: 'programs/:programId/review', component: Review, canActivate: [authGuard], title: 'Review · Lexvay' },
-  { path: 'programs/:programId/changes', component: Changes, canActivate: [authGuard], title: 'Changes · Lexvay' },
-  { path: 'programs/:programId/report', component: Report, canActivate: [authGuard], title: 'Evidence report · Lexvay' },
-  { path: 'programs/:programId/audit', component: Audit, canActivate: [authGuard], title: 'Audit trail · Lexvay' },
+  { path: 'login', loadComponent: () => import('./screens/login/login').then((m) => m.Login), title: 'Sign in · Lexvay' },
+  { path: '', loadComponent: () => import('./screens/home').then((m) => m.Home), canActivate: [authGuard], pathMatch: 'full', title: 'Programs · Lexvay' },
+  {
+    path: 'programs/:programId',
+    canActivate: [authGuard],
+    children: [
+      { path: 'overview', loadComponent: () => import('./screens/overview/overview').then((m) => m.Overview), title: 'Program overview · Lexvay' },
+      { path: 'review', loadComponent: () => import('./screens/review/review').then((m) => m.Review), title: 'Review · Lexvay' },
+      { path: 'changes', loadComponent: () => import('./screens/changes/changes').then((m) => m.Changes), title: 'Changes · Lexvay' },
+      { path: 'report', loadComponent: () => import('./screens/report/report').then((m) => m.Report), title: 'Evidence report · Lexvay' },
+      { path: 'audit', loadComponent: () => import('./screens/audit/audit').then((m) => m.Audit), title: 'Audit trail · Lexvay' },
+      // Test harness for the end-to-end suite. ngDevMode is false in production builds, so the route and its chunk are dropped there.
+      ...(ngDevMode
+        ? [{ path: 'dev/document-viewer', loadComponent: () => import('./dev/document-viewer-harness').then((m) => m.DocumentViewerHarness), title: 'Document viewer harness · Lexvay' }]
+        : []),
+      { path: '', pathMatch: 'full', redirectTo: 'overview' },
+    ],
+  },
   { path: '**', redirectTo: '' },
 ];

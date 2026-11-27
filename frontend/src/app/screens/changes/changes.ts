@@ -1,76 +1,95 @@
-import { SlicePipe } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Component, effect, inject, input, signal, untracked } from '@angular/core';
+import { NgIcon } from '@ng-icons/core';
+import { MessageService } from 'primeng/api';
+import { ButtonDirective, ButtonLabel } from 'primeng/button';
+import { Message } from 'primeng/message';
+import { ProgressSpinner } from 'primeng/progressspinner';
+import { Skeleton } from 'primeng/skeleton';
+import { TableModule } from 'primeng/table';
+import { Tag } from 'primeng/tag';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
+import { CHANGE_KIND } from '../../core/labels';
 import { ChangeEvent } from '../../core/models';
+import { problemDetail } from '../../core/problem';
+import { ProgramContext } from '../../core/program-context';
 import { SessionService } from '../../core/session.service';
+import { rerunBlocker } from './change-rules';
+
+const POLL_MS = 1000;
+const POLL_LIMIT = 90;
 
 @Component({
   selector: 'lx-changes',
-  imports: [SlicePipe],
+  imports: [DatePipe, NgIcon, ButtonDirective, ButtonLabel, Message, ProgressSpinner, Skeleton, TableModule, Tag],
   templateUrl: './changes.html',
+  styleUrl: './changes.css',
 })
 export class Changes {
   private readonly api = inject(ApiService);
+  private readonly toast = inject(MessageService);
   readonly session = inject(SessionService);
-  readonly events = signal<ChangeEvent[] | null>(null);
+  readonly context = inject(ProgramContext);
+  readonly programId = input.required<string>();
+  readonly blocker = rerunBlocker;
+
   readonly error = signal<string | null>(null);
   readonly message = signal<string | null>(null);
-  readonly busy = signal<string | null>(null);
+  /** The change event whose re-run is in progress. */
+  readonly running = signal<string | null>(null);
 
   constructor() {
-    this.load();
-  }
-
-  async load(): Promise<void> {
-    try {
-      this.events.set(await firstValueFrom(this.api.changeEvents()));
-    } catch {
-      this.error.set('Change events could not be loaded.');
-    }
-  }
-
-  kindLabel(e: ChangeEvent): string {
-    return e.kind === 'RULE_VERSION' ? 'New rule version' : 'New course version';
-  }
-
-  what(e: ChangeEvent): string {
-    if (e.kind === 'RULE_VERSION') {
-      return `${e.jurisdiction ?? ''}: "${e.oldLabel ?? ''}" is superseded by "${e.newLabel ?? ''}"`;
-    }
-    return `${e.courseCode ?? ''}: catalog year ${e.oldCatalogYear ?? ''} is superseded by ${e.newCatalogYear ?? ''}`;
-  }
-
-  blocker(e: ChangeEvent): string | null {
-    if (e.status !== 'OPEN') { return null; }
-    if (e.kind === 'RULE_VERSION' && !e.newApproved) { return 'Approve the new requirement list first.'; }
-    if (e.kind === 'COURSE_VERSION' && !e.newVersionHasDocument) { return 'Upload the new syllabus first.'; }
-    return null;
-  }
-
-  actionLabel(e: ChangeEvent): string {
-    return e.kind === 'RULE_VERSION' ? 'Re-run assessment' : 'Re-run matching';
+    effect(() => {
+      const id = this.programId();
+      untracked(() => this.context.ensure(id));
+    });
   }
 
   async rerun(e: ChangeEvent): Promise<void> {
-    this.busy.set(e.id);
+    this.running.set(e.id);
     this.error.set(null);
-    this.message.set(null);
+    this.message.set(`${CHANGE_KIND[e.kind].action} for ${subject(e)} is running.`);
     try {
-      const result = await firstValueFrom(this.api.rerunChange(e.id));
-      for (let i = 0; i < 60; i++) {
-        const job = await firstValueFrom(this.api.jobStatus(result.jobId));
-        if (job.status === 'DONE') { break; }
-        if (job.status === 'FAILED') { throw new Error(job.error ?? 'The re-run failed.'); }
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-      await this.load();
-      this.message.set(`${this.kindLabel(e)} handled. Affected requirements are back in review where the evidence changed.`);
+      const started = await firstValueFrom(this.api.rerunChange(e.id));
+      await this.waitForJob(started.jobId);
+      await this.context.refreshAfterChange();
+      const text = `${CHANGE_KIND[e.kind].label} for ${subject(e)} handled. Requirements whose evidence changed are back in review.`;
+      this.message.set(text);
+      this.toast.add({ severity: 'success', summary: 'Re-run finished', detail: text });
     } catch (err: unknown) {
-      const e2 = err as { error?: { detail?: string }; message?: string };
-      this.error.set(e2?.error?.detail ?? e2?.message ?? 'The re-run could not be started.');
+      this.message.set(null);
+      this.error.set(problemDetail(err, 'The re-run could not be completed.'));
     } finally {
-      this.busy.set(null);
+      this.running.set(null);
     }
   }
+
+  kind(e: ChangeEvent): (typeof CHANGE_KIND)[ChangeEvent['kind']] {
+    return CHANGE_KIND[e.kind];
+  }
+
+  what(e: ChangeEvent): { old: string; next: string } {
+    return e.kind === 'RULE_VERSION'
+      ? { old: e.oldLabel ?? 'previous rule version', next: e.newLabel ?? 'new rule version' }
+      : { old: `catalog year ${e.oldCatalogYear ?? 'unknown'}`, next: `catalog year ${e.newCatalogYear ?? 'unknown'}` };
+  }
+
+  subject(e: ChangeEvent): string {
+    return subject(e);
+  }
+
+  private async waitForJob(jobId: string): Promise<void> {
+    for (let i = 0; i < POLL_LIMIT; i++) {
+      const job = await firstValueFrom(this.api.jobStatus(jobId));
+      if (job.status === 'DONE') { return; }
+      if (job.status === 'FAILED') { throw new Error(job.error ?? 'The re-run failed.'); }
+      await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+    }
+    throw new Error('The re-run is taking longer than expected. Reload this page later to see its result.');
+  }
+}
+
+function subject(e: ChangeEvent): string {
+  return (e.kind === 'RULE_VERSION' ? e.jurisdiction : e.courseCode) ?? 'this change';
 }

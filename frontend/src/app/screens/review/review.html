@@ -1,83 +1,259 @@
-<header class="page-header">
-  <h1>Review</h1>
-  @if (program(); as p) { <p class="muted">{{ p.name }}</p> }
-</header>
-@if (error(); as e) { <p class="error" role="alert">{{ e }}</p> }
-@if (message(); as msg) { <p class="status" role="status" data-testid="message">{{ msg }}</p> }
+<div class="lx-review">
+  <header class="lx-review-header">
+    <div>
+      <h1>Review</h1>
+      @if (context.program(); as p) { <p class="lx-muted">{{ p.name }}</p> }
+    </div>
+    <p class="lx-live" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
+    <button pButton type="button" [text]="true" severity="secondary" size="small" (click)="helpOpen.set(true)" aria-keyshortcuts="?">
+      <ng-icon name="phosphorKeyboard" size="16" aria-hidden="true" />
+      <span pButtonLabel>Keyboard shortcuts</span>
+      <kbd aria-hidden="true">?</kbd>
+    </button>
+  </header>
 
-@if (program(); as p) {
-  <div class="tabs" role="tablist" aria-label="Jurisdictions">
-    @for (code of p.jurisdictions; track code; let i = $index) {
-      <button type="button" role="tab" [id]="'tab-' + code" [attr.aria-selected]="jurisdiction() === code" [attr.tabindex]="jurisdiction() === code ? 0 : -1"
-              [class.active]="jurisdiction() === code" (click)="selectJurisdiction(code)" (keydown)="onTabKey($event, i)">{{ code }}</button>
-    }
-  </div>
-}
+  @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
+  @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
 
-@if (assessment()) {
-  <div class="review-grid" role="tabpanel" [attr.aria-labelledby]="'tab-' + jurisdiction()">
-    <section class="list" aria-label="Requirements">
-      <p class="muted progress">{{ decidedCount() }} of {{ mappings().length }} reviewed</p>
-      <ul>
-        @for (m of mappings(); track m.id) {
-          <li>
-            <button type="button" class="req" [class.selected]="m.id === selectedId()" [attr.aria-current]="m.id === selectedId() ? 'true' : null" (click)="select(m.id)">
-              <span class="ref">{{ m.requirement.ref }}</span>
-              <span class="title">{{ m.requirement.title }}</span>
-              <span class="finding" [class]="'finding ' + m.finding"><span aria-hidden="true">{{ glyph[m.finding] }}</span> {{ findingLabel[m.finding] }}</span>
-              <span class="decision">{{ m.decision ? decisionLabel[m.decision.kind] : (m.stale ? 'Outdated' : 'Needs review') }}</span>
-            </button>
-          </li>
+  @if (context.program(); as p) {
+    <p-tabs class="lx-review-tabs" [value]="jurisdiction()" (valueChange)="selectJurisdiction($event)" [selectOnFocus]="true">
+      <p-tablist>
+        @for (code of p.jurisdictions; track code) {
+          <p-tab [value]="code" [attr.title]="context.jurisdictionName(code)">{{ code }}</p-tab>
         }
-      </ul>
-      <div class="sign">
-        @if (signed(); as d) {
-          <p><strong>Signed</strong> by {{ d.signedByName }}: {{ outcomeLabel[d.outcome] }}</p>
-        } @else {
-          <button type="button" class="primary" [disabled]="!canSign() || busy()" (click)="openSignDialog()">Sign determination</button>
-          @if (!session.isSigner()) { <p class="muted">Only a signer can sign.</p> }
-          @else if (!allDecided()) { <p class="muted">Enabled when every requirement has a decision.</p> }
+      </p-tablist>
+      <p-tabpanels>
+        @for (code of p.jurisdictions; track code) {
+          <p-tabpanel [value]="code">
+            @if (code === jurisdiction()) {
+              @if (wide()) {
+                <p-splitter class="lx-splitter" [panelSizes]="[26, 44, 30]" [minSizes]="[18, 30, 20]" stateStorage="local" [stateKey]="paneStateKey()"
+                            [gutterSize]="6" [pt]="{ gutter: { 'aria-label': 'Resize panes' } }">
+                  <p-splitter-panel class="lx-pane-host"><ng-container *ngTemplateOutlet="listTpl" /></p-splitter-panel>
+                  <p-splitter-panel class="lx-pane-host"><ng-container *ngTemplateOutlet="detailTpl" /></p-splitter-panel>
+                  <p-splitter-panel class="lx-pane-host"><ng-container *ngTemplateOutlet="evidenceTpl" /></p-splitter-panel>
+                </p-splitter>
+              } @else {
+                <div class="lx-stack">
+                  <ng-container *ngTemplateOutlet="listTpl" />
+                  <ng-container *ngTemplateOutlet="detailTpl" />
+                  <ng-container *ngTemplateOutlet="evidenceTpl" />
+                </div>
+              }
+            }
+          </p-tabpanel>
         }
-      </div>
-    </section>
+      </p-tabpanels>
+    </p-tabs>
+  } @else if (!context.error()) {
+    <div class="lx-review-skeleton" aria-busy="true" aria-label="Loading the review">
+      <p-skeleton width="18rem" height="2.25rem" />
+      <div class="lx-review-skeleton-panes"><p-skeleton height="24rem" /><p-skeleton height="24rem" /><p-skeleton height="24rem" /></div>
+    </div>
+  }
+</div>
 
-    <section class="detail" aria-label="Requirement detail">
-      @if (selected(); as m) {
-        <h2>{{ m.requirement.ref }} · {{ m.requirement.title }}</h2>
-        <h3>Rule text</h3>
-        <blockquote class="rule">{{ m.requirement.text }}</blockquote>
-        @if (ruleVersion(); as rv) { <p class="muted">{{ rv.label }} · effective {{ rv.effectiveFrom }} · <a [href]="rv.sourceUrl" rel="noopener">source</a></p> }
-
-        <h3>Proposed finding</h3>
-        <p class="finding big" [class]="'finding big ' + m.finding"><span aria-hidden="true">{{ glyph[m.finding] }}</span> {{ findingLabel[m.finding] }}</p>
-
-        <h3>Evidence</h3>
-        @if (m.evidence; as ev) {
-          <blockquote class="quote">“{{ ev.quote }}”</blockquote>
-          <p class="cite">{{ ev.filename }}@if (ev.courseCode) { · {{ ev.courseCode }}{{ ev.courseRequired === false ? ' (elective)' : '' }}} · page {{ ev.pageNumber }} · characters {{ ev.charStart }}–{{ ev.charEnd }}</p>
-        } @else {
-          <p class="muted">No quoted evidence.</p>
-        }
-
-        <h3>How it was checked</h3>
-        <p>{{ howChecked(m) }}</p>
-
-        @if (m.decision; as d) {
-          <p class="status current-decision">Current decision: <strong>{{ decisionLabel[d.kind] }}</strong> by {{ d.userDisplayName }}@if (d.note) { — “{{ d.note }}”}</p>
-        }
-
-        @if (session.canReview()) {
-          <label for="note">Note</label>
-          <textarea id="note" rows="3" [ngModel]="note()" (ngModelChange)="note.set($event)" placeholder="Required when confirming a gap"></textarea>
-          <div class="actions">
-            <button type="button" class="primary" [disabled]="busy()" (click)="decide('ACCEPTED')">Accept evidence</button>
-            <button type="button" [disabled]="busy()" (click)="decide('EVIDENCE_REQUESTED')">Request evidence from program director</button>
-            <button type="button" class="danger" [disabled]="busy()" (click)="decide('GAP_CONFIRMED')">Confirm gap</button>
-          </div>
-        }
+<!-- Pane 1: requirement list with filters and the sticky sign bar. -->
+<ng-template #listTpl>
+  <section class="lx-pane lx-list" aria-label="Requirements" #listPane>
+    <div class="lx-list-head">
+      <span id="filter-label" class="lx-label">Show</span>
+      <p-selectbutton class="lx-filters" [options]="filters" optionLabel="label" optionValue="value" [allowEmpty]="false" size="small"
+                      [ngModel]="workspace.filter()" (ngModelChange)="setFilter($event)" ariaLabelledBy="filter-label">
+        <ng-template #item let-option>
+          <span>{{ option.label }}</span>
+          <span class="lx-filter-count lx-mono" aria-hidden="true">{{ count(option.value) }}</span>
+        </ng-template>
+      </p-selectbutton>
+    </div>
+    <div class="lx-list-body">
+      @if (loading()) {
+        @for (i of [1, 2, 3, 4, 5, 6]; track i) { <div class="lx-req-skeleton"><p-skeleton width="4rem" height="0.75rem" /><p-skeleton height="1rem" /></div> }
+      } @else if (workspace.visible().length === 0) {
+        <p class="lx-empty-line">No requirements match this filter.</p>
       } @else {
-        <p class="muted">Select a requirement.</p>
+        <ul class="lx-reqs">
+          @for (m of workspace.visible(); track m.id) {
+            <li>
+              <button type="button" class="lx-req" [class.lx-req-selected]="m.id === workspace.selectedId()"
+                      [attr.aria-current]="m.id === workspace.selectedId() ? 'true' : null" (click)="select(m.id)">
+                <span class="lx-req-ref lx-mono">{{ m.requirement.ref }}</span>
+                <span class="lx-req-title">{{ m.requirement.title }}</span>
+                <span class="lx-req-states">
+                  <lx-finding [finding]="m.finding" />
+                  <lx-decision-state [decision]="m.decision" [stale]="m.stale" />
+                </span>
+              </button>
+            </li>
+          }
+        </ul>
       }
-    </section>
-  </div>
-}
+    </div>
+    <div class="lx-sign-bar" data-testid="sign-bar">
+      <div class="lx-sign-progress">
+        <span data-testid="progress">{{ workspace.progressLabel() }}</span>
+        <p-progressbar [value]="progressPercent()" [showValue]="false" aria-hidden="true" />
+      </div>
+      @if (signed(); as d) {
+        <p class="lx-signed">
+          <ng-icon name="phosphorSealCheck" size="18" aria-hidden="true" />
+          <span><strong>Signed</strong> by {{ d.signedByName }} on {{ d.signedAt | date: 'd MMM y' }}: {{ outcomeLabel[d.outcome] }}</span>
+        </p>
+      } @else {
+        @if (reopened()) { <p class="lx-help lx-reopened">A change reopened the signed determination; it needs a new signature.</p> }
+        <button pButton type="button" [disabled]="!canSign() || busy()" (click)="openSign()" [fluid]="true">
+          <ng-icon name="phosphorSignature" size="16" aria-hidden="true" />
+          <span pButtonLabel>Sign determination</span>
+        </button>
+        <p class="lx-help">{{ signHelp() }}</p>
+      }
+    </div>
+  </section>
+</ng-template>
+
+<!-- Pane 2: the requirement, how it was checked, and the decision. -->
+<ng-template #detailTpl>
+  <section class="lx-pane lx-detail" aria-labelledby="requirement-heading">
+    @if (selected(); as m) {
+      <div class="lx-detail-scroll">
+        <p class="lx-label">Requirement</p>
+        <h2 id="requirement-heading" class="lx-req-heading" data-testid="requirement-heading" [attr.data-ref]="m.requirement.ref">
+          <span class="lx-mono">{{ m.requirement.ref }}</span> {{ m.requirement.title }}
+        </h2>
+        <blockquote class="lx-rule lx-serif">{{ m.requirement.text }}</blockquote>
+        @if (ruleVersion(); as rv) {
+          <p class="lx-rule-source lx-help">
+            <span>{{ rv.label }}</span>
+            <span>Effective {{ rv.effectiveFrom | date: 'd MMMM y' }}</span>
+            <a [href]="rv.sourceUrl" target="_blank" rel="noopener noreferrer" class="lx-inline">Source<ng-icon name="phosphorArrowSquareOut" size="12" aria-hidden="true" /><span class="lx-sr-only">(opens in a new tab)</span></a>
+          </p>
+        }
+
+        <div class="lx-block">
+          <p class="lx-label">Proposed finding</p>
+          <lx-finding [finding]="m.finding" [large]="true" data-testid="proposed-finding" />
+        </div>
+
+        <div class="lx-block">
+          <p class="lx-label">How it was checked</p>
+          @let how = howChecked(m);
+          <p class="lx-how"><ng-icon [name]="how.icon" size="16" aria-hidden="true" /><strong>{{ how.title }}.</strong> {{ how.text }}</p>
+          @if (m.rationale) { <p class="lx-rationale">{{ m.rationale }}</p> }
+        </div>
+
+        <div class="lx-block">
+          <p class="lx-label">Current decision</p>
+          @if (m.decision; as d) {
+            <p class="lx-current"><lx-decision-state [decision]="d" [stale]="m.stale" /> <span class="lx-muted">by {{ d.userDisplayName ?? 'an unknown user' }}, {{ d.at | date: 'd MMM y, HH:mm' }}</span></p>
+            @if (d.note) { <p class="lx-current-note">{{ d.note }}</p> }
+          } @else {
+            <p class="lx-muted">No decision yet.</p>
+          }
+          @if (m.stale) {
+            <p-message severity="warn" size="small">A newer rule or course version replaced what this finding was based on. It needs a new decision.</p-message>
+          }
+        </div>
+      </div>
+
+      @if (session.canReview() && !signed()) {
+        <div class="lx-decide">
+          <label for="note" class="lx-note-label">Note <span class="lx-muted">(required to confirm a gap)</span><kbd aria-hidden="true">G</kbd></label>
+          <textarea pTextarea id="note" #noteField rows="3" [ngModel]="note()" (ngModelChange)="note.set($event); noteError.set(null)"
+                    [invalid]="!!noteError()" [attr.aria-describedby]="noteError() ? 'note-error' : null" [fluid]="true"></textarea>
+          @if (noteError(); as e) { <p-message id="note-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
+          <div class="lx-actions">
+            <button pButton type="button" [disabled]="busy()" (click)="decide('ACCEPTED')" aria-keyshortcuts="a">
+              <span pButtonLabel>Accept evidence</span><kbd aria-hidden="true">A</kbd>
+            </button>
+            <button pButton type="button" severity="secondary" [outlined]="true" [disabled]="busy()" (click)="decide('EVIDENCE_REQUESTED')" aria-keyshortcuts="r">
+              <span pButtonLabel>Request evidence from program director</span><kbd aria-hidden="true">R</kbd>
+            </button>
+            <button pButton type="button" severity="danger" [outlined]="true" [disabled]="busy()" (click)="decide('GAP_CONFIRMED')">
+              <span pButtonLabel>Confirm gap</span>
+            </button>
+          </div>
+        </div>
+      } @else if (!session.canReview()) {
+        <p class="lx-decide lx-help">Your role can read this review but not record decisions.</p>
+      }
+    } @else if (!loading()) {
+      <p class="lx-empty-line">Select a requirement.</p>
+    }
+  </section>
+</ng-template>
+
+<!-- Pane 3: the evidence where it sits on its page, with the quote alone in a disclosure. -->
+<ng-template #evidenceTpl>
+  <section class="lx-pane lx-evidence" aria-labelledby="evidence-heading">
+    <h2 id="evidence-heading" class="lx-label">Evidence</h2>
+    @if (selected(); as m) {
+      @if (m.evidence; as ev) {
+        <dl class="lx-evidence-meta" data-testid="evidence-meta">
+          <div><dt>File</dt><dd>{{ ev.filename }}</dd></div>
+          @if (ev.courseCode) {
+            <div><dt>Course</dt><dd>{{ ev.courseCode }} · {{ ev.courseRequired === false ? 'elective' : ev.courseRequired ? 'required course' : 'requirement status not recorded' }}</dd></div>
+          }
+          <div><dt>Page</dt><dd class="lx-mono">{{ ev.pageNumber }}</dd></div>
+          <div><dt>Characters</dt><dd class="lx-mono">{{ ev.charStart }}–{{ ev.charEnd }}</dd></div>
+        </dl>
+        @if (ev.courseRequired === false) {
+          <p-message severity="warn" size="small">This passage comes from an elective. Not every student takes it.</p-message>
+        }
+        <details class="lx-quote-only">
+          <summary><ng-icon name="phosphorCaretRight" size="14" aria-hidden="true" />Quote only</summary>
+          <blockquote class="lx-serif" data-testid="evidence-quote">{{ ev.quote }}</blockquote>
+        </details>
+        @if (!wide()) {
+          <button pButton type="button" severity="secondary" [outlined]="true" size="small" class="lx-show-on-page"
+                  [attr.aria-expanded]="showOnPage()" aria-controls="evidence-page" (click)="showOnPage.set(!showOnPage())">
+            <ng-icon name="phosphorEye" size="16" aria-hidden="true" /><span pButtonLabel>Show on page</span>
+          </button>
+        }
+        <div id="evidence-page" class="lx-evidence-page">
+          @if (wide() || showOnPage()) {
+            <lx-document-viewer [documentId]="ev.documentId" [pageNumber]="ev.pageNumber" [highlight]="ev" [focusHighlight]="!wide()" />
+          }
+        </div>
+      } @else {
+        <div class="lx-no-evidence">
+          <p><strong>No quoted evidence.</strong></p>
+          <p class="lx-muted">{{ noEvidenceReason(m) }}</p>
+        </div>
+      }
+    }
+  </section>
+</ng-template>
+
+<p-dialog header="Sign determination for {{ jurisdiction() }}" [visible]="signOpen()" (visibleChange)="signOpen.set($event)" [modal]="true"
+          [draggable]="false" [resizable]="false" [style]="{ width: '34rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body"
+          closeAriaLabel="Cancel signing">
+  <p class="lx-dialog-text">
+    All {{ workspace.total() }} requirements for {{ context.jurisdictionName(jurisdiction()) }} have a review decision.
+    Signing records a determination in your name and locks it to the rule version and course versions in use now.
+    It cannot be edited afterwards; a later change reopens it for a new signature.
+  </p>
+  <fieldset class="lx-outcomes">
+    <legend class="lx-label">Outcome</legend>
+    @for (o of outcomes; track o) {
+      <div class="lx-outcome">
+        <p-radiobutton [inputId]="'outcome-' + o" name="outcome" [value]="o" [ngModel]="outcome()" (ngModelChange)="outcome.set($event)" />
+        <label [for]="'outcome-' + o">{{ outcomeLabel[o] }}</label>
+      </div>
+    }
+  </fieldset>
+  <ng-template #footer>
+    <button pButton type="button" severity="secondary" [outlined]="true" (click)="signOpen.set(false)"><span pButtonLabel>Cancel</span></button>
+    <button pButton type="button" [disabled]="!outcome() || busy()" [loading]="busy()" (click)="sign()"><span pButtonLabel>Sign</span></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Keyboard shortcuts" [visible]="helpOpen()" (visibleChange)="helpOpen.set($event)" [modal]="true" [draggable]="false"
+          [resizable]="false" [dismissableMask]="true" [style]="{ width: '28rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body"
+          closeAriaLabel="Close shortcuts">
+  <dl class="lx-shortcuts">
+    @for (s of shortcuts; track s.command) {
+      <div><dt><kbd>{{ s.keys }}</kbd></dt><dd>{{ s.description }}</dd></div>
+    }
+  </dl>
+  <p class="lx-help">Shortcuts work when focus is not in a text field. After a decision the next requirement that needs one opens.</p>
+</p-dialog>

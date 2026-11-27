@@ -3,9 +3,11 @@ package com.lexvay.job;
 import com.lexvay.auth.CurrentUser;
 import com.lexvay.common.TenantContext;
 import java.sql.Types;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -44,7 +46,7 @@ public class JobRepository {
                 .param("tenantId", TenantContext.require())
                 .param("type", type.name())
                 .param("payload", json.writeValueAsString(payload), Types.OTHER)
-                .param("createdBy", CurrentUser.get().map(u -> u.id()).orElse(null))
+                .param("createdBy", CurrentUser.idOrNull())
                 .update();
         return id;
     }
@@ -68,6 +70,13 @@ public class JobRepository {
                 .query(ROW).optional();
     }
 
+    /** Jobs waiting to be claimed, across all tenants, from the claim index. For the queue depth gauge. */
+    @Transactional(readOnly = true)
+    public long queuedCount() {
+        jdbc.sql("SELECT set_config('lexvay.worker', 'on', true)").query().singleRow();
+        return jdbc.sql("SELECT count(*) FROM job WHERE status = 'QUEUED'").query(Long.class).single();
+    }
+
     /** The following run under the job's tenant context. */
     public void markDone(UUID id) {
         jdbc.sql("UPDATE job SET status = 'DONE', error = NULL WHERE id = :id").param("id", id).update();
@@ -87,10 +96,35 @@ public class JobRepository {
         return jdbc.sql("SELECT " + COLUMNS + " FROM job WHERE id = :id").param("id", id).query(ROW).optional();
     }
 
+    /**
+     * The newest job of a type whose payload names the given id. The key is part of the SQL text, not a bind
+     * parameter, so the planner can match the expression index on {@code (payload->>'key')}.
+     */
     public Optional<Job> latest(JobType type, String payloadKey, UUID payloadValue) {
-        return jdbc.sql("SELECT " + COLUMNS + " FROM job WHERE type = :type AND payload->>:key = :value "
+        return jdbc.sql("SELECT " + COLUMNS + " FROM job WHERE type = :type AND " + payloadField(payloadKey) + " = :value "
                         + "ORDER BY created_at DESC LIMIT 1")
-                .param("type", type.name()).param("key", payloadKey).param("value", payloadValue.toString())
+                .param("type", type.name()).param("value", payloadValue.toString())
                 .query(ROW).optional();
+    }
+
+    /** {@link #latest} for many ids in one statement; ids without a job are absent from the result. */
+    public Map<UUID, Job> latestByPayloadValue(JobType type, String payloadKey, Collection<UUID> payloadValues) {
+        if (payloadValues.isEmpty()) {
+            return Map.of();
+        }
+        String field = payloadField(payloadKey);
+        return jdbc.sql("SELECT DISTINCT ON (" + field + ") " + field + " AS payload_value, " + COLUMNS + " FROM job "
+                        + "WHERE type = :type AND " + field + " IN (:values) ORDER BY " + field + ", created_at DESC")
+                .param("type", type.name()).param("values", payloadValues.stream().map(UUID::toString).toList())
+                .query((rs, i) -> Map.entry(UUID.fromString(rs.getString("payload_value")), ROW.mapRow(rs, i)))
+                .list().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    /** Payload keys are code constants; anything but letters is refused so the key is safe inside SQL text. */
+    private static String payloadField(String payloadKey) {
+        if (!payloadKey.matches("[A-Za-z]+")) {
+            throw new IllegalArgumentException("Invalid job payload key: " + payloadKey);
+        }
+        return "payload->>'" + payloadKey + "'";
     }
 }

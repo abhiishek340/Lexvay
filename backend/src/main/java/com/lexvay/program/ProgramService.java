@@ -51,10 +51,12 @@ public class ProgramService {
         return programs.findById(id).orElseThrow();
     }
 
+    @Transactional(readOnly = true)
     public Program get(UUID id) {
         return programs.findById(id).orElseThrow(() -> new NotFoundException("Program not found"));
     }
 
+    @Transactional(readOnly = true)
     public List<Program> list() {
         return programs.findAll();
     }

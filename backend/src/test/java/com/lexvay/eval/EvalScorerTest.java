@@ -25,7 +25,8 @@ class EvalScorerTest {
 
     static Mapping mapping(String ref, RequirementType type, Finding finding, MappingMethod method, String document, String quote) {
         Mapping.Evidence evidence = document == null ? null
-                : new Mapping.Evidence(UUID.randomUUID(), UUID.randomUUID(), document, "SYLLABUS", null, null, null, 1, 0, quote.length(), quote);
+                : new Mapping.Evidence(UUID.randomUUID(), UUID.randomUUID(), document, "SYLLABUS", null, null, null, 1, 0, quote.length(), quote,
+                        com.lexvay.document.TextSource.TEXT_LAYER, null);
         return new Mapping(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "UT", UUID.randomUUID(),
                 new Mapping.RequirementView(UUID.randomUUID(), ref, "title", "text", type, null, null, null),
                 finding, method, "rationale", false, evidence, null);

@@ -30,6 +30,9 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Install Tesseract (OCR test runs against the real binary)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+
       - name: Install Playwright browser
         run: cd frontend && npm ci --no-audit --no-fund && npx playwright install --with-deps chromium
 
@@ -52,3 +55,31 @@ jobs:
 
       - name: Validate Terraform (format, validate, offline tests; never plan or apply)
         run: make infra-validate
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build the production image (never pushed)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: lexvay:ci-${{ github.sha }}
+          build-args: LEXVAY_PRIMEUI_LICENSE=
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Report the image size
+        run: |
+          size=$(docker image inspect "lexvay:ci-${{ github.sha }}" --format '{{.Size}}')
+          echo "Image lexvay:ci-${{ github.sha }}: $((size / 1024 / 1024)) MiB" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Smoke test the image (sign-in, API, metrics, logs, graceful stop)
+        run: scripts/smoke.sh "lexvay:ci-${{ github.sha }}"

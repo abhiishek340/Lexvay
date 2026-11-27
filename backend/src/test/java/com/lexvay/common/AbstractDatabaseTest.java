@@ -1,6 +1,11 @@
 package com.lexvay.common;
 
+import com.lexvay.document.FakeOcrEngine;
+import com.lexvay.rule.source.FakeHostResolver;
+import com.lexvay.rule.source.FakeHttpFetcher;
 import java.nio.file.Path;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
@@ -26,8 +31,16 @@ import org.testcontainers.utility.MountableFile;
         "lexvay.ratelimit.upload-per-minute=100000"})
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-@Import({TestTenants.class, SchemaFixtures.class})
+@Import({TestTenants.class, SchemaFixtures.class, FakeOcrEngine.class, FakeHttpFetcher.class, FakeHostResolver.class})
 public abstract class AbstractDatabaseTest {
+
+    /** Off, like the production default, until a test enables it; reset before every test. */
+    @Autowired protected FakeOcrEngine ocr;
+
+    @BeforeEach
+    void resetOcr() {
+        ocr.reset();
+    }
 
     protected static final String DB_NAME = "lexvay";
     protected static final String OWNER_USER = "lexvay_owner";
@@ -62,6 +75,8 @@ public abstract class AbstractDatabaseTest {
         registry.add("spring.flyway.user", () -> OWNER_USER);
         registry.add("spring.flyway.password", () -> OWNER_PASSWORD);
         registry.add("lexvay.jobs.polling-enabled", () -> "false");
+        registry.add("lexvay.llm.price.input-per-mtok", () -> "2.00");
+        registry.add("lexvay.llm.price.output-per-mtok", () -> "10.00");
         registry.add("lexvay.filestore.path", () -> FILE_STORE_DIR.toString());
     }
 

@@ -6,10 +6,11 @@ import com.lexvay.common.TenantContext;
 import com.lexvay.document.QuoteVerifier;
 import com.lexvay.llm.JsonSchemaValidator;
 import com.lexvay.llm.LlmCallRecorder;
-import com.lexvay.llm.LlmClient;
+import com.lexvay.llm.LlmGateway;
 import com.lexvay.llm.LlmPurpose;
 import com.lexvay.llm.LlmRequest;
 import com.lexvay.llm.LlmResponse;
+import com.lexvay.observability.LexvayMetrics;
 import com.lexvay.rule.Requirement;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -26,8 +27,9 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Pipeline stage 4 for SUBJECT, ACCREDITATION and JURISDICTION_SPECIFIC requirements. Shortlists pages,
  * asks the model for one of three findings with a verbatim quote, then applies the code-side guardrails:
- * schema and finding check (rule 1), quote verification (rule 2), "when unsure, ambiguous" (rule 4) for
- * non-required courses and thin quotes. Every proposal's raw input and output is stored.
+ * schema and finding check (rule 1), quote verification (rule 2), and "when unsure, ambiguous" (rule 4) through
+ * the ordered {@link DowngradeRule}s: non-required course, thin quote, low OCR confidence. Every proposal's raw
+ * input and output is stored.
  */
 @Component
 public class EvidenceMatcher {
@@ -40,29 +42,32 @@ public class EvidenceMatcher {
     }
 
     private final PassageSearch search;
-    private final LlmClient llm;
+    private final LlmGateway llm;
     private final LlmCallRecorder calls;
     private final EvidenceSpanRepository spans;
     private final JsonSchemaValidator validator;
     private final ObjectMapper json;
+    private final LexvayMetrics metrics;
     private final int shortlistSize;
-    private final int minQuoteChars;
+    private final List<DowngradeRule> downgrades;
     private final int maxOutputTokens;
     private final String systemPrompt;
 
-    public EvidenceMatcher(PassageSearch search, LlmClient llm, LlmCallRecorder calls, EvidenceSpanRepository spans,
-                           ObjectMapper json,
+    public EvidenceMatcher(PassageSearch search, LlmGateway llm, LlmCallRecorder calls, EvidenceSpanRepository spans,
+                           ObjectMapper json, LexvayMetrics metrics,
                            @Value("${lexvay.matching.shortlist-size:8}") int shortlistSize,
                            @Value("${lexvay.matching.min-quote-chars:40}") int minQuoteChars,
+                           @Value("${lexvay.matching.min-ocr-confidence:80}") double minOcrConfidence,
                            @Value("${lexvay.llm.max-output-tokens:16000}") int maxOutputTokens) {
         this.search = search;
         this.llm = llm;
         this.calls = calls;
         this.spans = spans;
         this.json = json;
+        this.metrics = metrics;
         this.validator = new JsonSchemaValidator(json, SCHEMA);
         this.shortlistSize = shortlistSize;
-        this.minQuoteChars = minQuoteChars;
+        this.downgrades = DowngradeRule.ordered(minQuoteChars, minOcrConfidence);
         this.maxOutputTokens = maxOutputTokens;
         try {
             this.systemPrompt = new String(new ClassPathResource("llm/" + PROMPT_VERSION + ".system.txt").getInputStream()
@@ -96,6 +101,7 @@ public class EvidenceMatcher {
                 .filter(p -> p.documentId().equals(proposal.documentId()) && p.pageNumber() == proposal.pageNumber())
                 .findFirst().orElseThrow();
         Optional<QuoteVerifier.Match> verified = QuoteVerifier.find(passage.text(), proposal.quote());
+        metrics.quoteVerification(verified.isPresent());
         if (verified.isEmpty()) {
             return new Outcome(Finding.EVIDENCE_MISSING, NO_VERIFIABLE_PASSAGE, null);
         }
@@ -105,15 +111,14 @@ public class EvidenceMatcher {
 
         Finding finding = proposal.finding();
         String rationale = proposal.rationale();
-        if (finding == Finding.EVIDENCE_FOUND && Boolean.FALSE.equals(passage.courseRequired())) {
-            finding = Finding.AMBIGUOUS;
-            rationale += " Downgraded to ambiguous: the cited course " + passage.courseCode()
-                    + " is not required of every student in this program.";
-        }
-        if (finding == Finding.EVIDENCE_FOUND && QuoteVerifier.normalizeWhitespace(match.exactText()).length() < minQuoteChars) {
-            finding = Finding.AMBIGUOUS;
-            rationale += " Downgraded to ambiguous: the quoted passage is shorter than " + minQuoteChars
-                    + " characters and is too thin to establish coverage on its own.";
+        if (finding == Finding.EVIDENCE_FOUND) {
+            for (DowngradeRule rule : downgrades) {
+                Optional<String> reason = rule.reason(passage, match);
+                if (reason.isPresent()) {
+                    finding = Finding.AMBIGUOUS;
+                    rationale += " Downgraded to ambiguous: " + reason.get();
+                }
+            }
         }
         return new Outcome(finding, rationale, spanId);
     }

@@ -1,5 +1,6 @@
 package com.lexvay.auth;
 
+import com.lexvay.common.LogContext;
 import com.lexvay.common.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -8,7 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/** Puts the authenticated user's tenant into {@link TenantContext} for the rest of the request. */
+/** Puts the authenticated user's tenant into {@link TenantContext} and the user id into the log context for the rest of the request. */
 public class TenantContextFilter extends OncePerRequestFilter {
 
     @Override
@@ -19,7 +20,7 @@ public class TenantContextFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        try {
+        try (LogContext.Scope ignored = LogContext.with(LogContext.USER_ID, user.get().id())) {
             TenantContext.runAs(user.get().tenantId(), () -> {
                 try {
                     chain.doFilter(request, response);

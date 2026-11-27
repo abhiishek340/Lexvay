@@ -391,7 +391,7 @@ End-to-end stacks are slot-based (`LEXVAY_E2E_SLOT`) so several checkouts can te
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F12, V011 F13 if needed.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–249, F7c D-250–259, F4 D-260–269, F8 D-270–279. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F13 if needed, V015 F7c. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -529,6 +529,119 @@ group family `postgres18` follows RDS naming and could not be checked without cr
 defaults to the major version `18`. The CloudFront and ALB wiring has been validated for syntax and schema only, not
 deployed.
 
+### WS-UI — Design system and screen rebuild (D-080 to D-089)
+
+### Dependency pins (verified on the npm registry on 2026-11-26)
+
+| Package | Version |
+|---|---|
+| `primeng` | 22.1.5 |
+| `@primeuix/themes` | 3.1.1 |
+| `@ng-icons/core` | 36.1.0 |
+| `@ng-icons/phosphor-icons` | 36.1.0 |
+| `@fontsource/ibm-plex-sans` | 5.3.0 |
+| `@fontsource/ibm-plex-serif` | 5.3.0 |
+| `@fontsource/ibm-plex-mono` | 5.3.0 |
+
+Transitive packages PrimeNG 22.1.5 brings in (resolved by npm, recorded in `package-lock.json`):
+`@primeuix/styled`, `@primeuix/styles`, `@primeuix/utils`, `@primeuix/motion`, `@primeicons/angular`,
+`@primeui/license-manager`.
+
+### D-080 PrimeNG 22 requires a PrimeUI license key (needs an owner decision)
+PrimeNG 22 is distributed under the PrimeUI License (`node_modules/primeng/LICENSE.md`): a Community License
+(free for organisations under USD 1 M revenue, fewer than 5 developers and 10 employees; individuals and
+non-commercial open source qualify; renewed yearly) or a paid Commercial License. At start-up
+`providePrimeNG` verifies a key offline through `@primeui/license-manager`; without one it logs
+"PrimeUI license is not configured" and shows a fixed "Invalid PrimeUI License" notice in the corner of
+every page (it is visible in `docs/screens`). The license forbids removing that mechanism, so the notice is
+left in place. Every 21.x release has no license check but requires Angular 21, so it cannot be used with
+Angular 22.3.
+Implemented: the key is read from the build-time constant `LEXVAY_PRIMEUI_LICENSE`
+(`ng build --define "LEXVAY_PRIMEUI_LICENSE='<key>'"`, see `src/app/theme/license.ts`) and passed to
+`providePrimeNG({ license })`; no key is committed. Rejected: hiding the notice with CSS (breaches the
+license); switching libraries or downgrading (contradicts the design brief, and the brief is the CTO's call).
+**Action for the owner:** register for the Community License (if eligible) or buy a Commercial License, then
+supply the key at build time.
+
+### D-081 Design tokens live once, in the preset, as light-dark() pairs
+`@primeuix/themes` 3 expresses Aura's colour scheme with CSS `light-dark()`; PrimeNG emits
+`color-scheme: dark` for `[data-theme="dark"]`. `LexvayPreset` writes every DESIGN.md token as a
+`light-dark(light, dark)` pair, overrides the Aura semantic and component tokens with them, and publishes
+the same values under `extend.lx` so application CSS reads `--p-lx-*`. Rejected: a second copy of the
+palette as hand-written CSS variables in `styles.css` (two sources of truth); `colorScheme.light/dark`
+blocks (mixed with Aura's `light-dark()` values the precedence is unclear).
+`ThemeService` always writes a concrete `data-theme` (`light` or `dark`); "System" resolves it from
+`prefers-color-scheme` and follows changes, so one selector drives both PrimeNG and the application CSS.
+
+### D-082 Aura limited to the components Lexvay renders
+`definePreset` starts from Aura's base tokens plus the token sets of the 22 components in use (listed in
+`lexvay-preset.ts`). The full Aura object carries about 90 component token sets and cost 130 kB of the
+initial bundle. Rejected: the full Aura import. Consequence: a component added to a template must be added
+to that list, or it renders without its theme.
+
+### D-083 Bundle budget measured on raw size
+WS-UI asks for an initial bundle under 600 kB transferred. Angular budgets measure raw (uncompressed)
+size, so the budget is set on raw size at 700 kB warning / 800 kB error; the production build measures
+672.9 kB raw and 161.8 kB estimated transfer. The program switcher (Select), the account menu and the toast
+are `@defer` blocks. Rejected: a 600 kB raw budget (Angular core, router, forms and common alone are about
+400 kB raw; meeting it would mean dropping PrimeNG from the shell). The component style budget is raised to
+10 kB / 14 kB because the review workspace styles three panes and two dialogs in one component.
+
+Critical-CSS inlining is switched off in the production configuration (`optimization.styles.inlineCritical:
+false`): it adds an inline `<script>` that swaps the stylesheet's `media`, which the backend's
+Content-Security-Policy (`default-src 'self'`, no inline scripts) blocks, leaving the global styles unapplied.
+The built `index.html` now has one external module script and one stylesheet link; fonts load from `./media`.
+PrimeNG's runtime `<style>` elements rely on `style-src 'unsafe-inline'`, which the policy allows.
+
+### D-084 Fonts: latin and latin-ext subsets only
+The `@fontsource` packages ship cyrillic, greek and vietnamese subsets as well. Only `latin` and
+`latin-ext` are imported for Sans 400/500/600, Serif 400 and 400 italic, and Mono 400. Rejected: the
+all-subsets entry points (more files in the build for scripts the product does not show).
+
+### D-085 One program context shared by every screen
+`ProgramContext` loads the program, its latest finished assessment, determinations, change events,
+jurisdictions and rule versions once per program; screens and the navigation badges read it, and mutations
+call a targeted refresh. Rejected: each screen fetching its own copy (the previous code issued the same
+four requests on every screen change, and the badges would need a third copy).
+
+### D-086 Review view model as a plain signal class
+`ReviewWorkspace` (filters, selection, J/K movement, advancing after a decision, progress) and
+`shortcutFor`/`decisionBlocker` are plain TypeScript with Angular signals and no dependency injection, unit
+tested with Vitest. A decision counts only while it is current: a stale mapping needs review again
+(`isDecided`). After a decision the workspace moves to the next requirement in list order that still needs
+one and matches the filter, wrapping around. Rejected: an injectable store (needs TestBed to test) and
+keeping the logic in the component.
+
+### D-087 Accessibility workarounds for PrimeNG markup
+- Tables have no accessible-name input: names are set through pass-through (`[pt]="{ table: { 'aria-label' } }"`).
+- `p-progressbar` sets `aria-level` on a `progressbar` role and has no name input, which axe reports;
+  progress bars are `aria-hidden` and the progress is always stated in text next to them.
+- Splitter gutters get `aria-label="Resize panes"` through pass-through; dialogs get `closeAriaLabel`.
+- Navigation badges are `aria-hidden`; the count is a separate `aria-describedby` text so link names stay
+  "Review" and "Changes".
+- Tag labels use the `value` input so the icon precedes the word.
+Rejected: forking or wrapping the PrimeNG components.
+
+### D-088 Focus after navigation, and the live region
+Moving to another screen focuses that screen's `h1`; the first page load and query-only navigation (the
+jurisdiction tabs, the report's jurisdiction) do not move focus. Review results are announced in one
+polite `role="status"` region in the review header (`data-testid="message"`) and also shown as a PrimeNG
+Toast, as the brief asks. PrimeNG's toast is `role="alert"`, so a screen reader may hear a decision twice.
+Rejected: dropping the toast (the brief asks for both).
+
+### D-089 Evidence report jurisdiction and PDF
+The report opens on the jurisdiction in `?jurisdiction=` or the first one, chosen with a PrimeNG Select.
+"Generate PDF" is offered only for a signed determination because the existing endpoint renders a signed
+determination; a draft explains that the PDF follows signing. Rejected: a client-side PDF of the draft.
+
+### Screens and tests
+- Screenshots: `docs/screens/*-light.png` and `*-dark.png`, produced by `e2e/screens.spec.ts`
+  (`LEXVAY_SCREENSHOTS=1 LEXVAY_E2E_SLOT=1 make e2e`).
+- Every end-to-end test fails on any request to a host other than localhost (`e2e/support.ts`).
+- `expectAccessible` runs axe in the light and the dark theme with transitions disabled.
+- Backend: `GET /api/v1/users` (`tenant/UserController`, `UserApiTest`), tenant-scoped by row-level
+  security, readable by every role, not in the audited set because it is a GET.
+
 ### WS-SEC — OIDC and hardening (D-090 to D-099)
 
 **D-090 — OIDC through `spring-boot-starter-security-oauth2-client`, only in profile `oidc`.** The starter is managed
@@ -648,6 +761,130 @@ lookup, which is the part that matters); mocking `ClientRegistrationRepository`.
 `@TestPropertySource`; tests that need tight budgets, a Secure cookie, forwarded headers, a 1 MB upload limit or the
 `oidc` profile declare their own and get their own cached Spring context (five extra contexts, about 8 seconds each).
 `spring-security-test`'s `csrf()` is still not used; `TestCsrf.csrf()` stays.
+
+### WS-PERF — Read-path latency and read APIs (D-110 to D-119)
+
+### D-110 One connection per read request; the tenant is bound on checkout only
+
+Every service method that only reads is `@Transactional(readOnly = true)`, so a request checks out one
+connection, binds the tenant once, and runs all its statements and its commit on it. `TenantAwareDataSource`
+no longer wraps the connection in a proxy and no longer issues `RESET lexvay.tenant_id` on return: checkout
+always runs `set_config` (tenant present) or `RESET` (no tenant), so the value an idle pooled connection holds
+cannot be used before the next checkout replaces it. Tenant isolation stays fail closed (product rule 7).
+`Rule7_PooledConnectionRebindsTest` proves it on one physical connection (a pool of size one lends the same
+backend to tenant A, to no tenant and to tenant B). `ReadPathConnectionsTest` asserts exactly one checkout per
+read endpoint.
+
+Reads that run a single statement and have no service method (audit list, jurisdictions, jobs) stay in
+autocommit: one checkout and no extra COMMIT round trip.
+
+Rejected:
+- Remembering the last bound tenant per physical connection to skip `set_config` when it matches. It saves a
+  round trip but makes isolation depend on state the application tracks about the connection; anything that
+  changes the setting behind its back (a bug, `RESET ALL`, a future SQL function) would leak. Not worth it.
+- `connectionInitSql` or a pool-level hook for the tenant. The tenant changes per request; the pool cannot know it.
+- Keeping the close-time `RESET` as a second line of defence. It costs a statement on every return and defends
+  nothing, because the checkout rebind is the only protection that matters.
+
+### D-111 Program overview: contents and package
+
+`GET /programs/{id}/overview` returns `{ program, assessment, determinations, openChangeEvents, undecidedTotal }`
+in one read-only transaction. `assessment` is the latest FINISHED one (null before the first run).
+`undecidedTotal` is the sum over jurisdictions of `total - decided` from that assessment, which is exactly the
+set the signing gate counts (stale, undecided or reopened mappings), so it needs no extra query.
+`openChangeEvents` is a list of the same views as `GET /change-events`, limited to OPEN events that touch this
+program: a new version of one of its courses, or a new rule version for one of its target jurisdictions and its
+license type. The spec did not say whether the list is program-scoped; an unscoped list would show another
+program's course changes on this program's screen. Confirmed by the orchestrator on review.
+
+The service lives in a new package `overview` because it composes assessment, determination and change data and
+nothing depends on it; putting it in `program` would create a package cycle (assessment already depends on program).
+
+Rejected: a count instead of a list (the screen needs to link to the events); embedding mappings (too large).
+
+### D-112 Document page caching
+
+`GET /documents/{id}/pages/{n}` answers with `Cache-Control: private, max-age=31536000, immutable` and a strong
+ETag `"<document sha256>-<page number>"`. Pages never change (the database rejects updates), so a year is safe.
+`private` keeps shared caches and proxies out. `If-None-Match` is answered with 304 by Spring's
+`HttpEntityMethodProcessor` from the ETag on the response entity; the 304 keeps ETag and Cache-Control. The header
+is written as a literal string because the order of its directives is part of the specified contract. A 404 is
+never marked cacheable.
+
+Known edge: the browser cache is keyed by URL, not by user. A second user on the same browser profile who
+requests the same document id would be served the first user's cached copy without a request, but only for a
+document id the first user could read, and the second user cannot learn that id from the API unless they can read
+it. Accepted; `Vary: Cookie` would remove it at the cost of losing the cache across logins.
+
+Rejected: `public` (cross-tenant risk), `ShallowEtagHeaderFilter` (hashes the body, so it still reads and
+serialises the page), a weak ETag (the content is byte-identical for a given document and page), `must-revalidate`
+(defeats the point for an immutable resource).
+
+### D-113 Review history
+
+`GET /mappings/{id}/reviews` returns every review event of the mapping oldest first, including REOPENED events
+that the system recorded (user id and display name null). An unknown id, or another tenant's, is 404 (row-level
+security hides the mapping). No role restriction: like every GET it is open to any authenticated user of the tenant.
+
+### D-114 N+1 removal
+
+Done in SQL, not in Java: determinations aggregate course version ids with an `ARRAY(SELECT ...)` in the main
+query; change event views are one statement with LEFT JOINs and correlated subqueries for "has a document" and the
+reopened determination ids (it also serves the overview and the re-run precondition); the rule version list takes
+requirement counts from a subquery and the latest extraction jobs from one `DISTINCT ON` statement. The benchmark
+exposed the rule version list (13 connections per call before) beyond the two repositories the spec named.
+
+Rejected: an in-process cache (a stale-tenant risk and not needed once queries are set-based); batch loading with
+`IN` lists per child table (more round trips than one joined statement).
+
+### D-115 Indexes
+
+V008 creates nine indexes, each chosen by the planner for its query on a database of about 200 tenants
+(`IndexUsageTest`, evidence in docs/PERF.md). Four of the fourteen candidates in the spec are not created:
+- `document (program_id)`: covered by the unique index `(tenant_id, program_id, sha256)`, because every query
+  also carries the row-level security condition on `tenant_id`.
+- `requirement (rule_version_id)`: covered by the unique index `(rule_version_id, ref)`.
+- `change_event (status, created_at DESC)`: the planner prefers the tenant index; a tenant has few events.
+- `job ((payload->>'documentId'))` and `job ((payload->>'ruleVersionId'))`: usable without row-level security
+  but never chosen with it. The job table's policy has an OR branch for the worker flag, and `jsonb ->>` is not a
+  leakproof function, so the planner may not use it as an index condition below the policy.
+
+`IndexUsageTest` creates the rejected candidates inside its own database and asserts the planner still ignores
+them, so a future Postgres or policy change that makes one useful fails the test and says so.
+
+Finding for the orchestrator, not implemented because it is a schema change outside the spec: the ingest and
+extraction status lookups (`GET /documents/{id}`, rule version views) scan the whole job table under row-level
+security, and jobs are never deleted. A generated column `payload_ref uuid` (the payload id, compared with a
+leakproof `=`) with an index would make them index lookups.
+
+### D-116 Audit filters
+
+`GET /audit` takes optional `action`, `entityType`, `entityId`, `userId`, `from`, `to` (ISO-8601 instants, both
+ends inclusive). The SQL text contains only the predicates that were given, so each combination gets its own
+plan. The response shape is unchanged. Rejected: `(:x IS NULL OR col = :x)`, which forces a generic plan that
+cannot use an index on the filtered column.
+
+### D-117 Response compression
+
+`server.compression` is on for `application/json` and `application/problem+json` from 1 kB. `spring.jackson`
+settings are untouched. `CompressionTest` checks over real HTTP that a large response is gzipped and a small one
+is not. On loopback compression costs CPU and saves no time; it pays on a real network.
+
+### D-118 Benchmark method
+
+`EndpointLatencyTest` sends `Accept-Encoding: gzip` like a browser, so the "after" numbers include compression
+CPU on the 30 to 45 kB responses. It signs one jurisdiction through the API first so the determination, review and
+change views have data (the seed's course and rule changes leave the other jurisdictions stale, which blocks
+signing). It runs twice: on the two seeded tenants, then after loading 30 renamed copies of both (62 tenants).
+Connections per call are counted by wrapping the data source. Each result in docs/PERF.md is the median of three
+runs, chosen by the sum of its p95 values; other agents were building on the same machine, so absolute numbers
+vary and the comparison between before and after is what matters.
+
+### D-119 Job payload key inside the SQL text
+
+`JobRepository.latest` used a bind parameter for the payload key (`payload->>:key`), which the planner cannot
+match to an expression index. The key is now part of the SQL text, restricted to letters, and the same helper
+builds the set-based variant. Rejected: one method per key (more API for no benefit).
 
 ### F3a — Rule version diff API (D-120 to D-129)
 
@@ -784,6 +1021,124 @@ through row-level security, as everywhere else.
 work item and the version numbers have a gap. Applied count is 6 here (V001 to V005 and V007); it is 7 once V006
 merges, with no test change.
 
+### F6 — Production packaging and observability (D-140 to D-149)
+
+**D-140 — One image, three stages, exact pins.** `Dockerfile` at the repository root: `node:26.13.1-bookworm-slim`
+builds the Angular production bundle (Node 26.13.1 is the D-002 pin); `eclipse-temurin:21.0.13_9-jdk-noble` builds
+the jar through the Maven wrapper with the bundle copied to `src/main/resources/static` and extracts Spring Boot's
+layers (`-Djarmode=tools extract --layers`); `eclipse-temurin:21.0.13_9-jre-noble` is the runtime. Digests (checked
+2026-11-26) are in `docs/OPERATIONS.md`. The runtime image holds the layered jar and nothing else: no source, no
+tests (`.dockerignore` also keeps `backend/src/test` out of the build context), no Maven or npm cache (they live in
+the build stages), no secrets. It runs as uid 10001, files and temporary files are under `/var/lexvay`
+(`LEXVAY_FILESTORE_PATH`, `-Djava.io.tmpdir`, `-XX:-UsePerfData`) so `read_only: true` works, and
+`ENTRYPOINT ["sh","-c","exec java $JAVA_OPTS -jar /app/app.jar"]` keeps the JVM as PID 1 so SIGTERM reaches it.
+`HEALTHCHECK` calls `/readyz`. Rejected: Alpine runtime (musl, not tried: PDFBox and POI font handling is the likely place
+for a surprise, and the size saving was not measured or asked for), Spring Boot buildpacks (`bootBuildImage`
+needs a daemon socket in CI and hides the pins), a fat jar run as is (no layer reuse: every code change would
+re-ship 126 MB of libraries), `jlink` runtime (smaller, but a custom module list to keep in step with PDFBox, POI,
+the AWS SDK and the Anthropic SDK; revisit if size matters), BuildKit cache mounts (the Colima setup on this
+machine has no buildx; the build stages are discarded anyway).
+
+**D-141 — The backend serves the app.** `SpaResourceConfig` registers two resource handlers over
+`classpath:/static/`. Files with a content hash (`/*.js`, `/*.css`, `/media/**`; Angular's `outputHashing: all`)
+get `Cache-Control: max-age=31536000, public, immutable`. Everything else is `no-cache` (revalidate with the
+validators), so a new release is picked up at once. A GET that matches no file falls back to `index.html` when the
+last path segment has no extension and the path is not under `/api` or `/actuator` (`SpaRoutes`); `/api/...`
+therefore stays a 404 problem detail, and `/missing.js` stays a 404. The resource chain is not cached
+(`resourceChain(false)`) because a cache keyed by path would grow with every probed URL. Security: GET requests
+outside `/api` and `/actuator` are public (the sign-in screen has to load before anyone can sign in; the bundle holds
+no data); every other method and every service path keeps requiring authentication. One line in `SecurityConfig`
+(`requestMatchers(SpaRoutes.APP_REQUESTS).permitAll()`). Rejected: a `@Controller` forwarding a fixed list of
+patterns (Spring's path patterns cannot express "any depth, no dot"), a 404 handler that forwards (it hides real
+missing files from the API's error handling), nginx in front (a second process and image for a static folder).
+
+**D-142 — Management port and health.** `management.server.port` is `LEXVAY_MANAGEMENT_PORT` (default 8090).
+Spring Boot moves every actuator endpoint to that port; there is no property that keeps `/actuator/health` on the
+main one (additional health paths accept a single segment). The Boot-supported way to keep health on the main port
+is `management.endpoint.health.probes.add-additional-paths`, so the main port serves `/livez` and `/readyz`, public,
+and the container `HEALTHCHECK`, `scripts/e2e.sh` and `HealthEndpointTest` use `/readyz`. The readiness group is
+`readinessState,db`, so an instance that cannot reach PostgreSQL stops being ready. The management port exposes only
+`health` and `prometheus` (`management.endpoints.web.exposure.include`). `/actuator/health` on the main port is
+therefore not served (404). **This departs from the roadmap's "health stays on the main port" in its literal
+reading (the aggregate `/actuator/health`); the probes do stay on the main port.** The Spring Security chain applies
+on the management port as well, so `ManagementSecurityConfig` adds one chain, `EndpointRequest.toAnyEndpoint()`
+permitAll, which Spring Boot evaluates only in the management server's own context, and which is not even created
+when the management port equals the main port (`@ConditionalOnManagementPort(DIFFERENT)`). Result, tested: the main
+port answers 401 for `/actuator/prometheus`; the management port answers prometheus and health without a session and
+401 for anything else. The seed profile sets the port to -1 so `make seed` cannot collide with a running app.
+Rejected: a hand-written `/actuator/health` controller on the main port (duplicates what Boot provides), publishing
+the management port to users (it is bound to 127.0.0.1 in compose and documented as private).
+
+**D-143 — Request correlation.** `RequestIdFilter` runs before Spring Security (`HIGHEST_PRECEDENCE + 10`): it
+accepts `X-Request-Id` only when it matches `[A-Za-z0-9-]{8,64}` (anything else, including log-injection attempts,
+is replaced by a UUID), echoes it on the response and sets MDC `requestId`. MDC `tenantId` is set by
+`TenantContext.runAs` (so web requests and job runs get it from one place) and `userId` by `TenantContextFilter`;
+`JobRunner` sets `jobId`. `LogContext` owns the four keys and restores the previous value on close, so nothing leaks
+between requests on a pooled thread. `ProblemDetailRequestId` is a `ResponseBodyAdvice` that adds `requestId` to every
+`ProblemDetail` the MVC layer writes, whichever handler made it (including Spring's own 404 and 400 handlers); the two
+problem details written by the security entry points call the same `stamp` helper. `ApiAccessLog` writes one INFO
+line per `/api/**` request that reached a handler (method, path, status, duration; never the query string, which can
+hold search text) so the ids are visible in logs without an error. Rejected: a servlet-filter access log (runs after
+the security context is cleared, so tenant and user are gone), Micrometer tracing (not asked for; it brings trace
+ids and propagation that nothing consumes yet).
+
+**D-144 — Structured logs.** Profile `prod` sets `logging.structured.format.console: ecs` and
+`logging.structured.ecs.service.name: lexvay` (Spring Boot's built-in formatter, no extra dependency). MDC entries
+appear as top-level fields (`requestId`, `tenantId`, `userId`, `jobId`). Locally the normal pattern is kept and
+`logging.pattern.correlation` adds `[requestId or jobId]`. The image sets `SPRING_PROFILES_ACTIVE=prod`. What is never
+logged: document text, quotes, rule text, prompts, model output, emails. To make that true, `JobRunner` no longer
+logs the failure message (it can carry model output or document text); the log has the job type, the attempt and the
+root exception class, and the message is stored on the job row and audit entry as before.
+
+**D-145 — Metrics.** `micrometer-registry-prometheus` (managed by the Boot BOM through `micrometer-bom` 1.17.3, on
+`prometheus-metrics` 1.7.0). All meters are created in `LexvayMetrics`; call sites pass facts (enums, booleans,
+durations). Names and tags are as the roadmap lists them: `lexvay.llm.calls` (purpose, model, outcome:
+success | refused | error), `lexvay.llm.tokens` (direction: input | output), `lexvay.llm.duration`,
+`lexvay.job.duration` (type, outcome: done | retried | failed), `lexvay.job.queue.depth` (gauge),
+`lexvay.quote.verification` (result: verified | rejected), `lexvay.mapping.finding` (finding, method). Tag values are
+enum names or fixed words; a test scrapes the endpoint and fails on any label outside that set, on UUID-shaped
+values, and on any occurrence of an id, an email or quote text. The model call is wrapped by `LlmGateway`
+(delegates to the configured `LlmClient`, times the call, reports success, refusal or error) and the two call sites
+use it instead of the client; rejected: wrapping the `LlmClient` bean (the tests cast the bean to
+`FakeLlmClient`) and metering inside `LlmCallRecorder` (it only sees successes). Mapping findings are counted after
+the per-requirement transaction commits and only when the row was inserted, so a retried run does not double count.
+The queue depth is `SELECT count(*) FROM job WHERE status = 'QUEUED'` under the worker flag, answered by
+`job_claim_idx`, evaluated at scrape time. `lexvay.llm.duration` carries `purpose` (the roadmap listed no tags; added at review so extraction and
+matching latencies are not blended).
+
+**D-146 — Graceful shutdown.** `server.shutdown: graceful`, `spring.lifecycle.timeout-per-shutdown-phase` and
+`spring.task.scheduling.shutdown.await-termination(-period)` all take `LEXVAY_SHUTDOWN_GRACE` (default 30 s; compose
+`stop_grace_period` is 40 s). `JobPoller` listens for `ContextClosedEvent` and stops claiming; `JobRunner.runWhile`
+checks that flag between jobs, so the job in hand finishes (its transaction commits) and the scheduler, which now
+waits for its task, joins. A job that outlives the grace period is released by the existing ten-minute re-claim rule
+in `JobRepository.claim`. Rejected: interrupting the running job (leaves a half-written run; D-052 makes resuming
+safe but wasteful), draining the whole queue on shutdown (unbounded).
+
+**D-147 — Usage endpoint.** `GET /api/v1/assessments/{id}/usage`, any signed-in user of the tenant, returns calls,
+input and output tokens, `modelTimeMs` (sum of call durations), `wallTimeMs` (the assessment's own run time, null
+until it has finished), `estimatedCostUsd`, the `prices` used, and the same totals by purpose. One aggregate over
+`llm_call` grouped by purpose; totals are summed in Java from those rows; the assessment is looked up first through
+the existing tenant-scoped `AssessmentService.require`, so another tenant's id is a 404. Extraction calls have no
+assessment id (D-047) and are not part of it. Prices are `lexvay.llm.price.*` from WS-EVAL
+(`LEXVAY_LLM_PRICE_INPUT_PER_MTOK`, `..._OUTPUT_...`, default 0 meaning not set); with no price the cost is `null`,
+not 0, the same rule as the evaluation report. Migration `V010__llm_call_assessment_index.sql` adds
+`llm_call (assessment_id)` (the table had no index for this lookup; V006 and V008 are WS-PERF, V007 is F4a, V009 is F11).
+
+**D-148 — Compose and smoke.** `docker compose --profile app up` adds the `app` service: read-only root filesystem,
+`cap_drop: ALL`, `no-new-privileges`, a named volume for `/var/lexvay`, the management port published on 127.0.0.1
+only. Configuration is `LEXVAY_*` variables with the same development defaults as the `db` service; nothing secret
+is in the image or the repository. `scripts/smoke.sh` (`make smoke`, slot-aware like `e2e.sh`) builds the image,
+seeds the demo tenants with the same image (profile `seed`, seed directory mounted read-only), starts the app and
+checks: non-root user, read-only root, no source or caches in the image, the app shell on `/` and a deep link, cache
+headers, sign-in through the container with the CSRF cookie flow, an API read, the 404 problem detail with its
+request id, the usage endpoint, the scrape (including a failed job counted by outcome), ECS logs with request and job
+ids, and a graceful stop. The e2e script now exports `LEXVAY_MANAGEMENT_PORT` as 8091 plus the slot (slot 7: 8098).
+
+**D-149 — Test shell for the SPA.** `backend/src/test/resources/static/` holds a stand-in `index.html` and a hashed
+asset so the fallback and cache rules are tested without a frontend build. Test sources are excluded from the image
+build context, so the stand-in can never reach production. `AbstractDatabaseTest` sets the two price properties so
+the usage tests have prices to compute with.
+
 ### F9 — Curriculum search API (D-150 to D-159)
 
 **D-150 — Query syntax.** The reviewer's text goes to `websearch_to_tsquery('english', :q)` as a bound
@@ -849,3 +1204,214 @@ through the upload API, using the course and document lists from `seed/manifest.
 `SeedLoader`. The loader creates the shared demo tenants once per database and `SeedLoaderTest` asserts that
 first load, so a second test calling it would make that test depend on class order. The search tests need no
 model and no scripts.
+
+### F11 — OCR for scanned documents (D-160 to D-169)
+
+**D-160 — Engine seam and selection.** `OcrEngine { boolean available(); Optional<OcrPage> recognize(BufferedImage) }`
+with `NoOcrEngine` (the default, `LEXVAY_OCR=off`) and `TesseractCliOcrEngine` (`LEXVAY_OCR=tesseract`, binary
+`LEXVAY_OCR_TESSERACT_PATH`, language `LEXVAY_OCR_LANGUAGE`). `OcrConfig` picks the bean like `FileStoreConfig` and
+rejects an unknown value at start. Decided by the CTO. Rejected: a Java binding (JavaCPP or Tess4J: native
+libraries inside the JVM, a crash takes the server down, a larger supply chain) and a cloud OCR service (student
+and institutional documents leave the deployment; no network in tests).
+
+**D-161 — The command line and its safety.** `tesseract <png> stdout -l <lang> --psm 3 tsv`, an argument array
+(never a shell), a private temporary directory per call that is always deleted, standard error redirected to a file
+in that directory, 60 s timeout then `destroyForcibly`, `OMP_THREAD_LIMIT=1` so concurrent runs do not oversubscribe
+cores. The language is validated against `[A-Za-z0-9_]+(+...)*` so a configuration value cannot become an option.
+`available()` runs `<binary> --version` once (10 s timeout) and caches the answer; a configured but missing binary
+is logged once at WARN and behaves as "not enabled". Decided by the CTO; validation and the thread limit are
+additions.
+
+**D-162 — No page text in logs or messages.** Neither the engine nor the extractor logs recognised text. A
+failure message carries the exit code and the first line of Tesseract's standard error (at most 200 characters),
+which reports configuration problems such as a missing language file, not page content. `OcrFailedException` is
+retryable (the job runner requeues it up to `lexvay.jobs.max-attempts`), because a timeout or a killed process can
+be transient. `recognize` returning empty means "no words found", not "failed".
+
+**D-163 — TSV parsing.** Recorded from a real run (`src/test/resources/ocr/tesseract-5.5.5-page.tsv`, 32 words).
+Words are level-5 rows with `conf >= 0` and non-empty text; control characters are dropped from words (PostgreSQL
+`text` rejects NUL); words of one (block, paragraph, line) are joined by a space, lines by a line feed, paragraphs by
+a blank line. The mean confidence is the plain average over the words kept. Decided by the CTO.
+
+**D-164 — Per-page ingest rule.** A PDF page keeps its text layer when it has at least 20 non-whitespace characters
+(`TEXT_LAYER`). Any other page is rendered at 300 DPI in grayscale and read when the engine is available; the result
+replaces the text layer only when it also has at least 20 non-whitespace characters (`OCR`, confidence rounded to two
+decimals to fit `numeric(5,2)`). In every other case (no engine, or too little recognised) the page keeps its text
+layer, however short, as `TEXT_LAYER`. The first version of the spec emptied such pages; the CTO changed it after
+review because discarding extracted text silently loses data that the product could cite (a short heading, a figure
+such as "60 credits"), and nothing is gained by it: the length threshold exists to decide when OCR is worth trying,
+not to delete text. The "no extractable text" rejection therefore applies only when every page's text layer is
+blank. A page whose image would exceed 25 megapixels is rendered at the largest DPI that stays under the cap.
+`TextExtractor` became an injected component (engine and page cap) instead of a static utility; DOCX and TXT are
+unchanged. Rejected: always running OCR and preferring the better text (slow, and a text layer is more reliable
+than any recognition) and emptying thin pages (data loss).
+
+**D-165 — Page cap and the "scanned" hint.** At most `lexvay.ocr.max-pages` (200) pages per document are sent to
+OCR. The check counts the pages that need OCR and runs before any recognition, so an oversized upload fails at
+once with `TooManyScannedPagesException`, a permanent job failure, and no CPU is spent. A document whose pages are
+all empty still fails with "Document has no extractable text"; for a PDF whose engine is unavailable the message
+continues ". It looks scanned; OCR is not enabled on this server". Decided by the CTO.
+
+**D-166 — Schema (V009).** `document_page.text_source` (default `TEXT_LAYER`, `CHECK IN ('TEXT_LAYER','OCR')`),
+`ocr_confidence numeric(5,2)` and `CHECK ((text_source = 'OCR') = (ocr_confidence IS NOT NULL))`, as specified;
+one addition, `CHECK` that the confidence lies in 0..100. The default makes existing rows `TEXT_LAYER` without a
+backfill. `document_page` stays immutable (V003 trigger); the columns are written only on insert. V006 and V008
+remain reserved. The repositories read the confidence with `CAST(... AS double precision)` because the PostgreSQL
+driver does not convert `numeric` to `Double`.
+
+**D-167 — Product rule 4 for OCR pages.** Evidence cited from an OCR page with confidence below
+`lexvay.matching.min-ocr-confidence` (80, exclusive: exactly 80 passes) cannot be `EVIDENCE_FOUND`; it becomes
+`AMBIGUOUS` with "the cited page was read by OCR with NN % confidence; check the original". NN is rounded down so a
+page under the threshold never displays as the threshold. The quote is verified against the stored OCR text exactly
+as against a text layer (rule 2); a quote that is not in the OCR text is still `EVIDENCE_MISSING`. The threshold has
+no `LEXVAY_*` alias on purpose; it is a safety setting.
+
+**D-168 — Downgrade rules as an ordered list.** `DowngradeRule` is a functional interface returning an optional
+reason for a passage and a verified quote; `DowngradeRule.ordered(minQuoteChars, minOcrConfidence)` lists
+`notRequiredCourse`, `thinQuote`, `lowOcrConfidence`. `EvidenceMatcher` walks the list for an `EVIDENCE_FOUND`
+proposal; every rule that applies appends " Downgraded to ambiguous: <reason>". This differs from the two `if`
+blocks it replaces in one visible way: when two rules apply (an elective course and a thin quote) the rationale now
+names both, where the second used to be hidden behind the first. The finding is the same either way. A fourth
+rule is one more list entry.
+
+**D-169 — Read models and audit.** `PageSummary` (document view) and `Mapping.Evidence` expose `textSource` and
+`ocrConfidence` (null for text layers). `MappingRepository` joins `document_page` on (document, page number) to
+fill them; `Passage` carries the same two fields from the one shared search template. `DOCUMENT_INGESTED` audit
+detail gains `ocrPages`. Docker: no `Dockerfile` exists on `main` at the time of writing, so there is no runtime
+stage to extend; whoever adds one must install Tesseract (`apt-get install tesseract-ocr`) and set
+`LEXVAY_OCR=tesseract`.
+
+**Content limits (after WS-SEC).** OCR goes through the existing `ContentLimits`: `TextExtractor.pdfPages` calls
+`ContentLimits.requirePdfPages` (500 pages) before any text is read or any page is rendered, and DOCX still passes
+`requireSafeDocx`. The OCR cap (`lexvay.ocr.max-pages`, 200) is not a parallel copy of that limit: it counts only the
+pages that need recognition, which is where the CPU cost is. F11 adds no endpoint, so `InputValidationTableTest`
+needs no new row (upload and document read are already covered).
+
+### F12 — Rule source monitoring (D-180 to D-189)
+
+**D-180 — One seam for the network, one for DNS; fakes are `@Primary` beans imported by the test base.** `HttpFetcher`
+(`Fetched fetch(URI)`: status, content type, bytes) is the only code that opens a connection for the monitoring job.
+`JdkHttpFetcher` is the production bean. `FakeHttpFetcher` (scripted by URL; a URL nobody scripted is a `FetchRejected`)
+and `FakeHostResolver` (IP literals resolve to themselves, three named test hosts resolve to a public, a private and the
+metadata address, anything else is unresolvable) are annotated `@Primary` and imported by `AbstractDatabaseTest`, so every
+database test uses them and none needs the network or DNS. No Mockito. Because the fetcher is shared by all tests of a
+JVM, each test uses URLs of its own (`AbstractRuleSourceTest.newUrl`). Rejected: `@MockitoBean` (the project uses scripted
+fakes, like `FakeLlmClient`); a per-test `@TestConfiguration` (would give every test class its own Spring context).
+
+**D-181 — `JdkHttpFetcher`.** `java.net.http.HttpClient`, connect timeout 10 s, and 30 s for the whole response, body included: the request timeout
+alone covers only the wait for the headers, so the call is `sendAsync` with a 30 s `get` deadline that cancels the request.
+Redirects are set to `NEVER` and followed by hand: at most 3, and the `UrlPolicy` runs before every hop, including the first. A
+fourth redirect is a `FetchRejected`. The 20 MB
+cap is a small `BodySubscriber` that cancels the download at the first byte over the cap (`BodyHandlers.limiting` does
+not exist in the JDK 21 this project targets); a server that streams forever costs 20 MB of memory at most. A status of 400
+or more is returned, not thrown, so the check can record it; connection failures, timeouts, the cap and a refused address are
+`FetchRejected`. The job's database transaction stays open while the fetch runs (the job runner wraps every handler), so a
+slow server holds one connection for up to about 40 seconds. That is acceptable at one check per source per interval and
+was kept rather than redesigning `JobRunner`. The real fetcher is tested against a `com.sun.net.httpserver` server on
+loopback with a permissive policy (the policy has its own tests), plus one test that the real policy refuses that server.
+
+**D-182 — SSRF guard.** `UrlPolicy.requireAllowed(URI)` (production: `SsrfGuard`, over a `HostResolver`) refuses any scheme
+but http and https, a missing host, a host that does not resolve, and a host with any resolved address that is: any-local
+(`0.0.0.0`, `::`), loopback, link-local (this covers `169.254.169.254`), site-local (RFC 1918), multicast, "this network"
+`0.0.0.0/8`, carrier-grade NAT `100.64.0.0/10`, IPv6 unique-local `fc00::/7`, or an IPv4-compatible IPv6 address whose
+embedded IPv4 address is any of those (IPv4-mapped addresses are already IPv4 for the JDK). It runs at registration (a 400
+problem detail, nothing stored) and on every hop at run time (a `FETCH_FAILED` check). A host that does not resolve is
+refused at registration so a typo is caught at once. **Known residual risk:** the policy resolves the name, then the JDK client
+resolves it again to connect, so a DNS record that changes between the two (DNS rebinding) is not caught. Closing it needs
+the connection to be made to the checked address, which `java.net.http` does not allow without a JVM-wide resolver SPI. Deployments
+should also deny egress to private ranges at the network level (infrastructure). Rejected: a blocklist of host names
+(`localhost`), which is bypassed by any alias; checking only at registration.
+
+**D-183 — HTML text, pagination and the content hash.** `FileType.HTML` exists for fetched content only: `FileType.detect`
+(uploads) never returns it, so an HTML upload is still refused; `FileType.detectFetched(contentType, bytes)` decides for
+fetched content (PDF and DOCX by leading bytes whatever the server says, HTML by `text/html` or a leading
+`<!doctype html`/`<html`, TXT by `text/plain` and valid UTF-8, anything else is refused). `HtmlText` (jsoup) removes
+`script, style, nav, header, footer`, makes every block element and `<br>` a line, collapses white space, drops blank lines,
+and groups lines into pages of at most 4 000 characters at line boundaries; a line longer than a page is cut at the last
+space that fits, or at 4 000 characters when it has none. The charset comes from the byte order mark or the meta tag (UTF-8
+otherwise). The hash is SHA-256 of `QuoteVerifier.normalizeWhitespace` over the pages joined by a newline (the same join as the
+offsets, D-041), using the existing `DocumentService.sha256`. Whitespace, markup, pagination and navigation changes leave it
+unchanged; one changed word changes it. Hashing the downloaded bytes was rejected: timestamps and tokens in a page would
+report a change at every check. **Disagreement with the spec text:** it says pagination works "exactly like the TXT path does
+today", but the TXT path makes one page (D-017). I implemented the stated rule (4 000 characters, paragraph boundaries) and
+left TXT alone; offsets, the newline join and the empty-document rule are shared with the TXT path.
+
+**D-184 — The check job.** `CHECK_RULE_SOURCE` payload `{ruleSourceId}`. Every check writes one `rule_source_check` row and an
+audit row `RULE_SOURCE_CHECKED` (system actor, job id in the detail), and sets `last_checked_at`.
+- *Failure is a check, not a failed job.* A status outside 2xx, a `FetchRejected`, an unsupported content type, an empty or
+  unparsable document each give `FETCH_FAILED` with the status (when there was one) and a message of at most 1 000
+  characters. The job ends DONE. `last_checked_at` moves on a failure too, so a broken source is retried after its interval
+  rather than at every scheduler poll (5 minutes), which would hammer the remote server and fill the table; a person can retry
+  at once with `POST /rule-sources/{id}/check`. `last_content_hash` never moves on a failure.
+- *UNCHANGED* when the hash equals `last_content_hash`. The first check has no hash, so it is always CHANGED.
+- *Which version is superseded.* `RuleVersionRepository.findCurrentApproved`: approved for the jurisdiction and license type
+  and not itself superseded by an approved version (latest `effective_from` first); none means the draft supersedes nothing
+  and no change event is created. `findDraft` finds an unapproved version that supersedes that one (or, when there is none,
+  one that supersedes nothing). A draft means `DRAFT_EXISTS` (the detail names it) and nothing is stored.
+- *The baseline does not move on `DRAFT_EXISTS`.* The new text is not forgotten: once the waiting draft is approved the
+  next check sees the difference and drafts it. The cost is one extra draft whose text may equal the just approved one when
+  nothing changed again after the approval; it is unapproved and shows an empty diff. Moving the baseline instead would lose a
+  rule change that arrived while a draft waited, which is the worse error for this product.
+- *CHANGED.* The bytes are stored as a `RULE_TEXT` document with its pages (`DocumentService.storeRuleText`, extracted pages
+  passed in so a large PDF is parsed once), then `RuleVersionService.createFromDocument` creates the version: label
+  `<source label> fetched <yyyy-mm-dd>` (UTC date), `sourceUrl` the source URL, `effectiveFrom` the check date, `supersedesId` as
+  above. Same validation, audit (`RULE_VERSION_CREATED`), change event, reopening of signed determinations and
+  `EXTRACT_REQUIREMENTS` job as `POST /rule-versions`. Nothing approves anything.
+- *Same bytes seen before.* Content this tenant already holds (a page that returned to an earlier text) is a
+  `DuplicateDocumentException`; the handler reuses that document instead of failing. `storeRuleText` is deliberately not
+  `@Transactional`, because an exception passing a transactional proxy would mark the job's transaction rollback-only.
+- *System actor.* `CurrentUser.idOrNull()` replaces three copies of `CurrentUser.get().map(...).orElse(null)` and is used where a
+  job now runs code written for a signed-in user: `RuleVersionService`, `DocumentService.storeRuleText`,
+  `ChangeService.onRuleVersionSuperseded`. Their rows get `created_by` null, like other job-created rows.
+- *Audit of the stored document.* A rule text stored through `POST /rule-versions` has no `DOCUMENT_UPLOADED` row (D-044); the
+  fetched one is identical: the document id is in `RULE_VERSION_CREATED` and `RULE_SOURCE_CHECKED`.
+`RuleVersionService.create` now delegates to the same private insert as `createFromDocument`; behaviour and error order of the
+existing endpoint are unchanged.
+
+**D-185 — Scheduler and the worker flag.** `RuleSourceScheduler` (`@ConditionalOnProperty lexvay.rule-sources.enabled=true`,
+no `matchIfMissing`, so off by default; `LEXVAY_RULE_SOURCES_ENABLED`, `LEXVAY_RULE_SOURCES_POLL_INTERVAL_MS`, default 300 000)
+calls `RuleSourceRepository.enqueueDue()`: in one transaction it sets the transaction-local `lexvay.worker` flag and runs one
+`INSERT ... SELECT` for active sources that were never checked or whose `last_checked_at` is older than
+`check_interval_hours`, skipping any with a `CHECK_RULE_SOURCE` job QUEUED or RUNNING. The manual path uses the same
+statement with a different predicate (`rs.id = :id`, whether or not active or due), so "already queued or running" means the same
+thing in both and the 409 comes from the insert returning no row. Cross-tenant queueing needs two policies the spec did not list;
+V011 adds them: `worker_due_select` on `rule_source` (SELECT when the flag is on) and `worker_enqueue_insert` on `job` (INSERT
+when the flag is on), next to the poller's existing job policies (D-013). Nothing else honours the flag; a tenant session
+cannot set it (`Rule7_RuleSourceIsolationTest`). The scheduler class lives in `com.lexvay.rule.source`, not beside `JobPoller`
+in `com.lexvay.job`: it needs `RuleSourceRepository`, and `rule.source` already depends on `job` (the handler), so the other
+placement would create a package cycle. It carries its own `@EnableScheduling` because `JobPoller` is itself conditional.
+Two instances of the service may both run it; the dedupe predicate keeps it to one job per source in the common case (a rare
+duplicate is harmless: the second check is UNCHANGED).
+
+**D-186 — API, roles, seed.** `POST /rule-sources` (ADMIN, REVIEWER; 201 `{id, jobId}`), `GET /rule-sources` (one statement
+with a lateral join to the latest check), `GET /rule-sources/{id}/checks?limit=` (default 50, 1 to 200; 404 for an unknown
+source, still one statement, by left-joining the checks to the source), `POST /rule-sources/{id}/check` (ADMIN, REVIEWER; 202
+`{jobId}`; 409 when queued or running), `PUT /rule-sources/{id}/active` (ADMIN; 200 `{id, active}`). Audit actions:
+`RULE_SOURCE_CREATED`, `RULE_SOURCE_CHECK_REQUESTED`, `RULE_SOURCE_ACTIVE_CHANGED`, `RULE_SOURCE_CHECKED` (by the job). A
+manual check works on a deactivated source: deactivating stops the schedule, not a person's explicit request. Registration
+validates the address with the policy; `RuleSourceService.register` (no address resolution, no first check) exists for the
+seed only, because the seed address `example.invalid` cannot resolve and the demo must stay offline. The seed registers one
+source for the one demo tenant (Northfield, Colorado) and none for the isolation fixture tenant (Westbrook has no rule
+versions); `SeedManifest.Tenant` gets `ruleSources`, which the evaluation copy leaves out. Nothing queues a job, so the source stays
+inert until a person asks or the scheduler is switched on.
+
+**D-187 — Schema (V011).** As specified, with these additions: CHECK constraints on lengths, on `url` (`^https?://[^[:space:]]+$`,
+at most 2 000 characters), on the hash format, on `http_status` (100 to 599), and two on `rule_source_check` so that only a
+CHANGED check carries a document and a rule version and a CHANGED check carries both; `rule_source` has no DELETE (trigger,
+`forbid_change`) because checks reference it. The label is limited to 150 characters so that the draft's label (plus
+" fetched yyyy-mm-dd") stays under the 200 of a rule version. `rule_source_check` has no `created_by`: the job writes it and the
+audit row names the job. Rejected: a unique constraint on (tenant, URL), which the spec does not ask for and which would turn
+a harmless duplicate into a 409.
+
+**D-188 — Tests.** `SsrfGuardTest` (every range and edge, no DNS), `JdkHttpFetcherTest` (loopback server: body, status,
+redirects and their limit, per-hop policy, the 20 MB cap exactly, unreachable server), `HtmlTextTest`, `FileTypeTest`,
+`CheckRuleSourceTest` (CHANGED, system audit, extraction without approval, first check, UNCHANGED, markup-only change,
+DRAFT_EXISTS and its pickup after approval, document reuse, PDF, seven kinds of FETCH_FAILED with the job DONE, baseline kept
+after a failure), `RuleSourceApiTest`, `RuleSourceEnqueueTest`, `RuleSourceSchedulerLoopTest` (scheduler enabled, its own
+context, closed afterwards so no later test class has a scheduler running), `Rule7_RuleSourceIsolationTest`,
+`Rule5_RuleSourceImmutabilityTest`, rows in `InputValidationTableTest` and `Rule9_AuditCoverageTest`, the seed assertion in
+`SeedLoaderTest`.
+
+**D-189 — Open points for the orchestrator.** (1) Pagination wording in the spec (D-183). (2) The scheduler's package (D-185).
+(3) A failed check delays the retry by a full interval (D-184); say so if a shorter retry is wanted, it is a one-line change in
+the due predicate plus a column. (4) DNS rebinding (D-182). (5) A frontend screen for sources is not part of this item.

@@ -10,12 +10,12 @@ import org.junit.jupiter.api.Test;
 class RequirementComparisonTest {
 
     private static Requirement subject(String title, String text) {
-        return new Requirement(UUID.randomUUID(), UUID.randomUUID(), "X-1", title, text, RequirementType.SUBJECT, null, null, null);
+        return new Requirement(UUID.randomUUID(), UUID.randomUUID(), "X-1", title, text, RequirementType.SUBJECT, null, null, null, 1);
     }
 
     private static Requirement hours(String text, String operator, String value) {
         return new Requirement(UUID.randomUUID(), UUID.randomUUID(), "X-2", "Hours", text, RequirementType.SUPERVISED_HOURS,
-                NumericField.INTERNSHIP_HOURS, operator, value == null ? null : new BigDecimal(value));
+                NumericField.INTERNSHIP_HOURS, operator, value == null ? null : new BigDecimal(value), 1);
     }
 
     @Test
@@ -51,7 +51,7 @@ class RequirementComparisonTest {
     void aTypeChangeIsReportedAndDoesNotCarryOver() {
         var a = subject("Ethics", "coursework in ethics");
         var b = new Requirement(UUID.randomUUID(), UUID.randomUUID(), "X-1", "Ethics", "coursework in ethics",
-                RequirementType.JURISDICTION_SPECIFIC, null, null, null);
+                RequirementType.JURISDICTION_SPECIFIC, null, null, null, 1);
         assertThat(RequirementComparison.changes(a, b)).containsExactly(Aspect.TYPE);
         assertThat(RequirementComparison.sameForEvaluation(a, b)).isFalse();
     }
@@ -67,7 +67,7 @@ class RequirementComparisonTest {
     void numericOperatorAndFieldChangesAreDetected() {
         assertThat(RequirementComparison.changes(hours("hours", ">=", "600"), hours("hours", ">", "600"))).containsExactly(Aspect.NUMERIC);
         var otherField = new Requirement(UUID.randomUUID(), UUID.randomUUID(), "X-2", "Hours", "hours", RequirementType.SUPERVISED_HOURS,
-                NumericField.PRACTICUM_HOURS, ">=", new BigDecimal("600"));
+                NumericField.PRACTICUM_HOURS, ">=", new BigDecimal("600"), 1);
         assertThat(RequirementComparison.changes(hours("hours", ">=", "600"), otherField)).containsExactly(Aspect.NUMERIC);
         assertThat(RequirementComparison.sameForEvaluation(hours("hours", ">=", "600"), otherField)).isFalse();
     }

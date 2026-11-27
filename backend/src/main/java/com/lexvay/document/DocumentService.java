@@ -30,7 +30,13 @@ public class DocumentService {
     public record UploadResult(UUID documentId, UUID jobId) {
     }
 
-    public record PageSummary(int pageNumber, int charStart, int charEnd, int length) {
+    public record PageSummary(int pageNumber, int charStart, int charEnd, int length, TextSource textSource,
+                              Double ocrConfidence) {
+    }
+
+    /** A single page of extracted text with where it belongs. Pages never change once ingested. */
+    public record PageView(UUID documentId, String filename, DocumentKind kind, String courseCode, Boolean courseRequired,
+                           int pageNumber, int pageCount, String text, TextSource textSource, Double ocrConfidence) {
     }
 
     public record IngestStatus(UUID jobId, String status, String error) {
@@ -102,15 +108,57 @@ public class DocumentService {
         return new UploadResult(documentId, jobId);
     }
 
+    /**
+     * Stores rule text, which belongs to no program (D-009): the file, the document row and its already extracted
+     * pages (D-044), so a rule version can be extracted at once without an ingest job. The caller is a person or,
+     * for a rule source check, the system (no user). Content already stored for this tenant is a
+     * {@link DuplicateDocumentException} carrying the existing document. It runs in the caller's transaction and is not
+     * itself transactional, so a caller that handles the duplicate does not find the transaction marked for rollback.
+     */
+    public UUID storeRuleText(byte[] bytes, String filename, List<ExtractedPage> pages) {
+        String sha256 = sha256(bytes);
+        documents.findDuplicate(null, sha256).ifPresent(existing -> {
+            throw new DuplicateDocumentException(existing.id());
+        });
+        UUID tenantId = TenantContext.require();
+        UUID actor = CurrentUser.idOrNull();
+        UUID documentId = UUID.randomUUID();
+        String storageKey = tenantId + "/" + documentId;
+        files.put(storageKey, bytes);
+        documents.insert(documentId, tenantId, null, null, filename, sha256, storageKey, DocumentKind.RULE_TEXT, actor);
+        for (ExtractedPage page : pages) {
+            documents.insertPage(tenantId, documentId, page, actor);
+        }
+        return documentId;
+    }
+
+    @Transactional(readOnly = true)
     public DocumentView get(UUID id) {
-        Document document = documents.findById(id).orElseThrow(() -> new NotFoundException("Document not found"));
+        Document document = find(id);
         List<PageSummary> pages = documents.pages(id).stream()
-                .map(p -> new PageSummary(p.pageNumber(), p.charStart(), p.charEnd(), p.text().length()))
+                .map(p -> new PageSummary(p.pageNumber(), p.charStart(), p.charEnd(), p.text().length(), p.textSource(),
+                        p.ocrConfidence()))
                 .toList();
         Optional<IngestStatus> ingest = jobs.latest(JobType.INGEST_DOCUMENT, "documentId", id)
                 .map(j -> new IngestStatus(j.id(), j.status().name(), j.error()));
         return new DocumentView(document.id(), document.programId(), document.courseVersionId(), document.filename(),
                 document.sha256(), document.kind(), document.createdAt(), document.createdBy(), pages, ingest.orElse(null));
+    }
+
+    /** The document row, one statement; row-level security makes another tenant's document not found. */
+    @Transactional(readOnly = true)
+    public Document find(UUID id) {
+        return documents.findById(id).orElseThrow(() -> new NotFoundException("Document not found"));
+    }
+
+    /** The original uploaded bytes from the file store; no database work, so it runs outside any transaction. */
+    public byte[] content(Document document) {
+        return files.get(document.storageKey());
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentRepository.PageWithContext page(UUID id, int pageNumber) {
+        return documents.pageWithContext(id, pageNumber).orElseThrow(() -> new NotFoundException("Document page not found"));
     }
 
     private static void requireUsableFilename(String filename) {

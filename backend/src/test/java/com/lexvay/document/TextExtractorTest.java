@@ -8,12 +8,14 @@ import org.junit.jupiter.api.Test;
 
 class TextExtractorTest {
 
+    final TextExtractor extractor = new TextExtractor(new NoOcrEngine(), 200);
+
     @Test
     void pdfPagesKeepTextAndCumulativeOffsets() {
         byte[] pdf = TestDocuments.pdf(List.of(
                 List.of("Fictional. Prototype data.", "COUN 605 Professional Orientation and Ethics"),
                 List.of("Week 3: Legal standards and confidentiality")));
-        List<ExtractedPage> pages = TextExtractor.extract(FileType.PDF, pdf);
+        List<ExtractedPage> pages = extractor.extract(FileType.PDF, pdf);
         assertThat(pages).hasSize(2);
         assertThat(pages.get(0).pageNumber()).isEqualTo(1);
         assertThat(pages.get(0).text()).contains("COUN 605 Professional Orientation and Ethics");
@@ -28,7 +30,7 @@ class TextExtractorTest {
     @Test
     void docxBecomesOnePage() {
         byte[] docx = TestDocuments.docx(List.of("Clinical Handbook", "Practicum: 100 hours. Internship: 600 hours."));
-        List<ExtractedPage> pages = TextExtractor.extract(FileType.DOCX, docx);
+        List<ExtractedPage> pages = extractor.extract(FileType.DOCX, docx);
         assertThat(pages).hasSize(1);
         assertThat(pages.get(0).text()).contains("Practicum: 100 hours. Internship: 600 hours.");
         assertThat(pages.get(0).charStart()).isZero();
@@ -36,7 +38,7 @@ class TextExtractorTest {
 
     @Test
     void txtIsOnePageWithNormalizedLineEndings() {
-        List<ExtractedPage> pages = TextExtractor.extract(FileType.TXT, TestDocuments.txt("line one\r\nline two\r\n"));
+        List<ExtractedPage> pages = extractor.extract(FileType.TXT, TestDocuments.txt("line one\r\nline two\r\n"));
         assertThat(pages).hasSize(1);
         assertThat(pages.get(0).text()).isEqualTo("line one\nline two");
         assertThat(pages.get(0).charEnd()).isEqualTo("line one\nline two".length());
@@ -45,14 +47,14 @@ class TextExtractorTest {
     @Test
     void blankPdfIsRejectedAsEmpty() {
         byte[] blank = TestDocuments.pdf(List.of(List.of(), List.of()));
-        assertThatThrownBy(() -> TextExtractor.extract(FileType.PDF, blank))
+        assertThatThrownBy(() -> extractor.extract(FileType.PDF, blank))
                 .isInstanceOf(EmptyDocumentException.class)
-                .hasMessage("Document has no extractable text");
+                .hasMessage("Document has no extractable text. It looks scanned; OCR is not enabled on this server");
     }
 
     @Test
     void corruptPdfIsRejectedAsUnparsable() {
-        assertThatThrownBy(() -> TextExtractor.extract(FileType.PDF, TestDocuments.corruptPdf()))
+        assertThatThrownBy(() -> extractor.extract(FileType.PDF, TestDocuments.corruptPdf()))
                 .isInstanceOf(UnparsableDocumentException.class)
                 .hasMessageContaining("could not be parsed");
     }
@@ -60,7 +62,7 @@ class TextExtractorTest {
     @Test
     void corruptDocxIsRejectedAsUnparsable() {
         byte[] garbage = "PK\u0003\u0004 not a zip".getBytes();
-        assertThatThrownBy(() -> TextExtractor.extract(FileType.DOCX, garbage))
+        assertThatThrownBy(() -> extractor.extract(FileType.DOCX, garbage))
                 .isInstanceOf(UnparsableDocumentException.class);
     }
 

@@ -195,6 +195,12 @@ class InputValidationTableTest extends AbstractDatabaseTest {
                 "/api/v1/auth/session?q=%00%ff", null, null, 200));
         rows.add(row("me: hostile query parameter is ignored", "GET /api/v1/auth/me", HttpMethod.GET,
                 "/api/v1/auth/me?q=%00%ff", null, null, 200));
+        rows.add(row("users: hostile query parameter is ignored", "GET /api/v1/users", HttpMethod.GET,
+                "/api/v1/users?q=%00%ff", null, null, 200));
+
+        // --- test-only probe of the logging context (src/test, observability) ---
+        rows.add(row("mdc probe: hostile query parameter is ignored", "GET /api/v1/test-support/mdc", HttpMethod.GET,
+                "/api/v1/test-support/mdc?q=%00%ff", null, null, 200));
 
         // --- jurisdictions, jobs, audit ---
         rows.add(row("jurisdictions: hostile query parameter is ignored", "GET /api/v1/jurisdictions", HttpMethod.GET,
@@ -205,6 +211,13 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(row("audit: limit above maximum", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?limit=501", null, null, 400));
         rows.add(row("audit: negative offset", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?offset=-1", null, null, 400));
         rows.add(row("audit: offset overflows an int", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?offset=99999999999", null, null, 400));
+
+        rows.add(row("audit: entity id is not a UUID", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?entityId=" + BAD_ID, null, null, 400));
+        rows.add(row("audit: user id is not a UUID", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?userId=" + BAD_ID, null, null, 400));
+        rows.add(row("audit: from is not a timestamp", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?from=yesterday", null, null, 400));
+        rows.add(row("audit: to is not a timestamp", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?to=%00", null, null, 400));
+        rows.add(row("audit: control character in action filter", "GET /api/v1/audit", HttpMethod.GET,
+                "/api/v1/audit?action=a%00b", null, null, 400));
 
         // --- programs ---
         Map<String, Object> program = Map.of("name", "P", "licenseType", "L", "catalogYear", "2026-27", "jurisdictions", List.of("CA"));
@@ -261,11 +274,32 @@ class InputValidationTableTest extends AbstractDatabaseTest {
 
         // --- documents ---
         rows.add(row("document: id is not a UUID", "GET /api/v1/documents/{id}", HttpMethod.GET, "/api/v1/documents/" + BAD_ID, null, null, 400));
+        String page = "GET /api/v1/documents/{id}/pages/{pageNumber}";
+        rows.add(row("document page: id is not a UUID", page, HttpMethod.GET, "/api/v1/documents/" + BAD_ID + "/pages/1", null, null, 400));
+        rows.add(row("document page: page number is not a number", page, HttpMethod.GET, "/api/v1/documents/" + DOCUMENT + "/pages/one", null, null, 400));
+        rows.add(row("document page: page number overflows an int", page, HttpMethod.GET,
+                "/api/v1/documents/" + DOCUMENT + "/pages/99999999999", null, null, 400));
+        rows.add(row("document page: page number zero does not exist", page, HttpMethod.GET, "/api/v1/documents/" + DOCUMENT + "/pages/0", null, null, 404));
+        String file = "GET /api/v1/documents/{id}/file";
+        rows.add(row("document file: id is not a UUID", file, HttpMethod.GET, "/api/v1/documents/" + BAD_ID + "/file", null, null, 400));
+        rows.add(row("document file: unknown id is not found", file, HttpMethod.GET, "/api/v1/documents/" + ID + "/file", null, null, 404));
+        rows.add(row("document file: hostile query parameter is ignored", file, HttpMethod.GET,
+                "/api/v1/documents/" + DOCUMENT + "/file?q=%00%ff", null, null, 200));
+
+        // --- program overview and assessments of a program ---
+        rows.add(row("overview: program id is not a UUID", "GET /api/v1/programs/{programId}/overview", HttpMethod.GET,
+                "/api/v1/programs/" + BAD_ID + "/overview", null, null, 400));
+        rows.add(row("assessments of a program: program id is not a UUID", "GET /api/v1/programs/{programId}/assessments", HttpMethod.GET,
+                "/api/v1/programs/" + BAD_ID + "/assessments", null, null, 400));
 
         // --- assessments ---
         rows.add(row("assessment start: program id is not a UUID", "POST /api/v1/programs/{programId}/assessments", HttpMethod.POST,
                 "/api/v1/programs/" + BAD_ID + "/assessments", null, null, 400));
         rows.add(row("assessment: id is not a UUID", "GET /api/v1/assessments/{id}", HttpMethod.GET, "/api/v1/assessments/" + BAD_ID, null, null, 400));
+        rows.add(row("assessment usage: id is not a UUID", "GET /api/v1/assessments/{id}/usage", HttpMethod.GET,
+                "/api/v1/assessments/" + BAD_ID + "/usage", null, null, 400));
+        rows.add(row("assessment usage: unknown id", "GET /api/v1/assessments/{id}/usage", HttpMethod.GET,
+                "/api/v1/assessments/" + ID + "/usage", null, null, 404));
         rows.add(row("assessment mappings: id is not a UUID", "GET /api/v1/assessments/{id}/mappings", HttpMethod.GET,
                 "/api/v1/assessments/" + BAD_ID + "/mappings", null, null, 400));
         rows.add(row("assessment mappings: jurisdiction is not two capital letters", "GET /api/v1/assessments/{id}/mappings", HttpMethod.GET,
@@ -313,6 +347,8 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         Map<String, Object> review = Map.of("kind", "ACCEPTED", "note", "Looks right");
         String reviews = "/api/v1/mappings/" + MAPPING + "/reviews";
         String postReview = "POST /api/v1/mappings/{id}/reviews";
+        rows.add(row("review history: mapping id is not a UUID", "GET /api/v1/mappings/{id}/reviews", HttpMethod.GET,
+                "/api/v1/mappings/" + BAD_ID + "/reviews", null, null, 400));
         rows.add(row("review: mapping id is not a UUID", postReview, HttpMethod.POST, "/api/v1/mappings/" + BAD_ID + "/reviews",
                 json(review), JSON, 400));
         bodies.post("review: kind missing", postReview, reviews, without(review, "kind"));
@@ -376,6 +412,44 @@ class InputValidationTableTest extends AbstractDatabaseTest {
                 "/api/v1/change-events?q=%00%ff", null, null, 200));
         rows.add(row("change event rerun: id is not a UUID", "POST /api/v1/change-events/{id}/rerun", HttpMethod.POST,
                 "/api/v1/change-events/" + BAD_ID + "/rerun", null, null, 400));
+
+        // --- rule sources ---
+        Map<String, Object> ruleSource = Map.of("jurisdictionCode", "CA", "licenseType", "L", "label", "Demo rule source",
+                "url", "https://rules.example.test/rules.pdf", "checkIntervalHours", 24);
+        String ruleSources = "/api/v1/rule-sources";
+        String postRuleSource = "POST /api/v1/rule-sources";
+        bodies.post("rule sources create: jurisdiction is not two capital letters", postRuleSource, ruleSources, with(ruleSource, "jurisdictionCode", "california"));
+        bodies.post("rule sources create: unknown jurisdiction code", postRuleSource, ruleSources, with(ruleSource, "jurisdictionCode", "ZZ"));
+        bodies.post("rule sources create: license type missing", postRuleSource, ruleSources, without(ruleSource, "licenseType"));
+        bodies.post("rule sources create: oversized label", postRuleSource, ruleSources, with(ruleSource, "label", "l".repeat(151)));
+        bodies.post("rule sources create: control character in label", postRuleSource, ruleSources, with(ruleSource, "label", "a\u0000b"));
+        bodies.post("rule sources create: URL is not http", postRuleSource, ruleSources, with(ruleSource, "url", "ftp://rules.example.test/rules.pdf"));
+        bodies.post("rule sources create: URL contains a space", postRuleSource, ruleSources, with(ruleSource, "url", "https://rules.example.test/a b"));
+        bodies.post("rule sources create: URL is a loopback address", postRuleSource, ruleSources, with(ruleSource, "url", "http://127.0.0.1/rules"));
+        bodies.post("rule sources create: URL is a private address", postRuleSource, ruleSources, with(ruleSource, "url", "http://10.0.0.1/rules"));
+        bodies.post("rule sources create: URL is a link-local address", postRuleSource, ruleSources, with(ruleSource, "url", "http://169.254.1.1/rules"));
+        bodies.post("rule sources create: URL is an IPv6 loopback address", postRuleSource, ruleSources, with(ruleSource, "url", "http://[::1]/rules"));
+        bodies.post("rule sources create: URL host does not resolve", postRuleSource, ruleSources, with(ruleSource, "url", "https://nowhere.example.test/rules"));
+        bodies.post("rule sources create: oversized URL", postRuleSource, ruleSources, with(ruleSource, "url", "https://rules.example.test/" + "u".repeat(2000)));
+        bodies.post("rule sources create: interval below one hour", postRuleSource, ruleSources, with(ruleSource, "checkIntervalHours", 0));
+        bodies.post("rule sources create: interval above thirty days", postRuleSource, ruleSources, with(ruleSource, "checkIntervalHours", 721));
+        bodies.post("rule sources create: interval is not a number", postRuleSource, ruleSources, with(ruleSource, "checkIntervalHours", "daily"));
+        rows.add(row("rule sources list: hostile query parameter is ignored", "GET /api/v1/rule-sources", HttpMethod.GET,
+                ruleSources + "?q=%00%ff", null, null, 200));
+        String checksEndpoint = "GET /api/v1/rule-sources/{id}/checks";
+        rows.add(row("rule source checks: id is not a UUID", checksEndpoint, HttpMethod.GET, ruleSources + "/" + BAD_ID + "/checks", null, null, 400));
+        rows.add(row("rule source checks: limit below minimum", checksEndpoint, HttpMethod.GET, ruleSources + "/" + ID + "/checks?limit=0", null, null, 400));
+        rows.add(row("rule source checks: limit above maximum", checksEndpoint, HttpMethod.GET, ruleSources + "/" + ID + "/checks?limit=201", null, null, 400));
+        rows.add(row("rule source checks: limit is not a number", checksEndpoint, HttpMethod.GET, ruleSources + "/" + ID + "/checks?limit=many", null, null, 400));
+        rows.add(row("rule source check: id is not a UUID", "POST /api/v1/rule-sources/{id}/check", HttpMethod.POST,
+                ruleSources + "/" + BAD_ID + "/check", null, null, 400));
+        String putActive = "PUT /api/v1/rule-sources/{id}/active";
+        rows.add(row("rule source active: id is not a UUID", putActive, HttpMethod.PUT, ruleSources + "/" + BAD_ID + "/active",
+                json(Map.of("active", true)), JSON, 400));
+        rows.add(rawJson("rule source active: flag missing", putActive, HttpMethod.PUT, ruleSources + "/" + ID + "/active", "{}", 400));
+        rows.add(rawJson("rule source active: flag is not a boolean", putActive, HttpMethod.PUT, ruleSources + "/" + ID + "/active",
+                "{\"active\":\"maybe\"}", 400));
+        rows.add(rawJson("rule source active: body is not JSON", putActive, HttpMethod.PUT, ruleSources + "/" + ID + "/active", "{not json", 400));
 
         // --- reports ---
         rows.add(row("report request: determination id is not a UUID", "POST /api/v1/determinations/{id}/report", HttpMethod.POST,

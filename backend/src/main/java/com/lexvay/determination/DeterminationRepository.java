@@ -11,7 +11,9 @@ public class DeterminationRepository {
 
     private static final String SELECT = """
             SELECT d.id, d.program_id, j.code AS jurisdiction, d.jurisdiction_id, d.rule_version_id, rv.label AS rule_version_label,
-                   d.assessment_id, d.outcome, d.signed_by, u.display_name AS signed_by_name, d.signed_at, d.status, d.versions_hash
+                   d.assessment_id, d.outcome, d.signed_by, u.display_name AS signed_by_name, d.signed_at, d.status, d.versions_hash,
+                   ARRAY(SELECT dcv.course_version_id FROM determination_course_version dcv
+                         WHERE dcv.determination_id = d.id ORDER BY dcv.course_version_id) AS course_version_ids
             FROM determination d
             JOIN jurisdiction j ON j.id = d.jurisdiction_id
             JOIN rule_version rv ON rv.id = d.rule_version_id
@@ -58,10 +60,8 @@ public class DeterminationRepository {
     }
 
     private Determination map(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
-        UUID id = rs.getObject("id", UUID.class);
-        List<UUID> courseVersions = jdbc.sql("SELECT course_version_id FROM determination_course_version WHERE determination_id = :d ORDER BY course_version_id")
-                .param("d", id).query(UUID.class).list();
-        return new Determination(id, rs.getObject("program_id", UUID.class), rs.getString("jurisdiction"),
+        List<UUID> courseVersions = List.of((UUID[]) rs.getArray("course_version_ids").getArray());
+        return new Determination(rs.getObject("id", UUID.class), rs.getObject("program_id", UUID.class), rs.getString("jurisdiction"),
                 rs.getObject("jurisdiction_id", UUID.class), rs.getObject("rule_version_id", UUID.class), rs.getString("rule_version_label"),
                 rs.getObject("assessment_id", UUID.class), Outcome.valueOf(rs.getString("outcome")), rs.getObject("signed_by", UUID.class),
                 rs.getString("signed_by_name"), rs.getObject("signed_at", java.time.OffsetDateTime.class),

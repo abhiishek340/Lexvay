@@ -7,7 +7,7 @@ import com.lexvay.job.JobHandler;
 import com.lexvay.job.JobType;
 import com.lexvay.job.PermanentJobFailure;
 import com.lexvay.llm.LlmCallRecorder;
-import com.lexvay.llm.LlmClient;
+import com.lexvay.llm.LlmGateway;
 import com.lexvay.llm.LlmPurpose;
 import com.lexvay.llm.LlmRequest;
 import com.lexvay.llm.LlmResponse;
@@ -33,14 +33,14 @@ public class ExtractRequirementsHandler implements JobHandler {
 
     private final RuleVersionService ruleVersions;
     private final RuleVersionRepository repository;
-    private final LlmClient llm;
+    private final LlmGateway llm;
     private final LlmCallRecorder calls;
     private final RequirementListParser parser;
     private final AuditService audit;
     private final int maxOutputTokens;
     private final String systemPrompt;
 
-    public ExtractRequirementsHandler(RuleVersionService ruleVersions, RuleVersionRepository repository, LlmClient llm,
+    public ExtractRequirementsHandler(RuleVersionService ruleVersions, RuleVersionRepository repository, LlmGateway llm,
                                       LlmCallRecorder calls, RequirementListParser parser, AuditService audit,
                                       @Value("${lexvay.llm.max-output-tokens:16000}") int maxOutputTokens) {
         this.ruleVersions = ruleVersions;
@@ -90,9 +90,7 @@ public class ExtractRequirementsHandler implements JobHandler {
             throw new PermanentJobFailure("Requirement extraction produced invalid output twice: " + lastErrors);
         }
         UUID tenantId = TenantContext.require();
-        for (RequirementDraft draft : drafts) {
-            repository.insertRequirement(tenantId, ruleVersionId, draft, version.createdBy());
-        }
+        repository.insertRequirements(tenantId, ruleVersionId, drafts, version.createdBy());
         audit.recordAs(null, "REQUIREMENTS_EXTRACTED", "rule_version", ruleVersionId, Map.of(
                 "jobId", job.id().toString(), "model", llm.modelId(), "promptVersion", PROMPT_VERSION,
                 "requirementCount", drafts.size()));

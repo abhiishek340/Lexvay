@@ -16,6 +16,14 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  lifecycle:
+    timeout-per-shutdown-phase: ${LEXVAY_SHUTDOWN_GRACE:30s}
+  task:
+    scheduling:
+      shutdown:
+        # The job poller's running job finishes before the scheduler stops (D-146).
+        await-termination: true
+        await-termination-period: ${LEXVAY_SHUTDOWN_GRACE:30s}
   servlet:
     multipart:
       max-file-size: ${LEXVAY_UPLOAD_MAX_MB:25}MB
@@ -31,7 +39,7 @@ lexvay:
     model: ${LEXVAY_LLM_MODEL:claude-sonnet-5-5}
     effort: ${LEXVAY_LLM_EFFORT:medium}       # low | medium | high | xhigh | max
     max-output-tokens: 16000
-    price:                                    # USD per million tokens; used only by the evaluation cost report
+    price:                                    # USD per million tokens; evaluation cost report and GET /assessments/{id}/usage; 0 means not set
       input-per-mtok: ${LEXVAY_LLM_PRICE_INPUT_PER_MTOK:0}
       output-per-mtok: ${LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK:0}
   ratelimit:                              # per instance, per minute (D-092)
@@ -42,15 +50,29 @@ lexvay:
     idle-expiry: 10m
   matching:
     min-quote-chars: ${LEXVAY_MIN_QUOTE_CHARS:40}
+    min-ocr-confidence: 80
     shortlist-size: 8
     ranker: ${LEXVAY_MATCHING_RANKER:bm25}   # bm25 | ts_rank (the baseline the evaluation compares against)
+  ocr:
+    engine: ${LEXVAY_OCR:off}                              # off | tesseract
+    tesseract-path: ${LEXVAY_OCR_TESSERACT_PATH:tesseract}
+    language: ${LEXVAY_OCR_LANGUAGE:eng}
+    max-pages: 200
   jobs:
     polling-enabled: true
     poll-interval-ms: 1000
     max-attempts: 3
+  rule-sources:                           # F12: fetch the pages where licensing boards publish rules (D-185)
+    enabled: ${LEXVAY_RULE_SOURCES_ENABLED:false}
+    poll-interval-ms: ${LEXVAY_RULE_SOURCES_POLL_INTERVAL_MS:300000}
 
 server:
   port: ${LEXVAY_PORT:8080}
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json,application/problem+json
+    min-response-size: 1KB
   # Behind a load balancer set LEXVAY_FORWARD_HEADERS=native so the client address (rate limits) and the
   # scheme (HSTS, secure cookies) come from the trusted proxy headers (D-093).
   forward-headers-strategy: ${LEXVAY_FORWARD_HEADERS:none}
@@ -61,11 +83,43 @@ server:
         same-site: lax
         secure: ${LEXVAY_COOKIE_SECURE:false}
 
+# Metrics and the full health report are served on their own port, which is never published to users.
+# The main port keeps the probe paths /livez and /readyz (D-142).
 management:
+  server:
+    port: ${LEXVAY_MANAGEMENT_PORT:8090}
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
   endpoint:
     health:
       probes:
         enabled: true
+        add-additional-paths: true
+      group:
+        readiness:
+          include: readinessState,db
+
+logging:
+  pattern:
+    # Request id for web requests, job id for background work; empty otherwise.
+    correlation: "[%X{requestId:-}%X{jobId:-}] "
+
+---
+# Production: one JSON object per line in the Elastic Common Schema, with the MDC (requestId, tenantId,
+# userId, jobId) as top-level fields.
+spring:
+  config:
+    activate:
+      on-profile: prod
+logging:
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        name: lexvay
 
 ---
 # Single sign-on (D-090). Roles never come from the provider; see LexvayOidcUserService.
@@ -99,6 +153,9 @@ spring:
       on-profile: seed
 server:
   port: 0   # the security configuration needs the servlet runtime; a random port avoids clashing with a running server
+management:
+  server:
+    port: -1
 lexvay:
   jobs:
     polling-enabled: false

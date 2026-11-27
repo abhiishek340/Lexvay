@@ -1,5 +1,6 @@
 package com.lexvay.assessment.match;
 
+import com.lexvay.document.TextSource;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -152,7 +153,8 @@ public class PostgresPassageSearch implements PassageSearch {
                     return new Passage(rs.getObject("document_id", UUID.class), rs.getString("filename"), rs.getString("kind"),
                             rs.getObject("course_version_id", UUID.class), rs.getString("course_code"),
                             rs.getObject("course_required", Boolean.class), rs.getInt("page_number"), page,
-                            PassageExcerpter.excerpt(page, rs.getString("headline")), rs.getDouble("rank"));
+                            PassageExcerpter.excerpt(page, rs.getString("headline")), rs.getDouble("rank"),
+                            TextSource.valueOf(rs.getString("text_source")), rs.getObject("ocr_confidence", Double.class));
                 })
                 .list();
     }
@@ -181,6 +183,7 @@ public class PostgresPassageSearch implements PassageSearch {
                 scored AS (
                     SELECT d.id AS document_id, d.filename, d.kind, d.course_version_id, c.code AS course_code,
                            cv.required AS course_required, d.created_at, dp.page_number, dp.text,
+                           dp.text_source, CAST(dp.ocr_confidence AS double precision) AS ocr_confidence,
                            %4$s AS rank
                     FROM document_page dp
                     JOIN document d ON d.id = dp.document_id
@@ -195,7 +198,7 @@ public class PostgresPassageSearch implements PassageSearch {
                     SELECT * FROM scored ORDER BY %6$s LIMIT :limit
                 )
                 SELECT h.document_id, h.filename, h.kind, h.course_version_id, h.course_code, h.course_required,
-                       h.page_number, h.rank, %5$s
+                       h.page_number, h.rank, h.text_source, h.ocr_confidence, %5$s
                 FROM top h
                 ORDER BY %6$s
                 """.formatted(mode.prelude(), mode.join(), mode.match(), mode.rank(), mode.projection(), ORDER);
