@@ -1,0 +1,28 @@
+<div class="lx-bar" role="group" aria-label="Decision">
+  <div class="lx-bar-note" id="decision-note" [hidden]="!open()">
+    @if (open()) {
+      <label for="decision-note-field" class="lx-bar-label">Note</label>
+      <textarea pTextarea id="decision-note-field" #field rows="3" [placeholder]="placeholder()" [ngModel]="note()" (ngModelChange)="note.set($event)"
+                [invalid]="!!error()" [attr.aria-describedby]="error() ? 'decision-note-error' : null" [fluid]="true"
+                (keydown.escape)="closeIfEmpty($event)"></textarea>
+      @if (error(); as e) { <p-message id="decision-note-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
+    }
+  </div>
+  <div class="lx-bar-actions">
+    <button type="button" class="lx-bar-toggle" aria-label="Add note" [attr.aria-expanded]="open()" aria-controls="decision-note" (click)="toggleNote()">
+      <ng-icon name="phosphorNotePencil" size="18" aria-hidden="true" />
+    </button>
+    <button pButton type="button" [disabled]="busy()" (click)="decide.emit('ACCEPTED')" aria-label="Accept evidence" aria-keyshortcuts="a">
+      <span pButtonLabel>Accept</span><kbd aria-hidden="true">A</kbd>
+    </button>
+    <button pButton type="button" severity="secondary" [outlined]="true" [disabled]="busy()" (click)="decide.emit('EVIDENCE_REQUESTED')"
+            aria-label="Request evidence" aria-keyshortcuts="r">
+      <span pButtonLabel>Request</span><kbd aria-hidden="true">R</kbd>
+    </button>
+    <button pButton type="button" #gapButton severity="danger" [outlined]="!open()" [disabled]="busy()" aria-keyshortcuts="g"
+            [attr.aria-expanded]="open() ? null : false" [attr.aria-controls]="open() ? null : 'decision-note'"
+            (click)="open() ? decide.emit('GAP_CONFIRMED') : openNote()">
+      @if (open()) { <span pButtonLabel>Confirm gap</span> } @else { <span pButtonLabel>Gap</span><kbd aria-hidden="true">G</kbd> }
+    </button>
+  </div>
+</div>

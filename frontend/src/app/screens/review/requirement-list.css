@@ -1,0 +1,54 @@
+:host { display: flex; flex-direction: column; min-height: 0; }
+.lx-list {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  background: var(--p-lx-surface); border-radius: var(--lx-r-card); box-shadow: var(--p-lx-e1);
+}
+.lx-list-head { flex: none; padding: 10px 10px 6px; }
+:host ::ng-deep .lx-filters.p-selectbutton { display: flex; width: 100%; }
+:host ::ng-deep .lx-filters .p-togglebutton { flex: 1; }
+:host ::ng-deep .lx-filters .p-togglebutton-content { padding: 5px 0; justify-content: center; }
+.lx-filter-icon { display: inline-grid; place-items: center; }
+
+.lx-list-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 6px 8px; }
+.lx-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.lx-row {
+  all: unset; box-sizing: border-box; width: 100%; cursor: pointer; position: relative;
+  display: grid; grid-template-columns: 3.25rem minmax(0, 1fr) auto auto; align-items: center; gap: 8px;
+  min-height: 44px; padding: 7px 8px 7px 10px; border-radius: var(--lx-r-control);
+  font-size: 13px; line-height: 18px; color: var(--p-lx-text);
+  transition: background-color var(--lx-t-1) var(--lx-ease-out);
+}
+.lx-row:hover { background: var(--p-lx-surface-2); }
+.lx-row:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: -2px; }
+.lx-row-current, .lx-row-current:hover { background: var(--p-lx-accent-tint); }
+.lx-row-ref { color: var(--p-lx-text-2); }
+.lx-row-current .lx-row-ref { color: var(--p-lx-text); }
+.lx-row-title { font-weight: 500; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.lx-row-provided { display: inline-flex; color: var(--p-lx-text-2); }
+
+/* The status, with an ink ring that draws around it when a decision lands there. */
+.lx-row-status { position: relative; display: inline-grid; place-items: center; width: 28px; height: 28px; }
+.lx-ink { position: absolute; inset: 0; width: 28px; height: 28px; transform: rotate(-90deg); overflow: visible; pointer-events: none; }
+.lx-ink circle { fill: none; stroke: var(--p-lx-accent); stroke-width: 2; stroke-dasharray: 100; stroke-dashoffset: 100; opacity: 0; }
+.lx-row-status:has(.lx-tone-found) .lx-ink circle { stroke: var(--p-lx-found); }
+.lx-row-status:has(.lx-tone-ambiguous) .lx-ink circle { stroke: var(--p-lx-ambiguous); }
+.lx-row-status:has(.lx-tone-missing) .lx-ink circle { stroke: var(--p-lx-missing); }
+
+/* Decision in Review: the ring draws (240 ms) and fades, the new icon pops in, and the row settles on the spring. */
+.lx-landed { animation: lx-settle 520ms var(--lx-spring); }
+.lx-landed .lx-ink circle { animation: lx-ink-draw 440ms var(--lx-ease-out); }
+.lx-landed lx-status-icon { animation: lx-pop 420ms var(--lx-spring); }
+@keyframes lx-settle { from { transform: translateX(6px) scale(0.985); } }
+@keyframes lx-ink-draw {
+  0% { stroke-dashoffset: 100; opacity: 1; }
+  55% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes lx-pop { from { transform: scale(0.55); } }
+
+.lx-row-skeleton { display: flex; flex-direction: column; gap: 6px; padding: 12px 10px; }
+.lx-empty { padding: 16px 12px; color: var(--p-lx-text-2); }
+
+@media (max-width: 1023px) {
+  .lx-list-body { max-height: min(40vh, 280px); }
+}

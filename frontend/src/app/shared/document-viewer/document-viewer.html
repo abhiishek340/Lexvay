@@ -1,32 +1,37 @@
 <figure class="lx-document" [attr.aria-busy]="page.isLoading()">
   <figcaption class="lx-document-head">
-    <p class="lx-document-name">
-      <ng-icon name="phosphorFileText" size="16" aria-hidden="true" />
-      @if (loaded(); as p) { <span>{{ p.filename }}</span> } @else { <p-skeleton width="12rem" height="1rem" /> }
-    </p>
+    <div class="lx-document-top">
+      <p class="lx-document-name">
+        <ng-icon name="phosphorFileText" size="16" aria-hidden="true" />
+        @if (loaded(); as p) { <span>{{ p.filename }}</span> } @else { <p-skeleton width="12rem" height="1rem" /> }
+      </p>
+      <a pButton [href]="fileUrl()" target="_blank" rel="noopener" severity="secondary" [text]="true" size="small" class="lx-document-icon"
+         pTooltip="Open original" tooltipPosition="bottom" [showDelay]="300">
+        <ng-icon name="phosphorArrowSquareOut" size="16" aria-hidden="true" /><span class="lx-sr-only">Open original (opens in a new tab)</span>
+      </a>
+    </div>
     @if (ocr(); as note) {
       <p class="lx-document-ocr" data-testid="ocr-note"><ng-icon name="phosphorWarning" size="14" aria-hidden="true" />{{ note }}</p>
     }
     <div class="lx-document-bar">
-      <p class="lx-document-position" role="status" aria-live="polite" data-testid="page-position">
-        Page <span class="lx-mono">{{ current() }}</span>@if (pageCount(); as count) { of <span class="lx-mono">{{ count }}</span>}
-      </p>
-      <div class="lx-document-actions">
-        <button pButton type="button" #previousButton severity="secondary" [outlined]="true" size="small" [disabled]="!hasPrevious()" (click)="go(-1)">
-          <ng-icon name="phosphorCaretLeft" size="14" aria-hidden="true" /><span pButtonLabel>Previous page</span>
+      <div class="lx-document-pager">
+        <button pButton type="button" #previousButton severity="secondary" [text]="true" size="small" class="lx-document-icon" [disabled]="!hasPrevious()"
+                (click)="go(-1)" pTooltip="Previous page" tooltipPosition="bottom" [showDelay]="300">
+          <ng-icon name="phosphorCaretLeft" size="16" aria-hidden="true" /><span class="lx-sr-only">Previous page</span>
         </button>
-        <button pButton type="button" #nextButton severity="secondary" [outlined]="true" size="small" [disabled]="!hasNext()" (click)="go(1)">
-          <span pButtonLabel>Next page</span><ng-icon name="phosphorCaretRight" size="14" aria-hidden="true" />
+        <p class="lx-document-position" role="status" aria-live="polite" data-testid="page-position">
+          Page <span class="lx-mono">{{ current() }}</span>@if (pageCount(); as count) { of <span class="lx-mono">{{ count }}</span>}
+        </p>
+        <button pButton type="button" #nextButton severity="secondary" [text]="true" size="small" class="lx-document-icon" [disabled]="!hasNext()"
+                (click)="go(1)" pTooltip="Next page" tooltipPosition="bottom" [showDelay]="300">
+          <ng-icon name="phosphorCaretRight" size="16" aria-hidden="true" /><span class="lx-sr-only">Next page</span>
         </button>
-        <a pButton [href]="fileUrl()" target="_blank" rel="noopener" severity="secondary" [text]="true" size="small">
-          <ng-icon name="phosphorArrowSquareOut" size="14" aria-hidden="true" /><span pButtonLabel>Open original</span><span class="lx-sr-only">(opens in a new tab)</span>
-        </a>
-        @if (selectable()) {
-          <button pButton type="button" severity="secondary" [text]="true" size="small" [disabled]="!loaded()" (click)="openRange()">
-            <ng-icon name="phosphorCursorText" size="14" aria-hidden="true" /><span pButtonLabel>Select passage by character range</span>
-          </button>
-        }
       </div>
+      @if (selectable()) {
+        <button pButton type="button" severity="secondary" [text]="true" size="small" [disabled]="!loaded()" (click)="openRange()">
+          <ng-icon name="phosphorCursorText" size="14" aria-hidden="true" /><span pButtonLabel>Select passage by character range</span>
+        </button>
+      }
     </div>
   </figcaption>
 
@@ -38,9 +43,10 @@
   } @else {
     <!-- The page scrolls inside the frame, so the header stays in place; focusable so the keyboard can scroll it. -->
     <div class="lx-document-body" #body tabindex="0" role="region" aria-label="Page text">
-      @if (loaded(); as p) {
-        <!-- Text nodes and one mark, never innerHTML; no whitespace of its own inside the pre. -->
-        <pre class="lx-document-text" #pageText [class.lx-selectable]="selectable()" (pointerup)="onSelectionEnd()" (keyup)="onSelectionEnd()">@if (parts(); as cut) {{{ cut.before }}<mark #mark tabindex="-1" data-testid="evidence-mark">{{ cut.quote }}</mark>{{ cut.after }}} @else {{{ p.text }}}</pre>
+      @if (loaded()) {
+        <!-- Text nodes and one mark, never innerHTML; no whitespace of its own inside the pre. Offsets into the shown
+             text are offsets into the stored text (softWrap), so a selection is measured here and quoted from storage. -->
+        <pre class="lx-document-text" #pageText [class.lx-selectable]="selectable()" (pointerup)="onSelectionEnd()" (keyup)="onSelectionEnd()">@if (parts(); as cut) {{{ cut.before }}<mark #mark tabindex="-1" data-testid="evidence-mark">{{ cut.quote }}</mark>{{ cut.after }}} @else {{{ shown() }}}</pre>
       } @else {
         <div class="lx-document-text" aria-hidden="true">
           @for (width of ['92%', '100%', '86%', '97%', '64%']; track $index) { <p-skeleton [width]="width" height="0.875rem" /> }
