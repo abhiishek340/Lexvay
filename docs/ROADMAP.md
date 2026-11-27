@@ -123,7 +123,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10a Coverage matrix API | `feat-coverage-api` | 8 | Sonnet 5.5 | merged (PR #35) |
 | F10b Coverage matrix screen (v2) | `ui2-coverage` | 7 | Opus 5.5 | merged (#41) |
-| FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | in progress |
+| FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | merged (#42) |
 | F12b Rule sources in the Rules workspace (v2) | `ui2-rule-sources` | 1 | Opus 5.5 | queued (after UI2-4) |
 | FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | in progress |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
