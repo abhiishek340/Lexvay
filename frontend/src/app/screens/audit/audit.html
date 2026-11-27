@@ -1,47 +1,92 @@
-<div class="lx-page">
+<div class="lx-page lx-audit">
   <header class="lx-page-header">
-    <div>
+    <div class="lx-title">
       <h1>Audit trail</h1>
-      <p>Every action, newest first: who did it, when, what it was, and on which record.</p>
+      <lx-info-tip label="About the audit trail">
+        Every action, newest first: who did it, when, what it was and on which record. Entries are only ever added, never
+        changed or removed.
+      </lx-info-tip>
     </div>
+    @if (session.isAdmin()) {
+      <a pButton size="small" [outlined]="true" [href]="csvUrl()" download>
+        <ng-icon name="phosphorDownloadSimple" size="16" aria-hidden="true" />
+        <span pButtonLabel>Download CSV</span>
+      </a>
+    }
   </header>
+
+  <div class="lx-chips" role="group" aria-label="Filters">
+    <p-select class="lx-chip" [class.lx-chip-on]="query().userId" [options]="people()" optionLabel="label" optionValue="value"
+              [ngModel]="query().userId" (ngModelChange)="set('userId', $event)" placeholder="Person" ariaLabel="Person"
+              [showClear]="true" size="small" appendTo="body" />
+    <p-select class="lx-chip" [class.lx-chip-on]="query().action" [options]="actions" optionLabel="label" optionValue="value"
+              [ngModel]="query().action" (ngModelChange)="set('action', $event)" placeholder="Action" ariaLabel="Action"
+              [showClear]="true" [filter]="true" filterBy="label" size="small" appendTo="body" />
+    <p-select class="lx-chip" [class.lx-chip-on]="query().entityType" [options]="recordTypes" optionLabel="label" optionValue="value"
+              [ngModel]="query().entityType" (ngModelChange)="set('entityType', $event)" placeholder="Record type" ariaLabel="Record type"
+              [showClear]="true" size="small" appendTo="body" />
+    <p-select class="lx-chip" [class.lx-chip-on]="query().period" [options]="periods" optionLabel="label" optionValue="value"
+              [ngModel]="query().period" (ngModelChange)="set('period', $event)" placeholder="Any time" ariaLabel="Period"
+              [showClear]="true" size="small" appendTo="body" />
+    @if (filtered()) {
+      <button pButton type="button" size="small" [text]="true" (click)="clear()"><span pButtonLabel>Clear</span></button>
+    }
+    <p class="lx-count" role="status" aria-live="polite" data-testid="message">{{ summary() }}</p>
+  </div>
+
   @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
 
-  @if (rows(); as all) {
-    <div class="lx-filters" role="group" aria-label="Filter the audit trail">
-      <div class="lx-filter">
-        <span id="action-filter-label" class="lx-label">Action</span>
-        <p-select [options]="actions()" optionLabel="label" optionValue="value" [ngModel]="action()" (ngModelChange)="action.set($event)"
-                  placeholder="All actions" [showClear]="true" ariaLabelledBy="action-filter-label" appendTo="body" styleClass="lx-filter-select" />
-      </div>
-      <div class="lx-filter">
-        <span id="record-filter-label" class="lx-label">Record type</span>
-        <p-select [options]="entityTypes()" optionLabel="label" optionValue="value" [ngModel]="entityType()" (ngModelChange)="entityType.set($event)"
-                  placeholder="All record types" [showClear]="true" ariaLabelledBy="record-filter-label" appendTo="body" styleClass="lx-filter-select" />
-      </div>
-      <p class="lx-count lx-help" aria-live="polite">{{ visible().length }} of {{ all.length }} entries{{ all.length === limit ? ' (the newest ' + limit + ')' : '' }}</p>
+  @if (rows(); as list) {
+    <div class="lx-days" [class.lx-busy]="loading()" [attr.aria-busy]="loading()">
+      @for (day of days(); track day.key) {
+        <section class="lx-day" [attr.aria-labelledby]="'day-' + day.key">
+          <h2 class="lx-day-title" [id]="'day-' + day.key">{{ day.label }}</h2>
+          <p-timeline class="lx-timeline" [value]="day.rows" [pt]="{ root: { role: 'list', 'aria-labelledby': 'day-' + day.key }, event: { role: 'listitem' } }">
+            <ng-template #marker let-r>
+              <p-avatar class="lx-avatar" [class.lx-avatar-quiet]="!r.initials" shape="circle" [label]="r.initials" aria-hidden="true">
+                @if (!r.initials) { <ng-icon [name]="r.actorKind === 'system' ? 'phosphorGear' : 'phosphorUser'" size="16" /> }
+              </p-avatar>
+            </ng-template>
+            <ng-template #content let-r>
+              <div class="lx-entry" [lxEnter]="r.enter">
+                <button type="button" class="lx-entry-head" [attr.aria-expanded]="isOpen(r.id)" [attr.aria-controls]="isOpen(r.id) ? 'entry-' + r.id : null"
+                        (click)="toggle(r.id)">
+                  <span class="lx-sentence"><strong>{{ r.actor }}</strong>{{ r.rest }}</span>
+                  <time class="lx-time" [attr.datetime]="r.at">{{ r.at | date: 'HH:mm' }}</time>
+                  <ng-icon name="phosphorCaretDown" size="16" class="lx-caret" aria-hidden="true" />
+                </button>
+                @if (isOpen(r.id)) {
+                  <dl class="lx-details" [id]="'entry-' + r.id" animate.enter="lx-reveal">
+                    <div><dt>Record</dt><dd>{{ r.recordLabel }}@if (r.entityId) { <span class="lx-mono lx-id">{{ r.entityId }}</span> }</dd></div>
+                    @for (d of r.details; track $index) {
+                      <div><dt>{{ d.label }}</dt><dd [class.lx-mono]="d.mono">{{ d.value }}</dd></div>
+                    }
+                    <div><dt>Time</dt><dd class="lx-mono">{{ r.at | date: 'yyyy-MM-dd HH:mm:ss' }}</dd></div>
+                  </dl>
+                }
+              </div>
+            </ng-template>
+          </p-timeline>
+        </section>
+      } @empty {
+        <div class="lx-empty">
+          <ng-icon name="phosphorClockCounterClockwiseDuotone" size="32" aria-hidden="true" />
+          <p>{{ filtered() ? 'No entries match these filters.' : 'No entries yet.' }}</p>
+          @if (filtered()) { <button pButton type="button" size="small" [outlined]="true" (click)="clear()"><span pButtonLabel>Clear filters</span></button> }
+        </div>
+      }
+      @if (more() && list.length > 0) {
+        <button pButton type="button" size="small" [text]="true" class="lx-more" [loading]="loading()" (click)="loadMore()">
+          <span pButtonLabel>Show older</span>
+        </button>
+      }
     </div>
-
-    <p-table [value]="visible()" dataKey="id" [pt]="{ table: { 'aria-label': 'Audit trail' } }" styleClass="lx-table">
-      <ng-template #header>
-        <tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">Record</th><th scope="col">Details</th><th scope="col">By</th></tr>
-      </ng-template>
-      <ng-template #body let-r>
-        <tr>
-          <td class="lx-mono lx-when"><time [attr.datetime]="r.at">{{ r.at | date: 'yyyy-MM-dd HH:mm:ss' }}</time></td>
-          <td class="lx-action">{{ r.actionLabel }}</td>
-          <td class="lx-record"><span>{{ r.entityLabel }}</span> @if (r.entityId) { <span class="lx-mono lx-muted" [attr.title]="r.entityId">{{ r.entityId.slice(0, 8) }}</span> }</td>
-          <td class="lx-details">{{ r.details }}</td>
-          <td class="lx-actor" [class.lx-muted]="r.actor === 'System'">{{ r.actor }}</td>
-        </tr>
-      </ng-template>
-      <ng-template #emptymessage>
-        <tr><td colspan="5" class="lx-muted">No entries match these filters.</td></tr>
-      </ng-template>
-    </p-table>
   } @else if (!error()) {
     <div class="lx-skeleton" aria-busy="true" aria-label="Loading the audit trail">
-      @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) { <p-skeleton height="2.25rem" /> }
+      <p-skeleton width="6rem" height="1.25rem" />
+      @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+        <div class="lx-skeleton-row"><p-skeleton shape="circle" size="2rem" /><p-skeleton height="2.75rem" styleClass="lx-skeleton-card" /></div>
+      }
     </div>
   }
 </div>

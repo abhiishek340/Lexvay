@@ -19,7 +19,7 @@ export const routes: Routes = [
       { path: 'changes', loadChildren: () => import('./screens/changes/changes.routes') },
       { matcher: rulesMatcher, loadChildren: () => import('./screens/rules/rules.routes') },
       { path: 'report', loadChildren: () => import('./screens/report/report.routes') },
-      { path: 'audit', loadComponent: () => import('./screens/audit/audit').then((m) => m.Audit), title: 'Audit trail · Lexvay' },
+      { path: 'audit', loadChildren: () => import('./screens/audit/audit.routes') },
       // Test harness for the end-to-end suite. ngDevMode is false in production builds, so the route and its chunk are dropped there.
       ...(ngDevMode
         ? [{ path: 'dev/document-viewer', loadComponent: () => import('./dev/document-viewer-harness').then((m) => m.DocumentViewerHarness), title: 'Document viewer harness · Lexvay' }]

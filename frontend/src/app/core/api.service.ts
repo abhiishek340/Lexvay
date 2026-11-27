@@ -95,7 +95,10 @@ export class ApiService {
   workQueue(): Observable<WorkQueue> { return this.http.get<WorkQueue>(`${this.base}/work-queue`); }
   workQueueCount(): Observable<{ total: number }> { return this.http.get<{ total: number }>(`${this.base}/work-queue/count`); }
   users(): Observable<UserSummary[]> { return this.http.get<UserSummary[]>(`${this.base}/users`); }
-  audit(limit = 200): Observable<AuditEntry[]> { return this.http.get<AuditEntry[]>(`${this.base}/audit`, { params: { limit } }); }
+  /** Newest first; `filters` are the query parameters of audit-view's auditParams, applied by the server (D-116). */
+  audit(filters: Record<string, string>, limit: number, offset: number): Observable<AuditEntry[]> {
+    return this.http.get<AuditEntry[]>(`${this.base}/audit`, { params: { ...filters, limit, offset } });
+  }
 
   programDocuments(programId: string): Observable<ProgramDocument[]> { return this.http.get<ProgramDocument[]>(`${this.base}/programs/${programId}/documents`); }
   /** Immutable and cached by the browser for a year (D-112); read through DocumentPageCache. */
