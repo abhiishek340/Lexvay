@@ -32,7 +32,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | in progress |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
-| F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | in progress |
+| F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | queued (after F7, FIX-1) |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
@@ -815,6 +815,10 @@ D-259 in `docs/decisions/F7c.md`.
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
 ## Follow-ups recorded from reviews
+- F3b: in the edit grid the title field stays about 7 rem wide even when the row has room; give title the
+  remaining width (`minmax(10rem, 1fr)`) while ref, type and check keep fixed widths. The initial bundle is 698.9 kB
+  raw, 1 kB under the warning: any new component in the shared preset must move another Rules-only or
+  screen-only token set out first (D-246 pattern).
 - Merge round of 2026-11-26 (owner asked for every open PR to be merged): the orchestrator integrated #20, #18, #21,
   #17, #22 and #23 on one tree, ran the full suite (788 backend, 70 frontend unit, 13 end-to-end) and merged them
   in that order with the recorded conflict resolutions. Fixes made in that round: fetched HTML is served as plain
