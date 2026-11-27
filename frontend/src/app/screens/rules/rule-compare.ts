@@ -6,7 +6,6 @@ import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
-import { Label } from '../../ui/label';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { REQUIREMENT_TYPE_LABEL, numericCheck } from '../../core/labels';
@@ -15,6 +14,8 @@ import { problemDetail } from '../../core/problem';
 import { comparableVersions } from '../../core/rules';
 import { DiffText } from '../../ui/diff-text';
 import { DIFF_STATUS } from './diff-status';
+import { TermsDiff, termsDiff } from './search-terms';
+import { Label } from '../../ui/label';
 
 const SUMMARY_ORDER: { status: DiffStatus; key: keyof RuleVersionDiff['summary'] }[] = [
   { status: 'CHANGED', key: 'changed' }, { status: 'ADDED', key: 'added' }, { status: 'REMOVED', key: 'removed' }, { status: 'UNCHANGED', key: 'unchanged' },
@@ -101,6 +102,11 @@ export class RuleCompare {
   check(row: DiffRow, side: 'before' | 'after'): string {
     const r = row[side];
     return (r && numericCheck(r)) ?? 'no number';
+  }
+
+  /** The search terms of both sides, with the removed and the added ones marked (a terms-only change is its own aspect, D-254). */
+  terms(row: DiffRow): TermsDiff {
+    return termsDiff(row.before?.searchTerms ?? [], row.after?.searchTerms ?? []);
   }
 
   typeOf(row: DiffRow, side: 'before' | 'after'): string {

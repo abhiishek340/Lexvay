@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from './api.service';
-import { requestCounts } from './evidence-requests';
+import { awaitingAnswer } from './evidence-requests';
 import { AssessmentView, ChangeEvent, Determination, EvidenceRequest, Jurisdiction, Program, ProgramOverview, RuleVersionView } from './models';
 import { overviewCounts } from './overview';
 import { problemDetail } from './problem';
@@ -35,7 +35,7 @@ export class ProgramContext {
   });
   readonly openChanges = computed(() => this.changeEvents().filter((e) => e.status === 'OPEN').length);
   readonly rulesWaiting = computed(() => versionsWaitingForApproval(this.ruleVersions()));
-  readonly openRequests = computed(() => requestCounts(this.evidenceRequests()).OPEN);
+  readonly openRequests = computed(() => awaitingAnswer(this.evidenceRequests()));
   private readonly names = computed(() => new Map(this.jurisdictions().map((j) => [j.code, j.name])));
 
   jurisdictionName(code: string): string {

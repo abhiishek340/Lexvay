@@ -1,4 +1,4 @@
-import { ADMIN, DANA, SCREENSHOTS, apiPost, citedRequirement, expect, goTo, nav, openRequirement, shoot, signIn, stateTab, switchUser, test } from './support';
+import { ADMIN, DANA, JORDAN, SCREENSHOTS, apiPost, citedRequirement, expect, goTo, nav, openRequirement, shoot, signIn, stateTab, switchUser, test } from './support';
 
 /**
  * Screenshots of every screen in both themes for docs/screens. Not part of the regular suite:
@@ -16,7 +16,7 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await expect(page.getByTestId('state-row-CA')).toContainText('California');
   await shoot(page, 'program-overview');
 
-  await nav(page, 'Review').click();
+  await goTo(page, 'Review');
   await stateTab(page, 'TX').click();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^TX-/);
   await shoot(page, 'review');
@@ -33,7 +33,7 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await page.keyboard.press('Escape');
 
   // Evidence requests: the evidence-requests suite leaves one open request on Utah and one answered and accepted.
-  await nav(page, 'Evidence requests').click();
+  await goTo(page, 'Evidence requests');
   const open = page.getByRole('table', { name: 'Evidence requests' }).getByRole('button', { name: /^Provide evidence for / }).first();
   await expect(open).toBeVisible();
   await shoot(page, 'evidence-requests');
@@ -64,11 +64,11 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await expect(page.getByTestId('provided-evidence').getByTestId('evidence-mark')).toBeVisible();
   await shoot(page, 'review-provided-evidence');
 
-  await nav(page, 'Changes').click();
+  await goTo(page, 'Changes');
   await expect(page.getByRole('list', { name: 'Change events' })).toBeVisible();
   await shoot(page, 'changes');
 
-  await nav(page, 'Evidence report').click();
+  await goTo(page, 'Evidence report');
   await expect(page.getByRole('list', { name: /requirements?$/ })).toBeVisible();
   await shoot(page, 'evidence-report');
   // After the review suite has signed California, its report carries the seal.
@@ -77,11 +77,11 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await expect(page.getByRole('img', { name: /^Signed by / })).toBeVisible();
   await shoot(page, 'evidence-report-ca');
 
-  await nav(page, 'Audit trail').click();
+  await goTo(page, 'Audit trail');
   await expect(page.getByRole('main').getByRole('listitem').first()).toBeVisible();
   await shoot(page, 'audit-trail');
 
-  await nav(page, 'Determination register').click();
+  await goTo(page, 'Determination register');
   await expect(page.getByRole('table', { name: 'Determination register' }).locator('tbody tr')).toHaveCount(1);
   await shoot(page, 'register');
   await page.getByRole('tab', { name: 'By program' }).click();
@@ -93,7 +93,7 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await page.emulateMedia({ media: 'screen' });
 
   await page.setViewportSize({ width: 400, height: 860 });
-  await nav(page, 'Review').click();
+  await goTo(page, 'Review');
   await stateTab(page, 'TX').click();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^TX-/);
   await shoot(page, 'review-400px');
@@ -231,7 +231,7 @@ test('UI2-2: Review, a decided requirement, the gap note and the signing dialog 
 
   for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await page.setViewportSize({ width, height });
-    await nav(page, 'Review').click();
+    await goTo(page, 'Review');
     await stateTab(page, 'TX').click();
     await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^TX-/);
     await page.waitForTimeout(900);
@@ -270,7 +270,7 @@ test('screenshots of changes, the audit trail and the evidence report at 1440 an
   await signIn(page, ADMIN);
   for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await page.setViewportSize({ width, height });
-    await nav(page, 'Changes').click();
+    await goTo(page, 'Changes');
     const changes = page.getByRole('list', { name: 'Change events' });
     await expect(changes.getByRole('listitem').first()).toBeVisible();
     await changes.getByRole('button', { name: 'Details' }).first().click();
@@ -282,12 +282,44 @@ test('screenshots of changes, the audit trail and the evidence report at 1440 an
     await entries.nth(1).getByRole('button').click();
     await shoot(page, `ui2-3-audit-${width}`);
 
-    await nav(page, 'Evidence report').click();
+    await goTo(page, 'Evidence report');
     await expect(page.getByRole('note', { name: 'Draft. Not a determination.' })).toBeVisible();
     await shoot(page, `ui2-3-report-draft-${width}`);
     await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
     await page.getByRole('option', { name: 'California (CA)' }).click();
     await expect(page.getByRole('img', { name: /^Signed by / })).toBeVisible();
     await shoot(page, `ui2-3-report-signed-${width}`);
+  }
+});
+
+/** UI2-4: the evidence request inbox and the answer drawer with a selected passage, at 1440 and 400 px. */
+test('UI2-4: the evidence request inbox and the answer drawer at 1440 and 400 px', async ({ page }) => {
+  await signIn(page, JORDAN);
+  for (const [width, height] of [[1440, 900], [400, 860]] as const) {
+    await page.setViewportSize({ width, height });
+    await goTo(page, 'Evidence requests');
+    await page.locator('p-selectbutton').getByText('All').click();
+    const open = page.getByRole('table', { name: 'Evidence requests' }).getByRole('button', { name: /^Provide evidence for / }).first();
+    await expect(open).toBeVisible();
+    await shoot(page, `ui2-4-requests-inbox-${width}`);
+    await open.click();
+    const drawer = page.getByRole('dialog', { name: 'Provide evidence' });
+    await drawer.getByRole('combobox', { name: 'Program document' }).click();
+    await page.getByRole('option', { name: /^coun605-syllabus\.pdf syllabus$/ }).click();
+    await expect(drawer.locator('lx-document-viewer pre')).toBeVisible();
+    await drawer.locator('lx-document-viewer pre').evaluate((pre) => {
+      const text = Array.from(pre.childNodes).find((n) => n.nodeType === Node.TEXT_NODE)!;
+      const sentence = /[A-Z][^.\n]{30,}\./.exec(text.textContent!)!;
+      const range = document.createRange();
+      range.setStart(text, sentence.index);
+      range.setEnd(text, sentence.index + sentence[0].length);
+      document.getSelection()!.removeAllRanges();
+      document.getSelection()!.addRange(range);
+      pre.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    });
+    await expect(drawer.getByTestId('selected-passage').locator('blockquote')).toBeVisible();
+    await shoot(page, `ui2-4-requests-drawer-${width}`);
+    await page.keyboard.press('Escape');
+    await expect(drawer).toBeHidden();
   }
 });

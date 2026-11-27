@@ -1,0 +1,101 @@
+<div class="lx-step-head">
+  <div class="lx-title-row">
+    <h2 class="lx-panel-title">Program facts</h2>
+  </div>
+</div>
+
+@if (rows(); as list) {
+  @if (list.length === 0) {
+    <div class="lx-empty-state" data-testid="facts-empty">
+      <p>The rules of these states check no number.</p>
+    </div>
+  } @else {
+    <ul class="lx-facts" aria-label="Program facts">
+      @for (row of list; track row.field; let i = $index) {
+        <li class="lx-fact" [attr.data-field]="row.field">
+          <div class="lx-fact-head">
+            <h3 class="lx-fact-name">{{ fieldLabel[row.field] }}</h3>
+            @if (store.canEdit()) {
+              <button pButton type="button" size="small" [severity]="row.current ? 'secondary' : 'primary'" (click)="record(row.field, $event.target)"
+                      [attr.aria-label]="(row.current ? 'Record again: ' : 'Record ') + fieldLabel[row.field]">
+                <span pButtonLabel>{{ row.current ? 'Record again' : 'Record' }}</span>
+              </button>
+            }
+          </div>
+          @if (row.current; as f) {
+            <div class="lx-fact-body">
+              <span class="lx-number" data-testid="fact-value">{{ f.value }}</span>
+              <div class="lx-fact-source">
+                <blockquote class="lx-fact-quote">{{ f.quote }}</blockquote>
+                <p class="lx-help">{{ f.filename }}, page <span class="lx-mono">{{ f.pageNumber }}</span>, {{ f.createdAt | date: 'd MMM y' }}</p>
+              </div>
+            </div>
+            @if (row.earlier.length > 0) {
+              <details class="lx-history">
+                <summary><ng-icon name="phosphorCaretDown" size="14" aria-hidden="true" />History ({{ row.earlier.length }})</summary>
+                <ul>
+                  @for (e of row.earlier; track e.id) {
+                    <li><span class="lx-strong">{{ e.value }}</span> · {{ e.filename }}, page <span class="lx-mono">{{ e.pageNumber }}</span>, {{ e.createdAt | date: 'd MMM y' }}</li>
+                  }
+                </ul>
+              </details>
+            }
+          } @else {
+            <p class="lx-fact-missing"><lx-status-mark status="NOT_REVIEWED" label="Not recorded" /></p>
+          }
+        </li>
+      }
+    </ul>
+  }
+} @else {
+  <div class="lx-panel-skeleton" aria-busy="true" aria-label="Loading program facts">@for (i of [1, 2]; track i) { <p-skeleton height="5rem" /> }</div>
+}
+
+<lx-sheet [heading]="recording() ? 'Record ' + fieldLabel[recording()!].toLowerCase() : 'Record a fact'" headingId="fact-sheet-heading"
+          [open]="recording() !== null" (closed)="close()" size="wide" closeLabel="Close without recording">
+  @if (recording()) {
+    <div class="lx-record">
+      <div class="lx-record-form">
+        <div class="lx-field">
+          <label for="fact-value" class="lx-numbered"><span class="lx-numbered-n" aria-hidden="true">1</span>Value</label>
+          <p-inputnumber inputId="fact-value" [ngModel]="value()" (ngModelChange)="value.set($event); valueProblem.set(null)" [useGrouping]="false"
+                         [minFractionDigits]="0" [maxFractionDigits]="2" [min]="0" inputStyleClass="lx-mono lx-fact-input" [invalid]="!!valueProblem()" />
+          @if (valueProblem(); as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
+        </div>
+        <section class="lx-field" aria-labelledby="fact-document-label">
+          <h3 id="fact-document-label" class="lx-numbered"><span class="lx-numbered-n" aria-hidden="true">2</span>Document</h3>
+          <lx-document-picker [documents]="documents()" labelledBy="fact-document-label" [(documentId)]="documentId" />
+        </section>
+        <section class="lx-field" aria-labelledby="fact-passage-label">
+          <h3 id="fact-passage-label" class="lx-numbered"><span class="lx-numbered-n" aria-hidden="true">3</span>Passage</h3>
+          <div aria-live="polite" data-testid="fact-passage">
+            @if (selection(); as s) {
+              <blockquote class="lx-passage">{{ s.quote }}</blockquote>
+              <p class="lx-help">Page <span class="lx-mono">{{ s.pageNumber }}</span>, characters <span class="lx-mono">{{ s.charStart }}–{{ s.charEnd }}</span></p>
+              @if (mismatch()) {
+                <p-message severity="warn" size="small" data-testid="fact-mismatch">The passage does not show {{ value() }} as written.</p-message>
+              }
+            } @else {
+              <p class="lx-help">Select the passage that states the number.</p>
+            }
+          </div>
+          @if (quoteError(); as e) { <p-message severity="error" size="small" data-testid="fact-quote-error">{{ e }}</p-message> }
+        </section>
+        @if (failure(); as e) { <p-message severity="error">{{ e }}</p-message> }
+        <div class="lx-actions">
+          <button pButton type="button" [disabled]="!selection() || value() === null || busy()" [loading]="busy()" (click)="submit()">
+            <span pButtonLabel>Record fact</span>
+          </button>
+          <button pButton type="button" severity="secondary" [outlined]="true" (click)="close()"><span pButtonLabel>Cancel</span></button>
+        </div>
+      </div>
+      <div class="lx-record-page">
+        @if (documentId(); as id) {
+          <lx-document-viewer [documentId]="id" [pageNumber]="1" [selectable]="true" (selection)="selection.set($event)" />
+        } @else {
+          <div class="lx-placeholder"><p>Choose a document to read it here.</p></div>
+        }
+      </div>
+    </div>
+  }
+</lx-sheet>

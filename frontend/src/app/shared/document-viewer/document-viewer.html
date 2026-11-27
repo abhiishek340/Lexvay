@@ -29,7 +29,7 @@
       </div>
       @if (selectable()) {
         <button pButton type="button" severity="secondary" [text]="true" size="small" [disabled]="!loaded()" (click)="openRange()">
-          <ng-icon name="phosphorCursorText" size="14" aria-hidden="true" /><span pButtonLabel>Select passage by character range</span>
+          <span pButtonLabel>Select passage by character range</span>
         </button>
       }
     </div>
@@ -55,7 +55,7 @@
       @if (pending(); as p) {
         <div class="lx-selection-toolbar" role="toolbar" aria-label="Selected passage" [style.top.px]="p.top" [style.left.px]="p.left">
           <button pButton type="button" size="small" (mousedown)="$event.preventDefault()" (click)="usePending()">
-            <ng-icon name="phosphorQuotes" size="14" aria-hidden="true" /><span pButtonLabel>Use this passage</span>
+            <span pButtonLabel>Use this passage</span>
           </button>
         </div>
       }

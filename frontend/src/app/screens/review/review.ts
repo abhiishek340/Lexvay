@@ -2,7 +2,7 @@ import { Component, DestroyRef, ElementRef, afterRenderEffect, computed, effect,
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
 import {
-  phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorCheckCircle, phosphorCircleDashed, phosphorEye,
+  phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorCheckCircle, phosphorCircleDashed,
   phosphorKeyboard, phosphorListBullets, phosphorQuestion, phosphorSeal, phosphorUser, phosphorXCircle,
 } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
@@ -36,7 +36,7 @@ const WIDE = '(min-width: 1024px)';
 
 /** The icons the Review workspace and its own parts show beyond SHELL_ICONS, provided by its route (review.routes.ts). */
 export const REVIEW_ICONS = {
-  phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorCheckCircle, phosphorCircleDashed, phosphorEye,
+  phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorCheckCircle, phosphorCircleDashed,
   phosphorKeyboard, phosphorListBullets, phosphorQuestion, phosphorSeal, phosphorUser, phosphorXCircle,
 };
 

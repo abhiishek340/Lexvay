@@ -11,6 +11,8 @@ export const routes: Routes = [
   // Anonymous: the holder of a setup code chooses a password (F5a); the code is read and cleared from the address there.
   { path: 'setup', loadChildren: () => import('./screens/setup/setup.routes') },
   { path: '', loadComponent: () => import('./screens/home').then((m) => m.Home), canActivate: [authGuard], pathMatch: 'full', title: 'Programs · Lexvay' },
+  // Program setup: /programs/new and /programs/:programId/setup are one route, so creating a program keeps the screen.
+  { matcher: setupMatcher, canActivate: [authGuard], loadChildren: () => import('./screens/program-setup/program-setup.routes') },
   {
     path: 'programs/:programId',
     canActivate: [authGuard],
@@ -46,4 +48,15 @@ export const routes: Routes = [
 export function rulesMatcher(segments: UrlSegment[]): UrlMatchResult | null {
   if (segments[0]?.path !== 'rules' || segments.length > 2) { return null; }
   return { consumed: segments, posParams: segments[1] ? { ruleVersionId: segments[1] } : {} };
+}
+
+/**
+ * "programs/new" and "programs/:programId/setup" as one route (like rulesMatcher): creating a program moves the URL from
+ * the first to the second, and the same setup screen goes on to the program's courses.
+ */
+export function setupMatcher(segments: UrlSegment[]): UrlMatchResult | null {
+  if (segments[0]?.path !== 'programs') { return null; }
+  if (segments.length === 2 && segments[1].path === 'new') { return { consumed: segments }; }
+  if (segments.length === 3 && segments[2].path === 'setup') { return { consumed: segments, posParams: { programId: segments[1] } }; }
+  return null;
 }

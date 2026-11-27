@@ -22,6 +22,8 @@ export class SessionService {
   readonly canReview = computed(() => ['REVIEWER', 'SIGNER', 'ADMIN'].includes(this.user()?.role ?? ''));
   /** Entering a rule version (POST /rule-versions) is for contributors and administrators. */
   readonly canEnterRules = computed(() => ['CONTRIBUTOR', 'ADMIN'].includes(this.user()?.role ?? ''));
+  /** Creating a program and adding its courses, documents and facts (POST /programs and the endpoints under it). */
+  readonly canSetUp = computed(() => ['CONTRIBUTOR', 'ADMIN'].includes(this.user()?.role ?? ''));
 
   /**
    * A session that no longer matches its account is answered 401 once and is gone after that answer (D-374), so the

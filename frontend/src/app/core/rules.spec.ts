@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RULE_STATUS } from '../screens/rules/rule-status';
 import { RuleVersionView } from './models';
-import { anyExtracting, comparableVersions, groupRuleVersions, ruleVersionStatus, versionsWaitingForApproval } from './rules';
+import { anyExtracting, comparableVersions, groupRuleVersions, openingVersion, ruleVersionStatus, versionsWaitingForApproval } from './rules';
 
 let seq = 0;
 function version(patch: Partial<RuleVersionView> = {}): RuleVersionView {
@@ -89,6 +89,30 @@ describe('groupRuleVersions', () => {
     const [group] = groupRuleVersions([original, sameDayLater, revision], ['CO'], name);
     expect(group.rows.map((r) => r.view.id)).toEqual([revision.id, sameDayLater.id, original.id]);
     expect(group.rows.map((r) => r.status)).toEqual(['APPROVED', 'NEEDS_APPROVAL', 'SUPERSEDED']);
+  });
+});
+
+describe('openingVersion', () => {
+  const name = (code: string) => code;
+
+  it('opens the first version that waits for a person, in list order', () => {
+    const approved = version({ jurisdiction: 'UT', approval, requirementCount: 9 });
+    const failed = version({ jurisdiction: 'NV', extraction: job('FAILED', 'no script') });
+    const needs = version({ jurisdiction: 'OR', requirementCount: 2 });
+    expect(openingVersion(groupRuleVersions([needs, approved, failed], ['UT'], name))).toBe(failed.id);
+  });
+
+  it('otherwise opens the newest approved version of the first state, never a superseded one', () => {
+    const original = version({ jurisdiction: 'CO', effectiveFrom: '2026-07-01', approval, requirementCount: 9 });
+    const revision = version({ jurisdiction: 'CO', effectiveFrom: '2027-01-01', supersedesId: original.id, approval, requirementCount: 9 });
+    const utah = version({ jurisdiction: 'UT', approval, requirementCount: 9 });
+    expect(openingVersion(groupRuleVersions([original, revision, utah], ['CO', 'UT'], name))).toBe(revision.id);
+  });
+
+  it('opens nothing for a tenant without versions, and an extracting one when it is all there is', () => {
+    expect(openingVersion([])).toBeNull();
+    const extracting = version({ extraction: job('RUNNING') });
+    expect(openingVersion(groupRuleVersions([extracting], [], name))).toBe(extracting.id);
   });
 });
 

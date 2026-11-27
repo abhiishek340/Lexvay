@@ -46,6 +46,8 @@ export function navLinks(programId: string | null, counts: NavCounts, role: Role
   return [
     ...tenantLinks,
     screen('overview', 'Program overview', 'phosphorSquaresFour', 90),
+    // Just below Changes: on a phone it keeps its place on the bar whenever that many tabs fit.
+    screen('setup', 'Program setup', 'phosphorWrench', 65),
     screen('review', 'Review', 'phosphorListChecks', 85, waiting, `${plural(waiting, 'requirement', 'requirements')} waiting for review`),
     screen('coverage', 'Coverage', 'phosphorGridFour', 80),
     screen('requests', 'Evidence requests', 'phosphorTray', 75, requests, `${plural(requests, 'open evidence request', 'open evidence requests')}`, 'Requests'),

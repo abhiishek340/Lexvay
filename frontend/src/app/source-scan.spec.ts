@@ -100,6 +100,13 @@ describe('source scan', () => {
     expect(unknown).toEqual([]);
   });
 
+  it('reads every --lx-* variable that some stylesheet declares', () => {
+    const declared = new Set(SOURCES.flatMap(({ text }) => [...text.matchAll(/(--lx-[a-z0-9-]+)\s*:/g)].map((m) => m[1])));
+    const undeclared = SOURCES.flatMap(({ path, text }) => [...text.matchAll(/var\((--lx-[a-z0-9-]+)/g)].map((m) => m[1]).filter((name) => !declared.has(name)).map((name) => `${path}: ${name}`));
+    expect(declared.has('--lx-ease')).toBe(true);
+    expect(undeclared).toEqual([]);
+  });
+
   it('catches what it is meant to catch', () => {
     expect('color: #FFF;'.match(HEX)).toEqual(['#FFF']);
     expect('<div #field (click)="x">'.match(HEX)).toBeNull();

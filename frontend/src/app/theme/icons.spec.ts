@@ -10,6 +10,7 @@ import { REGISTER_ICONS } from '../screens/register/register';
 import { REQUESTS_ICONS } from '../screens/requests/requests';
 import { REVIEW_ICONS } from '../screens/review/review';
 import { RULES_ICONS } from '../screens/rules/rules';
+import { PROGRAM_SETUP_ICONS } from '../screens/program-setup/program-setup';
 import { SETUP_ICONS } from '../screens/setup/setup';
 import { WORK_QUEUE_ICONS } from '../shell/work-queue-menu';
 import { PALETTE_ICONS } from '../ui/command-palette/command-palette';
@@ -40,6 +41,7 @@ const UNITS: Unit[] = [
   { name: 'requests', entries: ['screens/requests/requests.ts'], registered: REQUESTS_ICONS },
   { name: 'changes', entries: ['screens/changes/changes.ts'], registered: CHANGES_ICONS },
   { name: 'rules', entries: ['screens/rules/rules.ts'], registered: RULES_ICONS },
+  { name: 'program setup', entries: ['screens/program-setup/program-setup.ts'], registered: PROGRAM_SETUP_ICONS },
   { name: 'register', entries: ['screens/register/register.ts'], registered: REGISTER_ICONS },
   { name: 'audit', entries: ['screens/audit/audit.ts'], registered: AUDIT_ICONS },
   { name: 'people', entries: ['screens/people/people.ts'], registered: PEOPLE_ICONS },

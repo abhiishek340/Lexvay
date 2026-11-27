@@ -14,7 +14,7 @@ const ids = (role: Role | null, programId: string | null = 'p1') => paletteComma
 describe('paletteCommands', () => {
   it('goes to every screen of the program and the tenant-wide ones', () => {
     expect(ids('REVIEWER').filter((id) => id.startsWith('go:'))).toEqual(
-      ['go:programs', 'go:register', 'go:overview', 'go:review', 'go:coverage', 'go:requests', 'go:changes', 'go:rules', 'go:report', 'go:audit']);
+      ['go:programs', 'go:register', 'go:overview', 'go:setup', 'go:review', 'go:coverage', 'go:requests', 'go:changes', 'go:rules', 'go:report', 'go:audit']);
   });
 
   it('jumps to Review for a state and for a requirement by ref', () => {

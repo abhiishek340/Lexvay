@@ -2627,3 +2627,85 @@ withdraws access. Only the `f5b-*` screenshots from that run are committed.
   56 passed (7.4m)
 ```
 Only the `f5b-*` and `ui2-1-register-400-*` captures of that run are committed.
+
+## INFRA-2 — Remote state, WAF, flow logs and private-range egress (PR #46)
+
+Branch `infra-hardening`, decisions D-463 to D-470 in `docs/decisions/INFRA-2.md`. Terraform only: nothing was planned
+against an account or applied.
+
+### Spec points
+1. **Remote state** (D-463): `backend "s3" {}` in `versions.tf`, `infra/backend.hcl.example`, `backend.hcl` ignored,
+   `init -backend=false` kept; bootstrap and `init -backend-config=backend.hcl` in `docs/OPERATIONS.md`.
+2. **WAF** (D-464 to D-466): alias `aws.us_east_1`, `infra/waf.tf` with the four rules in order and the
+   `SizeRestrictions_BODY` count override, `web_acl_id` on the distribution, logging to
+   `aws-waf-logs-<name>` with its own resource policy, `authorization` and `cookie` redacted, `waf_login_rate_limit`.
+3. **Flow logs** (D-467): `infra/flow_logs.tf`, delivery role, key policy statement for CloudWatch Logs limited by
+   encryption context.
+4. **Egress** (D-468): `infra/nacl.tf`, the specified outbound and inbound rules, link-local caveat in a comment and in
+   `docs/OPERATIONS.md`.
+5. **Tests** (D-470): eight new runs in `infra/tests/stack.tftest.hcl`.
+6. **Docs**: "Deploy on AWS (Terraform)" section in `docs/OPERATIONS.md`; the F12 deployment note and the WS-EVAL
+   Terraform sentence removed from the roadmap's follow-ups.
+
+### Checks
+- Provider arguments were checked against the schema of the installed `hashicorp/aws` 6.74.0
+  (`terraform providers schema -json`) and its registry documentation for that version.
+- `make infra-validate`: format check, `init -backend=false`, validate, `terraform test` (16 runs).
+- `make backend-test`: 1091 tests, 0 failures (run before merging origin/main; this item changes no backend file).
+
+### Deviations from the spec
+None. Added beyond it, because the resources need them: a CloudWatch Logs resource policy for the WAF log group
+(D-466), text transformations on the rate rule's path match (D-465) and the account-root statement kept in the key
+policy (D-467).
+
+## UI2-4 — Rules, evidence requests and program setup (F2) in v2 (PR #43)
+
+Branch `ui2-rules-requests-setup`, e2e slot 4. Decisions in `docs/decisions/UI2-4.md` (D-285 to D-294, D-350 to D-359).
+
+## Built
+- **Rules v2**: version list and selected version as one hero panel; status as icon and word in the list and a Tag in
+  the header; requirement count as a Stat; InfoTips for every explanatory paragraph; extraction states as empty states;
+  the edit grid's title takes the free width (F3b follow-up); the **Search terms** cell as editable chips (at most 12,
+  40 characters each, normalised like the server; the notice says how many the server did not keep); a Search terms
+  column in the read-only table; Compare shows `SEARCH_TERMS` as its own aspect with removed and added terms marked;
+  the approve dialog with the count and the seal icon.
+- **Evidence requests v2**: the inbox as a hero panel with the segmented filter and counts, rows with the state tile,
+  the asker's initials, status Tags with icons; requests with `signed: true` (FIX-3) are blocked like stale ones, with the
+  reason in the row and the sentence behind an InfoTip; the rail badge no longer counts signed requests; the answer
+  drawer restyled on a shared sheet with numbered parts and the passage in Document type.
+- **Program setup (F2)**: `/programs/new` and `/programs/:id/setup` (one route), "Program setup" in the rail, "New
+  program" on the home screen and in the program switcher; a restyled Stepper with per-step status; Details and States
+  (editable license Select, MultiSelect, StateMap `mini`); Courses (add course, new catalog year); Documents (FileUpload
+  in custom mode, per-file kind and course version, sequential upload, Uploading, Reading, Ready (n pages), Failed,
+  Already uploaded with a link, reading polled every 2 s while visible, read-only viewer sheet); Program facts (rows from
+  the assessed rule versions' numeric fields, Record sheet with the document picker and a selectable viewer, mismatch
+  warning, history); Readiness (checklist, Run assessment, progress ring, toast, Open Review).
+- Shared: `shared/sheet` (the F4 drawer pattern as one component), `shared/document-picker` (F4's picker), Lexvay token
+  sets for Drawer, Stepper, FileUpload, MultiSelect (with Checkbox and Chip) and Chip.
+
+## Not built, and why
+- No backend change: every endpoint F2 needs exists (spec point 7). The assessment view has no "processed" field, but
+  its per-state totals already count the mappings produced so far, so the progress ring needs none.
+- The Add course dialog makes one request, not two (D-288, disagreement with the spec).
+- The StateMap `mini` is a picture of the chosen states beside the MultiSelect, not a second control (D-287).
+
+## Verification
+`export LEXVAY_E2E_SLOT=4; make test` after the review round and merging `origin/main` (F10b, FIX-6, F5b, FIX-7, design v3
+docs), real tails:
+
+```
+[INFO] Tests run: 1092, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  40 passed (40)
+      Tests  414 passed (414)
+  6 skipped
+  55 passed (6.7m)
+```
+The six skipped are the screenshot tests; the `LEXVAY_SCREENSHOTS=1` run on the same slot passed all 61 and retook the
+`ui2-4-*` screenshots. No backend file changed.
+
+- Bundle: initial 615.51 kB raw, 157.92 kB transfer (under the 680 kB warning); `program-setup-routes` 236.8 kB raw.
+- Review round: Rules opens on the version that needs a person; setup confirmations are toasts plus a hidden live
+  region; request cards say "No answers" / "N answers"; Program setup has tab-bar priority 65 in F5b's overflow; the
+  program setup screen moved to `screens/program-setup/` because F5b's password screen took `screens/setup/`.
+- Screenshots: `docs/screens/ui2-4-*` in light and dark at 1440 and 400 px.

@@ -1,18 +1,38 @@
 :host { display: block; }
-.lx-compare { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 12px; }
+.lx-compare { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 14px; }
 .lx-against { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .lx-against-select { min-width: min(26rem, 100%); }
-.lx-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.lx-summary-item { display: inline-flex; align-items: center; gap: 6px; }
-.lx-summary-sep { color: var(--p-lx-ink-2); }
+
+/* The summary as four counts, each with its status shape; changed first. */
+.lx-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.lx-summary-item {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 10px; border-radius: var(--lx-r-control);
+  background: var(--p-lx-sunken); color: var(--p-lx-ink);
+}
+.lx-summary-item[data-status='CHANGED'] { background: var(--p-lx-sunken); }
+.lx-summary-item[data-status='CHANGED'] ng-icon { color: var(--p-lx-ink-2); }
+.lx-summary-item[data-status='ADDED'] ng-icon { color: var(--p-lx-found); }
+.lx-summary-item[data-status='REMOVED'] ng-icon { color: var(--p-lx-missing); }
+.lx-summary-item[data-status='UNCHANGED'] ng-icon { color: var(--p-lx-ink-2); }
+.lx-summary-count { font-weight: 600; }
+.lx-summary-sep { display: none; }
+.lx-compare-span { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; color: var(--p-lx-ink-2); font-size: 13px; line-height: 20px; }
+.lx-compare-version { display: inline-flex; align-items: baseline; gap: 8px; color: var(--p-lx-ink); font-weight: 500; }
+.lx-compare-version .lx-mono { color: var(--p-lx-ink-2); }
+
 .lx-status-cell { white-space: nowrap; }
 .lx-ref-changed { margin-left: 4px; }
 .lx-requirement { display: flex; flex-direction: column; gap: 2px; min-width: 10rem; }
 .lx-req-title { font-weight: 500; }
-.lx-change { display: flex; flex-direction: column; gap: 6px; min-width: 18rem; }
-.lx-change-text { display: block; max-width: 65ch; }
+.lx-change { display: flex; flex-direction: column; gap: 8px; min-width: 18rem; }
+.lx-change-text { display: block; max-width: 65ch; font-size: 15px; line-height: 24px; }
 .lx-aspect { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
-.lx-aspect-name { font-family: var(--lx-font-sans); font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-ink-2); }
+.lx-aspect-name { font-family: var(--lx-font-sans); font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-ink-2); min-width: 5.5rem; }
+.lx-term-list { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.lx-term { padding: 1px 8px; border-radius: var(--lx-r-control); background: var(--p-lx-sunken); font-size: 12px; line-height: 18px; color: var(--p-lx-ink); text-decoration: none; }
+/* Removed and added terms: struck through or underlined, in the status colour on its tint, never colour alone. */
+.lx-term-del { background: var(--p-lx-sunken); color: var(--p-lx-missing); text-decoration: line-through; }
+.lx-term-ins { background: var(--p-lx-sunken); color: var(--p-lx-found); text-decoration: underline; text-underline-offset: 3px; }
 .lx-full-text { display: block; max-width: 75ch; }
 .lx-compare-skeleton { display: flex; flex-direction: column; gap: 8px; }
 :host ::ng-deep .lx-rule-text-diff .p-accordionheader { font-weight: 600; }

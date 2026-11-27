@@ -1,30 +1,50 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorCaretDown, phosphorCaretRight, phosphorPaperPlaneTilt, phosphorQuotes } from '@ng-icons/phosphor-icons/regular';
+import { phosphorCaretRight, phosphorLockSimple } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { SelectButton } from 'primeng/selectbutton';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
-import { Label } from '../../ui/label';
-import { REQUEST_FILTERS, RequestFilter, RequestState, canAnswer, matchesRequestFilter, requestCounts, requestState } from '../../core/evidence-requests';
+import { Tooltip } from 'primeng/tooltip';
+import { BlockedReason, REQUEST_FILTERS, RequestFilter, RequestState, answersText, blockedReason, canAnswer, matchesRequestFilter, requestCounts, requestState } from '../../core/evidence-requests';
 import { EvidenceRequest, EvidenceResponse } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { registerComponentTokens } from '../../theme/component-tokens';
+import { initials } from '../../ui/initials';
 import { EvidenceDrawer } from './evidence-drawer';
 import { REQUESTS_TOKENS } from './requests-theme';
+import { Label } from '../../ui/label';
+import { Help, HelpTerm } from '../../ui/help';
+
+/** The inbox's definitions, behind its one Help button. */
+const HELP: readonly HelpTerm[] = [
+  { term: 'Evidence request', definition: 'A reviewer asks the program for evidence from the Review screen.' },
+  { term: 'Answer', definition: "A passage from one of the program's documents; the requirement goes back to the reviewer beside what the system proposed." },
+  { term: 'Blocked', definition: 'A change or a signed determination closed the request; the row says which.' },
+];
 
 /** The icons the inbox and its answer drawer show beyond SHELL_ICONS, provided by its route (requests.routes.ts). */
-export const REQUESTS_ICONS = { phosphorCaretDown, phosphorCaretRight, phosphorPaperPlaneTilt, phosphorQuotes };
+export const REQUESTS_ICONS = {
+  phosphorCaretRight, phosphorLockSimple,
+};
 
-export const REQUEST_STATE: Record<RequestState, { label: string }> = {
-  OPEN: { label: 'Open' },
-  ANSWERED: { label: 'Answered, awaiting review' },
-  BLOCKED: { label: 'Blocked' },
+/** Each state in its own word, shown as a Label (ui/label.ts). */
+export const REQUEST_STATE: Record<RequestState, { key: RequestState; label: string }> = {
+  OPEN: { key: 'OPEN', label: 'Open' },
+  ANSWERED: { key: 'ANSWERED', label: 'Answered' },
+  BLOCKED: { key: 'BLOCKED', label: 'Blocked' },
+};
+
+/** Why a blocked request has no answer action: a few words in the row, the sentence in their tooltip. */
+export const BLOCKED_TEXT: Record<BlockedReason, { short: string; why: string }> = {
+  STALE: { short: 'Waiting for a re-run', why: 'This requirement is waiting for a re-run after a change; answer it after the re-run.' },
+  SIGNED: { short: 'Signed', why: 'A signed determination already covers this requirement, so the request can no longer be answered.' },
 };
 
 /**
@@ -34,21 +54,27 @@ export const REQUEST_STATE: Record<RequestState, { label: string }> = {
  */
 @Component({
   selector: 'lx-requests',
-  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, SelectButton, Skeleton, TableModule, Label, EvidenceDrawer],
+  imports: [DatePipe, FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, SelectButton, Skeleton, TableModule, Tooltip, Help, Label, EvidenceDrawer],
   templateUrl: './requests.html',
   styleUrl: './requests.css',
 })
 export class Requests {
+  readonly help = HELP;
   private readonly toast = inject(MessageService);
   readonly context = inject(ProgramContext);
 
   readonly programId = input.required<string>();
   readonly filters = REQUEST_FILTERS;
   readonly canAnswer = canAnswer;
+  readonly answersText = answersText;
+  readonly blockedText = BLOCKED_TEXT;
+  readonly initials = initials;
 
   readonly filter = signal<RequestFilter>('OPEN');
   readonly rows = computed(() => this.context.evidenceRequests().filter((r) => matchesRequestFilter(r, this.filter())));
   readonly counts = computed(() => requestCounts(this.context.evidenceRequests()));
+  readonly blockedCount = computed(() => this.context.evidenceRequests().filter((r) => requestState(r) === 'BLOCKED').length);
+  readonly emptyText = computed(() => EMPTY[this.filter()]);
   /** PrimeNG's row expansion state, keyed by mapping id. */
   expanded: Record<string, boolean> = {};
   readonly error = signal<string | null>(null);
@@ -82,8 +108,8 @@ export class Requests {
     return REQUEST_STATE[requestState(row)];
   }
 
-  blocked(row: EvidenceRequest): boolean {
-    return requestState(row) === 'BLOCKED';
+  blocked(row: EvidenceRequest): BlockedReason | null {
+    return blockedReason(row);
   }
 
   setFilter(filter: RequestFilter | null): void {
@@ -130,6 +156,13 @@ export class Requests {
     }
   }
 }
+
+/** Empty states are one sentence (DESIGN.md "States and feedback"). */
+const EMPTY: Record<RequestFilter, string> = {
+  OPEN: 'No open evidence requests.',
+  ANSWERED: 'No answered requests are waiting for review.',
+  ALL: 'No evidence requests yet.',
+};
 
 function headingOf(doc: Document): HTMLElement | null {
   const heading = doc.querySelector<HTMLElement>('main h1');

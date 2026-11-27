@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgIcon } from '@ng-icons/core';
+import { AutoComplete } from 'primeng/autocomplete';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
 import { InputNumber } from 'primeng/inputnumber';
@@ -10,7 +11,6 @@ import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
-import { Label } from '../../ui/label';
 import { Textarea } from 'primeng/textarea';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
@@ -21,8 +21,10 @@ import { RuleVersionStatus } from '../../core/rules';
 import { SessionService } from '../../core/session.service';
 import { Clamp } from '../../ui/clamp';
 import { EditableRequirement, RequirementListEditor } from './requirement-list-editor';
+import { MAX_TERMS, applyTerms, droppedTerms, sameTerms } from './search-terms';
 import { UnsavedChanges } from './unsaved-changes';
 import type { Notice } from './rule-version-detail';
+import { Label } from '../../ui/label';
 
 /**
  * The Requirements tab: the version's list as a table, and for a reviewer of an unapproved version the same table
@@ -30,7 +32,7 @@ import type { Notice } from './rule-version-detail';
  */
 @Component({
   selector: 'lx-requirements-panel',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, InputNumber, InputText, Message, Select, Skeleton, TableModule, Label, Textarea, Clamp],
+  imports: [FormsModule, NgIcon, AutoComplete, ButtonDirective, ButtonLabel, Dialog, InputNumber, InputText, Message, Select, Skeleton, TableModule, Label, Textarea, Clamp],
   templateUrl: './requirements-panel.html',
   styleUrl: './requirements-panel.css',
 })
@@ -49,6 +51,7 @@ export class RequirementsPanel {
   readonly types = (Object.keys(REQUIREMENT_TYPE_LABEL) as RequirementType[]).map((value) => ({ value, label: REQUIREMENT_TYPE_LABEL[value] }));
   readonly fields = (Object.keys(NUMERIC_FIELD_LABEL) as NumericField[]).map((value) => ({ value, label: NUMERIC_FIELD_LABEL[value] }));
   readonly operators = NUMERIC_OPERATORS.map((value) => ({ value, label: value }));
+  readonly maxTerms = MAX_TERMS;
   /** Rows keep their DOM (and the focused control) while their content changes. */
   readonly trackRow = (_: number, row: EditableRequirement): number => row.key;
 
@@ -58,12 +61,20 @@ export class RequirementsPanel {
   readonly editing = signal(false);
   readonly busy = signal(false);
   readonly approveOpen = signal(false);
+  /** Per row (by key): why the last entry in its search terms was not taken. */
+  readonly termsProblems = signal<ReadonlyMap<number, string>>(new Map());
   private readonly approveButton = viewChild<ElementRef<HTMLButtonElement>>('approveButton');
 
   /** Correcting and approving belong to reviewers, signers and administrators, and only before approval. */
   readonly canChange = computed(() => this.session.canReview() && !this.approved() && this.requirements() !== null && this.status() !== 'EXTRACTING');
   readonly canApprove = computed(() => this.canChange() && !this.editing() && (this.requirements()?.length ?? 0) > 0);
   readonly rowLabels = computed(() => new Map(this.editor.rows().map((r, i) => [r.key, r.ref.trim() || `Row ${i + 1}`])));
+  /** Per row: the search term chips as a named list of items, not PrimeNG's unnamed listbox of options holding controls. */
+  readonly termsPt = computed(() => new Map([...this.rowLabels()].map(([key, label]) => [key, {
+    inputMultiple: { role: 'list', 'aria-label': `${label} search terms chosen`, 'aria-orientation': null, 'aria-activedescendant': null },
+    chipItem: { role: 'listitem', 'aria-selected': null },
+    inputChip: { role: 'listitem' },
+  }])));
 
   /** What the list was last loaded for: the version, its requirement count and its approval. */
   private loadedFor = '';
@@ -88,14 +99,32 @@ export class RequirementsPanel {
 
   startEditing(): void {
     this.editor.load(this.requirements() ?? []);
+    this.termsProblems.set(new Map());
     this.error.set(null);
     this.editing.set(true);
   }
 
   discard(): void {
     this.editor.restore();
+    this.termsProblems.set(new Map());
     this.error.set(null);
     this.editing.set(false);
+  }
+
+  /** The chips control proposes a new list; the chip model decides what is kept (search-terms.ts). */
+  setTerms(row: EditableRequirement, next: string[] | null): void {
+    const change = applyTerms(next ?? []);
+    // The control echoes the list back once it is reset to the kept terms; that echo changes nothing and keeps the message.
+    if (!change.problem && sameTerms(change.terms, row.searchTerms)) { return; }
+    // When the model keeps the list as the control holds it, the row keeps that very array: NgModel then has nothing to
+    // write back, and the control never resets its input under a person still typing the next term.
+    const kept = next && sameTerms(change.terms, next) ? next : change.terms;
+    this.editor.update(row.key, { searchTerms: kept });
+    this.termsProblems.update((problems) => {
+      const updated = new Map(problems);
+      if (change.problem) { updated.set(row.key, change.problem); } else { updated.delete(row.key); }
+      return updated;
+    });
   }
 
   addRow(): void {
@@ -118,11 +147,15 @@ export class RequirementsPanel {
     this.busy.set(true);
     this.error.set(null);
     this.editor.clearProblems();
+    this.termsProblems.set(new Map());
     try {
-      const saved = await firstValueFrom(this.api.replaceRequirements(v.id, this.editor.toDrafts()));
+      const drafts = this.editor.toDrafts();
+      const saved = await firstValueFrom(this.api.replaceRequirements(v.id, drafts));
       this.apply(saved, v);
       this.editing.set(false);
-      this.notice.emit({ summary: 'Requirement list saved', detail: `${saved.requirements.length} requirements for ${this.jurisdictionName()} are waiting for approval.` });
+      const dropped = droppedTerms(drafts.map((d) => d.search_terms), saved.requirements.map((r) => r.searchTerms));
+      const kept = dropped > 0 ? ` ${dropped} search ${dropped === 1 ? 'term was' : 'terms were'} not kept: ${dropped === 1 ? 'it repeats' : 'they repeat'} the requirement's own words, name a state or contain a number.` : '';
+      this.notice.emit({ summary: 'Requirement list saved', detail: `${saved.requirements.length} requirements for ${this.jurisdictionName()} are waiting for approval.${kept}` });
       this.changed.emit();
     } catch (e: unknown) {
       const detail = problemDetail(e, 'The requirement list could not be saved.');

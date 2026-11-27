@@ -51,7 +51,7 @@
   @if (!wide()) {
     <button pButton type="button" severity="secondary" [outlined]="true" size="small" class="lx-show-on-page"
             [attr.aria-expanded]="showOnPage().has(key)" [attr.aria-controls]="'evidence-page-' + key" (click)="toggleOnPage(key)">
-      <ng-icon name="phosphorEye" size="16" aria-hidden="true" /><span pButtonLabel>Show on page</span>
+      <span pButtonLabel>Show on page</span>
     </button>
   }
   <div [id]="'evidence-page-' + key" class="lx-evidence-page">
