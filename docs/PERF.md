@@ -2,7 +2,7 @@
 
 Budget (CLAUDE.md): p95 under 40 ms for every read endpoint on the seeded tenant. `make perf` enforces it and
 runs the index check; `make backend-test` runs everything else. Decisions and rejected alternatives:
-`docs/decisions/WS-PERF.md` (D-110 to D-119).
+`DECISIONS.md (D-110 to D-119)` (D-110 to D-119).
 
 ## How it is measured
 
