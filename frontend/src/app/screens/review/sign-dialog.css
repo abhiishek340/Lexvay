@@ -1,0 +1,42 @@
+/* The dialog is appended to the body; its content keeps this component's scoped attributes, so these rules reach it. */
+.lx-sign-sub { display: flex; align-items: center; gap: 6px; margin: -4px 0 20px; color: var(--p-lx-text-2); font-variant-numeric: tabular-nums; }
+.lx-sign-body { display: grid; grid-template-columns: minmax(0, 1fr) 168px; gap: 24px; align-items: center; }
+
+/* Three large selectable cards; the chosen one carries the accent ring, the radio dot and its own icon. */
+.lx-outcomes { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.lx-outcome {
+  display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 14px; padding: 18px 18px; cursor: pointer;
+  border-radius: var(--lx-r-card); background: var(--p-lx-surface); box-shadow: var(--p-lx-e1);
+  font-size: 15px; line-height: 22px; font-weight: 550;
+  transition: transform var(--lx-t-1) var(--lx-ease-out), box-shadow var(--lx-t-1) var(--lx-ease-out), background-color var(--lx-t-1) var(--lx-ease-out);
+}
+.lx-outcome:hover { transform: translateY(-1px); box-shadow: var(--p-lx-e2); }
+.lx-outcome:active { transform: scale(0.99); }
+.lx-outcome-chosen, .lx-outcome-chosen:hover { background: var(--p-lx-accent-tint); box-shadow: inset 0 0 0 2px var(--p-lx-accent); }
+.lx-outcome:has(input:focus-visible) { outline: 2px solid var(--p-lx-accent); outline-offset: 2px; }
+.lx-tone-found ng-icon { color: var(--p-lx-found); }
+.lx-tone-missing ng-icon { color: var(--p-lx-missing); }
+.lx-tone-seal ng-icon { color: var(--p-lx-seal); }
+
+/* The seal the choice would produce: faint until it is signed. */
+.lx-seal-slot { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.lx-seal-preview { opacity: 0.4; animation: lx-seal-in var(--lx-t-2) var(--lx-ease-out); }
+@keyframes lx-seal-in { from { opacity: 0; transform: scale(0.96); } }
+.lx-seal-empty {
+  width: 136px; height: 136px; box-sizing: border-box; border-radius: 50%; border: 1.5px dashed var(--p-lx-line-strong);
+  display: grid; place-items: center; color: var(--p-lx-text-2); font-size: 28px; font-weight: 650; letter-spacing: -0.5px;
+}
+.lx-seal-caption { font-size: 12px; line-height: 16px; color: var(--p-lx-text-2); }
+
+/* The moment: the seal stamps down (Seal's own animation), then the outcome in words. */
+.lx-signed { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 0 4px; text-align: center; }
+.lx-signed lx-seal { margin-bottom: 12px; }
+.lx-signed-outcome { font-size: 20px; line-height: 28px; font-weight: 620; letter-spacing: -0.01em; }
+
+@media (max-width: 560px) {
+  .lx-sign-body { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .lx-seal-slot { order: -1; flex-direction: row; justify-content: center; }
+  .lx-seal-slot lx-seal ::ng-deep svg, .lx-seal-empty { width: 88px; height: 88px; }
+  .lx-seal-empty { font-size: 20px; }
+  .lx-outcome { padding: 14px; }
+}

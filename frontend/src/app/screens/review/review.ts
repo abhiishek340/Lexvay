@@ -1,43 +1,55 @@
-import { DatePipe, NgTemplateOutlet } from '@angular/common';
-import { Component, DestroyRef, ElementRef, computed, effect, inject, input, linkedSignal, signal, untracked, viewChild } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { Component, DestroyRef, ElementRef, afterRenderEffect, computed, effect, inject, input, linkedSignal, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorEye, phosphorKeyboard, phosphorSealCheck, phosphorSignature, phosphorUser } from '@ng-icons/phosphor-icons/regular';
+import {
+  phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorCheckCircle, phosphorCircleDashed, phosphorEye,
+  phosphorKeyboard, phosphorListBullets, phosphorQuestion, phosphorSeal, phosphorSignature, phosphorUser, phosphorXCircle,
+} from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
 import { Message } from 'primeng/message';
-import { ProgressBar } from 'primeng/progressbar';
-import { RadioButton } from 'primeng/radiobutton';
-import { SelectButton } from 'primeng/selectbutton';
 import { Skeleton } from 'primeng/skeleton';
-import { Splitter, SplitterPanel } from 'primeng/splitter';
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
-import { Textarea } from 'primeng/textarea';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { DECISION_LABEL, OUTCOME_LABEL } from '../../core/labels';
-import { DecisionKind, Mapping, Outcome } from '../../core/models';
+import { DecisionKind, Determination, Outcome } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { SessionService } from '../../core/session.service';
-import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
-import { paletteShortcut } from '../../ui/command-palette/shortcut';
-import { DecisionState, FindingLabel } from '../../ui/finding';
 import { registerComponentTokens } from '../../theme/component-tokens';
+import { paletteShortcut } from '../../ui/command-palette/shortcut';
+import { DecisionBar } from '../../ui/decision-bar/decision-bar';
+import { InfoTip } from '../../ui/info-tip';
+import { ProgressRing } from '../../ui/progress-ring';
+import { Seal } from '../../ui/seal';
+import { EvidencePane } from './evidence-pane';
+import { RequirementCard } from './requirement-card';
+import { RequirementList } from './requirement-list';
 import { REVIEW_TOKENS } from './review-theme';
-import { REVIEW_FILTERS, ReviewFilter, ReviewWorkspace, SHORTCUT_HELP, ShortcutCommand, decisionBlocker, shortcutFor } from './review-workspace';
+import { ReviewFilter, ReviewWorkspace, SHORTCUT_HELP, ShortcutCommand, decisionBlocker, shortcutFor, stateProgress } from './review-workspace';
+import { SignDialog } from './sign-dialog';
 
 const WIDE = '(min-width: 1024px)';
 
-/** The icons the Review workspace shows beyond SHELL_ICONS, provided by its route (review.routes.ts). */
-export const REVIEW_ICONS = { phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorEye, phosphorKeyboard, phosphorSealCheck, phosphorSignature, phosphorUser };
+/** The icons the Review workspace and its own parts show beyond SHELL_ICONS, provided by its route (review.routes.ts). */
+export const REVIEW_ICONS = {
+  phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorCheckCircle, phosphorCircleDashed, phosphorEye,
+  phosphorKeyboard, phosphorListBullets, phosphorQuestion, phosphorSeal, phosphorSignature, phosphorUser, phosphorXCircle,
+};
 
+/**
+ * Review (DESIGN.md "Review"), the screen people work in for hours. Focus mode: a header with the states as pills
+ * (mini rings, the shared-element target of the overview's map tiles), the progress ring and, once every requirement
+ * is decided, "Sign <state>"; below it the list rail, the requirement as the hero with the floating DecisionBar, and
+ * the evidence on its page. A decision lands visibly (the row's ring draws, the row settles, the next requirement
+ * slides in, the rings advance) without ever holding input back; reduced motion removes the motion.
+ */
 @Component({
   selector: 'lx-review',
-  imports: [DatePipe, NgTemplateOutlet, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, Message, ProgressBar, RadioButton, SelectButton, Skeleton,
-    Splitter, SplitterPanel, Tab, TabList, TabPanel, TabPanels, Tabs, Textarea, FindingLabel, DecisionState, DocumentViewer],
+  imports: [NgIcon, ButtonDirective, ButtonLabel, Dialog, Message, Skeleton, Tab, TabList, TabPanel, TabPanels, Tabs,
+    DecisionBar, InfoTip, ProgressRing, Seal, EvidencePane, RequirementCard, RequirementList, SignDialog],
   templateUrl: './review.html',
   styleUrl: './review.css',
   host: { '(document:keydown)': 'onKey($event)' },
@@ -55,13 +67,10 @@ export class Review {
   readonly jurisdictionParam = input<string | undefined>(undefined, { alias: 'jurisdiction' });
   readonly ref = input<string | undefined>();
   readonly workspace = new ReviewWorkspace();
-  readonly filters = REVIEW_FILTERS;
   readonly shortcuts = SHORTCUT_HELP;
   /** The command palette works everywhere; the list names it beside the review keys. */
   readonly paletteKeys = paletteShortcut(typeof navigator === 'undefined' ? '' : navigator.platform);
-  readonly decisionLabel = DECISION_LABEL;
   readonly outcomeLabel = OUTCOME_LABEL;
-  readonly outcomes: Outcome[] = ['MEETS', 'DOES_NOT_MEET', 'NOT_DETERMINED'];
 
   readonly jurisdiction = signal<string>('');
   readonly loading = signal(false);
@@ -73,36 +82,43 @@ export class Review {
   readonly busy = signal(false);
   readonly signOpen = signal(false);
   readonly helpOpen = signal(false);
-  readonly outcome = signal<Outcome | null>(null);
+  /** The determination the signing dialog has just recorded, for its stamp. */
+  readonly justSigned = signal<Determination | null>(null);
+  /** The mapping whose decision has just landed, for the list's landing motion. */
+  readonly landed = signal<string | null>(null);
   readonly wide = signal(typeof matchMedia === 'function' ? matchMedia(WIDE).matches : true);
 
   /** A jurisdiction asked for before the assessment was known. */
   private requested: string | null = null;
   /** A requirement asked for by ref, selected once its jurisdiction's list has loaded. */
   private requestedRef: string | null = null;
-  private readonly noteField = viewChild<ElementRef<HTMLTextAreaElement>>('noteField');
-  private readonly listPane = viewChild<ElementRef<HTMLElement>>('listPane');
+  private readonly bar = viewChild(DecisionBar);
+  private readonly centre = viewChild<ElementRef<HTMLElement>>('centre');
 
   readonly selected = this.workspace.selected;
   readonly evidence = this.workspace.evidence;
+  /** The requirement card, keyed by mapping so a new requirement enters (from the side it comes from). */
+  readonly hero = computed(() => {
+    const m = this.selected();
+    return m ? [m] : [];
+  });
+  readonly enterFrom = computed(() => (this.workspace.travel() === 'back' ? 'lx-enter-back' : 'lx-enter-forward'));
   /**
-   * Under 1024 px each page (the system's evidence, each provided passage) is shown on request, by key; each
-   * requirement starts with all of them collapsed again.
+   * The note opens by itself where the reviewer is asked which evidence they relied on (a person answered an evidence
+   * request, F4); otherwise it waits for Gap, G or the note button. Every requirement starts from that again.
    */
-  readonly showOnPage = linkedSignal<string | null, ReadonlySet<string>>({ source: this.workspace.selectedId, computation: () => new Set() });
+  private readonly answered = computed(() => this.evidence()?.answered ?? false);
+  readonly noteOpen = linkedSignal(() => {
+    this.workspace.selectedId();
+    return this.answered();
+  });
   /** Mapping ids whose responses are being fetched, so a selection never asks twice. */
   private readonly fetching = new Set<string>();
+  readonly stateName = computed(() => this.context.jurisdictionName(this.jurisdiction()));
+  readonly pills = computed(() => stateProgress(this.context.assessment()?.jurisdictions ?? []));
   readonly signed = computed(() => this.context.determinations().find((d) => d.jurisdiction === this.jurisdiction() && d.status === 'SIGNED') ?? null);
   readonly reopened = computed(() => !this.signed() && this.context.determinations().some((d) => d.jurisdiction === this.jurisdiction() && d.status === 'REOPENED'));
-  readonly canSign = computed(() => this.workspace.allDecided() && this.session.isSigner() && !this.signed());
-  readonly progressPercent = computed(() => (this.workspace.total() ? Math.round((this.workspace.decided() / this.workspace.total()) * 100) : 0));
   readonly ruleVersion = computed(() => this.context.ruleVersions().find((r) => r.id === this.selected()?.ruleVersionId) ?? null);
-  readonly paneStateKey = computed(() => `lexvay.review.panes.${this.session.user()?.id ?? 'anonymous'}`);
-  readonly signHelp = computed(() => {
-    if (!this.session.isSigner()) { return 'Only a signer can sign.'; }
-    if (!this.workspace.allDecided()) { return 'Enabled when every requirement has a decision.'; }
-    return 'Every requirement has a decision.';
-  });
 
   constructor() {
     registerComponentTokens(REVIEW_TOKENS);
@@ -141,6 +157,12 @@ export class Review {
       if (m && this.workspace.evidence()?.providedLoading) {
         untracked(() => this.fetchResponses(m.id));
       }
+    });
+    // A new requirement is read from its top: the centre pane scrolls back up when the selection changes.
+    afterRenderEffect(() => {
+      this.workspace.selectedId();
+      const centre = this.centre()?.nativeElement;
+      if (centre && this.wide()) { centre.scrollTop = 0; }
     });
     if (typeof matchMedia === 'function') {
       const media = matchMedia(WIDE);
@@ -184,12 +206,7 @@ export class Review {
     const mapping = ref ? this.workspace.mappings().find((m) => m.requirement.ref === ref) : undefined;
     if (mapping) {
       this.select(mapping.id);
-      this.scrollSelectedIntoView();
     }
-  }
-
-  count(filter: ReviewFilter): number {
-    return this.workspace.counts()[filter];
   }
 
   select(id: string): void {
@@ -197,11 +214,9 @@ export class Review {
     this.resetNote();
   }
 
-  setFilter(filter: ReviewFilter | null): void {
-    if (filter) {
-      this.workspace.setFilter(filter);
-      this.resetNote();
-    }
+  setFilter(filter: ReviewFilter): void {
+    this.workspace.setFilter(filter);
+    this.resetNote();
   }
 
   async decide(kind: DecisionKind): Promise<void> {
@@ -210,7 +225,7 @@ export class Review {
     const blocker = decisionBlocker(kind, this.note());
     if (blocker) {
       this.noteError.set(blocker);
-      this.noteField()?.nativeElement.focus();
+      this.bar()?.openNote();
       return;
     }
     this.busy.set(true);
@@ -218,12 +233,12 @@ export class Review {
     try {
       const updated = await firstValueFrom(this.api.review(current.id, kind, this.note().trim() || null));
       const next = this.workspace.applyDecision(updated);
+      this.landed.set(updated.id);
       this.resetNote();
       const done = `${updated.requirement.ref}: ${DECISION_LABEL[kind]}.`;
       const then = next && next.id !== updated.id ? ` Now showing ${next.requirement.ref}.` : '';
       this.message.set(done + then + ` ${this.workspace.progressLabel()}.`);
       this.toast.add({ severity: 'success', summary: `${DECISION_LABEL[kind]}: ${updated.requirement.ref}`, detail: this.workspace.progressLabel() });
-      this.scrollSelectedIntoView();
       this.context.refreshAssessment();
       // A request opens or an answered one is decided: the inbox and its badge follow.
       this.context.refreshEvidenceRequests();
@@ -235,17 +250,17 @@ export class Review {
   }
 
   openSign(): void {
-    this.outcome.set(null);
+    this.justSigned.set(null);
     this.signOpen.set(true);
   }
 
-  async sign(): Promise<void> {
-    const outcome = this.outcome();
-    if (!outcome || this.busy()) { return; }
+  async sign(outcome: Outcome): Promise<void> {
+    if (this.busy()) { return; }
     this.busy.set(true);
     try {
       const determination = await firstValueFrom(this.api.sign(this.programId(), this.jurisdiction(), outcome));
-      this.signOpen.set(false);
+      // The dialog stays open on its stamped seal until the signer closes it.
+      this.justSigned.set(determination);
       await this.context.refreshDeterminations();
       const text = `Determination for ${determination.jurisdiction} signed by ${determination.signedByName}: ${OUTCOME_LABEL[determination.outcome]}.`;
       this.message.set(text);
@@ -276,40 +291,12 @@ export class Review {
       case 'previous':
         this.workspace.move(command === 'next' ? 1 : -1);
         this.resetNote();
-        this.scrollSelectedIntoView();
         break;
       case 'accept': this.decide('ACCEPTED'); break;
       case 'request': this.decide('EVIDENCE_REQUESTED'); break;
-      case 'gap': this.noteField()?.nativeElement.focus(); break;
+      case 'gap': this.bar()?.openNote(); break;
       case 'help': this.helpOpen.set(true); break;
     }
-  }
-
-  howChecked(m: Mapping): { icon: 'phosphorCalculator' | 'phosphorMagnifyingGlass'; title: string; text: string } {
-    if (m.method === 'RULES_ENGINE') {
-      return { icon: 'phosphorCalculator', title: 'Rules engine calculation',
-        text: 'The number recorded for the program was compared with the requirement by code, not by the model.' };
-    }
-    if (!m.evidence) {
-      return { icon: 'phosphorMagnifyingGlass', title: 'Search and model proposal',
-        text: 'Candidate passages from the program documents were searched and shown to the model, which proposed no passage that answers this requirement.' };
-    }
-    return { icon: 'phosphorMagnifyingGlass', title: 'Model proposal, quote verified',
-      text: 'The model proposed this passage. The quote was then verified character for character against the stored page text before it was shown here.' };
-  }
-
-  noEvidenceReason(m: Mapping): string {
-    return m.method === 'RULES_ENGINE'
-      ? 'This requirement is a number. The rules engine checked it against the program facts, so there is no passage to quote.'
-      : 'No passage in the program documents answers this requirement.';
-  }
-
-  toggleOnPage(key: string): void {
-    this.showOnPage.update((keys) => {
-      const next = new Set(keys);
-      if (!next.delete(key)) { next.add(key); }
-      return next;
-    });
   }
 
   private async fetchResponses(mappingId: string): Promise<void> {
@@ -327,9 +314,6 @@ export class Review {
   private resetNote(): void {
     this.note.set('');
     this.noteError.set(null);
-  }
-
-  private scrollSelectedIntoView(): void {
-    requestAnimationFrame(() => this.listPane()?.nativeElement.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' }));
+    this.noteOpen.set(this.answered());
   }
 }

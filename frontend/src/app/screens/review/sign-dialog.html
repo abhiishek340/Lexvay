@@ -1,0 +1,47 @@
+<p-dialog [header]="header()" [visible]="open()" (visibleChange)="open.set($event)" [modal]="true" [draggable]="false" [resizable]="false"
+          [style]="{ width: '42rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Close signing">
+  @if (signed(); as d) {
+    <div class="lx-signed" data-testid="signed-seal">
+      <lx-seal [outcome]="d.outcome" [signer]="d.signedByName" [signedAt]="d.signedAt" [size]="152" [stamp]="true" />
+      <p class="lx-signed-outcome">{{ outcomeLabel[d.outcome] }}</p>
+      <p class="lx-help">{{ d.signedByName }}, {{ d.signedAt | date: 'd MMM y, HH:mm' }}</p>
+    </div>
+  } @else {
+    <p class="lx-sign-sub">
+      <span>{{ total() }} of {{ total() }} decided</span>
+      <lx-info-tip label="About signing">
+        Signing records a determination in your name and locks it to the rule version and course versions in use now. It cannot
+        be edited afterwards; a later change reopens it for a new signature.
+      </lx-info-tip>
+    </p>
+    <div class="lx-sign-body">
+      <fieldset class="lx-outcomes">
+        <legend class="lx-sr-only">Outcome</legend>
+        @for (o of outcomes; track o.value) {
+          <label [for]="'outcome-' + o.value" class="lx-outcome" [class]="'lx-tone-' + o.tone" [class.lx-outcome-chosen]="outcome() === o.value">
+            <p-radiobutton [inputId]="'outcome-' + o.value" name="outcome" [value]="o.value" [ngModel]="outcome()" (ngModelChange)="outcome.set($event)" />
+            <ng-icon [name]="o.icon" size="24" aria-hidden="true" />
+            <span>{{ outcomeLabel[o.value] }}</span>
+          </label>
+        }
+      </fieldset>
+      <!-- A picture of what signing would produce; hidden from assistive technology because nothing is signed yet. -->
+      <div class="lx-seal-slot" aria-hidden="true">
+        @if (outcome(); as o) {
+          <lx-seal class="lx-seal-preview" [outcome]="o" [signer]="signerName()" [signedAt]="today()" [size]="136" />
+        } @else {
+          <span class="lx-seal-empty">{{ signerInitials() }}</span>
+        }
+        <span class="lx-seal-caption">Preview</span>
+      </div>
+    </div>
+  }
+  <ng-template #footer>
+    @if (signed()) {
+      <button pButton type="button" #done (click)="open.set(false)"><span pButtonLabel>Done</span></button>
+    } @else {
+      <button pButton type="button" severity="secondary" [outlined]="true" (click)="open.set(false)"><span pButtonLabel>Cancel</span></button>
+      <button pButton type="button" [disabled]="!outcome() || busy()" [loading]="busy()" (click)="submit()"><span pButtonLabel>Sign</span></button>
+    }
+  </ng-template>
+</p-dialog>

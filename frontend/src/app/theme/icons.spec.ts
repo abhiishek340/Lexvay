@@ -13,6 +13,7 @@ import { ACCOUNT_MENU_ICONS } from '../shell/account-menu';
 import { SHELL_TOAST_ICONS } from '../shell/shell-toast';
 import { WORK_QUEUE_ICONS } from '../shell/work-queue-menu';
 import { PALETTE_ICONS } from '../ui/command-palette/command-palette';
+import { DECISION_BAR_ICONS } from '../ui/decision-bar/decision-bar';
 import { DECISION_STATE_ICONS, FINDING_LABEL_ICONS } from '../ui/finding';
 import { STATE_MAP_ICONS } from '../ui/state-map/state-map';
 import { STATUS_ICONS } from '../ui/status-icon';
@@ -51,6 +52,7 @@ const UNITS: Unit[] = [
   { name: 'command palette (shell, deferred)', entries: ['ui/command-palette/command-palette.ts'], registered: PALETTE_ICONS, shared: true },
   { name: 'state map (shared)', entries: ['ui/state-map/state-map.ts'], registered: STATE_MAP_ICONS, shared: true },
   { name: 'status icon (shared)', entries: ['ui/status-icon.ts'], registered: STATUS_ICONS, shared: true },
+  { name: 'decision bar (shared)', entries: ['ui/decision-bar/decision-bar.ts'], registered: DECISION_BAR_ICONS, shared: true },
 ];
 
 const read = (file: string): string => readFileSync(join(SRC, file), 'utf8');
