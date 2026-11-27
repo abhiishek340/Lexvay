@@ -14,8 +14,13 @@ function versions(page: Page) {
   return page.getByRole('listbox', { name: 'Rule versions' });
 }
 
+/** docs/screens are taken at the size the other screens use, then the test continues at its own size. */
 async function capture(page: Page, name: string): Promise<void> {
-  if (SCREENSHOTS) { await shoot(page, name); }
+  if (!SCREENSHOTS) { return; }
+  const size = page.viewportSize();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await shoot(page, name);
+  if (size) { await page.setViewportSize(size); }
 }
 
 test('a reviewer reads the seeded Colorado revision: its list, its rule text and what it changed', async ({ page }) => {
@@ -62,10 +67,12 @@ test('a reviewer reads the seeded Colorado revision: its list, its rule text and
   await expect(changed.getByTestId('numeric-change').locator('ins')).toHaveText('Internship hours >= 700');
   await expect(changed.getByTestId('text-diff').locator('del')).toHaveText('600');
   await expect(changed.getByTestId('text-diff').locator('ins')).toHaveText('700');
-  await page.getByRole('button', { name: 'Rule text' }).click();
-  await expect(page.getByTestId('rule-text-diff').locator('ins').first()).toContainText('700');
-  await expectAccessible(page, 'Compare');
   await capture(page, 'rules-compare');
+  await page.getByRole('button', { name: 'Rule text' }).click();
+  const ruleTextDiff = page.getByTestId('rule-text-diff');
+  await expect(ruleTextDiff.locator('ins', { hasText: '700' })).toHaveCount(1);
+  await expect(ruleTextDiff.locator('del', { hasText: '600' })).toHaveCount(1);
+  await expectAccessible(page, 'Compare');
 
   // The list is a listbox: arrow keys move, Enter opens. The original version supersedes nothing.
   await versions(page).focus();
@@ -155,6 +162,7 @@ test('a reviewer enters the list by hand, corrects it, saves, reloads and approv
   await grid.getByRole('textbox', { name: 'NV-1 text' }).fill('a graduate counseling degree of at least 60 semester credit hours');
 
   await page.getByRole('button', { name: 'Add requirement' }).click();
+  await expect(page.getByRole('textbox', { name: 'Row 2 ref' })).toBeFocused();
   await page.keyboard.type('NV-2');
   await grid.getByRole('combobox', { name: 'NV-2 type' }).click();
   await page.getByRole('option', { name: 'Subject', exact: true }).click();

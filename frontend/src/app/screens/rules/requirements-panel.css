@@ -14,9 +14,10 @@
 .lx-cell-ref { width: 7rem; }
 .lx-cell-title { width: 12rem; }
 .lx-cell-type { width: 11rem; }
-.lx-cell-check { width: 15rem; }
+.lx-cell-check { width: 16rem; }
 .lx-cell-actions { width: 7.5rem; white-space: nowrap; }
-.lx-check-controls { display: grid; grid-template-columns: 4.5rem 1fr; gap: 6px; }
+.lx-check-controls { display: grid; grid-template-columns: 5.5rem 1fr; gap: 6px; }
+.lx-cell-text { min-width: 18rem; }
 .lx-check-field { grid-column: 1 / -1; }
 :host ::ng-deep .lx-check-value input { width: 100%; }
 :host ::ng-deep .lx-check-value { display: block; }

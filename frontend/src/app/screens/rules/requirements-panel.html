@@ -31,7 +31,7 @@
   @if (requirements(); as list) {
     @if (editing()) {
       <form id="requirement-list-form" class="lx-edit" (ngSubmit)="save()" aria-label="Requirement list">
-        <p-table [value]="$any(editor.rows())" [rowTrackBy]="trackRow" [scrollable]="true" [tableStyle]="{ 'min-width': '62rem' }"
+        <p-table [value]="$any(editor.rows())" [rowTrackBy]="trackRow" [scrollable]="true" [tableStyle]="{ 'min-width': '74rem' }"
                  [pt]="{ table: { 'aria-label': 'Requirements, editable' }, tableContainer: { tabindex: '0' } }">
           <ng-template #header>
             <tr>
