@@ -29,7 +29,7 @@ class EvalScorerTest {
                         com.lexvay.document.TextSource.TEXT_LAYER, null);
         return new Mapping(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "UT", UUID.randomUUID(),
                 new Mapping.RequirementView(UUID.randomUUID(), ref, "title", "text", type, null, null, null),
-                finding, method, "rationale", false, evidence, null);
+                finding, method, "rationale", false, evidence, null, 0);
     }
 
     final Golden golden = new Golden(true, List.of(

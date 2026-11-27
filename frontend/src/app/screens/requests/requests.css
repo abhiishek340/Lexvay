@@ -1,0 +1,28 @@
+.lx-requests-filter { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.lx-filter-count { margin-left: 6px; color: var(--p-lx-text-2); }
+
+.lx-toggle-cell { width: 2.5rem; padding-right: 0; }
+.lx-request-ids { display: flex; gap: 8px; }
+.lx-request-title { display: block; margin-top: 2px; font-weight: 500; }
+.lx-request-cell { max-width: 36ch; }
+/* The note in two lines; the row detail has all of it. */
+.lx-two-lines {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  overflow-wrap: anywhere; margin-bottom: 4px;
+}
+.lx-action { min-width: 180px; }
+.lx-action .lx-help { max-width: 30ch; }
+.lx-action button { gap: 6px; }
+
+.lx-request-detail { display: grid; gap: 10px; padding: 4px 0 4px 2.5rem; }
+.lx-request-detail div { display: flex; flex-direction: column; gap: 2px; }
+.lx-request-detail dd { margin: 0; }
+.lx-request-note { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 80ch; }
+.lx-skeleton { display: flex; flex-direction: column; gap: 8px; }
+
+@media (max-width: 720px) {
+  :host ::ng-deep .lx-requests-table thead { display: none; }
+  :host ::ng-deep .lx-requests-table tbody tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--p-lx-line); }
+  :host ::ng-deep .lx-requests-table tbody td { display: block; border: 0; padding: 4px 0; max-width: none; }
+  .lx-request-detail { padding-left: 0; }
+}

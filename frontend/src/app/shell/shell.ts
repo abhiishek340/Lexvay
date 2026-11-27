@@ -57,6 +57,7 @@ export class Shell {
     waitingForReview: this.context.counts()?.waitingForReview ?? 0,
     openChanges: this.context.openChanges(),
     rulesWaiting: this.context.rulesWaiting(),
+    openRequests: this.context.openRequests(),
   }));
 
   readonly initials = computed(() => initials(this.session.user()?.displayName ?? ''));

@@ -14,7 +14,7 @@ describe('workItemView', () => {
       icon: 'phosphorListChecks', title: '8 to review', detail: 'California · M.S. Counseling',
       commands: ['/programs', 'p1', 'review'], queryParams: { jurisdiction: 'CA' },
     });
-    expect(workItemView(item({ kind: 'EVIDENCE_REQUESTS_OPEN', count: 1 }), null, name).title).toBe('1 evidence request');
+    expect(workItemView(item({ kind: 'EVIDENCE_REQUESTS_OPEN', count: 1 }), null, name)).toMatchObject({ title: '1 evidence request', commands: ['/programs', 'p1', 'requests'] });
     expect(workItemView(item({ kind: 'READY_TO_SIGN', count: 1 }), null, name)).toMatchObject({ title: 'Ready to sign', queryParams: { jurisdiction: 'CA' } });
   });
 

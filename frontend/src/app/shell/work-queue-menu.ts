@@ -2,7 +2,7 @@ import { Component, computed, inject, output, signal, viewChild } from '@angular
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
-  phosphorGitDiff, phosphorListChecks, phosphorPaperPlaneTilt, phosphorScales, phosphorSignature, phosphorWarning, phosphorWarningCircle,
+  phosphorGitDiff, phosphorListChecks, phosphorScales, phosphorSignature, phosphorTray, phosphorWarning, phosphorWarningCircle,
 } from '@ng-icons/phosphor-icons/regular';
 import { phosphorTrayDuotone } from '@ng-icons/phosphor-icons/duotone';
 import { Popover } from 'primeng/popover';
@@ -14,7 +14,7 @@ import { ProgramContext } from '../core/program-context';
 import { WORK_QUEUE_LIMIT, workItemView } from '../core/work-queue';
 
 export const WORK_QUEUE_ICONS = {
-  phosphorGitDiff, phosphorListChecks, phosphorPaperPlaneTilt, phosphorScales, phosphorSignature, phosphorWarning, phosphorWarningCircle, phosphorTrayDuotone,
+  phosphorGitDiff, phosphorListChecks, phosphorScales, phosphorSignature, phosphorTray, phosphorWarning, phosphorWarningCircle, phosphorTrayDuotone,
 };
 
 /**

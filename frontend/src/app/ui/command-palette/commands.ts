@@ -28,7 +28,7 @@ export interface CommandSources {
   readonly requirements: readonly { ref: string; title: string; jurisdiction: string }[];
 }
 
-const NO_COUNTS = { waitingForReview: 0, openChanges: 0, rulesWaiting: 0 };
+const NO_COUNTS = { waitingForReview: 0, openRequests: 0, openChanges: 0, rulesWaiting: 0 };
 
 /** Every command the palette offers for these sources, grouped and in display order. */
 export function paletteCommands(sources: CommandSources): Command[] {

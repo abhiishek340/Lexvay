@@ -66,13 +66,20 @@ header action, signing dialog with outcome cards and the Seal stamp moment. Keep
 region. Tests: existing review e2e updated to the new accessible names only where they change, decision sequence under
 reduced motion (no waiting on animation), axe.
 
+Also in UI2-2: `DocumentViewer` reflows PDF line breaks for reading. A newline whose next character is a lower-case
+letter, a digit or an opening parenthesis, and whose previous character is not sentence-final punctuation, renders as
+a space; other newlines stay. Display-only and one character for one character, so stored offsets, the highlight and
+selection offsets are unchanged (one pure function `softWrap(text)` with Vitest tests proving equal length and that
+selection offsets map back to the stored text exactly).
+
 ### UI2-3 — Changes, audit trail and evidence report (slot 7; after UI2-0; D-340 to D-349)
 Changes as a timeline of cards; audit as a day-grouped timeline with avatar initials and one-sentence entries (the
 sentence built by one pure, tested function per action); evidence report as a sheet with the Seal or Draft stamp and a
 floating "Download PDF" pill. Tests: e2e for re-run from a timeline card, audit filter chips, report download; axe.
 
 ### UI2-4 — Rules, evidence requests and program setup in v2 (slot 4; after UI2-0 and F4; D-350 to D-359)
-Restyle the Rules workspace and F4's evidence request screens to v2 (word budget, InfoTips, cards, motion), and build
+Restyle the Rules workspace and F4's evidence request screens to v2 (word budget, InfoTips, cards, motion; requests
+with `signed: true` from FIX-3 show as blocked like stale ones), and build
 F2 (program setup) directly in v2 as specified in the F2 section with the v2 components (Stepper restyled, StateMap
 `mini` for choosing target states). Tests as in F2 plus axe on every Rules and Requests state.
 
@@ -90,11 +97,11 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | merged (PR #18) |
-| FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | in progress |
+| FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | merged (PR #27) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | merged (PR #21) |
 | F2 Program setup workspace | `feat-setup-workspace` | 3 | Opus 5.5 | folded into UI2-4 (built directly in v2) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
-| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | in progress |
+| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | merged (PR #28) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
 | F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
@@ -105,8 +112,9 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | queued (after UI2-0) |
 | UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | queued (after UI2-0) |
 | UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI2-0, F4) |
+| FIX-3 Work queue and evidence request follow-ups | `fix-queue-followups` | 9 | Sonnet 5.5 | in progress |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
-| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | queued (after F7, FIX-1) |
+| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | in progress (backend; screen cell in UI2-4) |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
@@ -624,6 +632,28 @@ version share a timestamp, so the order is the text order of the ref ("CO-10" be
 3. Tests: a rule with twelve requirements lists CO-1 … CO-12 in order through the requirements endpoint,
    the mappings endpoint and the diff; replace keeps the submitted order; `Rule5` immutability unchanged.
 
+## FIX-3 — Work queue and evidence request follow-ups (backend only; slot 9; no migration expected)
+Settles the open points recorded in the F13 and F4 reviews. Decisions D-360 to D-369 in `docs/decisions/FIX-3.md`.
+1. **`ASSESSMENTS_FAILED`** lists a program's FAILED assessments created after its latest FINISHED assessment (or all
+   failures when none finished). A failure followed by a successful run disappears from the queue. Test both.
+2. **Signed requests.** An open evidence request whose mapping's assessment and jurisdiction already have a SIGNED
+   determination cannot be answered (409 today). Extract the "signed for this assessment and jurisdiction" predicate
+   that `DeterminationRepository.hasSigned` uses into one SQL constant and use it in three places: `hasSigned`,
+   `EvidenceRequestView` (new `signed boolean`, one column in the existing statement) and the work queue, where
+   `EVIDENCE_REQUESTS_OPEN` counts signed requests in `blockedCount` with stale ones and does not count them as
+   answerable items (rename nothing; document the meaning in D-36x). The status stays OPEN in the API. The inbox shows
+   them as blocked in UI2-4 (frontend is out of scope here). Tests: after signing, the request is `signed: true`,
+   the work queue no longer lists it as answerable, and answering still returns 409.
+3. **One "decided" predicate.** `AssessmentRepository.findingCounts` uses `MappingRepository.LATEST_EVENT` and
+   `NEEDS_DECISION` instead of its own copy; the result is identical (assert with the existing overview tests plus one
+   that compares counts before and after on the seeded tenant).
+4. **`MappingRepository.CURRENT`.** Measure before changing: on the perf database, add one assessment with 500
+   mappings and a superseded rule version, run `EXPLAIN (ANALYZE, BUFFERS)` of `GET /assessments/{id}/mappings`'s
+   statement as the application role, and record the plan in `docs/PERF.md`. Rewrite the filter only if that
+   statement exceeds 5 ms or 2 000 buffers; if you rewrite, the result set must be identical (a test compares
+   both forms over the change-tracking fixtures).
+Done when `make backend-test`, `make perf` and `LEXVAY_E2E_SLOT=9 make e2e` are green.
+
 ## FIX-2 — Job entity id column and index (slot 5; migration `V013__job_entity_id.sql`)
 Defect found in review of WS-PERF (D-115): `JobRepository.latest` filters by `payload->>:key`, which scans the
 whole `job` table under row-level security because `jsonb ->>` is not leakproof and jobs are never deleted.
@@ -631,8 +661,8 @@ Every job payload today holds exactly one id (`documentId`, `ruleVersionId`, `as
 `reportId`, and `ruleSourceId` from F12), so the id becomes a real column.
 1. Migration: `ALTER TABLE job ADD COLUMN entity_id uuid`; backfill with the single value of the payload
    object (`(SELECT value::uuid FROM jsonb_each_text(payload) LIMIT 1)`, guarded by
-   `jsonb_typeof(payload) = 'object'`); `SET NOT NULL`; `CREATE INDEX job_entity_idx ON job (tenant_id, type,
-   entity_id, created_at DESC)`. Prove the backfill expression with a SQL-level test on a temporary table, as
+   `jsonb_typeof(payload) = 'object'`); `SET NOT NULL`; `CREATE INDEX job_entity_idx ON job (type, entity_id,
+   created_at DESC)` (key decided in review, D-202). Prove the backfill expression with a SQL-level test on a temporary table, as
    FIX-1 does. The job policies in V002 are unchanged; `entity_id = :id` is leakproof, so the planner may use
    the index under the policy. `IndexUsageTest` (WS-PERF) gains this index and the lookup query.
 2. `JobRepository.enqueue(JobType type, UUID entityId, Map<String, ?> payload)` writes both columns; the five
@@ -643,7 +673,7 @@ Every job payload today holds exactly one id (`documentId`, `ruleVersionId`, `as
    extraction status); `EXPLAIN` under the application role shows an index scan on `job_entity_idx`;
    `MigrationsApplyCleanlyTest` counts the new file; the WS-PERF latency table in `docs/PERF.md` gets the
    before and after rows for `GET /documents/{id}` and `GET /rule-versions`.
-Decisions D-200 to D-209 in `docs/decisions/FIX-2.md`.
+Decisions D-200 to D-209 in `DECISIONS.md (FIX-2)`.
 
 ## F11 — OCR for scanned documents (slot 6; migration `V009__document_page_text_source.sql`)
 Real syllabi and handbooks are often scans. Today a PDF without a text layer is rejected. OCR text is less
@@ -934,7 +964,7 @@ in `DECISIONS.md (OPS-1)`.
 4. Done when a pull request shows the `image` job green with the smoke output in its log, and
    `docs/OPERATIONS.md` names the job and the tag convention.
 
-## F7c — Search terms proposed at extraction (after F7 and FIX-1 merge; slot 3; migration `V015__requirement_search_terms.sql`)
+## F7c — Search terms proposed at extraction (slot 3; migration `V014__requirement_search_terms.sql`; screens in UI2-4)
 Purpose: F7 measured what lexical search cannot do: 2 of 6 lexical-gap queries are recalled, because the rule
 says "diagnosis of mental and emotional disorders" and the syllabus says "psychopathology". The model already
 reads the rule text at extraction; it can propose the vocabulary a syllabus would use, a person can correct it,

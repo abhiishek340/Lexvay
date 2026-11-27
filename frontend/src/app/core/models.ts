@@ -22,7 +22,9 @@ export type NumericOperator = '>=' | '<=' | '=' | '>' | '<';
 export interface RequirementView { id: string; ref: string; title: string; text: string; type: RequirementType; numericField: NumericField | null; numericOperator: NumericOperator | null; numericValue: number | null; }
 export interface Evidence { spanId: string; documentId: string; filename: string; kind: string; courseVersionId: string | null; courseCode: string | null; courseRequired: boolean | null; pageNumber: number; charStart: number; charEnd: number; quote: string; textSource: TextSource; ocrConfidence: number | null; }
 export interface Decision { kind: DecisionKind; note: string | null; userId: string; userDisplayName: string | null; at: string; }
-export interface Mapping { id: string; assessmentId: string; jurisdictionId: string; jurisdiction: string; ruleVersionId: string; requirement: RequirementView; finding: Finding; method: 'RULES_ENGINE' | 'MATCH'; rationale: string; stale: boolean; evidence: Evidence | null; decision: Decision | null; }
+export interface Mapping { id: string; assessmentId: string; jurisdictionId: string; jurisdiction: string; ruleVersionId: string; requirement: RequirementView; finding: Finding; method: 'RULES_ENGINE' | 'MATCH'; rationale: string; stale: boolean; evidence: Evidence | null; decision: Decision | null;
+  /** How many times a person answered an evidence request on this requirement (F4); stays after a decision. */
+  responseCount: number; }
 export interface MappingsView { assessmentId: string; jurisdiction: string | null; mappings: Mapping[]; }
 
 export interface Determination { id: string; programId: string; jurisdiction: string; ruleVersionId: string; ruleVersionLabel: string; assessmentId: string; outcome: Outcome; signedBy: string; signedByName: string; signedAt: string; status: 'SIGNED' | 'REOPENED'; versionsHash: string; courseVersionIds: string[]; }
@@ -91,6 +93,29 @@ export interface RuleVersionDiff {
 export interface ProgramOverview { program: Program; assessment: AssessmentView | null; determinations: Determination[]; openChangeEvents: ChangeEvent[]; undecidedTotal: number; }
 /** GET /documents/{id}/pages/{n}: one immutable page of extracted text. */
 export interface DocumentPage { documentId: string; filename: string; kind: string; courseCode: string | null; courseRequired: boolean | null; pageNumber: number; pageCount: number; text: string; textSource: TextSource; ocrConfidence: number | null; }
+
+/** GET /programs/{id}/documents: the program's documents with their course context; `current` is false for an earlier catalog year. */
+export interface ProgramDocument {
+  id: string; filename: string; kind: string; courseVersionId: string | null; courseCode: string | null; courseTitle: string | null;
+  catalogYear: string | null; courseRequired: boolean | null; pageCount: number; current: boolean; createdAt: string;
+}
+
+/** OPEN: waiting for an answer. ANSWERED: answered and back with the reviewer. ALL is a filter only. */
+export type EvidenceRequestStatus = 'OPEN' | 'ANSWERED';
+export interface EvidenceResponseSummary { id: string; providedBy: string; providedByName: string; createdAt: string; filename: string; pageNumber: number; }
+/** GET /programs/{id}/evidence-requests: one requirement for which a reviewer asked the program for evidence. */
+export interface EvidenceRequest {
+  mappingId: string; jurisdiction: string; requirementRef: string; requirementTitle: string; status: EvidenceRequestStatus; stale: boolean;
+  requestNote: string | null; requestedBy: string; requestedByName: string | null; requestedAt: string;
+  responseCount: number; latestResponse: EvidenceResponseSummary | null;
+}
+/** GET /mappings/{id}/evidence-responses: a person's answer with the verified passage it cites (page-relative offsets). */
+export interface EvidenceResponse {
+  id: string; reviewEventId: string; documentId: string; filename: string; kind: string; courseCode: string | null; courseRequired: boolean | null;
+  pageNumber: number; charStart: number; charEnd: number; quote: string; comment: string | null; providedBy: string; providedByName: string; createdAt: string;
+}
+/** POST /mappings/{id}/evidence-responses: the server verifies the quote against the stored page (product rule 2). */
+export interface EvidenceResponseBody { documentId: string; pageNumber: number; quote: string; comment: string | null; }
 
 /** GET /work-queue (F13): what needs the signed-in user. Program fields are null for jurisdiction-wide and tenant-wide kinds. */
 export type WorkQueueKind = 'REQUIREMENTS_TO_REVIEW' | 'EVIDENCE_REQUESTS_OPEN' | 'RULE_VERSIONS_TO_APPROVE' | 'EXTRACTION_FAILED' | 'CHANGES_OPEN' | 'READY_TO_SIGN' | 'ASSESSMENTS_FAILED';

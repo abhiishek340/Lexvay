@@ -16,7 +16,7 @@ export const WORK_QUEUE_LIMIT = 8;
 
 const ICON: Record<WorkQueueKind, IconName> = {
   REQUIREMENTS_TO_REVIEW: 'phosphorListChecks',
-  EVIDENCE_REQUESTS_OPEN: 'phosphorPaperPlaneTilt',
+  EVIDENCE_REQUESTS_OPEN: 'phosphorTray',
   RULE_VERSIONS_TO_APPROVE: 'phosphorScales',
   EXTRACTION_FAILED: 'phosphorWarningCircle',
   CHANGES_OPEN: 'phosphorGitDiff',
@@ -51,8 +51,9 @@ export function workItemView(item: WorkItem, currentProgramId: string | null, ju
   const view = { icon: ICON[item.kind], title: title(item) };
   const under = (...screen: string[]): readonly unknown[] => (program ? ['/programs', program, ...screen] : ['/']);
   switch (item.kind) {
-    case 'REQUIREMENTS_TO_REVIEW':
     case 'EVIDENCE_REQUESTS_OPEN':
+      return { ...view, detail, commands: under('requests') };
+    case 'REQUIREMENTS_TO_REVIEW':
     case 'READY_TO_SIGN':
       return { ...view, detail, commands: under('review'), queryParams: item.jurisdictionCode ? { jurisdiction: item.jurisdictionCode } : undefined };
     case 'RULE_VERSIONS_TO_APPROVE':

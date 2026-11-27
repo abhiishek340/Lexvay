@@ -82,6 +82,9 @@
                 <span class="lx-req-states">
                   <lx-finding [finding]="m.finding" />
                   <lx-decision-state [decision]="m.decision" [stale]="m.stale" />
+                  @if (m.responseCount > 0) {
+                    <span class="lx-req-provided"><ng-icon name="phosphorChatCircleText" size="14" aria-hidden="true" />evidence provided</span>
+                  }
                 </span>
               </button>
             </li>
@@ -158,7 +161,7 @@
       @if (session.canReview() && !signed()) {
         <div class="lx-decide">
           <label for="note" class="lx-note-label">Note <span class="lx-muted">(required to confirm a gap)</span><kbd aria-hidden="true">G</kbd></label>
-          <textarea pTextarea id="note" #noteField rows="3" [ngModel]="note()" (ngModelChange)="note.set($event); noteError.set(null)"
+          <textarea pTextarea id="note" #noteField rows="3" [placeholder]="evidence()?.answered ? 'Note the evidence you relied on' : ''" [ngModel]="note()" (ngModelChange)="note.set($event); noteError.set(null)"
                     [invalid]="!!noteError()" [attr.aria-describedby]="noteError() ? 'note-error' : null" [fluid]="true"></textarea>
           @if (noteError(); as e) { <p-message id="note-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
           <div class="lx-actions">
@@ -182,46 +185,69 @@
   </section>
 </ng-template>
 
-<!-- Pane 3: the evidence where it sits on its page, with the quote alone in a disclosure. -->
+<!-- Pane 3: the evidence where it sits on its page, with the quote alone in a disclosure; then what people provided. -->
 <ng-template #evidenceTpl>
   <section class="lx-pane lx-evidence" aria-labelledby="evidence-heading">
     <h2 id="evidence-heading" class="lx-label">Evidence</h2>
     @if (selected(); as m) {
       @if (m.evidence; as ev) {
-        <dl class="lx-evidence-meta" data-testid="evidence-meta">
-          <div><dt>File</dt><dd>{{ ev.filename }}</dd></div>
-          @if (ev.courseCode) {
-            <div><dt>Course</dt><dd>{{ ev.courseCode }} · {{ ev.courseRequired === false ? 'elective' : ev.courseRequired ? 'required course' : 'requirement status not recorded' }}</dd></div>
-          }
-          <div><dt>Page</dt><dd class="lx-mono">{{ ev.pageNumber }}</dd></div>
-          <div><dt>Characters</dt><dd class="lx-mono">{{ ev.charStart }}–{{ ev.charEnd }}</dd></div>
-        </dl>
-        @if (ev.courseRequired === false) {
-          <p-message severity="warn" size="small">This passage comes from an elective. Not every student takes it.</p-message>
-        }
-        <details class="lx-quote-only">
-          <summary><ng-icon name="phosphorCaretRight" size="14" aria-hidden="true" />Quote only</summary>
-          <blockquote class="lx-serif" data-testid="evidence-quote">{{ ev.quote }}</blockquote>
-        </details>
-        @if (!wide()) {
-          <button pButton type="button" severity="secondary" [outlined]="true" size="small" class="lx-show-on-page"
-                  [attr.aria-expanded]="showOnPage()" aria-controls="evidence-page" (click)="showOnPage.set(!showOnPage())">
-            <ng-icon name="phosphorEye" size="16" aria-hidden="true" /><span pButtonLabel>Show on page</span>
-          </button>
-        }
-        <div id="evidence-page" class="lx-evidence-page">
-          @if (wide() || showOnPage()) {
-            <lx-document-viewer [documentId]="ev.documentId" [pageNumber]="ev.pageNumber" [highlight]="ev" [focusHighlight]="!wide()" />
-          }
-        </div>
+        <ng-container *ngTemplateOutlet="passageTpl; context: { $implicit: ev, key: 'system' }" />
       } @else {
         <div class="lx-no-evidence">
           <p><strong>No quoted evidence.</strong></p>
           <p class="lx-muted">{{ noEvidenceReason(m) }}</p>
         </div>
       }
+      @if (evidence(); as view) {
+        @for (r of view.provided; track r.id) {
+          <section class="lx-provided" [attr.aria-labelledby]="'provided-' + r.id" data-testid="provided-evidence">
+            <h3 class="lx-provided-label" [id]="'provided-' + r.id">
+              <ng-icon name="phosphorUser" size="16" aria-hidden="true" />
+              Evidence provided by {{ r.providedByName }}, {{ r.createdAt | date: 'd MMM y' }}
+            </h3>
+            <ng-container *ngTemplateOutlet="passageTpl; context: { $implicit: r, key: r.id }" />
+            @if (r.comment) {
+              <div class="lx-provided-comment"><p class="lx-label">Comment</p><p>{{ r.comment }}</p></div>
+            }
+          </section>
+        }
+        @if (view.providedLoading) {
+          <div class="lx-provided" aria-busy="true" aria-label="Loading the evidence people provided"><p-skeleton width="14rem" height="1rem" /><p-skeleton height="6rem" /></div>
+        }
+      }
     }
   </section>
+</ng-template>
+
+<!-- One cited passage: the system's evidence (key 'system') or a provided one (key = response id). -->
+<ng-template #passageTpl let-ev let-key="key">
+  @let system = key === 'system';
+  <dl class="lx-evidence-meta" [attr.data-testid]="system ? 'evidence-meta' : null">
+    <div><dt>File</dt><dd>{{ ev.filename }}</dd></div>
+    @if (ev.courseCode) {
+      <div><dt>Course</dt><dd>{{ ev.courseCode }} · {{ ev.courseRequired === false ? 'elective' : ev.courseRequired ? 'required course' : 'requirement status not recorded' }}</dd></div>
+    }
+    <div><dt>Page</dt><dd class="lx-mono">{{ ev.pageNumber }}</dd></div>
+    <div><dt>Characters</dt><dd class="lx-mono">{{ ev.charStart }}–{{ ev.charEnd }}</dd></div>
+  </dl>
+  @if (ev.courseRequired === false) {
+    <p-message severity="warn" size="small">This passage comes from an elective. Not every student takes it.</p-message>
+  }
+  <details class="lx-quote-only">
+    <summary><ng-icon name="phosphorCaretRight" size="14" aria-hidden="true" />Quote only</summary>
+    <blockquote class="lx-serif" [attr.data-testid]="system ? 'evidence-quote' : 'provided-quote'">{{ ev.quote }}</blockquote>
+  </details>
+  @if (!wide()) {
+    <button pButton type="button" severity="secondary" [outlined]="true" size="small" class="lx-show-on-page"
+            [attr.aria-expanded]="showOnPage().has(key)" [attr.aria-controls]="'evidence-page-' + key" (click)="toggleOnPage(key)">
+      <ng-icon name="phosphorEye" size="16" aria-hidden="true" /><span pButtonLabel>Show on page</span>
+    </button>
+  }
+  <div [id]="'evidence-page-' + key" class="lx-evidence-page">
+    @if (wide() || showOnPage().has(key)) {
+      <lx-document-viewer [documentId]="ev.documentId" [pageNumber]="ev.pageNumber" [highlight]="ev" [focusHighlight]="!wide()" />
+    }
+  </div>
 </ng-template>
 
 <p-dialog header="Sign determination for {{ jurisdiction() }}" [visible]="signOpen()" (visibleChange)="signOpen.set($event)" [modal]="true"

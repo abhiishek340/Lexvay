@@ -12,7 +12,7 @@ export interface NavLink {
   readonly badgeText: string;
 }
 
-export interface NavCounts { readonly waitingForReview: number; readonly openChanges: number; readonly rulesWaiting: number }
+export interface NavCounts { readonly waitingForReview: number; readonly openRequests: number; readonly openChanges: number; readonly rulesWaiting: number }
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
@@ -27,11 +27,12 @@ export function navLinks(programId: string | null, counts: NavCounts): NavLink[]
   }
   const screen = (id: string, label: string, icon: IconName, badge = 0, badgeText = ''): NavLink =>
     ({ id, path: ['/programs', programId, id], label, icon, tenant: false, badge, badgeText });
-  const { waitingForReview: waiting, openChanges: open, rulesWaiting: rules } = counts;
+  const { waitingForReview: waiting, openRequests: requests, openChanges: open, rulesWaiting: rules } = counts;
   return [
     register,
     screen('overview', 'Program overview', 'phosphorSquaresFour'),
     screen('review', 'Review', 'phosphorListChecks', waiting, `${plural(waiting, 'requirement', 'requirements')} waiting for review`),
+    screen('requests', 'Evidence requests', 'phosphorTray', requests, `${plural(requests, 'open evidence request', 'open evidence requests')}`),
     screen('changes', 'Changes', 'phosphorGitDiff', open, `${plural(open, 'open change', 'open changes')}`),
     screen('rules', 'Rules', 'phosphorScales', rules, `${plural(rules, 'rule version', 'rule versions')} waiting for approval`),
     screen('report', 'Evidence report', 'phosphorFileText'),

@@ -4,7 +4,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   phosphorArrowElbowDownLeft, phosphorBookBookmark, phosphorBuildings, phosphorClockCounterClockwise, phosphorDownloadSimple, phosphorFileText,
   phosphorGitDiff, phosphorListChecks, phosphorMagnifyingGlass, phosphorMapTrifold, phosphorPlay, phosphorPlus, phosphorScales, phosphorSquaresFour,
-  phosphorTextAlignLeft,
+  phosphorTextAlignLeft, phosphorTray,
 } from '@ng-icons/phosphor-icons/regular';
 import { phosphorMagnifyingGlassDuotone } from '@ng-icons/phosphor-icons/duotone';
 import auraCommandmenu from '@primeuix/themes/aura/commandmenu';
@@ -26,7 +26,7 @@ import { commandScore } from './fuzzy';
 export const PALETTE_ICONS = {
   phosphorArrowElbowDownLeft, phosphorBookBookmark, phosphorBuildings, phosphorClockCounterClockwise, phosphorDownloadSimple, phosphorFileText,
   phosphorGitDiff, phosphorListChecks, phosphorMagnifyingGlass, phosphorMapTrifold, phosphorPlay, phosphorPlus, phosphorScales, phosphorSquaresFour,
-  phosphorTextAlignLeft, phosphorMagnifyingGlassDuotone,
+  phosphorTextAlignLeft, phosphorTray, phosphorMagnifyingGlassDuotone,
 };
 
 const PALETTE_TOKENS = {

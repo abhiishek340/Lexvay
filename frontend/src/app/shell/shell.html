@@ -39,7 +39,7 @@
         }
         <button type="button" class="lx-icon-button" (click)="openQueue($event)" aria-haspopup="dialog" [attr.aria-expanded]="queueOpen()"
                 [attr.aria-label]="queueCount() > 0 ? 'Work queue, ' + queueCount() + ' waiting' : 'Work queue'">
-          <ng-icon name="phosphorTray" size="20" aria-hidden="true" />
+          <ng-icon name="phosphorBell" size="20" aria-hidden="true" />
           @if (queueCount() > 0) { <p-badge class="lx-queue-badge" [value]="queueCount() > 99 ? '99+' : queueCount()" aria-hidden="true" /> }
         </button>
         @if (session.user(); as user) {

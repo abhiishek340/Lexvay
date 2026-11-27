@@ -21,7 +21,8 @@ public class MappingRepository {
                    es.document_id, d.filename, d.kind, d.course_version_id, c.code AS course_code, cv.required AS course_required,
                    es.page_number, es.char_start, es.char_end, es.quote, dp.text_source, CAST(dp.ocr_confidence AS double precision) AS ocr_confidence,
                    le.kind AS decision_kind, le.note AS decision_note, le.user_id AS decision_user_id,
-                   le.created_at AS decision_at, u.display_name AS decision_user_name
+                   le.created_at AS decision_at, u.display_name AS decision_user_name,
+                   (SELECT count(*) FROM evidence_response er WHERE er.mapping_id = m.id) AS response_count
             FROM mapping m
             JOIN jurisdiction j ON j.id = m.jurisdiction_id
             JOIN requirement r ON r.id = m.requirement_id
@@ -89,7 +90,7 @@ public class MappingRepository {
                         rs.getString("numeric_field") == null ? null : NumericField.valueOf(rs.getString("numeric_field")),
                         rs.getString("numeric_operator"), rs.getBigDecimal("numeric_value")),
                 Finding.valueOf(rs.getString("finding")), MappingMethod.valueOf(rs.getString("method")), rs.getString("rationale"),
-                rs.getBoolean("stale"), evidence, decision);
+                rs.getBoolean("stale"), evidence, decision, rs.getInt("response_count"));
     };
 
     private final JdbcClient jdbc;
