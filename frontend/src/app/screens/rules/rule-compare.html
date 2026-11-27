@@ -1,6 +1,6 @@
 <div class="lx-compare">
   <div class="lx-against">
-    <span id="compare-against-label" class="lx-label">Compare with</span>
+    <span id="compare-against-label" class="lx-meta">Compare with</span>
     @if (options().length > 0) {
       <p-select ariaLabelledBy="compare-against-label" [options]="options()" optionLabel="label" optionValue="id" [ngModel]="against()" (ngModelChange)="choose($event)"
                 placeholder="Choose an approved version" appendTo="body" class="lx-against-select" />
@@ -35,8 +35,8 @@
         @let s = statusOf(row);
         <tr [attr.data-status]="row.status" data-testid="compare-row">
           <td class="lx-status-cell">
-            <p-tag [severity]="s.severity" [value]="s.label"><ng-template #icon><ng-icon [name]="s.icon" size="14" aria-hidden="true" /></ng-template></p-tag>
-            @if (row.refChanged) { <p-tag class="lx-ref-changed" severity="secondary" value="ref changed" /> }
+            <lx-label>{{ s.label }}</lx-label>
+            @if (row.refChanged) { <lx-label class="lx-ref-changed">ref changed</lx-label> }
           </td>
           <td><div class="lx-requirement">
             @if (row.refChanged) {
@@ -61,10 +61,10 @@
                 <p class="lx-aspect lx-mono" data-testid="numeric-change"><span class="lx-aspect-name">Check</span><lx-diff-text [segments]="n.before" /><ng-icon name="phosphorArrowRight" size="12" aria-hidden="true" /><span class="lx-sr-only">becomes</span><lx-diff-text [segments]="n.after" /></p>
               }
               @if (row.textDiff) {
-                <lx-diff-text class="lx-serif lx-change-text" [segments]="row.textDiff" data-testid="text-diff" />
+                <lx-diff-text class="lx-doc lx-change-text" [segments]="row.textDiff" data-testid="text-diff" />
               }
             } @else {
-              <p class="lx-serif lx-change-text" [class.lx-muted]="row.status === 'UNCHANGED'">{{ text(row) }}</p>
+              <p class="lx-doc lx-change-text" [class.lx-muted]="row.status === 'UNCHANGED'">{{ text(row) }}</p>
             }
           </div></td>
         </tr>
@@ -75,7 +75,7 @@
       <p-accordion-panel value="rule-text">
         <p-accordion-header>Rule text</p-accordion-header>
         <p-accordion-content>
-          <lx-diff-text class="lx-serif lx-full-text" [segments]="d.ruleTextDiff" data-testid="rule-text-diff" />
+          <lx-diff-text class="lx-doc lx-full-text" [segments]="d.ruleTextDiff" data-testid="rule-text-diff" />
         </p-accordion-content>
       </p-accordion-panel>
     </p-accordion>

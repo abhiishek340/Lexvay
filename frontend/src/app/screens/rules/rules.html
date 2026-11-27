@@ -19,7 +19,7 @@
   @if (context.ready()) {
     <div class="lx-rules-panes">
       <section class="lx-versions" aria-labelledby="versions-heading">
-        <h2 id="versions-heading" class="lx-label">Rule versions</h2>
+        <h2 id="versions-heading" class="lx-meta">Rule versions</h2>
         @if (groups().length === 0) {
           <p class="lx-muted lx-empty">No rule versions yet. A contributor enters one with New rule version; the model then proposes its requirement
             list for a reviewer to correct and approve.</p>
@@ -38,9 +38,7 @@
                 <span class="lx-version-label">{{ v.label }}</span>
                 <span class="lx-version-meta">
                   <span class="lx-mono">Effective {{ v.effectiveFrom }}</span>
-                  <p-tag [severity]="s.severity" [value]="s.label">
-                    <ng-template #icon><ng-icon [name]="s.icon" size="14" aria-hidden="true" [class.lx-spin]="option.row.status === 'EXTRACTING'" /></ng-template>
-                  </p-tag>
+                  <lx-label>{{ s.label }}</lx-label>
                 </span>
               </div>
             </ng-template>

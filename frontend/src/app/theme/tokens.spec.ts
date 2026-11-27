@@ -15,29 +15,34 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** text: 4.5 (WCAG 1.4.3); large: 3.0 (18 px and up); ui: 3.0 for icons, control boundaries and focus (1.4.11). */
-type Use = 'text' | 'large' | 'ui';
-const MINIMUM: Record<Use, number> = { text: 4.5, large: 3, ui: 3 };
+/** text: 4.5 (WCAG 1.4.3); mark: 3.0 for status marks, icons and the focus ring (1.4.11). */
+type Use = 'text' | 'mark';
+const MINIMUM: Record<Use, number> = { text: 4.5, mark: 3 };
 
-const PAGES: TokenName[] = ['ground', 'surface', 'surface2', 'raised'];
+/** Every background text or a mark sits on: the page, panels, hover and selected rows. */
+const GROUNDS: TokenName[] = ['paper', 'surface', 'sunken', 'accentWash'];
+/**
+ * The DESIGN.md table's text and mark pairs. ink-3 is decorative (rules, disabled, the not-reviewed mark beside its
+ * word) and line-strong a hairline, so neither is a text pair; inputs are named by their visible labels.
+ */
 const PAIRS: [TokenName, TokenName[], Use][] = [
-  ['text', [...PAGES, 'accentTint', 'foundTint', 'ambiguousTint', 'missingTint'], 'text'],
-  ['text2', [...PAGES, 'accentTint'], 'text'],
-  ['text3', ['surface', 'raised'], 'large'],
-  ['accent', [...PAGES, 'accentTint', 'accentFill'], 'text'],
-  ['onAccent', ['accent', 'accentHover', 'accentActive', 'found', 'missing'], 'text'],
-  ['found', [...PAGES, 'foundTint'], 'text'],
-  ['ambiguous', [...PAGES, 'ambiguousTint'], 'text'],
-  ['missing', [...PAGES, 'missingTint'], 'text'],
-  ['seal', [...PAGES], 'text'],
-  ['lineStrong', [...PAGES], 'ui'],
+  ['ink', GROUNDS, 'text'],
+  ['ink2', GROUNDS, 'text'],
+  ['accent', GROUNDS, 'text'],
+  ['found', GROUNDS, 'text'],
+  ['missing', GROUNDS, 'text'],
+  // The primary button: paper on ink, at rest and under the pointer.
+  ['paper', ['ink', 'inkHover'], 'text'],
+  // The focus ring and the status marks against every ground.
+  ['accent', GROUNDS, 'mark'],
+  ['ink2', GROUNDS, 'mark'],
 ];
 
 describe('design tokens', () => {
   for (const theme of ['light', 'dark'] as const) {
     for (const [fg, backgrounds, use] of PAIRS) {
       for (const bg of backgrounds) {
-        it(`${fg} on ${bg} reaches ${MINIMUM[use]}:1 in the ${theme} theme`, () => {
+        it(`${fg} on ${bg} reaches ${MINIMUM[use]}:1 as ${use} in the ${theme} theme`, () => {
           expect(contrast(PALETTE[fg][theme], PALETTE[bg][theme])).toBeGreaterThanOrEqual(MINIMUM[use]);
         });
       }
@@ -45,12 +50,22 @@ describe('design tokens', () => {
   }
 
   it('keeps the DESIGN.md table values', () => {
-    expect(PALETTE.accent).toEqual({ light: '#2346E0', dark: '#7D9BFF' });
-    expect(PALETTE.ground).toEqual({ light: '#F7F7F4', dark: '#0A0C0F' });
+    expect(PALETTE.paper).toEqual({ light: '#FAFAF9', dark: '#0F1012' });
+    expect(PALETTE.ink).toEqual({ light: '#141517', dark: '#ECECEE' });
+    expect(PALETTE.accent).toEqual({ light: '#2F4FBF', dark: '#93A6F2' });
+    expect(PALETTE.found).toEqual({ light: '#2D7A53', dark: '#62B88E' });
+    expect(PALETTE.missing).toEqual({ light: '#B0372E', dark: '#E2806F' });
+  });
+
+  it('retires every v2 colour token', () => {
+    const names = Object.keys(PALETTE);
+    for (const retired of ['ground', 'surface2', 'raised', 'text', 'text2', 'text3', 'accentTint', 'ambiguous', 'neutral', 'seal', 'onAccent']) {
+      expect(names).not.toContain(retired);
+    }
   });
 
   it('mixes colours channel by channel', () => {
     expect(mix('#000000', '#FFFFFF', 0.5)).toBe('#808080');
-    expect(mix('#0B7A52', '#FFFFFF', 0.1)).toBe('#E7F2EE');
+    expect(mix('#2D7A53', '#FFFFFF', 0.1)).toBe('#EAF2EE');
   });
 });

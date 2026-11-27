@@ -2,14 +2,14 @@ import { Component, DestroyRef, ElementRef, computed, effect, inject, input, lin
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorArchive, phosphorArrowCounterClockwise, phosphorArrowDown, phosphorArrowSquareOut, phosphorArrowUp, phosphorCircleDashed, phosphorEquals, phosphorFloppyDisk, phosphorMinusCircle, phosphorNotePencil, phosphorPencilSimple, phosphorPlus, phosphorPlusCircle, phosphorSealCheck, phosphorSpinner, phosphorTrash, phosphorWarningCircle } from '@ng-icons/phosphor-icons/regular';
+import { phosphorArrowCounterClockwise, phosphorArrowDown, phosphorArrowSquareOut, phosphorArrowUp, phosphorEquals, phosphorFloppyDisk, phosphorMinusCircle, phosphorNotePencil, phosphorPencilSimple, phosphorPlus, phosphorPlusCircle, phosphorSealCheck, phosphorTrash, phosphorWarningCircle } from '@ng-icons/phosphor-icons/regular';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Listbox } from 'primeng/listbox';
 import { Message } from 'primeng/message';
 import { Skeleton } from 'primeng/skeleton';
-import { Tag } from 'primeng/tag';
+import { Label } from '../../ui/label';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { UserSummary } from '../../core/models';
@@ -26,12 +26,10 @@ import { UnsavedChanges, leaveNeedsConfirmation } from './unsaved-changes';
 
 /** The icons the Rules screen and its parts show beyond SHELL_ICONS, provided by its route (rules.routes.ts). */
 export const RULES_ICONS = {
-  phosphorArchive,
   phosphorArrowCounterClockwise,
   phosphorArrowDown,
   phosphorArrowSquareOut,
   phosphorArrowUp,
-  phosphorCircleDashed,
   phosphorEquals,
   phosphorFloppyDisk,
   phosphorMinusCircle,
@@ -40,7 +38,6 @@ export const RULES_ICONS = {
   phosphorPlus,
   phosphorPlusCircle,
   phosphorSealCheck,
-  phosphorSpinner,
   phosphorTrash,
   phosphorWarningCircle,
 };
@@ -53,7 +50,7 @@ interface VersionGroup { label: string; code: string; items: VersionOption[] }
 
 @Component({
   selector: 'lx-rules',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, ConfirmDialog, Listbox, Message, Skeleton, Tag, NewRuleVersionDialog, RuleVersionDetail],
+  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, ConfirmDialog, Listbox, Message, Skeleton, Label, NewRuleVersionDialog, RuleVersionDetail],
   providers: [UnsavedChanges, ConfirmationService],
   templateUrl: './rules.html',
   styleUrl: './rules.css',

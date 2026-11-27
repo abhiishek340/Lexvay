@@ -2,9 +2,8 @@ import { Component, afterRenderEffect, computed, effect, inject, model, signal, 
 import { Router } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
-  phosphorArrowElbowDownLeft, phosphorBuildings, phosphorDownloadSimple, phosphorMapTrifold, phosphorPlay, phosphorPlus, phosphorTextAlignLeft,
+  phosphorBuildings, phosphorDownloadSimple, phosphorMapTrifold, phosphorPlay, phosphorPlus, phosphorTextAlignLeft,
 } from '@ng-icons/phosphor-icons/regular';
-import { phosphorMagnifyingGlassDuotone } from '@ng-icons/phosphor-icons/duotone';
 import auraCommandmenu from '@primeuix/themes/aura/commandmenu';
 import auraMenu from '@primeuix/themes/aura/menu';
 import { MenuItem } from 'primeng/api';
@@ -24,10 +23,7 @@ import { Command, CommandRun, PaletteAction, paletteCommands, paletteSections, p
 import { commandScore } from './fuzzy';
 
 /** The palette's icons beyond SHELL_ICONS (which already holds every screen's rail icon and the search glass). */
-export const PALETTE_ICONS = {
-  phosphorArrowElbowDownLeft, phosphorBuildings, phosphorDownloadSimple, phosphorMapTrifold, phosphorPlay, phosphorPlus, phosphorTextAlignLeft,
-  phosphorMagnifyingGlassDuotone,
-};
+export const PALETTE_ICONS = { phosphorBuildings, phosphorDownloadSimple, phosphorMapTrifold, phosphorPlay, phosphorPlus, phosphorTextAlignLeft };
 
 const PALETTE_TOKENS = {
   dialog: lexvayDialog,
@@ -35,10 +31,10 @@ const PALETTE_TOKENS = {
   commandmenu: {
     ...auraCommandmenu,
     root: { ...auraCommandmenu.root, background: 'transparent', borderColor: 'transparent', borderRadius: '0', height: 'min(26rem, 70vh)' },
-    header: { ...auraCommandmenu.header, padding: '0.5rem 1rem', background: 'transparent', borderColor: t.line },
-    input: { ...auraCommandmenu.input, padding: '0.75rem 0', fontSize: '1rem', color: t.text, placeholderColor: t.text2 },
-    list: { ...auraCommandmenu.list, padding: '0.5rem' },
-    empty: { ...auraCommandmenu.empty, padding: '2.5rem 0', color: t.text2 },
+    header: { ...auraCommandmenu.header, padding: '0.25rem 1rem', background: 'transparent', borderColor: t.line },
+    input: { ...auraCommandmenu.input, padding: '0.625rem 0', fontSize: '0.875rem', color: t.ink, placeholderColor: t.ink2 },
+    list: { ...auraCommandmenu.list, padding: '0.25rem' },
+    empty: { ...auraCommandmenu.empty, padding: '2.5rem 0', color: t.ink2 },
     footer: { ...auraCommandmenu.footer, padding: '0.625rem 1rem', background: 'transparent', borderColor: t.line },
   },
 };

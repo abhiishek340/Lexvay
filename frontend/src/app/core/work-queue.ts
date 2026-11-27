@@ -1,10 +1,8 @@
 import { Params } from '@angular/router';
-import type { IconName } from '../theme/icons';
-import { WorkItem, WorkQueueKind } from './models';
+import { WorkItem } from './models';
 
-/** One row of the work queue popover: an icon, a count-first title, where it is, and the screen it opens. */
+/** A work item in words: a count-first title, where it is, and the screen it opens (the popover and "Needs you"). */
 export interface WorkItemView {
-  readonly icon: IconName;
   readonly title: string;
   readonly detail: string;
   readonly commands: readonly unknown[];
@@ -13,16 +11,6 @@ export interface WorkItemView {
 
 /** The popover lists at most eight items; the badge counts everything (GET /work-queue/count). */
 export const WORK_QUEUE_LIMIT = 8;
-
-const ICON: Record<WorkQueueKind, IconName> = {
-  REQUIREMENTS_TO_REVIEW: 'phosphorListChecks',
-  EVIDENCE_REQUESTS_OPEN: 'phosphorTray',
-  RULE_VERSIONS_TO_APPROVE: 'phosphorScales',
-  EXTRACTION_FAILED: 'phosphorWarningCircle',
-  CHANGES_OPEN: 'phosphorGitDiff',
-  READY_TO_SIGN: 'phosphorSignature',
-  ASSESSMENTS_FAILED: 'phosphorWarning',
-};
 
 const counted = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
@@ -48,7 +36,7 @@ export function workItemView(item: WorkItem, currentProgramId: string | null, ju
   const place = item.jurisdictionCode ? jurisdictionName(item.jurisdictionCode) : null;
   const detail = [place, item.programName].filter((part): part is string => !!part).join(' · ');
   const program = item.programId ?? item.ids.programIds?.[0] ?? currentProgramId;
-  const view = { icon: ICON[item.kind], title: title(item) };
+  const view = { title: title(item) };
   const under = (...screen: string[]): readonly unknown[] => (program ? ['/programs', program, ...screen] : ['/']);
   switch (item.kind) {
     case 'EVIDENCE_REQUESTS_OPEN':

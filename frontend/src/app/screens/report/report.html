@@ -1,19 +1,21 @@
 <div class="lx-page lx-report">
   <header class="lx-page-header">
     <div>
-      <div class="lx-title">
-        <h1>Evidence report</h1>
-        <lx-info-tip label="About the evidence report">
-          The proposed findings and the review decisions recorded so far, with the quoted evidence. It becomes a determination
-          only when a signer signs it in Review; the PDF is available after that.
-        </lx-info-tip>
-      </div>
-      @if (context.program(); as p) { <p>{{ p.name }}</p> }
+      <h1>Evidence report</h1>
+      @if (context.program(); as p) { <p class="lx-meta">{{ p.name }}</p> }
     </div>
-    @if (context.program()) {
-      <p-select class="lx-jurisdiction" [options]="options()" optionLabel="label" optionValue="code" [ngModel]="jurisdiction()"
-                (ngModelChange)="selectJurisdiction($event)" ariaLabel="Jurisdiction" size="small" appendTo="body" />
-    }
+    <div class="lx-title-actions">
+      @if (context.program()) {
+        <p-select class="lx-jurisdiction" [options]="options()" optionLabel="label" optionValue="code" [ngModel]="jurisdiction()"
+                  (ngModelChange)="selectJurisdiction($event)" ariaLabel="Jurisdiction" appendTo="body" />
+        @if (!signed()) { <span id="pdf-after-signing" class="lx-meta">PDF after signing</span> }
+        <button pButton type="button" [disabled]="!signed() || preparing()" [loading]="preparing()" (click)="downloadPdf()"
+                [attr.aria-describedby]="signed() ? null : 'pdf-after-signing'">
+          <span pButtonLabel>{{ preparing() ? 'Preparing PDF' : 'Download PDF' }}</span>
+        </button>
+      }
+      <lx-help [terms]="help" />
+    </div>
   </header>
   @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
   @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
@@ -28,15 +30,11 @@
             <p class="lx-sheet-sub">{{ p.name }} · {{ license(p) }} · catalog year {{ p.catalogYear }}</p>
           </div>
           @if (signed(); as d) {
-            <div class="lx-stamp lx-stamp-seal" data-testid="stamp">
-              <span class="lx-ink" aria-hidden="true"></span>
-              <lx-seal [outcome]="d.outcome" [signer]="d.signedByName" [signedAt]="d.signedAt" [size]="112" />
+            <div class="lx-stamp" data-testid="stamp">
+              <lx-seal [outcome]="d.outcome" [signer]="d.signedByName" [signedAt]="d.signedAt" />
             </div>
           } @else {
-            <div class="lx-stamp lx-stamp-draft" data-testid="stamp" role="note" aria-label="Draft. Not a determination.">
-              <span class="lx-draft-word" aria-hidden="true">Draft</span>
-              <span class="lx-draft-sub" aria-hidden="true">Not a determination</span>
-            </div>
+            <p class="lx-stamp lx-draft" data-testid="stamp" role="note" aria-label="Draft. Not a determination.">Draft</p>
           }
         </header>
 
@@ -56,11 +54,12 @@
           @if (mappings(); as list) {
             <ol class="lx-reqs" aria-labelledby="requirements-title">
               @for (m of list; track m.id) {
-                <li class="lx-req" [lxEnter]="$index">
+                <li class="lx-req">
                   <div class="lx-req-head">
-                    <span class="lx-ref lx-mono">{{ m.requirement.ref }}</span>
+                    <span class="lx-ref">{{ m.requirement.ref }}</span>
                     <h4 class="lx-req-title">{{ m.requirement.title }}</h4>
-                    <lx-status-icon class="lx-req-status" [finding]="m.finding" [decision]="m.decision?.kind ?? null" [stale]="m.stale" [showLabel]="true" />
+                    @let s = status(m.finding, m.decision?.kind ?? null, m.stale);
+                    <lx-status-mark class="lx-req-status" [status]="s.status" [label]="s.label" />
                   </div>
                   @if (m.evidence; as ev) {
                     <blockquote class="lx-quote">{{ ev.quote }}</blockquote>
@@ -80,16 +79,6 @@
         </section>
       </article>
 
-      <div class="lx-dock">
-        <div class="lx-action-pill" role="group" aria-label="Report actions">
-          <button pButton type="button" [disabled]="!signed() || preparing()" [loading]="preparing()" (click)="downloadPdf()"
-                  [attr.aria-describedby]="signed() ? null : 'pdf-after-signing'">
-            @if (!preparing()) { <ng-icon name="phosphorFilePdf" size="18" aria-hidden="true" /> }
-            <span pButtonLabel>{{ preparing() ? 'Preparing PDF' : 'Download PDF' }}</span>
-          </button>
-          @if (!signed()) { <span id="pdf-after-signing" class="lx-pill-note">After signing</span> }
-        </div>
-      </div>
     </div>
   } @else if (!context.error()) {
     <div class="lx-skeleton lx-sheet" aria-busy="true" aria-label="Loading the report">

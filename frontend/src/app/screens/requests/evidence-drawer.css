@@ -38,15 +38,15 @@ section, .lx-answer-comment { display: flex; flex-direction: column; gap: 8px; m
 .lx-answer-ask { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
 .lx-answer-note { white-space: pre-wrap; overflow-wrap: anywhere; }
 
-.lx-answer-group { font-size: 12px; font-weight: 600; color: var(--p-lx-text-2); }
+.lx-answer-group { font-size: 12px; font-weight: 600; color: var(--p-lx-ink-2); }
 .lx-answer-option { display: flex; flex-direction: column; min-width: 0; }
-.lx-answer-option-meta { font-size: 12px; line-height: 16px; color: var(--p-lx-text-2); }
+.lx-answer-option-meta { font-size: 12px; line-height: 16px; color: var(--p-lx-ink-2); }
 .lx-answer-earlier { display: flex; align-items: center; gap: 8px; }
 .lx-answer-earlier label { font-size: 13px; }
 
 .lx-answer-empty {
   padding: 16px; border: 1px dashed var(--p-lx-line-strong); border-radius: 4px; background: var(--p-lx-surface);
-  color: var(--p-lx-text-2);
+  color: var(--p-lx-ink-2);
 }
 
 .lx-answer-passage blockquote {

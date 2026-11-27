@@ -11,7 +11,6 @@ import { lexvayDialog } from '../../theme/dialog-tokens';
 import { lexvayMessage } from '../../theme/message-tokens';
 import { lexvaySkeleton } from '../../theme/skeleton-tokens';
 import { lexvayTabs } from '../../theme/tabs-tokens';
-import { lexvayTag } from '../../theme/tag-tokens';
 
 /** Component token sets the Rules screen renders and the shell does not (registered with registerComponentTokens, D-246). */
 export const RULES_TOKENS = {
@@ -27,6 +26,5 @@ export const RULES_TOKENS = {
   select: auraSelect,
   skeleton: lexvaySkeleton,
   tabs: lexvayTabs,
-  tag: lexvayTag,
   textarea: auraTextarea,
 };

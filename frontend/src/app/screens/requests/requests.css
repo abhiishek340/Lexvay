@@ -1,5 +1,5 @@
 .lx-requests-filter { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-.lx-filter-count { margin-left: 6px; color: var(--p-lx-text-2); }
+.lx-filter-count { margin-left: 6px; color: var(--p-lx-ink-2); }
 
 .lx-toggle-cell { width: 2.5rem; padding-right: 0; }
 .lx-request-ids { display: flex; gap: 8px; }

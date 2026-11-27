@@ -31,18 +31,10 @@ test('the register lists the California signature, filters, exports CSV, groups 
   await expect(rows.first()).toContainText('Demo rule set - California (fictional) 2026');
   await expect(page.getByTestId('register-count')).toContainText(/^\s*1\s*Signed determination\s*$/);
 
-  // The map of signed states: California in its outcome, its card opening the evidence report.
-  const map = page.getByRole('group', { name: 'Signed states' });
-  await expect(map.getByRole('button')).toHaveCount(1);
-  const california = map.getByRole('button', { name: 'California, determined not to meet' });
-  await california.focus();
-  const card = page.getByRole('dialog', { name: 'California' });
-  await expect(card.getByRole('link', { name: 'View report' })).toHaveAttribute('href', /\/programs\/[0-9a-f-]+\/report\?jurisdiction=CA$/);
-  await expectAccessible(page, 'Determination register with a map card');
-  await page.keyboard.press('Escape');
-  await expect(card).toBeHidden();
-  await page.getByRole('button', { name: 'About the register' }).click();
-  await expect(page.getByRole('dialog', { name: 'About the register' })).toContainText('exactly as it was signed');
+  // The screen's one Help holds what the register and the lists are.
+  await page.getByRole('button', { name: 'Help' }).click();
+  await expect(page.getByRole('dialog', { name: 'Help' })).toContainText('exactly as it was signed');
+  await expectAccessible(page, 'Determination register with its Help');
   await page.keyboard.press('Escape');
   await expectAccessible(page, 'Determination register');
 
@@ -95,8 +87,8 @@ test('the register lists the California signature, filters, exports CSV, groups 
     await expect(row).toContainText(name);
     await expect(row).toContainText('No current signed determination');
   }
-  await page.getByRole('button', { name: 'About these lists' }).click();
-  await expect(page.getByRole('dialog', { name: 'About these lists' })).toContainText('The institution\'s published disclosure remains its own responsibility.');
+  await page.getByRole('button', { name: 'Help' }).click();
+  await expect(page.getByRole('dialog', { name: 'Help' })).toContainText('The institution\'s published disclosure remains its own responsibility.');
   await page.keyboard.press('Escape');
   await expectAccessible(page, 'Determination register, by program');
 
@@ -112,21 +104,22 @@ test('the register lists the California signature, filters, exports CSV, groups 
   await expect(printHeader).toContainText('M.S. Clinical Mental Health Counseling');
   await expect(printHeader).toContainText('Generated');
   await expect(page.getByRole('complementary', { name: 'Fictional data notice' })).toBeVisible();
-  // Paper keeps the explanation the screen holds behind the InfoTip.
+  // Paper keeps the explanation the screen holds in its Help.
   await expect(page.getByText('These lists show signed records only.')).toBeVisible();
   const ink = await page.evaluate(() => ({
     body: getComputedStyle(document.body).backgroundColor,
     heading: getComputedStyle(document.querySelector('main h1')!).color,
   }));
-  expect(ink).toEqual({ body: 'rgb(255, 255, 255)', heading: 'rgb(0, 0, 0)' });
+  // Ink on white: every token takes its light value on paper.
+  expect(ink).toEqual({ body: 'rgb(255, 255, 255)', heading: 'rgb(20, 21, 23)' });
   await page.emulateMedia({ media: 'screen' });
 
   // A register row opens the program's evidence report for that jurisdiction.
   await page.getByRole('tab', { name: 'Register' }).click();
-  await expect(page.getByRole('group', { name: 'Signed states' })).toBeVisible();
+  await expect(rows).toHaveCount(1);
   await rows.first().locator('td').first().click();
   await expect(page).toHaveURL(/\/programs\/[0-9a-f-]+\/report\?jurisdiction=CA$/);
-  await expect(page.getByTestId('stamp')).toContainText('Determined not to meet');
+  await expect(page.getByTestId('stamp').getByRole('img')).toHaveAccessibleName(/: determined not to meet$/);
 });
 
 test('the register is accessible in both themes at 400 px and fits without horizontal scroll', async ({ page }) => {

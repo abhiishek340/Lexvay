@@ -82,10 +82,10 @@
                          [min]="0" [max]="p.text.length" ariaDescribedBy="range-help" />
         </div>
       </div>
-      <p class="lx-label">Passage</p>
+      <p class="lx-meta">Passage</p>
       <div class="lx-range-quote" aria-live="polite" data-testid="range-quote">
         @if (rangeQuote(); as quote) {
-          <blockquote class="lx-serif">{{ quote }}</blockquote>
+          <blockquote class="lx-doc">{{ quote }}</blockquote>
         } @else {
           <p class="lx-help">Enter a start offset and a larger end offset within the page.</p>
         }

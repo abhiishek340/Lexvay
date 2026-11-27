@@ -2,50 +2,45 @@
 <div class="lx-app" [class.lx-app--pending]="pending()" [class.lx-app--chrome]="chrome()" [class.lx-app--rail]="railVisible()" [class.lx-app--collapsed]="collapsed()">
   @if (chrome()) {
     @if (session.demo()) {
-      <!-- On paper the notice is spelled out; on screen it is the Demo data pill. -->
+      <!-- On paper the notice is spelled out; on screen it is the "Demo data" meta text and its tooltip. -->
       <aside class="lx-print-notice" aria-label="Fictional data notice">
-        <p><strong>Fictional data.</strong> {{ session.tenantName() }}, its people, courses, rule text and findings are invented for this prototype. Nothing here is licensing guidance.</p>
+        <p><strong>Fictional data.</strong> {{ demoNotice() }}</p>
       </aside>
     }
-    <header class="lx-topbar" [class.lx-topbar--scrolled]="scrolled()">
-      <div class="lx-topbar-start">
-        <a class="lx-brand" routerLink="/" aria-label="Lexvay, programs">
-          <lx-mark [size]="28" />
-          <span class="lx-wordmark" aria-hidden="true">Lexvay</span>
-        </a>
-        @if (context.program(); as p) {
-          @defer (on idle) {
-            <lx-program-switcher class="lx-switcher" [programId]="p.id" [screen]="screen()" />
-          } @placeholder {
-            <span class="lx-switcher-placeholder">{{ p.name }}</span>
-          }
+    <header class="lx-topbar">
+      <a class="lx-brand" routerLink="/" aria-label="Lexvay, programs">
+        <lx-mark [size]="20" />
+        <span class="lx-wordmark" aria-hidden="true">Lexvay</span>
+      </a>
+      @if (context.program(); as p) {
+        @defer (on idle) {
+          <lx-program-switcher class="lx-switcher" [programId]="p.id" [screen]="screen()" />
+        } @placeholder {
+          <span class="lx-switcher-placeholder">{{ p.name }}</span>
         }
-      </div>
+      }
 
-      <button type="button" class="lx-search" (click)="paletteOpen.set(true)" aria-haspopup="dialog" [attr.aria-keyshortcuts]="shortcut === 'Cmd K' ? 'Meta+K' : 'Control+K'">
+      <button type="button" class="lx-search" (click)="paletteOpen.set(true)" aria-label="Search or jump to" aria-haspopup="dialog"
+              [attr.aria-keyshortcuts]="shortcut === 'Cmd K' ? 'Meta+K' : 'Control+K'">
         <ng-icon name="phosphorMagnifyingGlass" size="16" aria-hidden="true" />
-        <span class="lx-search-text">Search or jump to</span>
-        <kbd aria-hidden="true">{{ shortcut }}</kbd>
+        <span class="lx-search-text" aria-hidden="true">Search</span>
+        <span class="lx-search-key" aria-hidden="true">{{ shortcut }}</span>
       </button>
 
       <div class="lx-topbar-end">
         @if (session.demo()) {
-          <span class="lx-demo">
-            <span class="lx-demo-text">Demo data</span>
-            <lx-info-tip label="About demo data">
-              {{ session.tenantName() }}, its people, courses, rule text and findings are invented for this prototype. Nothing here is licensing guidance.
-            </lx-info-tip>
-          </span>
+          <span class="lx-demo" tabindex="0" role="note" [attr.aria-label]="'Demo data. ' + demoNotice()"
+                [pTooltip]="demoNotice()" tooltipPosition="bottom" [showDelay]="200">Demo data</span>
         }
         <button type="button" class="lx-icon-button" (click)="openQueue($event)" aria-haspopup="dialog" [attr.aria-expanded]="queueOpen()"
                 [attr.aria-label]="queueCount() > 0 ? 'Work queue, ' + queueCount() + ' waiting' : 'Work queue'">
-          <ng-icon name="phosphorBell" size="20" aria-hidden="true" />
-          @if (queueCount() > 0) { <p-badge class="lx-queue-badge" [value]="queueCount() > 99 ? '99+' : queueCount()" aria-hidden="true" /> }
+          <ng-icon name="phosphorBell" size="16" aria-hidden="true" />
+          @if (queueCount() > 0) { <span class="lx-queue-dot" aria-hidden="true"></span> }
         </button>
         @if (session.user(); as user) {
-          <button type="button" class="lx-avatar" (click)="openAccount($event)" aria-haspopup="dialog" [attr.aria-expanded]="accountOpen()"
+          <button type="button" class="lx-account" (click)="openAccount($event)" aria-haspopup="dialog" [attr.aria-expanded]="accountOpen()"
                   [attr.aria-label]="'Account, ' + user.displayName + ', ' + roleLabel[user.role]">
-            {{ initials() }}
+            <span class="lx-avatar" aria-hidden="true">{{ initials() }}</span>
           </button>
         }
       </div>
@@ -54,39 +49,43 @@
   <div class="lx-frame">
     @if (railVisible()) {
       <nav class="lx-rail" aria-label="Screens">
-        <ul>
-          @if (pillTop() !== null) { <li class="lx-rail-pill" aria-hidden="true" [style.transform]="'translateY(' + pillTop() + 'px)'"></li> }
-          @for (link of links(); track link.id) {
-            <li [class.lx-rail-tenant]="link.tenant" [class.lx-rail-overflow]="overflowIds().has(link.id)">
-              <a [routerLink]="link.path" routerLinkActive="lx-active" ariaCurrentWhenActive="page"
-                 [attr.aria-label]="link.short !== link.label ? link.label : null"
-                 [pTooltip]="link.label" tooltipPosition="right" [tooltipDisabled]="link.short === link.label && !collapsed()" [showDelay]="300"
-                 [attr.aria-describedby]="link.badge > 0 ? 'nav-badge-' + link.id : null">
-                <ng-icon [name]="link.icon" size="20" aria-hidden="true" />
-                <span class="lx-nav-label">{{ link.short }}</span>
-                @if (link.badge > 0) { <span class="lx-nav-count" aria-hidden="true">{{ link.badge }}</span> }
-              </a>
-              @if (link.badge > 0) {
-                <span class="lx-sr-only" [id]="'nav-badge-' + link.id">{{ link.badgeText }}</span>
+        @for (group of groups(); track group.name) {
+          <div class="lx-rail-group">
+            <p class="lx-rail-heading" aria-hidden="true">{{ group.name }}</p>
+            <ul [attr.aria-label]="group.name">
+              @for (link of group.links; track link.id) {
+                <li [class.lx-rail-overflow]="overflowIds().has(link.id)">
+                  <a [routerLink]="link.path" routerLinkActive="lx-active" ariaCurrentWhenActive="page"
+                     [attr.aria-label]="link.short !== link.label ? link.label : null"
+                     [pTooltip]="link.label" tooltipPosition="right" [tooltipDisabled]="!collapsedView() && link.short === link.label" [showDelay]="300"
+                     [attr.aria-describedby]="link.badge > 0 ? 'nav-badge-' + link.id : null">
+                    <ng-icon [name]="link.icon" [size]="iconSize()" aria-hidden="true" />
+                    <span class="lx-nav-label">{{ link.short }}</span>
+                    @if (link.badge > 0) { <span class="lx-nav-count" aria-hidden="true">{{ link.badge }}</span> }
+                  </a>
+                  @if (link.badge > 0) {
+                    <span class="lx-sr-only" [id]="'nav-badge-' + link.id">{{ link.badgeText }}</span>
+                  }
+                </li>
               }
-            </li>
-          }
-          @if (overflow().length > 0) {
-            <!-- Only in the bottom tab bar (under 640 px): the screens that did not fit, in a menu. -->
-            <li class="lx-rail-more">
-              <button type="button" [class.lx-active]="moreCurrent() !== null" (click)="openMore($event)" aria-haspopup="menu" [attr.aria-expanded]="moreOpen()"
-                      [attr.aria-label]="moreCurrent() ? 'More screens, ' + moreCurrent()!.label + ' open' : 'More screens'">
-                <ng-icon name="phosphorDotsThree" size="20" aria-hidden="true" />
-              </button>
-            </li>
-          }
-        </ul>
+            </ul>
+          </div>
+        }
+        @if (overflow().length > 0) {
+          <!-- Only in the bottom tab bar (under 640 px): the screens that did not fit, in a menu. -->
+          <div class="lx-rail-more">
+            <button type="button" [class.lx-active]="moreCurrent() !== null" (click)="openMore($event)" aria-haspopup="menu" [attr.aria-expanded]="moreOpen()"
+                    [attr.aria-label]="moreCurrent() ? 'More screens, ' + moreCurrent()!.label + ' open' : 'More screens'">
+              <ng-icon name="phosphorDotsThree" [size]="iconSize()" aria-hidden="true" />
+            </button>
+          </div>
+        }
         <button type="button" class="lx-rail-toggle" (click)="toggleRail()" [attr.aria-label]="collapsed() ? 'Expand navigation' : 'Collapse navigation'">
-          <ng-icon name="phosphorSidebarSimple" size="20" aria-hidden="true" />
+          <ng-icon name="phosphorSidebarSimple" size="16" aria-hidden="true" />
         </button>
       </nav>
     }
-    <main id="main" tabindex="-1" (scroll)="onMainScroll($event)">
+    <main id="main" tabindex="-1">
       <router-outlet />
     </main>
   </div>

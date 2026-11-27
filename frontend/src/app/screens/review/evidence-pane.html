@@ -46,7 +46,7 @@
   }
   <details class="lx-quote-only">
     <summary><ng-icon name="phosphorCaretRight" size="14" aria-hidden="true" />Quote only</summary>
-    <blockquote class="lx-serif" [attr.data-testid]="system ? 'evidence-quote' : 'provided-quote'">{{ ev.quote }}</blockquote>
+    <blockquote class="lx-doc" [attr.data-testid]="system ? 'evidence-quote' : 'provided-quote'">{{ ev.quote }}</blockquote>
   </details>
   @if (!wide()) {
     <button pButton type="button" severity="secondary" [outlined]="true" size="small" class="lx-show-on-page"

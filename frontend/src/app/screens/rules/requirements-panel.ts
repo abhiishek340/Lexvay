@@ -10,7 +10,7 @@ import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
-import { Tag } from 'primeng/tag';
+import { Label } from '../../ui/label';
 import { Textarea } from 'primeng/textarea';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
@@ -30,7 +30,7 @@ import type { Notice } from './rule-version-detail';
  */
 @Component({
   selector: 'lx-requirements-panel',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, InputNumber, InputText, Message, Select, Skeleton, TableModule, Tag, Textarea, Clamp],
+  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, InputNumber, InputText, Message, Select, Skeleton, TableModule, Label, Textarea, Clamp],
   templateUrl: './requirements-panel.html',
   styleUrl: './requirements-panel.css',
 })

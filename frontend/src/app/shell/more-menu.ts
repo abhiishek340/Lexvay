@@ -10,7 +10,8 @@ import { registerComponentTokens } from '../theme/component-tokens';
 /**
  * The bottom tab bar's "More" menu (under 640 px): the screens that did not fit, least used last (tabBarOverflow). A
  * PrimeNG Menu, so arrow keys, Enter and Escape work and focus returns to the "More" tab. The shell owns the tab and
- * calls toggle(); this loads in a deferred chunk. The screens' icons are the rail's (SHELL_ICONS).
+ * calls toggle(); this loads in a deferred chunk. The screens' icons are the rail's (SHELL_ICONS); counts are plain
+ * tabular meta text, as in the rail.
  */
 @Component({
   selector: 'lx-more-menu',
@@ -20,23 +21,19 @@ import { registerComponentTokens } from '../theme/component-tokens';
             (onShow)="opened.emit(true)" (onHide)="opened.emit(false)">
       <ng-template #item let-item>
         <span class="p-menu-item-link lx-more-item" [class.lx-more-current]="item.state.current" [attr.aria-current]="item.state.current ? 'page' : null">
-          <ng-icon [name]="item.icon" size="20" aria-hidden="true" />
+          <ng-icon [name]="item.icon" size="16" aria-hidden="true" />
           <span class="lx-more-label">{{ item.label }}</span>
           @if (item.state.badge > 0) {
-            <span class="lx-more-count" aria-hidden="true">{{ item.state.badge }}</span><span class="lx-sr-only">, {{ item.state.badgeText }}</span>
+            <span class="lx-meta" aria-hidden="true">{{ item.state.badge }}</span><span class="lx-sr-only">, {{ item.state.badgeText }}</span>
           }
         </span>
       </ng-template>
     </p-menu>
   `,
   styles: `
-    .lx-more-item { display: flex; align-items: center; gap: 12px; min-width: 12rem; }
+    .lx-more-item { display: flex; align-items: center; gap: 12px; min-width: 12rem; color: var(--p-lx-ink-2); }
     .lx-more-label { flex: 1; }
-    .lx-more-current { color: var(--p-lx-accent); font-weight: 600; }
-    .lx-more-count {
-      min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 6px; border-radius: var(--lx-r-pill); display: inline-grid; place-items: center;
-      font-size: 11px; font-weight: 650; background: var(--p-lx-surface-2); color: var(--p-lx-text-2);
-    }
+    .lx-more-current { color: var(--p-lx-ink); box-shadow: inset 2px 0 0 var(--p-lx-ink); }
   `,
 })
 export class MoreMenu {

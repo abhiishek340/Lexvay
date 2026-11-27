@@ -3,7 +3,6 @@ import { ACTION_LABEL } from '../screens/audit/audit-sentence';
 import { CHANGE_KIND } from '../screens/changes/change-kind';
 import { DIFF_STATUS } from '../screens/rules/diff-status';
 import { RULE_STATUS } from '../screens/rules/rule-status';
-import { DECISION_ICON, FINDING_ICON } from '../ui/finding';
 import {
   DECISION_LABEL, FINDING_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, REQUIREMENT_TYPE_LABEL,
   ROLE_LABEL, humanize, licenseLabel, numericCheck,
@@ -17,11 +16,6 @@ describe('labels', () => {
     for (const forbidden of [['compl', 'iant'].join(''), ['meets requ', 'irements'].join('')]) {
       expect(all).not.toContain(forbidden);
     }
-  });
-
-  it('every finding and decision has a distinct icon so state is not colour alone (icons.spec.ts checks each is registered)', () => {
-    expect(new Set(Object.values(FINDING_ICON)).size).toBe(3);
-    expect(new Set(Object.values(DECISION_ICON)).size).toBe(3);
   });
 
   it('every diff status has its own icon, and a numeric check reads as field, operator and value', () => {

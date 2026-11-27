@@ -4,29 +4,27 @@ import { NgIcon } from '@ng-icons/core';
 import { SelectButton } from 'primeng/selectbutton';
 import { Skeleton } from 'primeng/skeleton';
 import { Tooltip } from 'primeng/tooltip';
-import { Enter } from '../../ui/enter';
-import { StatusIcon } from '../../ui/status-icon';
+import { StatusMark } from '../../ui/status-mark';
+import { requirementStatus } from '../../ui/status';
 import { ReviewFilter, ReviewWorkspace } from './review-workspace';
 
 /**
- * The 288 px list rail of Review: the filter as a segmented icon control (counts in the segment names and tooltips),
- * then one row per requirement with its ref, title and one StatusIcon. The row whose decision just landed (`landed`)
- * draws an ink ring around its new icon and settles on the spring; the selected row stays in view as J and K move.
+ * The 280 px requirement list of Review: the filter as a segmented icon control (counts in the segment names and
+ * tooltips), then one row per requirement with its ref, title and one status mark whose words are for assistive
+ * technology. The selected row stays in view as J and K move.
  */
 @Component({
   selector: 'lx-requirement-list',
-  imports: [FormsModule, NgIcon, SelectButton, Skeleton, Tooltip, Enter, StatusIcon],
+  imports: [FormsModule, NgIcon, SelectButton, Skeleton, Tooltip, StatusMark],
   templateUrl: './requirement-list.html',
   styleUrl: './requirement-list.css',
 })
 export class RequirementList {
   readonly workspace = input.required<ReviewWorkspace>();
   readonly loading = input(false);
-  /** The mapping whose decision has just been recorded, for the landing motion; null once it has played. */
-  readonly landed = input<string | null>(null);
   readonly selectRequirement = output<string>();
   readonly filterChange = output<ReviewFilter>();
-  readonly landingDone = output<void>();
+  readonly status = requirementStatus;
 
   private readonly body = viewChild<ElementRef<HTMLElement>>('body');
 

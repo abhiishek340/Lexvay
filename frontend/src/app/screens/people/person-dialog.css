@@ -1,25 +1,22 @@
 .lx-person-form { display: flex; flex-direction: column; gap: 16px; }
 .lx-dialog-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.lx-dialog-field label { font-weight: 550; font-size: 13px; line-height: 20px; }
-.lx-role-label { display: inline-flex; align-items: center; gap: 6px; }
-.lx-role-lines { display: flex; flex-direction: column; gap: 8px; margin: 0; }
-.lx-role-lines dt { font-weight: 600; }
-.lx-role-lines dd { color: var(--p-lx-text-2); }
+.lx-dialog-field label { font-weight: 500; font-size: 13px; line-height: 20px; }
+/* Each role option says what the role may do, under its name. */
+.lx-role-option { display: flex; flex-direction: column; white-space: normal; }
 
 /* The one-time link: the hero of the dialog, the whole link visible in mono, Copy beside it. */
 .lx-code-view { display: flex; flex-direction: column; gap: 14px; }
-.lx-code-in { animation: lx-code-in var(--lx-t-3) var(--lx-ease-out) both; }
-@keyframes lx-code-in { from { opacity: 0; transform: translateY(6px); } }
+.lx-code-in { animation: lx-code-in var(--lx-t) var(--lx-ease) both; }
+@keyframes lx-code-in { from { opacity: 0; transform: translateY(4px); } }
 .lx-code-who { display: flex; flex-wrap: wrap; gap: 4px 8px; overflow-wrap: anywhere; }
 .lx-link-box {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label label" "link copy"; align-items: center; gap: 6px 12px;
-  padding: 12px 12px 12px 16px; border-radius: var(--lx-r-card); background: var(--p-lx-surface-2);
+  padding: 12px 12px 12px 16px; border-radius: var(--lx-r-control); background: var(--p-lx-sunken);
 }
-.lx-link-box .lx-label { grid-area: label; }
-.lx-link { grid-area: link; margin: 0; font-size: 13px; line-height: 20px; overflow-wrap: anywhere; word-break: break-all; user-select: all; color: var(--p-lx-text); }
-.lx-copy { grid-area: copy; gap: 6px; white-space: nowrap; }
-.lx-expiry { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
-.lx-expiry ng-icon { flex: none; }
+.lx-link-box .lx-meta { grid-area: label; }
+.lx-link { grid-area: link; margin: 0; font-size: 13px; line-height: 20px; overflow-wrap: anywhere; word-break: break-all; user-select: all; color: var(--p-lx-ink); }
+.lx-copy { grid-area: copy; white-space: nowrap; }
+.lx-expiry { font-size: 13px; line-height: 20px; color: var(--p-lx-ink-2); }
 .lx-code-loading { display: flex; flex-direction: column; gap: 10px; }
 
 @media (max-width: 480px) {

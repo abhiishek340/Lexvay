@@ -6,6 +6,7 @@ import auraTextarea from '@primeuix/themes/aura/textarea';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { Textarea } from 'primeng/textarea';
+import { Tooltip } from 'primeng/tooltip';
 import { DecisionKind } from '../../core/models';
 import { registerComponentTokens } from '../../theme/component-tokens';
 import { lexvayMessage } from '../../theme/message-tokens';
@@ -13,15 +14,15 @@ import { lexvayMessage } from '../../theme/message-tokens';
 export const DECISION_BAR_ICONS = { phosphorNotePencil };
 
 /**
- * The floating action bar of Review (DESIGN.md "DecisionBar"): Accept (A), Request (R) and Gap (G) with their key
- * hints on a raised, blurred surface. Gap, its key and the note button open a note field in place; with the note open
+ * The decision footer of Review (DESIGN.md "DecisionBar"): Accept (A), Request (R) and Gap (G), their keys named in the
+ * buttons' tooltips and the shortcuts list. Gap, its key and the note button open a note field in place; with the note open
  * the third action reads Confirm gap, and every action sends the note along. The screen owns the note and its error
  * (it knows when a gap still lacks its reason); the bar lays them out and reports which action was chosen.
  *   <lx-decision-bar [(note)]="note" [(open)]="noteOpen" [busy]="busy()" [error]="noteError()" (decide)="decide($event)" />
  */
 @Component({
   selector: 'lx-decision-bar',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, Textarea],
+  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, Textarea, Tooltip],
   viewProviders: [provideIcons(DECISION_BAR_ICONS)],
   templateUrl: './decision-bar.html',
   styleUrl: './decision-bar.css',

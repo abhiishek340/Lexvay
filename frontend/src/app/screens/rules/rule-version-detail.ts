@@ -3,7 +3,7 @@ import { Component, computed, inject, input, output, signal } from '@angular/cor
 import { NgIcon } from '@ng-icons/core';
 import { Message } from 'primeng/message';
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
-import { Tag } from 'primeng/tag';
+import { Label } from '../../ui/label';
 import { licenseLabel } from '../../core/labels';
 import { RuleVersionView, UserSummary } from '../../core/models';
 import { ProgramContext } from '../../core/program-context';
@@ -21,7 +21,7 @@ type DetailTab = 'requirements' | 'text' | 'compare';
 /** One rule version: what it is, where it stands, and its three tabs. */
 @Component({
   selector: 'lx-rule-version-detail',
-  imports: [DatePipe, NgIcon, Message, Tab, TabList, TabPanel, TabPanels, Tabs, Tag, DocumentViewer, RequirementsPanel, RuleCompare],
+  imports: [DatePipe, NgIcon, Message, Tab, TabList, TabPanel, TabPanels, Tabs, Label, DocumentViewer, RequirementsPanel, RuleCompare],
   templateUrl: './rule-version-detail.html',
   styleUrl: './rule-version-detail.css',
 })

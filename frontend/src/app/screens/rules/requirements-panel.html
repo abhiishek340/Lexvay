@@ -136,10 +136,10 @@
           <tr>
             <td class="lx-mono lx-nowrap">{{ r.ref }}</td>
             <td class="lx-title">{{ r.title }}</td>
-            <td><p-tag severity="secondary" [value]="typeName(r)" /></td>
+            <td><lx-label>{{ typeName(r) }}</lx-label></td>
             <td class="lx-mono lx-nowrap">{{ check(r) ?? '' }}</td>
             <td class="lx-text">
-              <p class="lx-serif" lxClamp #clamp="lxClamp" [id]="'text-' + r.id">{{ r.text }}</p>
+              <p class="lx-doc" lxClamp #clamp="lxClamp" [id]="'text-' + r.id">{{ r.text }}</p>
               @if (clamp.overflowing() || clamp.open()) {
                 <button pButton type="button" [link]="true" size="small" class="lx-more" (click)="clamp.toggle()"
                         [attr.aria-expanded]="clamp.open()" [attr.aria-controls]="'text-' + r.id">

@@ -2,30 +2,29 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorArrowsClockwise, phosphorCaretDown, phosphorCaretRight, phosphorCheckCircle, phosphorEnvelopeOpen, phosphorPaperPlaneTilt, phosphorQuotes } from '@ng-icons/phosphor-icons/regular';
+import { phosphorCaretDown, phosphorCaretRight, phosphorPaperPlaneTilt, phosphorQuotes } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { SelectButton } from 'primeng/selectbutton';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
-import { Tag } from 'primeng/tag';
+import { Label } from '../../ui/label';
 import { REQUEST_FILTERS, RequestFilter, RequestState, canAnswer, matchesRequestFilter, requestCounts, requestState } from '../../core/evidence-requests';
 import { EvidenceRequest, EvidenceResponse } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import type { IconName } from '../../theme/icons';
 import { EvidenceDrawer } from './evidence-drawer';
 import { REQUESTS_TOKENS } from './requests-theme';
 
 /** The icons the inbox and its answer drawer show beyond SHELL_ICONS, provided by its route (requests.routes.ts). */
-export const REQUESTS_ICONS = { phosphorArrowsClockwise, phosphorCaretDown, phosphorCaretRight, phosphorCheckCircle, phosphorEnvelopeOpen, phosphorPaperPlaneTilt, phosphorQuotes };
+export const REQUESTS_ICONS = { phosphorCaretDown, phosphorCaretRight, phosphorPaperPlaneTilt, phosphorQuotes };
 
-export const REQUEST_STATE: Record<RequestState, { label: string; icon: IconName; severity: 'info' | 'success' | 'warn' }> = {
-  OPEN: { label: 'Open', icon: 'phosphorEnvelopeOpen', severity: 'info' },
-  ANSWERED: { label: 'Answered, awaiting review', icon: 'phosphorCheckCircle', severity: 'success' },
-  BLOCKED: { label: 'Blocked', icon: 'phosphorArrowsClockwise', severity: 'warn' },
+export const REQUEST_STATE: Record<RequestState, { label: string }> = {
+  OPEN: { label: 'Open' },
+  ANSWERED: { label: 'Answered, awaiting review' },
+  BLOCKED: { label: 'Blocked' },
 };
 
 /**
@@ -35,7 +34,7 @@ export const REQUEST_STATE: Record<RequestState, { label: string; icon: IconName
  */
 @Component({
   selector: 'lx-requests',
-  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, SelectButton, Skeleton, TableModule, Tag, EvidenceDrawer],
+  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, SelectButton, Skeleton, TableModule, Label, EvidenceDrawer],
   templateUrl: './requests.html',
   styleUrl: './requests.css',
 })

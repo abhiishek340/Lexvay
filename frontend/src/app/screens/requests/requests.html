@@ -12,7 +12,7 @@
 
   @if (context.ready()) {
     <div class="lx-requests-filter">
-      <span id="request-filter-label" class="lx-label">Show</span>
+      <span id="request-filter-label" class="lx-meta">Show</span>
       <p-selectbutton [options]="filters" optionLabel="label" optionValue="value" [allowEmpty]="false" size="small" [ngModel]="filter()"
                       (ngModelChange)="setFilter($event)" ariaLabelledBy="request-filter-label">
         <ng-template #item let-option>
@@ -63,7 +63,7 @@
               <p class="lx-help">{{ row.requestedByName ?? 'An unknown user' }}, <time [attr.datetime]="row.requestedAt">{{ row.requestedAt | date: 'd MMM' }}</time></p>
             </td>
             <td>
-              <p-tag [severity]="st.severity" [value]="st.label"><ng-template #icon><ng-icon [name]="st.icon" size="14" aria-hidden="true" /></ng-template></p-tag>
+              <lx-label>{{ st.label }}</lx-label>
             </td>
             <td>
               <span class="lx-mono">{{ row.responseCount }}</span>
@@ -88,11 +88,11 @@
           <tr class="lx-request-detail-row">
             <td colspan="6" [id]="'request-detail-' + row.mappingId">
               <dl class="lx-request-detail">
-                <div><dt class="lx-label">Request note</dt><dd class="lx-request-note">{{ row.requestNote ?? 'No note.' }}</dd></div>
-                <div><dt class="lx-label">Asked</dt><dd>{{ row.requestedByName ?? 'An unknown user' }}, {{ row.requestedAt | date: 'd MMM y, HH:mm' }}</dd></div>
+                <div><dt class="lx-meta">Request note</dt><dd class="lx-request-note">{{ row.requestNote ?? 'No note.' }}</dd></div>
+                <div><dt class="lx-meta">Asked</dt><dd>{{ row.requestedByName ?? 'An unknown user' }}, {{ row.requestedAt | date: 'd MMM y, HH:mm' }}</dd></div>
                 @if (row.latestResponse; as latest) {
                   <div>
-                    <dt class="lx-label">Latest response</dt>
+                    <dt class="lx-meta">Latest response</dt>
                     <dd>{{ latest.providedByName }}, {{ latest.createdAt | date: 'd MMM y, HH:mm' }}: {{ latest.filename }}, page
                       <span class="lx-mono">{{ latest.pageNumber }}</span></dd>
                   </div>

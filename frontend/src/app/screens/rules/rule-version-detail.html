@@ -1,7 +1,7 @@
 @let v = version();
 <article class="lx-detail" aria-labelledby="version-heading">
   <header class="lx-detail-head">
-    <p class="lx-label">{{ jurisdictionName() }} <span class="lx-mono">{{ v.jurisdiction }}</span></p>
+    <p class="lx-meta">{{ jurisdictionName() }} <span class="lx-mono">{{ v.jurisdiction }}</span></p>
     <h2 id="version-heading" class="lx-detail-title" tabindex="-1">{{ v.label }}</h2>
     <dl class="lx-facts">
       <div><dt>License type</dt><dd>{{ license() }}</dd></div>
@@ -12,9 +12,7 @@
       </div>
     </dl>
     <p class="lx-state" data-testid="version-state">
-      <p-tag [severity]="statusView().severity" [value]="statusView().label">
-        <ng-template #icon><ng-icon [name]="statusView().icon" size="14" aria-hidden="true" [class.lx-spin]="status() === 'EXTRACTING'" /></ng-template>
-      </p-tag>
+      <lx-label>{{ statusView().label }}</lx-label>
       @if (v.approval; as a) {
         <span>Approved by {{ approverName() }} on <time class="lx-mono" [attr.datetime]="a.at">{{ a.at | date: 'yyyy-MM-dd' }}</time></span>
       } @else {

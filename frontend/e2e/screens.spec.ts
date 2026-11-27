@@ -1,4 +1,4 @@
-import { ADMIN, DANA, SCREENSHOTS, apiPost, citedRequirement, expect, goTo, nav, openRequirement, shoot, signIn, stateTab, test } from './support';
+import { ADMIN, DANA, SCREENSHOTS, apiPost, citedRequirement, expect, goTo, nav, openRequirement, shoot, signIn, stateTab, switchUser, test } from './support';
 
 /**
  * Screenshots of every screen in both themes for docs/screens. Not part of the regular suite:
@@ -13,7 +13,7 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await shoot(page, 'sign-in');
 
   await signIn(page, DANA);
-  await expect(page.getByTestId('state-card-CA')).toContainText('California');
+  await expect(page.getByTestId('state-row-CA')).toContainText('California');
   await shoot(page, 'program-overview');
 
   await nav(page, 'Review').click();
@@ -104,49 +104,109 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await shoot(page, 'review-viewer-400px');
 });
 
-/** UI2-0: sign-in, the shell over the overview, the command palette, the work queue and the avatar menu, at 1440 and 400 px. */
-test('screenshots of the v2 shell and sign-in at 1440 and 400 px', async ({ page }) => {
+/**
+ * UI3-0: sign-in, the overview, the shell (the rail expanded and collapsed, the 400 px tab bar and its More menu, the
+ * command palette, the work queue and the account menu) and the shared components, at 1440 and 400 px.
+ */
+test('UI3-0: sign-in, the overview and the shell in design v3 at 1440 and 400 px', async ({ page }) => {
   for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await page.setViewportSize({ width, height });
-    // Under reduced motion the story stands still at its fullest moment, so both themes show the same coloured map.
-    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/login');
-    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
     await expect(page.getByRole('group', { name: 'Demo accounts' })).toBeVisible();
-    await shoot(page, `ui2-sign-in-${width}`);
-    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await shoot(page, `ui3-0-sign-in-${width}`);
 
     await signIn(page, DANA);
-    await expect(page.getByTestId('state-card-CA')).toContainText('California');
-    await shoot(page, `ui2-overview-${width}`);
-
-    // The shared components at every size (development harness, dev/ui).
-    await page.goto('/dev/ui');
-    await expect(page.getByRole('group', { name: 'Illustrative states', exact: true })).toBeVisible();
-    await page.waitForTimeout(1400);
-    await shoot(page, `ui2-components-${width}`);
-    await page.goBack();
-    await expect(page.getByTestId('state-card-CA')).toBeVisible();
-
-    await page.keyboard.press('Control+k');
-    const palette = page.getByRole('dialog', { name: 'Search or jump to' });
-    await palette.getByRole('combobox').fill('rev');
-    await expect(palette.getByRole('menuitem').first()).toBeVisible();
-    await shoot(page, `ui2-command-palette-${width}`);
-    await page.keyboard.press('Escape');
-    await expect(palette).toBeHidden();
-
-    await page.getByRole('button', { name: /^Work queue/ }).click();
-    await expect(page.getByRole('dialog', { name: 'Work queue' }).getByRole('link').first()).toBeVisible();
-    await shoot(page, `ui2-work-queue-${width}`);
+    await expect(page.getByTestId('state-row-CA')).toContainText('Signed by Dana Whitfield');
+    await shoot(page, `ui3-0-overview-${width}`);
+    await page.getByRole('button', { name: 'Help' }).click();
+    await expect(page.getByRole('dialog', { name: 'Help' })).toBeVisible();
+    await shoot(page, `ui3-0-overview-help-${width}`);
     await page.keyboard.press('Escape');
 
-    await page.getByRole('button', { name: /^Account, / }).click();
-    await expect(page.getByRole('group', { name: 'Theme' })).toBeVisible();
-    await shoot(page, `ui2-avatar-menu-${width}`);
-    await page.getByRole('button', { name: 'Sign out' }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    if (width === 1440) {
+      await page.getByRole('button', { name: 'Collapse navigation' }).click();
+      await shoot(page, 'ui3-0-shell-collapsed-1440');
+      await page.getByRole('button', { name: 'Expand navigation' }).click();
+
+      await page.keyboard.press('Control+k');
+      const palette = page.getByRole('dialog', { name: 'Search or jump to' });
+      await palette.getByRole('combobox').fill('rev');
+      await expect(palette.getByRole('menuitem').first()).toBeVisible();
+      await shoot(page, 'ui3-0-command-palette-1440');
+      await page.keyboard.press('Escape');
+      await expect(palette).toBeHidden();
+
+      await page.getByRole('button', { name: /^Work queue/ }).click();
+      await expect(page.getByRole('dialog', { name: 'Work queue' }).getByRole('link').first()).toBeVisible();
+      await shoot(page, 'ui3-0-work-queue-1440');
+      await page.keyboard.press('Escape');
+
+      await page.getByRole('button', { name: /^Account, / }).click();
+      await expect(page.getByRole('group', { name: 'Theme' })).toBeVisible();
+      await shoot(page, 'ui3-0-account-menu-1440');
+      await page.keyboard.press('Escape');
+
+      // The shared components (development harness, dev/ui).
+      await page.goto('/dev/ui');
+      await expect(page.getByRole('heading', { name: 'Status marks' })).toBeVisible();
+      await shoot(page, 'ui3-0-components-1440');
+    } else {
+      await page.getByRole('navigation', { name: 'Screens' }).getByRole('button', { name: /^More screens/ }).click();
+      await expect(page.getByRole('menu', { name: 'More screens' })).toBeVisible();
+      await shoot(page, 'ui3-0-tab-bar-more-400');
+      await page.keyboard.press('Escape');
+    }
+    await page.context().clearCookies();
   }
+});
+
+/** UI3-0: every other screen as it looks once its callers moved to the v3 components, the start of UI3-1 to UI3-3. */
+test('UI3-0: the starting point of every other screen', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await signIn(page, DANA);
+  await nav(page, 'Review').click();
+  await stateTab(page, 'TX').click();
+  await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^TX-/);
+  await shoot(page, 'ui3-0-before-review');
+
+  await nav(page, 'Coverage').click();
+  await expect(page.getByRole('table', { name: /^Coverage, / })).toBeVisible();
+  await shoot(page, 'ui3-0-before-coverage');
+
+  await nav(page, 'Evidence requests').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Evidence requests' })).toBeVisible();
+  await shoot(page, 'ui3-0-before-requests');
+
+  await nav(page, 'Changes').click();
+  await expect(page.getByRole('list', { name: 'Change events' })).toBeVisible();
+  await shoot(page, 'ui3-0-before-changes');
+
+  await nav(page, 'Rules').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Rules' })).toBeVisible();
+  await shoot(page, 'ui3-0-before-rules');
+
+  await nav(page, 'Evidence report').click();
+  await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
+  await page.getByRole('option', { name: 'California (CA)' }).click();
+  await expect(page.getByRole('img', { name: /^Signed by / })).toBeVisible();
+  await shoot(page, 'ui3-0-before-report');
+
+  await nav(page, 'Audit trail').click();
+  await expect(page.getByRole('main').getByRole('listitem').first()).toBeVisible();
+  await shoot(page, 'ui3-0-before-audit');
+
+  await nav(page, 'Determination register').click();
+  await expect(page.getByRole('table', { name: 'Determination register' }).locator('tbody tr')).toHaveCount(1);
+  await shoot(page, 'ui3-0-before-register');
+
+  await switchUser(page, ADMIN);
+  await nav(page, 'People').click();
+  await expect(page.getByRole('table', { name: 'People' })).toBeVisible();
+  await shoot(page, 'ui3-0-before-people');
+
+  await page.goto('/setup');
+  await expect(page.getByRole('heading', { level: 1, name: 'Choose a password' })).toBeVisible();
+  await shoot(page, 'ui3-0-before-setup');
 });
 
 /**
@@ -202,34 +262,6 @@ test('UI2-2: Review, a decided requirement, the gap note and the signing dialog 
     await shoot(page, `ui2-2-signing-${width}`);
     await dialog.getByRole('button', { name: 'Cancel' }).click();
     await expect(dialog).toBeHidden();
-  }
-});
-
-/** UI2-1: the overview (with a map card open) and the register, both tabs, at 1440 and 400 px. California is signed by then. */
-test('screenshots of the v2 overview and register at 1440 and 400 px', async ({ page }) => {
-  for (const [width, height] of [[1440, 900], [400, 860]] as const) {
-    await page.setViewportSize({ width, height });
-    await signIn(page, DANA);
-    await expect(page.getByTestId('state-card-CA')).toContainText('Determined not to meet');
-    // Let the wave, the count-ups and the rings finish.
-    await page.waitForTimeout(1600);
-    await shoot(page, `ui2-1-overview-${width}`);
-    await page.getByRole('group', { name: 'Target states' }).getByRole('button', { name: /^Utah, / }).focus();
-    await expect(page.getByRole('dialog', { name: 'Utah' })).toBeVisible();
-    await shoot(page, `ui2-1-overview-map-card-${width}`);
-    await page.keyboard.press('Escape');
-    await page.locator('main').evaluate((main) => main.scrollTo(0, main.scrollHeight));
-    await shoot(page, `ui2-1-overview-cards-${width}`);
-
-    await nav(page, 'Determination register').click();
-    await expect(page.getByRole('table', { name: 'Determination register' }).locator('tbody tr')).toHaveCount(1);
-    await page.waitForTimeout(1600);
-    await shoot(page, `ui2-1-register-${width}`);
-    await page.getByRole('tab', { name: 'By program' }).click();
-    await expect(page.getByRole('region', { name: 'No determination made', exact: true })).toBeVisible();
-    await page.waitForTimeout(600);
-    await shoot(page, `ui2-1-register-lists-${width}`);
-    await page.context().clearCookies();
   }
 });
 

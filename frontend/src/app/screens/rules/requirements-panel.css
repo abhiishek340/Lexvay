@@ -6,7 +6,7 @@
 .lx-nowrap { white-space: nowrap; }
 .lx-title { font-weight: 500; min-width: 8rem; }
 .lx-text { min-width: 14rem; }
-.lx-text .lx-serif { max-width: 60ch; }
+.lx-text .lx-doc { max-width: 60ch; }
 .lx-more { padding: 0; margin-top: 2px; }
 .lx-table-skeleton { display: flex; flex-direction: column; gap: 6px; }
 
@@ -23,7 +23,7 @@
 .lx-f-type { grid-area: type; }
 .lx-f-check { grid-area: check; }
 .lx-f-actions { grid-area: actions; flex-direction: row; gap: 0; }
-.lx-f-label { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-text-2); }
+.lx-f-label { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-ink-2); }
 .lx-check-controls { display: grid; grid-template-columns: 8.5rem 4.75rem minmax(0, 1fr); gap: 4px; }
 .lx-line-one td { border-bottom: 0; padding-bottom: 6px; }
 .lx-line-two td { padding-top: 0; }

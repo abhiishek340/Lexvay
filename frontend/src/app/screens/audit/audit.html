@@ -1,31 +1,25 @@
 <div class="lx-page lx-audit">
   <header class="lx-page-header">
-    <div class="lx-title">
-      <h1>Audit trail</h1>
-      <lx-info-tip label="About the audit trail">
-        Every action, newest first: who did it, when, what it was and on which record. Entries are only ever added, never
-        changed or removed.
-      </lx-info-tip>
+    <h1>Audit trail</h1>
+    <div class="lx-title-actions">
+      @if (session.isAdmin()) {
+        <a pButton [outlined]="true" [href]="csvUrl()" download><span pButtonLabel>Download CSV</span></a>
+      }
+      <lx-help [terms]="help" />
     </div>
-    @if (session.isAdmin()) {
-      <a pButton size="small" [outlined]="true" [href]="csvUrl()" download>
-        <ng-icon name="phosphorDownloadSimple" size="16" aria-hidden="true" />
-        <span pButtonLabel>Download CSV</span>
-      </a>
-    }
   </header>
 
-  <div class="lx-chips" role="group" aria-label="Filters">
-    <p-select class="lx-chip" [class.lx-chip-on]="query().userId" [options]="people()" optionLabel="label" optionValue="value"
+  <div class="lx-filters" role="group" aria-label="Filters">
+    <p-select [options]="people()" optionLabel="label" optionValue="value"
               [ngModel]="query().userId" (ngModelChange)="set('userId', $event)" placeholder="Person" ariaLabel="Person"
               [showClear]="true" size="small" appendTo="body" />
-    <p-select class="lx-chip" [class.lx-chip-on]="query().action" [options]="actions" optionLabel="label" optionValue="value"
+    <p-select [options]="actions" optionLabel="label" optionValue="value"
               [ngModel]="query().action" (ngModelChange)="set('action', $event)" placeholder="Action" ariaLabel="Action"
               [showClear]="true" [filter]="true" filterBy="label" size="small" appendTo="body" />
-    <p-select class="lx-chip" [class.lx-chip-on]="query().entityType" [options]="recordTypes" optionLabel="label" optionValue="value"
+    <p-select [options]="recordTypes" optionLabel="label" optionValue="value"
               [ngModel]="query().entityType" (ngModelChange)="set('entityType', $event)" placeholder="Record type" ariaLabel="Record type"
               [showClear]="true" size="small" appendTo="body" />
-    <p-select class="lx-chip" [class.lx-chip-on]="query().period" [options]="periods" optionLabel="label" optionValue="value"
+    <p-select [options]="periods" optionLabel="label" optionValue="value"
               [ngModel]="query().period" (ngModelChange)="set('period', $event)" placeholder="Any time" ariaLabel="Period"
               [showClear]="true" size="small" appendTo="body" />
     @if (filtered()) {
@@ -48,7 +42,7 @@
               </p-avatar>
             </ng-template>
             <ng-template #content let-r>
-              <div class="lx-entry" [lxEnter]="r.enter">
+              <div class="lx-entry">
                 <button type="button" class="lx-entry-head" [attr.aria-expanded]="isOpen(r.id)" [attr.aria-controls]="isOpen(r.id) ? 'entry-' + r.id : null"
                         (click)="toggle(r.id)">
                   <span class="lx-sentence"><strong>{{ r.actor }}</strong>{{ r.rest }}</span>
@@ -70,7 +64,6 @@
         </section>
       } @empty {
         <div class="lx-empty">
-          <ng-icon name="phosphorClockCounterClockwiseDuotone" size="32" aria-hidden="true" />
           <p>{{ filtered() ? 'No entries match these filters.' : 'No entries yet.' }}</p>
           @if (filtered()) { <button pButton type="button" size="small" [outlined]="true" (click)="clear()"><span pButtonLabel>Clear filters</span></button> }
         </div>

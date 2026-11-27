@@ -1,7 +1,7 @@
 @let m = mapping();
 <article class="lx-req-card" aria-labelledby="requirement-heading">
   <h2 id="requirement-heading" class="lx-heading" data-testid="requirement-heading" [attr.data-ref]="m.requirement.ref">
-    <span class="lx-ref lx-mono">{{ m.requirement.ref }}</span>
+    <span class="lx-ref">{{ m.requirement.ref }}</span>
     <span class="lx-title">{{ m.requirement.title }}</span>
   </h2>
 
@@ -17,11 +17,10 @@
   </figure>
 
   <div class="lx-finding-row">
-    <span class="lx-chip" [class]="'lx-chip-' + chip()" data-testid="proposed-finding"><span class="lx-sr-only">Proposed finding: </span><lx-finding [finding]="m.finding" [large]="true" /></span>
+    <span class="lx-finding" data-testid="proposed-finding"><span class="lx-sr-only">Proposed finding: </span><lx-status-mark [status]="m.finding" /></span>
     <span class="lx-method">
       <ng-icon [name]="method().icon" size="16" aria-hidden="true" />
-      <span>{{ method().line }}</span>
-      <lx-info-tip label="How it was checked">{{ method().detail }}</lx-info-tip>
+      <span class="lx-term" tabindex="0" [pTooltip]="method().detail" tooltipPosition="bottom" [attr.aria-description]="method().detail">{{ method().line }}</span>
     </span>
   </div>
   @if (m.rationale) {
@@ -32,7 +31,7 @@
   }
 
   <div class="lx-now" data-testid="current-decision">
-    <lx-decision-state [decision]="m.decision" [stale]="m.stale" />
+    <lx-status-mark [status]="decision().status" [label]="decision().label" />
     @if (m.decision; as d) {
       <span class="lx-by">{{ d.userDisplayName ?? 'an unknown user' }}, {{ d.at | date: 'd MMM y, HH:mm' }}</span>
     }

@@ -19,18 +19,16 @@
     } @else {
       <ul class="lx-rows">
         @for (m of w.visible(); track m.id) {
-          <li [lxEnter]="$index">
-            <button type="button" class="lx-row" [class.lx-row-current]="m.id === w.selectedId()" [class.lx-landed]="m.id === landed()"
+          <li>
+            <button type="button" class="lx-row" [class.lx-row-current]="m.id === w.selectedId()"
                     [attr.aria-current]="m.id === w.selectedId() ? 'true' : null" (click)="selectRequirement.emit(m.id)">
-              <span class="lx-row-ref lx-mono">{{ m.requirement.ref }}</span>
+              <span class="lx-row-ref">{{ m.requirement.ref }}</span>
               <span class="lx-row-title">{{ m.requirement.title }}</span>
               @if (m.responseCount > 0) {
                 <span class="lx-row-provided"><ng-icon name="phosphorChatCircleText" size="14" aria-hidden="true" /><span class="lx-sr-only">evidence provided</span></span>
               }
-              <span class="lx-row-status">
-                <svg class="lx-ink" viewBox="0 0 28 28" aria-hidden="true" (animationend)="landingDone.emit()"><circle cx="14" cy="14" r="12.5" pathLength="100" /></svg>
-                <lx-status-icon [finding]="m.finding" [decision]="m.decision?.kind ?? null" [stale]="m.stale" />
-              </span>
+              @let s = status(m.finding, m.decision?.kind ?? null, m.stale);
+              <lx-status-mark class="lx-row-status" [status]="s.status" [label]="s.label" [quiet]="true" />
             </button>
           </li>
         }

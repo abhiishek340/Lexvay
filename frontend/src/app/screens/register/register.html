@@ -5,12 +5,8 @@
     @if (printGeneratedAt(); as at) { <p>Generated {{ at | date: 'd MMMM y, HH:mm' }}</p> }
   </header>
   <header class="lx-page-header">
-    <div class="lx-register-title">
-      <h1>Determination register</h1>
-      <lx-info-tip label="About the register">
-        Every signed determination in this institution, exactly as it was signed, with the rule and course versions it names.
-      </lx-info-tip>
-    </div>
+    <h1>Determination register</h1>
+    <lx-help [terms]="help" />
   </header>
   @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
 
@@ -22,29 +18,22 @@
     <p-tabpanels>
       <p-tabpanel value="register">
         <div class="lx-register-top">
-          @if (mapStates(); as states) {
-            <section class="lx-hero lx-register-map" aria-label="Signed states">
-              <lx-state-map [states]="states" size="compact" label="Signed states" [legend]="true" />
-            </section>
-          } @else if (!rowsError()) {
-            <p-skeleton class="lx-register-map-skeleton" height="22rem" borderRadius="16px" />
-          }
           <div class="lx-register-panel">
             <div class="lx-filters lx-register-filters" role="group" aria-label="Filter the register">
               <div class="lx-filter">
-                <span id="register-program-label" class="lx-label">Program</span>
+                <span id="register-program-label" class="lx-meta">Program</span>
                 <p-select [options]="programOptions()" optionLabel="label" optionValue="value" [ngModel]="filter().programId"
                           (ngModelChange)="setFilter({ programId: $event ?? null })" placeholder="All programs" [showClear]="true"
                           ariaLabelledBy="register-program-label" appendTo="body" styleClass="lx-filter-select" />
               </div>
               <div class="lx-filter">
-                <span id="register-jurisdiction-label" class="lx-label">Jurisdiction</span>
+                <span id="register-jurisdiction-label" class="lx-meta">Jurisdiction</span>
                 <p-select [options]="jurisdictionOptions()" optionLabel="label" optionValue="value" [ngModel]="filter().jurisdiction"
                           (ngModelChange)="setFilter({ jurisdiction: $event ?? null })" placeholder="All jurisdictions" [showClear]="true"
                           ariaLabelledBy="register-jurisdiction-label" appendTo="body" styleClass="lx-filter-select" />
               </div>
               <div class="lx-filter">
-                <span id="register-outcome-label" class="lx-label">Outcome</span>
+                <span id="register-outcome-label" class="lx-meta">Outcome</span>
                 <p-select [options]="outcomeOptions" optionLabel="label" optionValue="value" [ngModel]="filter().outcome"
                           (ngModelChange)="setFilter({ outcome: $event ?? null })" placeholder="All outcomes" [showClear]="true"
                           ariaLabelledBy="register-outcome-label" appendTo="body" styleClass="lx-filter-select" />
@@ -56,21 +45,18 @@
             </div>
             <div class="lx-register-panel-foot">
               <div aria-live="polite" data-testid="register-count">
-                @if (shownCount(); as n) {
-                  <lx-stat [value]="n.value" [label]="n.value === 1 ? 'Signed determination' : 'Signed determinations'" />
+                @if (shownCount() !== null) {
+                  <lx-figure [value]="shownCount()!" [label]="shownCount() === 1 ? 'Signed determination' : 'Signed determinations'" />
                 }
               </div>
-              <a pButton class="lx-download" size="small" [outlined]="true" [href]="csvUrl()" download>
-                <ng-icon name="phosphorDownloadSimple" size="16" aria-hidden="true" />
-                <span pButtonLabel>Download CSV</span>
-              </a>
+              <a pButton class="lx-download" [outlined]="true" [href]="csvUrl()" download><span pButtonLabel>Download CSV</span></a>
             </div>
           </div>
         </div>
 
         @if (rowsError(); as e) { <p-message severity="error">{{ e }}</p-message> }
         @if (rows(); as list) {
-          <div class="lx-card lx-table-card">
+          <div class="lx-table-card">
           <p-table [value]="list" dataKey="determinationId" [rowHover]="true" [pt]="{ table: { 'aria-label': 'Determination register' } }" class="lx-table">
             <ng-template #header>
               <tr>
@@ -96,16 +82,11 @@
                   <span class="lx-mono lx-muted lx-code">{{ r.jurisdictionCode }}</span>
                 </td>
                 <td class="lx-nowrap">
-                  @let outcome = outcomeTag(r.outcome);
-                  <p-tag [severity]="outcome.severity" [value]="outcome.label">
-                    <ng-template #icon><ng-icon [name]="outcome.icon" size="14" aria-hidden="true" /></ng-template>
-                  </p-tag>
+                  @let o = outcomeOf(r);
+                  <span [class]="o.tone">{{ o.label }}</span>
                 </td>
                 <td>
-                  @let status = statusTag(r.status);
-                  <p-tag [severity]="status.severity" [value]="status.label">
-                    <ng-template #icon><ng-icon [name]="status.icon" size="14" aria-hidden="true" /></ng-template>
-                  </p-tag>
+                  <span [class.lx-muted]="r.status === 'REOPENED'">{{ statusOf(r) }}</span>
                 </td>
                 <td>{{ r.signedByName }}</td>
                 <td class="lx-nowrap"><time [attr.datetime]="r.signedAt">{{ r.signedAt | date: 'd MMM y, HH:mm' }}</time></td>
@@ -146,27 +127,21 @@
       <p-tabpanel value="by-program">
         <div class="lx-filters" role="group" aria-label="Choose the program">
           <div class="lx-filter">
-            <span id="lists-program-label" class="lx-label">Program</span>
+            <span id="lists-program-label" class="lx-meta">Program</span>
             <p-select [options]="programOptions()" optionLabel="label" optionValue="value" [ngModel]="listsProgramId()"
                       (ngModelChange)="selectListsProgram($event)" ariaLabelledBy="lists-program-label" appendTo="body" styleClass="lx-filter-select lx-program-select" />
           </div>
-          <button pButton type="button" class="lx-print-button" size="small" [outlined]="true" (click)="print()" [disabled]="!lists()">
-            <ng-icon name="phosphorPrinter" size="16" aria-hidden="true" />
-            <span pButtonLabel>Print</span>
-          </button>
+          <button pButton type="button" class="lx-print-button" [outlined]="true" (click)="print()" [disabled]="!lists()"><span pButtonLabel>Print</span></button>
         </div>
         @if (listsError(); as e) { <p-message severity="error">{{ e }}</p-message> }
 
         @if (lists(); as l) {
-          <p class="lx-help lx-lists-meta">
-            {{ l.program.name }}, catalog year {{ l.program.catalogYear }} · as of {{ l.generatedAt | date: 'd MMMM y, HH:mm' }}
-            <lx-info-tip label="About these lists">{{ disclosureNote }}</lx-info-tip>
-          </p>
-          <!-- Paper keeps the explanation the screen holds in the InfoTip. -->
+          <p class="lx-meta lx-lists-meta">{{ l.program.name }}, catalog year {{ l.program.catalogYear }} · as of {{ l.generatedAt | date: 'd MMMM y, HH:mm' }}</p>
+          <!-- Paper keeps the explanation the screen holds in its Help. -->
           <p class="lx-print-only">{{ disclosureNote }}</p>
           <div class="lx-lists">
             @for (section of sections(); track section.id) {
-              <section class="lx-card lx-list" [attr.aria-labelledby]="'list-' + section.id" [attr.data-testid]="'list-' + section.id">
+              <section class="lx-list" [attr.aria-labelledby]="'list-' + section.id" [attr.data-testid]="'list-' + section.id">
                 <h2 class="lx-list-title" [id]="'list-' + section.id">
                   {{ section.title }} <span class="lx-list-count" aria-hidden="true">{{ section.rows.length }}</span>
                 </h2>
@@ -175,9 +150,9 @@
                 } @else {
                   <ul class="lx-list-rows">
                     @for (row of section.rows; track row.code) {
-                      <li class="lx-list-row" [lxEnter]="$index">
+                      <li class="lx-list-row">
                         @if (row.signedByName && row.signedAt) {
-                          <lx-seal class="lx-list-seal" [outcome]="section.outcome" [signer]="row.signedByName" [signedAt]="row.signedAt" [size]="44" />
+                          <lx-seal class="lx-list-seal" [outcome]="section.outcome" [signer]="row.signedByName" [signedAt]="row.signedAt" [compact]="true" />
                         } @else {
                           <span class="lx-list-unsigned" aria-hidden="true"></span>
                         }

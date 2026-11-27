@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { Decision, Evidence, EvidenceResponse, Finding, Mapping } from '../../core/models';
-import { requirementStatus } from '../../ui/status';
 import { REVIEW_FILTERS, ReviewWorkspace, checkMethod, decisionBlocker, evidenceView, filterLabel, isDecided, shortcutFor, stateProgress } from './review-workspace';
 
 const decision: Decision = { kind: 'ACCEPTED', note: null, userId: 'u', userDisplayName: 'Dana', at: '2026-11-26T10:00:00Z' };
@@ -195,10 +194,8 @@ describe('the list filter as a segmented icon control', () => {
     expect(filterLabel('EVIDENCE_FOUND', 0)).toBe('0 found');
   });
 
-  it('shows each finding filter with the icon the StatusIcon uses for that finding before review', () => {
-    for (const finding of ['EVIDENCE_FOUND', 'AMBIGUOUS', 'EVIDENCE_MISSING'] as Finding[]) {
-      expect(REVIEW_FILTERS.find((f) => f.value === finding)?.icon).toBe(requirementStatus(finding, null, false).icon);
-    }
+  it('gives each finding filter an icon of its own', () => {
+    expect(new Set(REVIEW_FILTERS.map((f) => f.icon)).size).toBe(REVIEW_FILTERS.length);
   });
 });
 
@@ -223,12 +220,15 @@ describe('the direction a requirement enters from', () => {
   });
 });
 
-describe('header and pill progress', () => {
-  it('writes the header figure as "6 of 8"', () => {
-    expect(workspace().progressShort()).toBe('1 of 5');
+describe('header and state tab progress', () => {
+  it("counts the header Meter's current decisions by kind, leaving a stale one out", () => {
+    const w = workspace();
+    expect(w.meter()).toEqual([{ tone: 'found', value: 1 }, { tone: 'ambiguous', value: 0 }, { tone: 'missing', value: 0 }]);
+    w.applyDecision({ ...w.mappings()[3], decision: { ...decision, kind: 'GAP_CONFIRMED' } });
+    expect(w.meter().map((s) => s.value)).toEqual([1, 0, 1]);
   });
 
-  it('gives each state its decided and total counts for the mini ring, with the words for assistive technology', () => {
+  it('gives each state its decided and total counts for its tab, with the words for assistive technology', () => {
     const progress = stateProgress([
       { jurisdiction: 'CA', total: 8, decided: 6, evidenceFound: 5, evidenceMissing: 1, ambiguous: 2 },
       { jurisdiction: 'UT', total: 9, decided: 0, evidenceFound: 7, evidenceMissing: 1, ambiguous: 1 },

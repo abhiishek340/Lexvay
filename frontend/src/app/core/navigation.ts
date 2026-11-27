@@ -56,7 +56,10 @@ export function navLinks(programId: string | null, counts: NavCounts, role: Role
   ];
 }
 
-/** The bottom tab bar's geometry (shell.css, under 640 px): 4 px of padding on each side, at least 40 px a tab. */
+/** Under this window width the rail becomes a tab bar along the bottom of the window (shell.css). */
+export const TAB_BAR_WIDTH = 640;
+
+/** The bottom tab bar's geometry (shell.css): 4 px of padding on each side, at least 40 px a tab. */
 const TAB_BAR_PADDING = 8;
 const TAB_MIN_WIDTH = 40;
 

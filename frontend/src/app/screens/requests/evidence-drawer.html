@@ -15,24 +15,24 @@
   @if (request(); as row) {
     <div class="lx-answer">
       <section class="lx-answer-requirement" aria-labelledby="answer-requirement">
-        <p class="lx-label">Requirement</p>
+        <p class="lx-meta">Requirement</p>
         <h3 id="answer-requirement" class="lx-answer-ref">
           <span class="lx-mono">{{ row.requirementRef }}</span>&nbsp;{{ row.requirementTitle }}
         </h3>
         @if (requirement.value(); as r) {
-          <blockquote class="lx-answer-rule lx-serif">{{ r.text }}</blockquote>
+          <blockquote class="lx-answer-rule lx-doc">{{ r.text }}</blockquote>
         } @else if (requirement.isLoading()) {
           <div class="lx-answer-rule" aria-hidden="true"><p-skeleton height="0.875rem" /><p-skeleton width="80%" height="0.875rem" /></div>
         }
         <div class="lx-answer-ask">
-          <p class="lx-label">What was asked</p>
+          <p class="lx-meta">What was asked</p>
           <p class="lx-answer-note">{{ row.requestNote ?? 'The reviewer gave no note.' }}</p>
           <p class="lx-help">Asked by {{ row.requestedByName ?? 'an unknown user' }}, {{ row.requestedAt | date: 'd MMM y' }}</p>
         </div>
       </section>
 
       <section class="lx-answer-picker" aria-labelledby="document-label">
-        <h3 id="document-label" class="lx-label">Program document</h3>
+        <h3 id="document-label" class="lx-meta">Program document</h3>
         @if (documentsError(); as e) {
           <p-message severity="error" size="small">{{ e }}</p-message>
         } @else {
@@ -65,10 +65,10 @@
       </div>
 
       <section class="lx-answer-passage" aria-labelledby="passage-label">
-        <h3 id="passage-label" class="lx-label">Selected passage</h3>
+        <h3 id="passage-label" class="lx-meta">Selected passage</h3>
         <div aria-live="polite" data-testid="selected-passage">
           @if (selection(); as s) {
-            <blockquote class="lx-serif">{{ s.quote }}</blockquote>
+            <blockquote class="lx-doc">{{ s.quote }}</blockquote>
             <p class="lx-help">Page <span class="lx-mono">{{ s.pageNumber }}</span>, characters <span class="lx-mono">{{ s.charStart }}–{{ s.charEnd }}</span></p>
           } @else {
             <p class="lx-help">Select text on the page, or choose "Select passage by character range" to enter it from the keyboard.</p>

@@ -6,7 +6,7 @@ import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
-import { Tag } from 'primeng/tag';
+import { Label } from '../../ui/label';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { REQUIREMENT_TYPE_LABEL, numericCheck } from '../../core/labels';
@@ -23,7 +23,7 @@ const SUMMARY_ORDER: { status: DiffStatus; key: keyof RuleVersionDiff['summary']
 /** The Compare tab: this version against the one it supersedes, or another approved version of the same rule. */
 @Component({
   selector: 'lx-rule-compare',
-  imports: [FormsModule, NgIcon, Accordion, AccordionContent, AccordionHeader, AccordionPanel, Message, Select, Skeleton, TableModule, Tag, DiffText],
+  imports: [FormsModule, NgIcon, Accordion, AccordionContent, AccordionHeader, AccordionPanel, Message, Select, Skeleton, TableModule, Label, DiffText],
   templateUrl: './rule-compare.html',
   styleUrl: './rule-compare.css',
 })

@@ -8,7 +8,6 @@ import { RadioButton } from 'primeng/radiobutton';
 import { OUTCOME_LABEL } from '../../core/labels';
 import { Determination, Outcome } from '../../core/models';
 import type { IconName } from '../../theme/icons';
-import { InfoTip } from '../../ui/info-tip';
 import { initials } from '../../ui/initials';
 import { Seal } from '../../ui/seal';
 
@@ -21,12 +20,12 @@ const OUTCOMES: { value: Outcome; icon: IconName; tone: 'found' | 'missing' | 's
 /**
  * The signing dialog (DESIGN.md "Review", "Signing"): the three outcomes as large selectable cards beside a preview of
  * the seal the signer's name and today's date would carry, and Sign. Only a person chooses the outcome; nothing is
- * preselected. Once the screen reports the determination it recorded (`signed`), the dialog shows that seal stamping
- * down, then Done. The preview is hidden from assistive technology: until the server has signed, nothing is signed.
+ * preselected. Once the screen reports the determination it recorded (`signed`), the dialog shows that seal, then
+ * Done. The preview is hidden from assistive technology: until the server has signed, nothing is signed.
  */
 @Component({
   selector: 'lx-sign-dialog',
-  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, RadioButton, InfoTip, Seal],
+  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, RadioButton, Seal],
   templateUrl: './sign-dialog.html',
   styleUrl: './sign-dialog.css',
 })
