@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
+import com.lexvay.assessment.MappingRepository;
 import com.lexvay.auth.Role;
 import com.lexvay.llm.LlmClient;
 import com.lexvay.rule.source.RuleSourceRepository;
@@ -19,6 +20,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -45,12 +47,30 @@ class IndexUsageTest extends AbstractDatabaseTest {
     static final Path SEED_DIR = Path.of("..", "seed");
     /** A lookup by one record reads a handful of pages; the sequential scan it replaced read the whole table (over a thousand). */
     static final int JOB_LOOKUP_BUFFER_BUDGET = 100;
+    /**
+     * The mappings of an assessment of 500 rows read about 3 500 buffers (about 3 ms); before D-364 the same statement read
+     * 4 700 to 5 200 and took 15 to 30 ms, and the work queue 280 ms, because the current-mapping filter was quadratic.
+     */
+    static final int MAPPINGS_BUFFER_BUDGET = 4000;
     static final Predicate<String> JOB_SEQUENTIAL_SCAN = line -> line.matches(".*Seq Scan on job\\b.*");
 
     /** An index and the application query it was considered for; a rejected one is created here only to prove it is ignored. */
-    record Candidate(String index, String query, String sql, boolean kept) {
+    record Candidate(String index, String query, String sql, boolean kept, String alternative) {
         Candidate(String index, String query, String sql) {
-            this(index, query, sql, true);
+            this(index, query, sql, true, null);
+        }
+
+        Candidate(String index, String query, String sql, boolean kept) {
+            this(index, query, sql, kept, null);
+        }
+
+        /** The planner may choose either index for the statement; both avoid reading the whole table (D-365). */
+        static Candidate eitherOf(String index, String alternative, String query, String sql) {
+            return new Candidate(index, query, sql, true, alternative);
+        }
+
+        boolean chosenIn(List<String> plan) {
+            return plan.stream().anyMatch(line -> line.contains(index) || alternative != null && line.contains(alternative));
         }
     }
 
@@ -71,15 +91,17 @@ class IndexUsageTest extends AbstractDatabaseTest {
         ScriptedFakeModel model = ScriptedFakeModel.load(SEED_DIR, llm, json);
         loader.load(SEED_DIR, PASSWORD, model);
         PerfSeed.loadCopies(loader, SEED_DIR, PASSWORD, model, COPIES);
+        UUID tenantId = users.findForLogin("dana.whitfield@northfield.example").orElseThrow().tenantId();
+        PerfSeed.LargeAssessments large;
         try (Connection admin = DriverManager.getConnection(jdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
              Statement statement = admin.createStatement()) {
             PerfSeed.addHistoryVolume(statement);
+            large = PerfSeed.addLargeAssessments(statement, tenantId);
             for (String ddl : REJECTED_DDL) {
                 statement.execute(ddl);
             }
             statement.execute("ANALYZE");
         }
-        UUID tenantId = users.findForLogin("dana.whitfield@northfield.example").orElseThrow().tenantId();
 
         List<String> report = new ArrayList<>();
         report.add("| Index | Query | Kept in V008 | Planner choice (application role, row-level security) | Chosen | Planner choice without row-level security |");
@@ -93,7 +115,7 @@ class IndexUsageTest extends AbstractDatabaseTest {
             for (Candidate candidate : TenantContext.runAs(tenantId, this::candidates)) {
                 List<String> plan = TenantContext.runAs(tenantId,
                         () -> jdbc.sql("EXPLAIN " + candidate.sql()).query(String.class).list());
-                boolean chosen = plan.stream().anyMatch(line -> line.contains(candidate.index()));
+                boolean chosen = candidate.chosenIn(plan);
                 report.add("| `" + candidate.index() + "` | " + candidate.query() + " | " + (candidate.kept() ? "yes" : "no") + " | " + scans(plan) + " | " + (chosen ? "yes" : "no")
                         + " | " + scans(explain(admin, candidate.sql())) + " |");
                 if (plan.stream().anyMatch(JOB_SEQUENTIAL_SCAN)) {
@@ -133,6 +155,25 @@ class IndexUsageTest extends AbstractDatabaseTest {
             workQueue.addAll(TenantContext.runAs(tenantId, () -> jdbc.sql(
                     "EXPLAIN (ANALYZE, BUFFERS) " + WorkQueueRepository.LIST.replace(":role", "'" + role + "'")).query(String.class).list()));
         }
+        List<String> mappingPlans = new ArrayList<>();
+        List<String> mappingsOverBudget = new ArrayList<>();
+        for (var assessment : Map.of("before re-run (500 mappings, successor rule version without mappings)", large.beforeRerun(),
+                "after re-run (500 hidden mappings of the superseded version, 500 current)", large.afterRerun()).entrySet()) {
+            String explain = "EXPLAIN (ANALYZE, BUFFERS) " + MappingRepository.BY_ASSESSMENT.replace(":a", "'" + assessment.getValue() + "'");
+            List<String> analyzed = null;
+            for (int run = 0; run < 3; run++) {
+                analyzed = TenantContext.runAs(tenantId, () -> jdbc.sql(explain).query(String.class).list());
+            }
+            if (buffers(analyzed) > MAPPINGS_BUFFER_BUDGET) {
+                mappingsOverBudget.add(assessment.getKey() + ": " + buffers(analyzed));
+            }
+            mappingPlans.add("-- " + assessment.getKey());
+            mappingPlans.addAll(analyzed);
+        }
+        Path mappingPlan = Path.of("target", "perf", "mappings-plan.txt");
+        Files.createDirectories(mappingPlan.getParent());
+        Files.writeString(mappingPlan, String.join("\n", mappingPlans) + "\n");
+
         Path plan = Path.of("target", "perf", "work-queue-plan.txt");
         Files.createDirectories(plan.getParent());
         Files.writeString(plan, String.join("\n", workQueue) + "\n");
@@ -147,6 +188,8 @@ class IndexUsageTest extends AbstractDatabaseTest {
         assertThat(rejectedButChosen).as("rejected candidates the planner now chooses: add them to V008").isEmpty();
         assertThat(lookupsOverBudget).as("job lookups touching more than " + JOB_LOOKUP_BUFFER_BUDGET
                 + " buffers: a lookup by one record must not walk the index of every tenant").isEmpty();
+        assertThat(mappingsOverBudget).as("mappings of a large assessment reading more than " + MAPPINGS_BUFFER_BUDGET
+                + " buffers: the current-mapping filter must not grow with mappings squared").isEmpty();
         assertThat(jobSequentialScans).as("statements that scan the job table sequentially: it only grows").isEmpty();
         assertThat(workQueue).as("the work queue statement scans no hot table sequentially (plan in target/perf/work-queue-plan.txt)")
                 .noneMatch(line -> line.matches(".*Seq Scan on (mapping|review_event|job)\\b.*") && !line.contains("never executed"));
@@ -234,7 +277,7 @@ class IndexUsageTest extends AbstractDatabaseTest {
                 new Candidate("job_entity_idx", "extraction status of every rule version (rule version list)",
                         "SELECT DISTINCT ON (entity_id) id FROM job WHERE type = 'EXTRACT_REQUIREMENTS' AND entity_id IN ('"
                                 + ruleVersion + "', '" + otherRuleVersion + "') ORDER BY entity_id, created_at DESC"),
-                new Candidate("job_claim_idx", "is a check of a rule source already queued (manual check; only queued jobs are read, V001 index)",
+                Candidate.eitherOf("job_claim_idx", "job_entity_idx", "is a check of a rule source already queued (manual check: the queued jobs of V001 or the one source of V013)",
                         RuleSourceRepository.ENQUEUE.formatted("rs.id = '" + ruleSource + "'").replace(":createdBy", "NULL")),
                 new Candidate("requirement_ordinal_key", "requirements of a rule version (existing unique index, so V008 adds none)",
                         "SELECT id FROM requirement WHERE rule_version_id = '" + ruleVersion + "' ORDER BY ordinal"));

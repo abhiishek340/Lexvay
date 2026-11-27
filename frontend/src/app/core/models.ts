@@ -19,7 +19,7 @@ export interface AssessmentView { id: string; programId: string; status: 'QUEUED
 export type RequirementType = 'NUMERIC' | 'SUBJECT' | 'SUPERVISED_HOURS' | 'ACCREDITATION' | 'JURISDICTION_SPECIFIC';
 export type NumericField = 'TOTAL_CREDITS' | 'PRACTICUM_HOURS' | 'INTERNSHIP_HOURS';
 export type NumericOperator = '>=' | '<=' | '=' | '>' | '<';
-export interface RequirementView { id: string; ref: string; title: string; text: string; type: RequirementType; numericField: NumericField | null; numericOperator: NumericOperator | null; numericValue: number | null; }
+export interface RequirementView { id: string; ref: string; title: string; text: string; type: RequirementType; numericField: NumericField | null; numericOperator: NumericOperator | null; numericValue: number | null; searchTerms: string[]; }
 export interface Evidence { spanId: string; documentId: string; filename: string; kind: string; courseVersionId: string | null; courseCode: string | null; courseRequired: boolean | null; pageNumber: number; charStart: number; charEnd: number; quote: string; textSource: TextSource; ocrConfidence: number | null; }
 export interface Decision { kind: DecisionKind; note: string | null; userId: string; userDisplayName: string | null; at: string; }
 export interface Mapping { id: string; assessmentId: string; jurisdictionId: string; jurisdiction: string; ruleVersionId: string; requirement: RequirementView; finding: Finding; method: 'RULES_ENGINE' | 'MATCH'; rationale: string; stale: boolean; evidence: Evidence | null; decision: Decision | null;
@@ -79,6 +79,8 @@ export interface RequirementsView { ruleVersionId: string; approved: boolean; re
 export interface RequirementDraft {
   ref: string; title: string; text: string; type: RequirementType | null;
   numeric_field: NumericField | null; numeric_operator: NumericOperator | null; numeric_value: number | null;
+  /** Not edited on screen yet: every row sends back the terms it was loaded with, so a save never erases them. */
+  search_terms: string[];
 }
 
 export type DiffOp = 'EQUAL' | 'DELETE' | 'INSERT';

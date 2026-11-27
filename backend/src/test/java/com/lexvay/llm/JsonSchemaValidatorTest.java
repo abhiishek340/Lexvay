@@ -13,9 +13,10 @@ class JsonSchemaValidatorTest {
     static final String VALID = """
             {"requirements":[
               {"ref":"UT-1","title":"Credit hours","text":"At least 60 semester hours.","type":"NUMERIC",
-               "numeric_field":"TOTAL_CREDITS","numeric_operator":">=","numeric_value":60},
+               "numeric_field":"TOTAL_CREDITS","numeric_operator":">=","numeric_value":60,"search_terms":[]},
               {"ref":"UT-2","title":"Ethics","text":"Coursework in professional ethics.","type":"SUBJECT",
-               "numeric_field":null,"numeric_operator":null,"numeric_value":null}
+               "numeric_field":null,"numeric_operator":null,"numeric_value":null,
+               "search_terms":["code of ethics","confidentiality"]}
             ]}""";
 
     @Test
@@ -43,6 +44,30 @@ class JsonSchemaValidatorTest {
     void extraPropertyIsRejected() {
         var result = validator.validate(VALID.replace("\"ref\":\"UT-2\"", "\"ref\":\"UT-2\",\"finding\":\"EVIDENCE_FOUND\""));
         assertThat(result.errors()).anySatisfy(e -> assertThat(e).contains("finding"));
+    }
+
+    @Test
+    void nineSearchTermsAreRejectedAndEightAreAccepted() {
+        String eight = "[\"a1\",\"a2\",\"a3\",\"a4\",\"a5\",\"a6\",\"a7\",\"a8\"]";
+        String nine = "[\"a1\",\"a2\",\"a3\",\"a4\",\"a5\",\"a6\",\"a7\",\"a8\",\"a9\"]";
+
+        assertThat(validator.validate(VALID.replace("[\"code of ethics\",\"confidentiality\"]", eight)).errors()).isEmpty();
+        assertThat(validator.validate(VALID.replace("[\"code of ethics\",\"confidentiality\"]", nine)).errors())
+                .anySatisfy(e -> assertThat(e).contains("search_terms"));
+    }
+
+    @Test
+    void aSearchTermOfMoreThanFortyCharactersAndANonStringTermAreRejected() {
+        String long41 = "\"" + "x".repeat(41) + "\"";
+
+        assertThat(validator.validate(VALID.replace("\"confidentiality\"", long41)).errors()).isNotEmpty();
+        assertThat(validator.validate(VALID.replace("\"confidentiality\"", "7")).errors()).isNotEmpty();
+        assertThat(validator.validate(VALID.replace("\"search_terms\":[\"code of ethics\",\"confidentiality\"]", "\"search_terms\":null")).errors()).isNotEmpty();
+    }
+
+    @Test
+    void searchTermsAreRequired() {
+        assertThat(validator.validate(VALID.replace(",\"search_terms\":[]", "")).errors()).anySatisfy(e -> assertThat(e).contains("search_terms"));
     }
 
     @Test

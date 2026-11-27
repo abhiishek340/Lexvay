@@ -55,19 +55,21 @@ public class RuleVersionApiTest extends AbstractDatabaseTest {
         return """
                 {"requirements":[
                   {"ref":"%1$s-1","title":"Credit hours","text":"graduate degree of at least 60 semester hours","type":"NUMERIC",
-                   "numeric_field":"TOTAL_CREDITS","numeric_operator":">=","numeric_value":60},
+                   "numeric_field":"TOTAL_CREDITS","numeric_operator":">=","numeric_value":60,"search_terms":[]},
                   {"ref":"%1$s-2","title":"Professional ethics","text":"coursework in professional ethics","type":"SUBJECT",
-                   "numeric_field":null,"numeric_operator":null,"numeric_value":null},
+                   "numeric_field":null,"numeric_operator":null,"numeric_value":null,
+                   "search_terms":["Code of Ethics","confidentiality","informed consent"]},
                   {"ref":"%1$s-3","title":"Human growth","text":"coursework in human growth and development","type":"SUBJECT",
-                   "numeric_field":null,"numeric_operator":null,"numeric_value":null},
+                   "numeric_field":null,"numeric_operator":null,"numeric_value":null,
+                   "search_terms":["lifespan development","aging"]},
                   {"ref":"%1$s-4","title":"Internship hours","text":"at least 600 hours of supervised internship","type":"SUPERVISED_HOURS",
-                   "numeric_field":"INTERNSHIP_HOURS","numeric_operator":">=","numeric_value":600}
+                   "numeric_field":"INTERNSHIP_HOURS","numeric_operator":">=","numeric_value":600,"search_terms":["fieldwork"]}
                 ]}""".formatted(prefix);
     }
 
     static final String INVALID_OUTPUT = """
             {"requirements":[{"ref":"UT-1","title":"Credit hours","text":"60 hours","type":"NUMERIC",
-             "numeric_field":null,"numeric_operator":null,"numeric_value":null}]}""";
+             "numeric_field":null,"numeric_operator":null,"numeric_value":null,"search_terms":[]}]}""";
 
     @BeforeEach
     void setUp() {
@@ -141,6 +143,10 @@ public class RuleVersionApiTest extends AbstractDatabaseTest {
         assertThat(hours.get("type").asString()).isEqualTo("SUPERVISED_HOURS");
         assertThat(hours.get("numericField").asString()).isEqualTo("INTERNSHIP_HOURS");
         assertThat(hours.get("numericValue").asInt()).isEqualTo(600);
+        assertThat(requirements.get("requirements").get(0).get("searchTerms")).as("scripted as an empty list").isEmpty();
+        assertThat(requirements.get("requirements").get(1).get("searchTerms")).as("the model's terms, normalised")
+                .extracting(JsonNode::asString).containsExactly("code of ethics", "confidentiality", "informed consent");
+        assertThat(hours.get("searchTerms")).extracting(JsonNode::asString).containsExactly("fieldwork");
 
         assertThat(fake.callCount(LlmPurpose.EXTRACT_REQUIREMENTS)).isEqualTo(1);
         var call = fake.calls().get(0);
@@ -150,8 +156,10 @@ public class RuleVersionApiTest extends AbstractDatabaseTest {
 
         var entries = TenantContext.runAs(t.tenantId(), () -> audit.forEntity(id));
         assertThat(entries).extracting(e -> e.action()).containsExactlyInAnyOrder("RULE_VERSION_CREATED", "REQUIREMENTS_EXTRACTED");
-        assertThat(entries.stream().filter(e -> e.action().equals("REQUIREMENTS_EXTRACTED")).findFirst().orElseThrow().detail().get("jobId"))
-                .isEqualTo(jobId.toString());
+        var extracted = entries.stream().filter(e -> e.action().equals("REQUIREMENTS_EXTRACTED")).findFirst().orElseThrow();
+        assertThat(extracted.detail().get("jobId")).isEqualTo(jobId.toString());
+        assertThat(extracted.detail().get("promptVersion")).as("the prompt that asks for search terms").isEqualTo("extract-v2");
+        assertThat(call.systemPrompt()).contains("search_terms");
     }
 
     @Test
@@ -237,6 +245,77 @@ public class RuleVersionApiTest extends AbstractDatabaseTest {
                 .contentType(MediaType.APPLICATION_JSON).content(INVALID_OUTPUT).exchange();
         assertThat(bad).hasStatus(400);
         assertThat(read(bad).get("detail").asString()).contains("numeric_field");
+    }
+
+    @Test
+    void replaceStoresSearchTermsNormalisedAndTreatsAbsentTermsAsNone() throws Exception {
+        UUID id = createAndExtract("Demo rule set California terms", "CA");
+        String replacement = """
+                {"requirements":[
+                  {"ref":"CA-1","title":"Telehealth","text":"training in telehealth practice","type":"JURISDICTION_SPECIFIC",
+                   "numeric_field":null,"numeric_operator":null,"numeric_value":null,
+                   "search_terms":["  Online Counseling ","online counseling","videoconferencing","telehealth","California licensing","dsm 5"]},
+                  {"ref":"CA-2","title":"Ethics","text":"coursework in professional ethics","type":"SUBJECT",
+                   "numeric_field":null,"numeric_operator":null,"numeric_value":null}
+                ]}""";
+
+        var replaced = mvc.put().uri("/api/v1/rule-versions/" + id + "/requirements").with(user(t.reviewer())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(replacement).exchange();
+
+        assertThat(replaced).hasStatus(200);
+        var requirements = read(replaced).get("requirements");
+        assertThat(requirements.get(0).get("searchTerms")).extracting(JsonNode::asString).containsExactly("online counseling", "videoconferencing");
+        assertThat(requirements.get(1).get("searchTerms")).as("absent means none").isEmpty();
+        var stored = read(mvc.get().uri("/api/v1/rule-versions/" + id + "/requirements").with(user(t.reviewer())).exchange());
+        assertThat(stored.get("requirements").get(0).get("searchTerms")).extracting(JsonNode::asString)
+                .containsExactly("online counseling", "videoconferencing");
+        var event = TenantContext.runAs(t.tenantId(), () -> audit.forEntity(id)).stream()
+                .filter(e -> e.action().equals("REQUIREMENTS_REPLACED")).findFirst().orElseThrow();
+        assertThat(event.detail().get("after").toString()).contains("online counseling");
+    }
+
+    @Test
+    void replaceRejectsMoreThanTwelveTermsNamingTheRowAndKeepsTheStoredList() throws Exception {
+        UUID id = createAndExtract("Demo rule set California too many terms", "CA");
+        String twelve = "\"a1x\",\"a2x\",\"a3x\",\"a4x\",\"a5x\",\"a6x\",\"a7x\",\"a8x\",\"a9x\",\"b1x\",\"b2x\",\"b3x\"";
+        String body = """
+                {"requirements":[
+                  {"ref":"CA-1","title":"Telehealth","text":"training in telehealth practice","type":"SUBJECT",
+                   "numeric_field":null,"numeric_operator":null,"numeric_value":null,"search_terms":[%s]},
+                  {"ref":"CA-2","title":"Ethics","text":"coursework in professional ethics","type":"SUBJECT",
+                   "numeric_field":null,"numeric_operator":null,"numeric_value":null,"search_terms":[%s,"b4x"]}
+                ]}""".formatted(twelve, twelve);
+
+        var rejected = mvc.put().uri("/api/v1/rule-versions/" + id + "/requirements").with(user(t.reviewer())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body).exchange();
+
+        assertThat(rejected).hasStatus(400);
+        assertThat(read(rejected).get("detail").asString()).contains("requirements[1].search_terms must contain at most 12 terms")
+                .doesNotContain("requirements[0]");
+        assertThat(read(mvc.get().uri("/api/v1/rule-versions/" + id + "/requirements").with(user(t.reviewer())).exchange())
+                .get("requirements")).as("the extracted list is untouched").hasSize(4);
+        String tooLong = """
+                {"requirements":[{"ref":"CA-1","title":"Ethics","text":"coursework in professional ethics","type":"SUBJECT",
+                 "numeric_field":null,"numeric_operator":null,"numeric_value":null,"search_terms":["%s"]}]}""".formatted("x".repeat(41));
+        var longTerm = mvc.put().uri("/api/v1/rule-versions/" + id + "/requirements").with(user(t.reviewer())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(tooLong).exchange();
+        assertThat(longTerm).hasStatus(400);
+        assertThat(read(longTerm).get("detail").asString()).contains("requirements[0].search_terms[0] must be at most 40 characters");
+    }
+
+    @Test
+    void searchTermsOfAnApprovedListCannotBeChanged() throws Exception {
+        UUID id = createAndExtract("Demo rule set California approved terms", "CA");
+        assertThat(approve(t.reviewer(), id)).hasStatus(200);
+        String body = """
+                {"requirements":[{"ref":"CA-1","title":"Ethics","text":"coursework in professional ethics","type":"SUBJECT",
+                 "numeric_field":null,"numeric_operator":null,"numeric_value":null,"search_terms":["code of ethics"]}]}""";
+
+        assertThat(mvc.put().uri("/api/v1/rule-versions/" + id + "/requirements").with(user(t.reviewer())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body).exchange()).hasStatus(409);
+        assertThat(read(mvc.get().uri("/api/v1/rule-versions/" + id + "/requirements").with(user(t.reviewer())).exchange())
+                .get("requirements").get(1).get("searchTerms")).extracting(JsonNode::asString)
+                .containsExactly("code of ethics", "confidentiality", "informed consent");
     }
 
     @Test

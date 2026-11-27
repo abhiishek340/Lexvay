@@ -40,14 +40,17 @@ public class MappingRepository {
     /**
      * D-066: a mapping is "current" unless its rule version has a successor whose mappings already exist in
      * the same assessment. After a re-run the new list shows; until then the old list stays reviewable.
+     * The superseded (assessment, rule version) pairs are computed once, as an uncorrelated set PostgreSQL hashes,
+     * instead of once per mapping (D-364: the per-mapping form was quadratic in the mappings of an assessment).
+     * {@code assessments} is a condition on {@code nm.assessment_id} that covers every assessment the statement
+     * reads: {@code "= :a"} for one, {@code "IN (SELECT ...)"} for several. Needs aliases {@code m} and {@code r}.
      */
-    public static final String CURRENT = """
-             AND NOT EXISTS (
-                SELECT 1 FROM rule_version nv
-                JOIN requirement nr ON nr.rule_version_id = nv.id
-                JOIN mapping nm ON nm.requirement_id = nr.id
-                WHERE nv.supersedes_id = r.rule_version_id AND nm.assessment_id = m.assessment_id)
-            """;
+    public static String current(String assessments) {
+        return " AND (m.assessment_id, r.rule_version_id) NOT IN (SELECT DISTINCT nm.assessment_id, nv.supersedes_id "
+                + "FROM mapping nm JOIN requirement nr ON nr.id = nm.requirement_id "
+                + "JOIN rule_version nv ON nv.id = nr.rule_version_id "
+                + "WHERE nv.supersedes_id IS NOT NULL AND nm.assessment_id " + assessments + ")";
+    }
 
     /**
      * The latest review event of mapping {@code m} as {@code le}: its kind and time, or no row when nobody has
@@ -67,6 +70,9 @@ public class MappingRepository {
      * signing gate. Needs {@link #LATEST_EVENT}.
      */
     public static final String UNDECIDED = "(m.stale OR " + NEEDS_DECISION + ")";
+
+    /** Every current mapping of assessment {@code :a}. Public so the index-usage check can run {@code EXPLAIN} on exactly this text. */
+    public static final String BY_ASSESSMENT = SELECT + " WHERE m.assessment_id = :a" + current("= :a") + " ORDER BY j.code, r.ordinal";
 
     private static final RowMapper<Mapping> ROW = (rs, i) -> {
         Mapping.Evidence evidence = null;
@@ -125,19 +131,19 @@ public class MappingRepository {
     }
 
     public List<Mapping> findByAssessmentAndJurisdiction(UUID assessmentId, String jurisdictionCode) {
-        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a AND j.code = :code" + CURRENT + " ORDER BY r.ordinal")
+        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a AND j.code = :code" + current("= :a") + " ORDER BY r.ordinal")
                 .param("a", assessmentId).param("code", jurisdictionCode).query(ROW).list();
     }
 
     /** Mappings of one jurisdiction that block signing: stale, or without a current decision. */
     public long countUndecided(UUID assessmentId, UUID jurisdictionId) {
         return jdbc.sql("SELECT count(*) FROM mapping m JOIN requirement r ON r.id = m.requirement_id" + LATEST_EVENT
-                        + " WHERE m.assessment_id = :a AND m.jurisdiction_id = :j AND " + UNDECIDED + CURRENT)
+                        + " WHERE m.assessment_id = :a AND m.jurisdiction_id = :j AND " + UNDECIDED + current("= :a"))
                 .param("a", assessmentId).param("j", jurisdictionId).query(Long.class).single();
     }
 
     public long countByJurisdiction(UUID assessmentId, UUID jurisdictionId) {
-        return jdbc.sql("SELECT count(*) FROM mapping m JOIN requirement r ON r.id = m.requirement_id WHERE m.assessment_id = :a AND m.jurisdiction_id = :j" + CURRENT)
+        return jdbc.sql("SELECT count(*) FROM mapping m JOIN requirement r ON r.id = m.requirement_id WHERE m.assessment_id = :a AND m.jurisdiction_id = :j" + current("= :a"))
                 .param("a", assessmentId).param("j", jurisdictionId).query(Long.class).single();
     }
 
@@ -186,7 +192,6 @@ public class MappingRepository {
     }
 
     public List<Mapping> findByAssessment(UUID assessmentId) {
-        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a" + CURRENT + " ORDER BY j.code, r.ordinal")
-                .param("a", assessmentId).query(ROW).list();
+        return jdbc.sql(BY_ASSESSMENT).param("a", assessmentId).query(ROW).list();
     }
 }

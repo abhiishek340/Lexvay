@@ -60,6 +60,10 @@ class Rule5_ApprovedRequirementsRejectEditsTest extends AbstractDatabaseTest {
                 jdbc.sql("UPDATE requirement SET title = 'tampered' WHERE rule_version_id = :id").param("id", id).update()))
                 .hasMessageContaining("approved rule version are immutable");
         assertThatThrownBy(() -> TenantContext.runAs(t.tenantId(), () ->
+                jdbc.sql("UPDATE requirement SET search_terms = ARRAY['tampered'] WHERE rule_version_id = :id").param("id", id).update()))
+                .as("the search terms are part of the locked row (F7c)")
+                .hasMessageContaining("approved rule version are immutable");
+        assertThatThrownBy(() -> TenantContext.runAs(t.tenantId(), () ->
                 jdbc.sql("DELETE FROM requirement WHERE rule_version_id = :id").param("id", id).update()))
                 .hasMessageContaining("approved rule version are immutable");
         Long count = TenantContext.runAs(t.tenantId(), () ->

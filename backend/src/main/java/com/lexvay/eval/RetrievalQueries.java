@@ -11,12 +11,16 @@ public record RetrievalQueries(boolean fictional, List<Query> queries) {
      * @param file       the PDF holding the evidence
      * @param page       the page of that PDF
      * @param contains   a substring of the passage that carries the evidence (whitespace-insensitive)
+     * @param searchTerms what the extraction would propose for this requirement (F7c): hand-written, 3 to 8 words or two-word
+     *                   phrases of the vocabulary a syllabus uses, written before the expected page was looked at
      * @param lexicalGap the document says it in other words than the requirement does; reported apart and never thresholded
      */
-    public record Query(String id, String title, String text, String file, int page, String contains, Boolean lexicalGap) {
+    public record Query(String id, String title, String text, String file, int page, String contains,
+                       List<String> searchTerms, Boolean lexicalGap) {
 
-        /** The key is left out of the file for an ordinary query. */
+        /** The gap key is left out of the file for an ordinary query. */
         public Query {
+            searchTerms = searchTerms == null ? List.of() : List.copyOf(searchTerms);
             lexicalGap = Boolean.TRUE.equals(lexicalGap);
         }
     }

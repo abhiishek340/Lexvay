@@ -78,7 +78,7 @@ public class EvidenceMatcher {
     }
 
     public Outcome match(UUID assessmentId, UUID programId, Requirement requirement, UUID actor) {
-        List<Passage> passages = search.search(programId, requirement.title(), requirement.text(), shortlistSize);
+        List<Passage> passages = search.search(programId, requirement.title(), requirement.text(), requirement.searchTerms(), shortlistSize);
         if (passages.isEmpty()) {
             return new Outcome(Finding.EVIDENCE_MISSING, "No candidate passages found in the program's documents", null);
         }
@@ -110,7 +110,7 @@ public class EvidenceMatcher {
                 match.charEnd(), match.exactText(), actor);
 
         Finding finding = proposal.finding();
-        String rationale = proposal.rationale();
+        String rationale = proposal.rationale() + foundThroughTerms(passage);
         if (finding == Finding.EVIDENCE_FOUND) {
             for (DowngradeRule rule : downgrades) {
                 Optional<String> reason = rule.reason(passage, match);
@@ -121,6 +121,12 @@ public class EvidenceMatcher {
             }
         }
         return new Outcome(finding, rationale, spanId);
+    }
+
+    /** A reviewer should know when the cited page shares no word with the requirement and was found through its search terms (F7c). */
+    private static String foundThroughTerms(Passage passage) {
+        return passage.matchedVia() == MatchSource.TERMS
+                ? " Found through the search terms: " + String.join(", ", passage.matchedTerms()) + "." : "";
     }
 
     /** Schema, allowed finding, and a document and page that were actually offered. Anything else is rejected. */

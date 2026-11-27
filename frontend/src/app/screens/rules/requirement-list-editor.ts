@@ -12,6 +12,8 @@ export interface EditableRequirement {
   numericField: NumericField | null;
   numericOperator: NumericOperator | null;
   numericValue: number | null;
+  /** Carried through unchanged until the screen has a cell for them; a new row has none. */
+  searchTerms: string[];
 }
 
 export type RequirementPatch = Partial<Omit<EditableRequirement, 'key'>>;
@@ -49,13 +51,14 @@ export class RequirementListEditor {
     this.rows.set(this.original().map((r) => ({
       key: this.nextKey++, ref: r.ref, title: r.title, text: r.text, type: r.type,
       numericField: r.numericField, numericOperator: r.numericOperator, numericValue: r.numericValue,
+      searchTerms: [...r.searchTerms],
     })));
     this.problems.set(NO_PROBLEMS);
   }
 
   /** Appends an empty row and returns it, so the screen can focus its ref. */
   add(): EditableRequirement {
-    const row: EditableRequirement = { key: this.nextKey++, ref: '', title: '', text: '', type: null, numericField: null, numericOperator: null, numericValue: null };
+    const row: EditableRequirement = { key: this.nextKey++, ref: '', title: '', text: '', type: null, numericField: null, numericOperator: null, numericValue: null, searchTerms: [] };
     this.rows.update((rows) => [...rows, row]);
     return row;
   }
@@ -91,6 +94,7 @@ export class RequirementListEditor {
         numeric_field: numeric ? r.numericField : null,
         numeric_operator: numeric ? r.numericOperator : null,
         numeric_value: numeric ? r.numericValue : null,
+        search_terms: r.searchTerms,
       };
     });
   }

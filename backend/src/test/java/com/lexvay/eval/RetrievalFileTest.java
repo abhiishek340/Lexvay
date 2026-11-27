@@ -9,6 +9,7 @@ import com.lexvay.document.FileType;
 import com.lexvay.document.NoOcrEngine;
 import com.lexvay.document.QuoteVerifier;
 import com.lexvay.document.TextExtractor;
+import com.lexvay.rule.SearchTerms;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,6 +50,16 @@ class RetrievalFileTest {
         assertThat(queries.queries().stream().map(RetrievalQueries.Query::id)).doesNotHaveDuplicates();
         assertThat(queries.queries().stream().filter(RetrievalQueries.Query::lexicalGap)).hasSizeGreaterThanOrEqualTo(6);
         assertThat(queries.queries()).allSatisfy(q -> assertThat(q.title()).isNotBlank());
+    }
+
+    @Test
+    void everyQueryHasThreeToEightSearchTermsThatTheProductionNormaliserKeepsWhole() {
+        for (RetrievalQueries.Query q : queries.queries()) {
+            assertThat(q.searchTerms()).as(q.id() + " search terms").hasSizeBetween(3, SearchTerms.MAX_PROPOSED).doesNotHaveDuplicates();
+            assertThat(SearchTerms.normalise(q.searchTerms(), q.title(), q.text())).as(q.id() + " terms are what the extraction would store")
+                    .isEqualTo(q.searchTerms());
+            assertThat(q.searchTerms()).allSatisfy(term -> assertThat(term).hasSizeLessThanOrEqualTo(SearchTerms.MAX_LENGTH));
+        }
     }
 
     @Test

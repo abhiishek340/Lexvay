@@ -39,7 +39,12 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install Tesseract (OCR test runs against the real binary)
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+        # Only the Ubuntu archive is needed. Third-party sources preinstalled on the runner image (for example
+        # packages.microsoft.com) have answered 403 and failed `apt-get update`, so they are removed first.
+        run: |
+          sudo find /etc/apt/sources.list.d -type f ! -name 'ubuntu*' -delete
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
 
       - name: Install Playwright browser
         run: cd frontend && npm ci --no-audit --no-fund && npx playwright install --with-deps chromium
