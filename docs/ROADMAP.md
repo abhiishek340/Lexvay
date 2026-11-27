@@ -116,6 +116,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | FIX-3 Work queue and evidence request follow-ups | `fix-queue-followups` | 9 | Sonnet 5.5 | merged (PR #31) |
 | FIX-4 Rule source backoff, live search terms, PDF page cap at upload | `fix-backoff-terms-pages` | 7 | Sonnet 5.5 | merged (PR #33) |
 | SEC-2 Argon2id passwords and audit list index | `sec-argon2-audit-index` | 5 | Sonnet 5.5 | merged (PR #36) |
+| FIX-5 Logout audit actor, work queue predicate | `fix-logout-actor` | 11 | Sonnet 5.5 | in progress |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | merged (PR #30); screen cell in UI2-4 |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
