@@ -1,16 +1,22 @@
 import { Params } from '@angular/router';
+import { OUTCOME_LABEL } from '../../core/labels';
 import { US_TILES, UsTile } from './us-tiles';
 
 /**
- * Where a target state stands on the map: a current signed determination's outcome, or in review. A state that is
- * not a target of the program is simply absent from the map's input and drawn quietly.
+ * Where a target state stands on the map: a current signed determination's outcome, in review, or (on a map of
+ * several programs, the register) signed with different outcomes. A state that is not a target is simply absent
+ * from the map's input and drawn quietly.
  */
-export type TileStatus = 'MEETS' | 'DOES_NOT_MEET' | 'NOT_DETERMINED' | 'IN_REVIEW';
+export type TileStatus = 'MEETS' | 'DOES_NOT_MEET' | 'NOT_DETERMINED' | 'MIXED' | 'IN_REVIEW';
 
 /** The one thing a tile leads to: its popover's button, and Enter or a click on the tile itself. */
 export interface MapAction { readonly label: string; readonly commands: readonly unknown[]; readonly queryParams?: Params }
 
-/** A target state as the map shows it. `status` is the words shown beside the icon ("Ready to sign"). */
+/**
+ * A target state as the map shows it. `status` is the words shown beside the icon ("Ready to sign"); `reviewed` of
+ * `total` is the review progress, and a total of 0 means there is no progress to show (not assessed, or a map of
+ * signatures).
+ */
 export interface MapState {
   readonly code: string;
   readonly tile: TileStatus;
@@ -30,8 +36,28 @@ export function mapCells(states: readonly MapState[]): MapCell[] {
 
 /** "California, 8 of 8 reviewed, determined not to meet": the tile's full accessible name. */
 export function tileName(name: string, state: MapState): string {
-  const progress = state.total > 0 ? `${state.reviewed} of ${state.total} reviewed` : 'not assessed';
-  return `${name}, ${progress}, ${state.status.charAt(0).toLowerCase()}${state.status.slice(1)}`;
+  const status = `${state.status.charAt(0).toLowerCase()}${state.status.slice(1)}`;
+  return state.total > 0 ? `${name}, ${state.reviewed} of ${state.total} reviewed, ${status}` : `${name}, ${status}`;
+}
+
+/** What a legend entry stands for: a tile status, or a state that is not a target. */
+export type LegendKey = TileStatus | 'NONE';
+export interface LegendEntry { readonly key: LegendKey; readonly label: string }
+
+const LEGEND: readonly LegendEntry[] = [
+  { key: 'MEETS', label: OUTCOME_LABEL.MEETS },
+  { key: 'DOES_NOT_MEET', label: OUTCOME_LABEL.DOES_NOT_MEET },
+  { key: 'NOT_DETERMINED', label: OUTCOME_LABEL.NOT_DETERMINED },
+  { key: 'MIXED', label: 'Different outcomes' },
+  { key: 'IN_REVIEW', label: 'In review' },
+  { key: 'NONE', label: 'Not a target' },
+];
+
+/** The map's one legend: the statuses its tiles show, in a fixed order, and "Not a target" for the quiet tiles. */
+export function legendEntries(states: readonly MapState[]): LegendEntry[] {
+  const shown = new Set<LegendKey>(states.map((s) => s.tile));
+  if (states.length < US_TILES.length) { shown.add('NONE'); }
+  return LEGEND.filter((entry) => shown.has(entry.key));
 }
 
 /** The share of a target's requirements with a decision, from 0 to 1 (the tile's bottom-up fill). */

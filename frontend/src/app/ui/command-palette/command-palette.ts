@@ -7,14 +7,14 @@ import {
 import { phosphorMagnifyingGlassDuotone } from '@ng-icons/phosphor-icons/duotone';
 import auraCommandmenu from '@primeuix/themes/aura/commandmenu';
 import auraMenu from '@primeuix/themes/aura/menu';
-import { MenuItem, MessageService } from 'primeng/api';
+import { MenuItem } from 'primeng/api';
 import { CommandMenu } from 'primeng/commandmenu';
 import type { CommandMenuPassThrough } from 'primeng/types/commandmenu';
 import { Dialog } from 'primeng/dialog';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
+import { AssessmentRunner } from '../../core/assessment-runner';
 import { ProgramContext } from '../../core/program-context';
-import { problemDetail } from '../../core/problem';
 import { NO_FILTER, registerCsvUrl } from '../../core/register';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
@@ -43,9 +43,6 @@ const PALETTE_TOKENS = {
   },
 };
 
-const JOB_POLL_MS = 2000;
-const JOB_POLL_LIMIT = 150;
-
 /** A palette entry as PrimeNG's CommandMenu takes it; the command itself rides along for the item template. */
 interface PaletteItem extends MenuItem { command$: Command }
 
@@ -68,7 +65,7 @@ export class CommandPalette {
 
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
-  private readonly toast = inject(MessageService);
+  private readonly assessments = inject(AssessmentRunner);
   private readonly session = inject(SessionService);
   private readonly context = inject(ProgramContext);
   private readonly menu = viewChild(CommandMenu);
@@ -161,31 +158,8 @@ export class CommandPalette {
         if (programId) { this.router.navigate(['/programs', programId, 'rules'], { queryParams: { new: '1' } }); }
         break;
       case 'run-assessment':
-        if (programId) { this.runAssessment(programId); }
+        if (programId) { this.assessments.run(programId); }
         break;
-    }
-  }
-
-  /** Starts an assessment, then follows its job and ends with a toast; the program's data refreshes when it is done. */
-  private async runAssessment(programId: string): Promise<void> {
-    try {
-      const { jobId } = await firstValueFrom(this.api.startAssessment(programId));
-      this.toast.add({ severity: 'info', summary: 'Assessment started' });
-      for (let i = 0; i < JOB_POLL_LIMIT; i++) {
-        await new Promise((resolve) => setTimeout(resolve, JOB_POLL_MS));
-        const job = await firstValueFrom(this.api.jobStatus(jobId));
-        if (job.status === 'DONE') {
-          await this.context.refreshAfterChange();
-          this.toast.add({ severity: 'success', summary: 'Assessment finished' });
-          return;
-        }
-        if (job.status === 'FAILED') {
-          this.toast.add({ severity: 'error', summary: 'Assessment failed', detail: job.error ?? undefined });
-          return;
-        }
-      }
-    } catch (e: unknown) {
-      this.toast.add({ severity: 'error', summary: 'Assessment not started', detail: problemDetail(e, 'The assessment could not be started.') });
     }
   }
 

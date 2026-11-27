@@ -57,8 +57,8 @@ class RegisterSeedTest extends AbstractDatabaseTest {
 
     @Test
     void theSeededTargetsArePartitionedBeforeAndAfterASignature() throws Exception {
-        ((FakeLlmClient) llm).reset();
         runner.runPending();
+        ((FakeLlmClient) llm).reset();
         var seed = SeedCopy.northfield("Register Seed University", EMAIL_DOMAIN);
         SeedLoader.Result loaded = loader.load(seed, "demo-pass", ScriptedFakeModel.load(seed, llm, json)).get(0);
         LexvayUser dana = users.findForLogin("dana.whitfield@" + EMAIL_DOMAIN).orElseThrow();

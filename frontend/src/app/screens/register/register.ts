@@ -23,8 +23,13 @@ import { NO_FILTER, registerCsvUrl } from '../../core/register';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
 import { IconName } from '../../theme/icons';
+import { Enter } from '../../ui/enter';
+import { InfoTip } from '../../ui/info-tip';
+import { Seal } from '../../ui/seal';
+import { Stat } from '../../ui/stat';
+import { StateMap } from '../../ui/state-map/state-map';
 import { REGISTER_TOKENS } from './register-theme';
-import { disclosureSections } from './register-view';
+import { DISCLOSURE_NOTE, disclosureSections, registerMapStates } from './register-view';
 
 type TabId = 'register' | 'by-program';
 type Severity = 'success' | 'danger' | 'secondary' | 'warn';
@@ -47,7 +52,7 @@ const STATUS_SEVERITY: Record<DeterminationStatus, Severity> = { SIGNED: 'succes
 @Component({
   selector: 'lx-register',
   imports: [DatePipe, FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, Select, Skeleton, TableModule,
-    Tab, TabList, TabPanel, TabPanels, Tabs, Tag, ToggleSwitch],
+    Tab, TabList, TabPanel, TabPanels, Tabs, Tag, ToggleSwitch, Enter, InfoTip, Seal, Stat, StateMap],
   templateUrl: './register.html',
   styleUrl: './register.css',
 })
@@ -59,6 +64,7 @@ export class Register {
   readonly session = inject(SessionService);
 
   readonly outcomeOptions = OUTCOMES.map((value) => ({ value, label: OUTCOME_LABEL[value] }));
+  readonly disclosureNote = DISCLOSURE_NOTE;
 
   readonly tab = signal<TabId>('register');
   readonly programs = signal<Program[] | null>(null);
@@ -69,6 +75,20 @@ export class Register {
   readonly rows = signal<RegisterRow[] | null>(null);
   readonly rowsError = signal<string | null>(null);
   readonly loadedAt = signal<Date | null>(null);
+  /** The last rows that arrived: the map and the count stay in place while a new filter loads. */
+  private readonly mapRows = signal<RegisterRow[] | null>(null);
+  readonly shownCount = computed(() => {
+    const rows = this.mapRows();
+    return rows ? { value: rows.length } : null;
+  });
+  readonly mapStates = computed(() => {
+    const rows = this.mapRows();
+    return rows ? registerMapStates(rows) : null;
+  });
+  readonly filtered = computed(() => {
+    const f = this.filter();
+    return f.programId !== null || f.jurisdiction !== null || f.outcome !== null || f.includeReopened;
+  });
   private request = 0;
 
   readonly listsProgramId = signal<string | null>(null);
@@ -130,6 +150,11 @@ export class Register {
     this.loadRows();
   }
 
+  clearFilters(): void {
+    this.filter.set(NO_FILTER);
+    this.loadRows();
+  }
+
   private async loadRows(): Promise<void> {
     const request = ++this.request;
     this.rows.set(null);
@@ -138,6 +163,7 @@ export class Register {
       const rows = await firstValueFrom(this.api.register(this.filter()));
       if (request === this.request) {
         this.rows.set(rows);
+        this.mapRows.set(rows);
         this.loadedAt.set(new Date());
       }
     } catch (e: unknown) {

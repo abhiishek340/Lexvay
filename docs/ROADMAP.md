@@ -109,14 +109,14 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | merged (PR #25) |
 | PERF-FE-1 Icons and theme tokens per chunk | `perf-frontend-chunks` | 6 | Sonnet 5.5 | merged (PR #29); remaining cuts in UI2-0 |
 | UI2-0 Design v2 foundation, shell and sign-in | `ui2-foundation` | 1 | Opus 5.5 | merged (PR #34) |
-| UI2-1 Overview and register in v2 | `ui2-overview-register` | 2 | Opus 5.5 | in progress |
+| UI2-1 Overview and register in v2 | `ui2-overview-register` | 2 | Opus 5.5 | merged (PR #39) |
 | UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | in progress |
 | UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | merged (PR #38) |
 | UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | in progress |
 | FIX-3 Work queue and evidence request follow-ups | `fix-queue-followups` | 9 | Sonnet 5.5 | merged (PR #31) |
 | FIX-4 Rule source backoff, live search terms, PDF page cap at upload | `fix-backoff-terms-pages` | 7 | Sonnet 5.5 | merged (PR #33) |
 | SEC-2 Argon2id passwords and audit list index | `sec-argon2-audit-index` | 5 | Sonnet 5.5 | merged (PR #36) |
-| FIX-5 Logout audit actor, work queue predicate | `fix-logout-actor` | 11 | Sonnet 5.5 | PR #40 approved (CI) |
+| FIX-5 Logout audit actor, work queue predicate | `fix-logout-actor` | 11 | Sonnet 5.5 | merged (PR #40) |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | merged (PR #30); screen cell in UI2-4 |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |

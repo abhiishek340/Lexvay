@@ -1,6 +1,6 @@
 import { DECISION_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, ROLE_LABEL, humanize } from '../../core/labels';
 import { AuditEntry, DecisionKind, NumericField, Outcome, Role, UserSummary } from '../../core/models';
-import { initials } from '../../ui/seal';
+import { initials } from '../../ui/initials';
 import { ACTION_LABEL, auditSentence, capitalize } from './audit-sentence';
 
 /** Who acted: a person of the tenant, background work (no user), or a user id the tenant no longer lists. */
@@ -154,14 +154,13 @@ function rank(key: string): number {
 }
 
 /**
- * Actions a person takes on their own account, recorded on that account: when such an entry carries no user (sign-out
- * is written after the session has been cleared), the account it is recorded on is who acted, not background work.
+ * A sign-out recorded before FIX-5 (D-410) carries no user, because it was written after the session had been cleared;
+ * its actor is the account it is recorded on, not background work. Sign-outs recorded since carry their actor and take
+ * the first branch. Nothing back-fills the old entries (the log is append-only), so this stays as long as they do.
  */
-const OWN_ACCOUNT_ACTIONS = new Set(['LOGIN_SUCCEEDED', 'LOGOUT', 'PASSWORD_SET']);
-
 function actorId(e: AuditEntry): string | null {
   if (e.userId !== null) { return e.userId; }
-  return OWN_ACCOUNT_ACTIONS.has(e.action) && e.entityType === 'app_user' ? e.entityId : null;
+  return e.action === 'LOGOUT' && e.entityType === 'app_user' ? e.entityId : null;
 }
 
 /** Entries as the timeline shows them: actor resolved to a name, the sentence, the worded details. */

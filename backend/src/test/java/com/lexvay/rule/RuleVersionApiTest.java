@@ -75,8 +75,8 @@ public class RuleVersionApiTest extends AbstractDatabaseTest {
     void setUp() {
         t = tenants.create("rules");
         fake = (FakeLlmClient) llmClient;
-        fake.reset();
         runner.runPending();
+        fake.reset();
     }
 
     private String body(String label, String jurisdiction, UUID supersedes) {

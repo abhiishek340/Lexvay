@@ -112,9 +112,11 @@ public class SecurityConfig {
                 .logout(logout -> logout
                         .logoutUrl(LOGOUT_URL)
                         .logoutSuccessHandler((request, response, authentication) -> {
+                            // The security context is already cleared when this runs, so the actor is the
+                            // authentication Spring captured before its logout handlers (D-410).
                             if (authentication != null && authentication.getPrincipal() instanceof LexvayUser user) {
                                 TenantContext.runAs(user.tenantId(), () ->
-                                        audit.record("LOGOUT", "app_user", user.id(), Map.of()));
+                                        audit.recordAs(user.id(), "LOGOUT", "app_user", user.id(), Map.of()));
                             }
                             response.setStatus(HttpStatus.NO_CONTENT.value());
                         }))
