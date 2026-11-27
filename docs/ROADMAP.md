@@ -34,6 +34,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
 | F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
 | TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | in progress |
+| PERF-FE-1 Icons and theme tokens per chunk | `perf-frontend-chunks` | 6 | Sonnet 5.5 | in progress |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | queued (after F7, FIX-1) |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
@@ -825,6 +826,29 @@ D-270 to D-279 in `docs/decisions/F8.md`.
    right reason, emulate print media and assert the shell is hidden; axe in both themes at 1280 and 400 px.
 Done when: `LEXVAY_E2E_SLOT=2 make test` green, `make perf` green, screenshots of both tabs in both themes and of the
 print view in `docs/screens/`, `docs/decisions/F8.md` and `docs/progress/F8.md` written.
+
+## PERF-FE-1 — Icons and theme tokens per chunk (frontend; slot 6; Sonnet 5.5; after F8 merges)
+Purpose: the initial bundle sits at the 700 kB raw warning after every screen lands, because `provideIcons(LEXVAY_ICONS)`
+in `app.config.ts` registers every Phosphor icon of every screen in the initial chunk, and the shared preset carries
+token sets for components only some screens render. Shaving each screen by hand does not hold; this makes each lazy
+chunk carry its own icons and tokens. Decisions D-295 to D-299 in `docs/decisions/PERF-FE-1.md`.
+1. **Icons**: `app.config.ts` provides only the icons the shell, sign-in and the home screen render (`SHELL_ICONS` in
+   `theme/icons.ts`). Every routed screen provides its own set with `provideIcons` in the route's `providers` (one
+   `<SCREEN>_ICONS` constant per screen file, next to the screen), and shared components (`DocumentViewer`, the
+   diff and clamp helpers) provide theirs in the component's `viewProviders`. `LEXVAY_ICONS` is deleted. A Vitest
+   test renders each routed screen's template with only its own providers and fails if an `ng-icon` name is not
+   registered (walk the compiled templates or the rendered DOM for `ng-icon[name]`; no runtime warnings allowed).
+2. **Theme tokens**: the shared preset keeps only the token sets of components used by the shell or by two or more
+   screens' first paint (Button, Tag, Message, Toast, Skeleton, Menu, Select, Tabs, Badge, Tooltip, InputText,
+   Password, DataTable); every other component's token set moves to the chunk of the screen that uses it, registered
+   once on first load through one shared helper `registerComponentTokens(sets)` (generalise F3b's `rules-theme.ts`
+   and F8's register equivalent into it; delete their duplicates).
+3. **Budget**: lower the initial budget to 650 kB warning and 750 kB error (raw) once the initial bundle is under
+   640 kB; report the before and after sizes (raw and estimated transfer) and the size of each lazy chunk in
+   `docs/PERF.md` under a new "Frontend bundle" section with the method.
+4. **No visual change**: regenerate every screenshot with `LEXVAY_SCREENSHOTS=1` and confirm in the PR that they are
+   unchanged apart from timestamps; axe stays clean in both themes.
+Done when: `make frontend-test` and `LEXVAY_E2E_SLOT=6 make test` green; budget lowered; `docs/PERF.md` updated.
 
 ## OPS-1 — Image build and smoke in CI (after F6 merges; no slot; Sonnet 5.5)
 Purpose: F6 ships a Dockerfile and `scripts/smoke.sh`; nothing runs them on every change. Decisions D-240 to D-244
