@@ -50,6 +50,7 @@ class ReadPathConnectionsTest extends AbstractAssessmentTest {
         endpoints.put("evidence responses", "/api/v1/mappings/" + s.foundMapping() + "/evidence-responses");
         endpoints.put("evidence requests", program + "/evidence-requests?status=ALL");
         endpoints.put("search", program + "/search?q=ethics");
+        endpoints.put("program documents", program + "/documents");
         endpoints.put("document", "/api/v1/documents/" + document);
         endpoints.put("document page", "/api/v1/documents/" + document + "/pages/1");
         endpoints.put("document file", "/api/v1/documents/" + document + "/file");

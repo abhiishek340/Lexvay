@@ -11,6 +11,7 @@ export const routes: Routes = [
     children: [
       { path: 'overview', loadComponent: () => import('./screens/overview/overview').then((m) => m.Overview), title: 'Program overview · Lexvay' },
       { path: 'review', loadComponent: () => import('./screens/review/review').then((m) => m.Review), title: 'Review · Lexvay' },
+      { path: 'requests', loadComponent: () => import('./screens/requests/requests').then((m) => m.Requests), title: 'Evidence requests · Lexvay' },
       { path: 'changes', loadComponent: () => import('./screens/changes/changes').then((m) => m.Changes), title: 'Changes · Lexvay' },
       { matcher: rulesMatcher, loadComponent: () => import('./screens/rules/rules').then((m) => m.Rules), canDeactivate: [confirmLeave], title: 'Rules · Lexvay' },
       { path: 'report', loadComponent: () => import('./screens/report/report').then((m) => m.Report), title: 'Evidence report · Lexvay' },

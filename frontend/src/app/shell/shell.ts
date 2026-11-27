@@ -58,12 +58,14 @@ export class Shell {
     const waiting = this.context.counts()?.waitingForReview ?? 0;
     const open = this.context.openChanges();
     const rules = this.context.rulesWaiting();
+    const requests = this.context.openRequests();
     const screen = (id: string, label: string, icon: IconName, badge = 0, badgeText = ''): NavLink =>
       ({ id, path: ['/programs', programId, id], label, icon, badge, badgeText });
     return [
       register,
       screen('overview', 'Program overview', 'phosphorSquaresFour'),
       screen('review', 'Review', 'phosphorListChecks', waiting, `${waiting} requirement${waiting === 1 ? '' : 's'} waiting for review`),
+      screen('requests', 'Evidence requests', 'phosphorTray', requests, `${requests} open evidence request${requests === 1 ? '' : 's'}`),
       screen('changes', 'Changes', 'phosphorGitDiff', open, `${open} open change${open === 1 ? '' : 's'}`),
       screen('rules', 'Rules', 'phosphorScales', rules, `${rules} rule version${rules === 1 ? '' : 's'} waiting for approval`),
       screen('report', 'Evidence report', 'phosphorFileText'),

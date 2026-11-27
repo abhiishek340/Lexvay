@@ -276,6 +276,11 @@ class InputValidationTableTest extends AbstractDatabaseTest {
                 "/api/v1/programs/" + BAD_ID + "/facts", null, null, 400));
 
         // --- documents ---
+        String programDocuments = "GET /api/v1/programs/{programId}/documents";
+        rows.add(row("program documents: program id is not a UUID", programDocuments, HttpMethod.GET,
+                "/api/v1/programs/" + BAD_ID + "/documents", null, null, 400));
+        rows.add(row("program documents: unknown program is not found", programDocuments, HttpMethod.GET,
+                "/api/v1/programs/" + ID + "/documents", null, null, 404));
         rows.add(row("document: id is not a UUID", "GET /api/v1/documents/{id}", HttpMethod.GET, "/api/v1/documents/" + BAD_ID, null, null, 400));
         String page = "GET /api/v1/documents/{id}/pages/{pageNumber}";
         rows.add(row("document page: id is not a UUID", page, HttpMethod.GET, "/api/v1/documents/" + BAD_ID + "/pages/1", null, null, 400));

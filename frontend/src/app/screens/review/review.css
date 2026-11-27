@@ -43,6 +43,7 @@
 .lx-req-selected .lx-req-ref { color: var(--p-lx-selected-text); }
 .lx-req-title { font-weight: 500; }
 .lx-req-states { grid-column: 2; display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 12px; }
+.lx-req-provided { display: inline-flex; align-items: center; gap: 4px; color: var(--p-lx-text-secondary); }
 .lx-req-skeleton { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-bottom: 1px solid var(--p-lx-hairline); }
 .lx-empty-line { padding: 16px; color: var(--p-lx-text-secondary); }
 
@@ -95,6 +96,13 @@
 @media (min-width: 1024px) {
   .lx-evidence-page { flex: 1; min-height: 16rem; display: flex; flex-direction: column; }
   .lx-evidence-page lx-document-viewer { flex: 1; --lx-document-max-height: none; }
+}
+/* Evidence people provided (F4): under the system's evidence, labelled with who and when. */
+.lx-provided { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px solid var(--p-lx-hairline); }
+.lx-provided-label { display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 18px; font-weight: 600; }
+.lx-provided-comment { display: flex; flex-direction: column; gap: 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (min-width: 1024px) {
+  .lx-provided { flex: 1; min-height: 0; }
 }
 .lx-no-evidence { padding: 16px; border: 1px dashed var(--p-lx-control); border-radius: 4px; display: flex; flex-direction: column; gap: 4px; background: var(--p-lx-card); }
 
