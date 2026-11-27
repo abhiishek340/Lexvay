@@ -21,7 +21,9 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * One connection per read request: every read endpoint, however many statements it runs, checks out exactly
- * one connection (and so binds the tenant once). Guards the read-only transactions on the service methods.
+ * one connection (and so binds the tenant once). Guards the read-only transactions on the service methods. The check
+ * that ends sessions of changed users (D-374) costs one more checkout per user per 15 seconds, so each request is
+ * preceded by a warm-up request of the same user.
  */
 @Import(CountingDataSource.Config.class)
 class ReadPathConnectionsTest extends AbstractAssessmentTest {
@@ -59,6 +61,7 @@ class ReadPathConnectionsTest extends AbstractAssessmentTest {
         endpoints.put("requirements", "/api/v1/rule-versions/" + s.ruleVersionId() + "/requirements");
         endpoints.put("change events", "/api/v1/change-events");
         endpoints.put("audit", "/api/v1/audit");
+        endpoints.put("users", "/api/v1/users");
         endpoints.put("determination register", "/api/v1/determinations/register?current=false");
         endpoints.put("determination register of a program", "/api/v1/determinations/register?programId=" + s.programId() + "&jurisdiction=CA&outcome=MEETS");
         endpoints.put("determination lists", program + "/determination-lists");
@@ -75,6 +78,8 @@ class ReadPathConnectionsTest extends AbstractAssessmentTest {
         CountingDataSource counter = (CountingDataSource) dataSource;
         Map<String, Long> used = new LinkedHashMap<>();
         for (var endpoint : endpoints.entrySet()) {
+            // The first request of a user in each 15 seconds looks up their access (D-374); warm it so that only the read counts.
+            assertThat(mvc.get().uri("/api/v1/auth/me").with(user(t.reviewer())).exchange()).as("warm-up").hasStatus(200);
             long before = counter.checkouts();
             assertThat(mvc.get().uri(endpoint.getValue()).with(user(t.reviewer())).exchange()).as(endpoint.getKey()).hasStatus(200);
             used.put(endpoint.getKey(), counter.checkouts() - before);

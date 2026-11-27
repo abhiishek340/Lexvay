@@ -99,6 +99,26 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 The JVM options are in `JAVA_OPTS` (default `-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -XX:-UsePerfData
 -Djava.io.tmpdir=/var/lexvay/tmp`); override the variable to change them.
 
+## Users and sessions
+
+A tenant administrator adds users, changes their role and withdraws their access through the API (F5a, D-370 to D-379);
+the first administrator of a tenant still comes from the bootstrap or the seed. There is no outgoing email: creating a
+user returns a one-time setup code (valid 72 hours, stored only as a SHA-256) that the administrator hands over, and
+`POST /api/v1/users/{id}/setup-code` issues a new one, which is also how a forgotten password is reset (D-371).
+Choosing a password counts against the login rate limit of the client address.
+
+A session ends when its user's role, activity or password changes. Each instance keeps the last known access of every
+user it served for 15 seconds (at most 10 000 users) and refuses a session issued with other values:
+- A change made on this instance takes effect on the next request.
+- A change made on another instance takes effect here within **15 seconds**. That is the longest a deactivated user or
+  a demoted administrator can keep working through an instance that did not make the change. The delay is fixed in
+  code (D-374); it costs one statement per user per instance per 15 seconds.
+- A request that is refused gets a 401 "Your access changed. Sign in again." and the session is invalidated.
+
+The audit log can be exported by an administrator as `GET /api/v1/audit.csv` with the filters of the audit list. It is
+streamed from the database, so its size does not matter to the heap, but it reads the whole matching log in one
+transaction; export a time range when a tenant's log is very large (D-377). Every export is itself an audit entry.
+
 ## Health
 
 | Where | Path | Use |

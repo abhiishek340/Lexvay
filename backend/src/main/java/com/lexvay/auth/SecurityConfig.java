@@ -26,7 +26,7 @@ import tools.jackson.databind.ObjectMapper;
  * Form login against tenant users by default; single sign-on through OIDC when profile {@code oidc} is
  * active. Responses are JSON, not redirects, because the client is a single-page app. CSRF uses the SPA
  * cookie pattern that Angular's HttpClient understands (XSRF-TOKEN cookie, X-XSRF-TOKEN header). Response
- * headers and rate limits are described in D-092 and D-093.
+ * headers and rate limits are described in D-092 and D-093; a session ends when its user's access changes (D-374).
  */
 @Configuration
 @EnableMethodSecurity
@@ -36,6 +36,8 @@ public class SecurityConfig {
     public static final String LOGIN_URL = "/api/v1/auth/login";
     public static final String LOGOUT_URL = "/api/v1/auth/logout";
     public static final String SESSION_URL = "/api/v1/auth/session";
+    /** Anonymous: a person who was given a setup code chooses a password (D-373). Counted against the login budget. */
+    public static final String SETUP_URL = "/api/v1/auth/setup";
     /** Where the OIDC provider sends the browser back to; counted against the login budget. */
     public static final String OIDC_CALLBACK_PATTERN = "/login/oauth2/code/*";
 
@@ -43,12 +45,15 @@ public class SecurityConfig {
     private final AuditService audit;
     private final ProblemWriter problems;
     private final RateLimitProperties rateLimits;
+    private final UserStampCheck stamps;
 
-    public SecurityConfig(ObjectMapper json, AuditService audit, ProblemWriter problems, RateLimitProperties rateLimits) {
+    public SecurityConfig(ObjectMapper json, AuditService audit, ProblemWriter problems, RateLimitProperties rateLimits,
+                          UserStampCheck stamps) {
         this.json = json;
         this.audit = audit;
         this.problems = problems;
         this.rateLimits = rateLimits;
+        this.stamps = stamps;
     }
 
     /** Outermost servlet filter, so even the firewall's own 400 responses carry the headers. */
@@ -83,7 +88,7 @@ public class SecurityConfig {
                 .sessionManagement(sessions -> sessions.sessionFixation(fixation -> fixation.changeSessionId()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                        .requestMatchers(LOGIN_URL, SESSION_URL).permitAll()
+                        .requestMatchers(LOGIN_URL, SESSION_URL, SETUP_URL).permitAll()
                         .requestMatchers(SpaRoutes.APP_REQUESTS).permitAll()
                         .anyRequest().authenticated())
                 .formLogin(form -> form
@@ -115,7 +120,7 @@ public class SecurityConfig {
                                 problems.write(response, HttpStatus.FORBIDDEN, "This action is not allowed for your role")))
                 // Before CSRF so that every login attempt counts, with or without a valid token.
                 .addFilterBefore(new RateLimitFilter(rateLimits, problems, System::nanoTime), CsrfFilter.class)
-                .addFilterBefore(new TenantContextFilter(), AuthorizationFilter.class);
+                .addFilterBefore(new TenantContextFilter(stamps, problems), AuthorizationFilter.class);
         OidcLogin oidc = oidcLogin.getIfAvailable();
         if (oidc != null) {
             oidc.applyTo(http);
