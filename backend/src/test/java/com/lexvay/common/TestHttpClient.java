@@ -46,9 +46,26 @@ public final class TestHttpClient {
         return send(request(path).GET());
     }
 
+    /** A response read as it arrives, for bodies too large to hold; the caller closes the stream. */
+    public HttpResponse<InputStream> stream(String path) {
+        try {
+            return http.send(request(path).GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
     public Reply postJson(String path, String json) {
         return send(request(path).header("Content-Type", "application/json").header("X-XSRF-TOKEN", xsrfToken())
                 .POST(HttpRequest.BodyPublishers.ofString(json)));
+    }
+
+    public Reply putJson(String path, String json) {
+        return send(request(path).header("Content-Type", "application/json").header("X-XSRF-TOKEN", xsrfToken())
+                .PUT(HttpRequest.BodyPublishers.ofString(json)));
     }
 
     private HttpRequest.Builder request(String path) {

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
@@ -33,6 +34,7 @@ class DocumentUploadTest extends AbstractDatabaseTest {
     @Autowired JobRunner runner;
     @Autowired DocumentRepository documents;
     @Autowired FileStore files;
+    @Autowired JdbcClient jdbc;
 
     TestTenants.TenantWithUsers t;
     UUID programId;
@@ -64,6 +66,10 @@ class DocumentUploadTest extends AbstractDatabaseTest {
             request.param("courseVersionId", courseVersion.toString());
         }
         return mvc.perform(request);
+    }
+
+    private long inTenant(String countStatement) {
+        return TenantContext.runAs(t.tenantId(), () -> jdbc.sql(countStatement).query(Long.class).single());
     }
 
     private JsonNode body(MvcTestResult result) throws Exception {
@@ -195,15 +201,20 @@ class DocumentUploadTest extends AbstractDatabaseTest {
     }
 
     @Test
-    void pdfOverTheFiveHundredPageCapFailsIngestWithTheLimitMessage() throws Exception {
+    void pdfOverTheFiveHundredPageCapIsRefusedAtUploadAndNothingIsStoredOrQueued() throws Exception {
         byte[] pdf = TestDocuments.pdf(java.util.Collections.nCopies(501, List.of("Fictional. Prototype data.")));
+        long documentsBefore = inTenant("SELECT count(*) FROM document");
+        long jobsBefore = inTenant("SELECT count(*) FROM job");
+
         var result = upload(t.admin(), programId, "long.pdf", "application/pdf", pdf, "HANDBOOK", null);
-        assertThat(result).hasStatus(202);
-        runner.runPending();
-        var doc = getDocument(UUID.fromString(body(result).get("documentId").asString()));
-        assertThat(doc.get("ingest").get("status").asString()).isEqualTo("FAILED");
-        assertThat(doc.get("ingest").get("error").asString()).isEqualTo("PDF has 501 pages; the limit is 500");
-        assertThat(doc.get("pages")).isEmpty();
+
+        assertThat(result).hasStatus(400);
+        assertThat(result.getResponse().getContentType()).contains("application/problem+json");
+        assertThat(body(result).get("detail").asString()).isEqualTo("PDF has 501 pages; the limit is 500");
+        assertThat(TenantContext.runAs(t.tenantId(), () -> documents.findDuplicate(programId, DocumentService.sha256(pdf)))).isEmpty();
+        assertThat(inTenant("SELECT count(*) FROM document")).as("no document row").isEqualTo(documentsBefore);
+        assertThat(inTenant("SELECT count(*) FROM job")).as("no ingest job").isEqualTo(jobsBefore);
+        assertThat(inTenant("SELECT count(*) FROM audit_log WHERE action = 'DOCUMENT_UPLOADED'")).as("nothing uploaded to audit").isZero();
     }
 
     @Test

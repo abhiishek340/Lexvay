@@ -168,13 +168,16 @@ rule version, 30 checks per rule source, as the seed never produces them) and fa
 | ingest status of a document (`GET /documents/{id}`) | Seq Scan on job | Index Scan using job_entity_idx on job |
 | extraction status of a rule version (`GET /rule-versions/{id}`) | Seq Scan on job | Index Scan using job_entity_idx on job |
 | extraction status of every rule version (`GET /rule-versions`) | Seq Scan on job | Index Scan using job_entity_idx on job |
-| a check of a source already queued, manual and scheduler | not measured (payload comparison) | Index Scan using job_claim_idx on job j (see below) |
+| a check of a source already queued, scheduler (all tenants) | not measured (payload comparison) | Index Scan using job_claim_idx on job j (see below) |
+| a check of one source already queued, manual (`rs.id = ...`) | not measured (payload comparison) | Index Scan using rule_source_pkey on rule_source rs; Index Scan using job_entity_idx on job j |
 
 The "before" plans are from the WS-PERF run recorded above (the payload expression index was never chosen under
 row-level security) and, for the lookups, from running the old statement against the new database: a sequential scan
-of the 1304 pages of `job`. The dedupe uses `job_claim_idx (status, created_at)`, not `job_entity_idx`: the statement
-only looks for QUEUED or RUNNING jobs, which are few, so the planner reads those by status and filters the entity.
-It never reads the whole table, which is what the test asserts.
+of the 1304 pages of `job`. The scheduler's dedupe (every due source, so no single entity to look up) uses `job_claim_idx (status, created_at)`:
+it only looks for QUEUED or RUNNING jobs, which are few, so the planner reads those by status and filters the entity.
+The manual check names one source and the planner reads that source's jobs through `job_entity_idx` (the statement
+was listed here with `job_claim_idx`; the plan has been different since FIX-2 and `IndexUsageTest` now accepts either
+index for it). Neither reads the whole table, which is what the test asserts.
 
 Latency of the two endpoints, `make perf`, one run each (not a median of three; the machine was shared with other
 builds, so differences of a factor of two are noise). The seeded database holds under a thousand jobs, so a
@@ -315,6 +318,20 @@ New lazy chunks (raw / transfer): login 51.0 / 13.4 kB, command palette 50.4 / 1
 mostly PrimeNG's Toast, Dialog and Menu code, loaded when the page is idle). The fonts are separate media files (Inter
 latin 48 kB, Source Serif 4 latin 51 kB, each requested only when a glyph in its range is on the page). The budget is now
 680 kB warning and 760 kB error.
+
+## Rule source schedule (FIX-4)
+
+`V016__rule_source_schedule.sql` makes "due" a stored time, `next_check_at`, with the partial index
+`rule_source_due_idx ON rule_source (next_check_at) WHERE active` (D-380). `IndexUsageTest` plans the scheduler's
+statement under the worker flag across all tenants, on a database where every seeded source is joined by 200 synthetic
+sources that are not due yet (`PerfSeed.addHistoryVolume`), and requires the index in the plan:
+
+```
+Index Scan using rule_source_due_idx on rule_source rs; Index Scan using job_claim_idx on job j
+```
+
+Read endpoints are unchanged: `GET /rule-sources` p95 1.4 ms and `GET /rule-sources/{id}/checks` p95 3.5 ms in the same run
+(two more columns in the existing statement).
 
 ## Current-mapping filter (FIX-3)
 

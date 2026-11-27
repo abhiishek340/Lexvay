@@ -68,6 +68,25 @@ class RateLimitApiTest extends AbstractDatabaseTest {
         assertThat(login("192.0.2.11", TestTenants.PASSWORD)).as("another address").hasStatus(200);
     }
 
+    private MvcTestResult setup(String address) {
+        return mvc.post().uri(SecurityConfig.SETUP_URL).with(csrf()).with(from(address)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"a-code-nobody-was-given\",\"password\":\"a-long-enough-password\"}").exchange();
+    }
+
+    @Test
+    void guessingSetupCodesDrawsOnTheLoginBudgetOfTheAddress() {
+        assertThat(login("192.0.2.30", "wrong")).hasStatus(401);
+        assertThat(setup("192.0.2.30")).as("a bad code is refused, and counted").hasStatus(400);
+        assertThat(setup("192.0.2.30")).hasStatus(400);
+
+        var refusedSetup = setup("192.0.2.30");
+        assertThat(refusedSetup).hasStatus(429);
+        assertThat(refusedSetup.getResponse().getHeader("Retry-After")).isNotBlank();
+        assertThat(login("192.0.2.30", TestTenants.PASSWORD)).as("one budget for both").hasStatus(429);
+
+        assertThat(setup("192.0.2.31")).as("another address").hasStatus(400);
+    }
+
     @Test
     void attemptsWithoutAValidCsrfTokenCountToo() {
         for (int i = 0; i < 3; i++) {

@@ -5,12 +5,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.lexvay.assessment.Finding;
 import com.lexvay.common.YamlFile;
 import com.lexvay.document.QuoteVerifier;
+import com.lexvay.rule.SearchTerms;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 /** The golden set is data written by hand; these checks keep it well formed and tied to the seed documents. */
 class GoldenFileTest {
@@ -49,6 +51,23 @@ class GoldenFileTest {
             assertThat(QuoteVerifier.normalizeWhitespace(Files.readString(source)))
                     .as(e.key() + " quote in " + source.getFileName()).contains(QuoteVerifier.normalizeWhitespace(e.quoteContains()));
         }
+    }
+
+    @Test
+    void everyRequirementHasThreeToEightSearchTermsThatTheProductionNormaliserKeepsWhole() {
+        for (Golden.Entry e : golden.requirements()) {
+            assertThat(e.searchTerms()).as(e.key() + " search terms").hasSizeBetween(3, SearchTerms.MAX_PROPOSED).doesNotHaveDuplicates();
+            assertThat(SearchTerms.normalise(e.searchTerms(), e.title(), e.text())).as(e.key() + " terms are what the extraction would store")
+                    .isEqualTo(e.searchTerms());
+            assertThat(e.searchTerms()).as(e.key()).allSatisfy(term -> assertThat(term).hasSizeLessThanOrEqualTo(SearchTerms.MAX_LENGTH));
+        }
+    }
+
+    @Test
+    void theReplaceListCarriesTheGoldenSearchTermsInTheEndpointsFormat() {
+        var item = golden.requirementList("UT", new ObjectMapper()).get("requirements").get(1);
+        assertThat(item.get("search_terms")).hasSize(golden.requirements().get(1).searchTerms().size());
+        assertThat(item.get("search_terms").get(0).asString()).isEqualTo(golden.requirements().get(1).searchTerms().get(0));
     }
 
     @Test

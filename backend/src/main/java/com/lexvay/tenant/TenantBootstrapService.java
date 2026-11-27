@@ -62,6 +62,6 @@ public class TenantBootstrapService {
                                   UUID createdBy) {
         String hash = password == null ? null : passwordEncoder.encode(password);
         users.insert(id, tenantId, email, displayName, role, hash, createdBy);
-        return new LexvayUser(id, tenantId, email.toLowerCase(), displayName, role, hash);
+        return new LexvayUser(id, tenantId, email.toLowerCase(), displayName, role, hash, 0);
     }
 }
