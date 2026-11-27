@@ -1,8 +1,9 @@
-import { Component, DestroyRef, ElementRef, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, effect, inject, input, linkedSignal, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { ConfirmDialog } from 'primeng/confirmdialog';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Listbox } from 'primeng/listbox';
 import { Message } from 'primeng/message';
@@ -17,6 +18,8 @@ import { RULE_STATUS, RuleVersionRow, anyExtracting, groupRuleVersions } from '.
 import { SessionService } from '../../core/session.service';
 import { NewRuleVersionDialog } from './new-rule-version';
 import { Notice, RuleVersionDetail } from './rule-version-detail';
+import { registerRulesTheme } from './rules-theme';
+import { UnsavedChanges, leaveNeedsConfirmation } from './unsaved-changes';
 
 /** While an extraction runs the list is fetched again this often (and never while the tab is hidden). */
 const POLL_MS = 5000;
@@ -26,14 +29,18 @@ interface VersionGroup { label: string; code: string; items: VersionOption[] }
 
 @Component({
   selector: 'lx-rules',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Listbox, Message, Skeleton, Tag, NewRuleVersionDialog, RuleVersionDetail],
+  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, ConfirmDialog, Listbox, Message, Skeleton, Tag, NewRuleVersionDialog, RuleVersionDetail],
+  providers: [UnsavedChanges, ConfirmationService],
   templateUrl: './rules.html',
   styleUrl: './rules.css',
+  host: { '(window:beforeunload)': 'onBeforeUnload($event)' },
 })
 export class Rules {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly toast = inject(MessageService);
+  private readonly confirmation = inject(ConfirmationService);
+  private readonly unsaved = inject(UnsavedChanges);
   readonly session = inject(SessionService);
   readonly context = inject(ProgramContext);
 
@@ -61,9 +68,12 @@ export class Rules {
       })),
     }));
   });
+  /** The list's value: follows the route, and snaps back when a guarded navigation is cancelled. */
+  readonly listValue = linkedSignal<string | null>(() => this.ruleVersionId() ?? null);
   readonly selected = computed(() => this.context.ruleVersions().find((v) => v.id === this.ruleVersionId()) ?? null);
 
   constructor() {
+    registerRulesTheme();
     effect(() => {
       const id = this.programId();
       untracked(() => this.context.ensure(id));
@@ -85,10 +95,33 @@ export class Rules {
     return RULE_STATUS[row.status];
   }
 
-  open(id: string | null): void {
-    if (id && id !== this.ruleVersionId()) {
-      this.router.navigate(['/programs', this.programId(), 'rules', id]);
-    }
+  async open(id: string | null): Promise<void> {
+    if (!id || id === this.ruleVersionId()) { return; }
+    this.listValue.set(id);
+    const moved = await this.router.navigate(['/programs', this.programId(), 'rules', id]);
+    if (!moved) { this.listValue.set(this.ruleVersionId() ?? null); }
+  }
+
+  /** The route's CanDeactivate guard: unsaved list edits are discarded only when the person says so. */
+  confirmLeave(nextUrl: string): boolean | Promise<boolean> {
+    if (!leaveNeedsConfirmation(this.unsaved.dirty(), this.router.url, nextUrl)) { return true; }
+    return new Promise((resolve) => this.confirmation.confirm({
+      header: 'Discard unsaved changes to this list?',
+      message: 'The requirement list has edits that are not saved. Discarding them restores the list as it was last saved.',
+      acceptLabel: 'Discard changes',
+      rejectLabel: 'Keep editing',
+      acceptButtonProps: { severity: 'danger', outlined: true },
+      rejectButtonProps: { severity: 'primary' },
+      defaultFocus: 'reject',
+      closeOnEscape: true,
+      accept: () => resolve(true),
+      reject: () => resolve(false),
+    }));
+  }
+
+  /** A reload or closing the tab with unsaved edits gets the browser's own question. */
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.unsaved.dirty()) { event.preventDefault(); }
   }
 
   /** A version was entered: show it, already extracting, and say so. */

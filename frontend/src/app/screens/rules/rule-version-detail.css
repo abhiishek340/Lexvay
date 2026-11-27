@@ -9,8 +9,12 @@
 .lx-facts dt { color: var(--p-lx-text-secondary); }
 .lx-facts dd { min-width: 0; overflow-wrap: anywhere; }
 .lx-state { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.lx-extraction-failed { display: flex; flex-direction: column; gap: 6px; align-self: stretch; }
+.lx-technical summary { cursor: pointer; font-size: 12px; line-height: 16px; color: var(--p-lx-text-secondary); width: max-content; }
+.lx-technical p { margin-top: 4px; padding: 8px 10px; background: var(--p-lx-sunken); border: 1px solid var(--p-lx-hairline); border-radius: 4px; overflow-wrap: anywhere; }
 :host ::ng-deep .lx-detail-tabs .p-tablist { padding: 0 12px; }
+.lx-rule-text { padding: 16px 24px 24px; }
 
 @media (max-width: 640px) {
-  .lx-detail-head { padding: 16px; }
+  .lx-detail-head, .lx-rule-text { padding: 16px; }
 }
