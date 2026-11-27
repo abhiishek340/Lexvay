@@ -1,0 +1,22 @@
+# Only what the image build reads is sent to the daemon: frontend/ and backend/.
+.git
+.github
+.claude
+.env
+.env.*
+!.env.example
+data
+docs
+eval
+infra
+seed
+scripts
+**/node_modules
+**/.angular
+frontend/dist
+frontend/test-results
+frontend/playwright-report
+frontend/e2e
+backend/target
+backend/src/test
+*.md

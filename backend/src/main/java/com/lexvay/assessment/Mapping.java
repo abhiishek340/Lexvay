@@ -1,5 +1,6 @@
 package com.lexvay.assessment;
 
+import com.lexvay.document.TextSource;
 import com.lexvay.rule.NumericField;
 import com.lexvay.rule.RequirementType;
 import java.math.BigDecimal;
@@ -19,6 +20,7 @@ public record Mapping(UUID id, UUID assessmentId, UUID jurisdictionId, String ju
     }
 
     public record Evidence(UUID spanId, UUID documentId, String filename, String kind, UUID courseVersionId,
-                           String courseCode, Boolean courseRequired, int pageNumber, int charStart, int charEnd, String quote) {
+                           String courseCode, Boolean courseRequired, int pageNumber, int charStart, int charEnd, String quote,
+                           TextSource textSource, Double ocrConfidence) {
     }
 }

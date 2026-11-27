@@ -21,9 +21,9 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | merged (PR #14) |
 | F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | merged (PR #9) |
 | F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | merged (PR #8) |
-| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | PR #16 in review (renumber to V010, merge after #14, #13) |
+| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | merged (PR #16) |
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
-| F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | PR #13 approved (merges after #14) |
+| F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (merges after V011) |
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | in progress |
@@ -33,9 +33,11 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | PR #17 in review (merges after #14, #13, #16) |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
+| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | queued (after F7, FIX-1) |
+| OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | in progress |
 | F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
-| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | in progress |
+| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | PR #19 approved (final merge of main after F6) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | in progress |
 
 ---
@@ -388,7 +390,7 @@ Migration file name: `V007__evidence_response.sql` (V006 is reserved for WS-PERF
    running job finish within the grace period.
 Tests for the SPA fallback (deep link returns index, `/api/unknown` stays a 404 problem detail), request id
 rules, metrics presence after a pipeline run, usage endpoint with tenant isolation. Decisions in
-`docs/decisions/F6.md` (D-140 to D-149).
+`DECISIONS.md (D-140 to D-149)` (D-140 to D-149).
 
 ## F9 — Curriculum search API (ready to start; slot 8)
 Reviewers must be able to look for a passage themselves instead of trusting the shortlist.
@@ -482,7 +484,7 @@ reliable than a text layer, so it is stored with its source and confidence and i
    `Rule4_LowOcrConfidenceForcesAmbiguousTest`; one test with the real binary guarded by
    `assumeTrue(engine.available())` that renders known text into an image-only PDF and finds its key words.
    Install Tesseract locally with Homebrew and in CI with the `tesseract-ocr` apt package so that test runs.
-Decisions in `docs/decisions/F11.md` (D-160 to D-169). If a `Dockerfile` exists on `main` when you finish,
+Decisions in `DECISIONS.md (D-160 to D-169)` (D-160 to D-169). If a `Dockerfile` exists on `main` when you finish,
 add Tesseract to the runtime stage and set `LEXVAY_OCR=tesseract` there; otherwise say so in the report.
 
 ## F7 — Retrieval quality (slot 3; no schema change)
@@ -636,7 +638,68 @@ read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
    (another tenant's items never appear); the perf-tagged latency test; `ForbiddenWordsTest` stays green (the
    kinds above contain no forbidden words). Read-only endpoint, so nothing to add to the audit coverage set.
 
+## OPS-1 — Image build and smoke in CI (after F6 merges; no slot; Sonnet 5.5)
+Purpose: F6 ships a Dockerfile and `scripts/smoke.sh`; nothing runs them on every change. Decisions D-240 to D-244
+in `docs/decisions/OPS-1.md`.
+1. A third job `image` in `.github/workflows/ci.yml`, after `test` succeeds: build the image with Buildx
+   (`docker/setup-buildx-action`, pinned by major tag and recorded with its version in the decision file) using
+   the GitHub Actions cache (`cache-from`/`cache-to: type=gha`), tag `lexvay:ci-<sha>`, never push. Then run
+   `scripts/smoke.sh` against that tag (the script takes the tag and the slot; slot 0 is free in CI). Fail the
+   job on any smoke check failure. Report the image content size in the job summary (`$GITHUB_STEP_SUMMARY`).
+2. The job runs on `pull_request` and on `push` to `main` with the same concurrency group as the others.
+3. `scripts/smoke.sh` must not need Colima: the Docker socket comes from `DOCKER_HOST` if set, otherwise the
+   default; the compose project name carries the slot like `scripts/lib/stack.sh` does (reuse that file).
+4. Done when a pull request shows the `image` job green with the smoke output in its log, and
+   `docs/OPERATIONS.md` names the job and the tag convention.
+
+## F7c — Search terms proposed at extraction (after F7 and FIX-1 merge; slot 3; migration `V015__requirement_search_terms.sql`)
+Purpose: F7 measured what lexical search cannot do: 2 of 6 lexical-gap queries are recalled, because the rule
+says "diagnosis of mental and emotional disorders" and the syllabus says "psychopathology". The model already
+reads the rule text at extraction; it can propose the vocabulary a syllabus would use, a person can correct it,
+and retrieval can search for it. The model proposes terms; it never decides a finding (product rule 1), and a
+term never produces evidence by itself: quotes are still verified against the page (rule 2). Decisions D-250 to
+D-259 in `docs/decisions/F7c.md`.
+1. **Schema**: `requirement.search_terms text[] NOT NULL DEFAULT '{}'` with a CHECK that the array has at
+   most 12 elements and each is 1 to 40 characters (`array_length` and a `bool_and` over `unnest`, or a
+   helper SQL function `search_terms_valid(text[])` IMMUTABLE). Requirement rows stay immutable after
+   approval as today (the trigger is unchanged; terms are edited through the replace endpoint before
+   approval, like every other field).
+2. **Extraction**: new prompt `extract-v2.system.txt` next to `extract-v1` (kept on disk): same rules plus
+   "for each requirement list up to 8 search terms: single words or two-word phrases that a university
+   syllabus or degree plan would use for this subject, including synonyms and course-title vocabulary; never
+   repeat words already in the requirement text; no state names, no numbers." The schema
+   `requirement-extraction.schema.json` gains `search_terms` (array of strings, `maxItems` 8, `maxLength` 40,
+   required); `RequirementListParser` trims, lower-cases, de-duplicates, drops terms that already occur in
+   the requirement text after `to_tsvector`-style stemming is NOT available in Java, so compare lower-cased
+   whole words only, and drops empty results; the replace endpoint accepts `search_terms` optionally
+   (absent = empty). `seed/fake-llm.yml` extraction scripts gain plausible `search_terms` for every seeded
+   requirement (fictional, hand-written, at least 3 per requirement; the Colorado revision keeps CO-5's terms
+   identical so the diff still shows exactly one CHANGED row). `RequirementComparison` ignores
+   `search_terms` for evaluation sameness (a terms-only edit is not a requirement change) but reports it as a
+   new aspect `SEARCH_TERMS` for the diff view.
+3. **Retrieval**: `PassageSearch.search` receives the terms with the title and text; in the BM25 statement the
+   term lexemes come from `to_tsvector('english', array_to_string(:searchTerms, ' '))` with boost 1.0 and are
+   unioned with the title and text lexemes (a lexeme present in several sources keeps the highest boost).
+   The `ts_rank` ranker ORs them in the same way. The reviewer search is untouched.
+4. **Evaluation**: `eval/retrieval/queries.yml` gains `searchTerms` per query (hand-written, fictional,
+   written before looking at the expected passage, 3 to 8 per query; the file header says so). `make eval`
+   reports a third column "BM25 + terms" for both the counted set and the lexical-gap set; thresholds: the
+   counted-set recall@8 and recall@3 must not fall below "BM25" alone, and the lexical-gap recall@8 must be at
+   least 4 of 6. `docs/RETRIEVAL.md` shows all three columns. The pipeline metrics on the seed must be unchanged
+   (0 false EVIDENCE_FOUND).
+5. **Screens**: the F3 requirement grid gets a "Search terms" cell (PrimeNG Chips or AutoComplete in multiple
+   mode, max 12) shown and editable under the same rules as the other cells; the Review screen's "How it was
+   checked" names the terms that matched when the citation came from a page found only through terms
+   (`Passage.matchedVia`: TITLE, TEXT or TERMS, carried into the mapping rationale as a sentence). Frontend
+   work is a separate small item if F3 has merged before this starts; otherwise it is folded into F3.
+6. **Tests**: parser (dedupe, drop words in text, limits), schema validation rejects 9 terms, BM25 ordering with
+   a term that only occurs in the page title, comparison ignores terms for carry-over but the diff reports
+   `SEARCH_TERMS`, replace endpoint stores terms and rejects 13, extraction with the fake model stores the
+   scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
+
 ## Follow-ups recorded from reviews
+- F12 deployment note: the SSRF guard resolves the host before connecting and the JDK client resolves it
+  again, so a DNS-rebinding window remains; production egress must also block private ranges (Terraform).
 - WS-UI: the overview still finds the latest assessment through the audit log; switch it to the WS-PERF
   `GET /programs/{id}/overview` endpoint (do this in F1). Audit filtering is client-side over the newest 500
   entries; switch to the WS-PERF server filters (F5). Add a build check that the production `index.html` has no
