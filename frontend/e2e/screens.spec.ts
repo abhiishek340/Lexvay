@@ -1,4 +1,4 @@
-import { DANA, SCREENSHOTS, citedRequirement, expect, nav, openRequirement, shoot, signIn, test } from './support';
+import { DANA, SCREENSHOTS, apiPost, citedRequirement, expect, nav, openRequirement, shoot, signIn, stateTab, test } from './support';
 
 /**
  * Screenshots of every screen in both themes for docs/screens. Not part of the regular suite:
@@ -17,7 +17,7 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await shoot(page, 'program-overview');
 
   await nav(page, 'Review').click();
-  await page.getByRole('tab', { name: 'TX', exact: true }).click();
+  await stateTab(page, 'TX').click();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^TX-/);
   await shoot(page, 'review');
 
@@ -94,7 +94,7 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
 
   await page.setViewportSize({ width: 400, height: 860 });
   await nav(page, 'Review').click();
-  await page.getByRole('tab', { name: 'TX', exact: true }).click();
+  await stateTab(page, 'TX').click();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^TX-/);
   await shoot(page, 'review-400px');
 
@@ -146,5 +146,61 @@ test('screenshots of the v2 shell and sign-in at 1440 and 400 px', async ({ page
     await shoot(page, `ui2-avatar-menu-${width}`);
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL(/\/login$/);
+  }
+});
+
+/**
+ * UI2-2: Review and signing at 1440 and 400 px. Arizona's requirements are decided through the API first, as a reviewer
+ * would decide them, so that its signing dialog can be shown with an outcome chosen; the dialog is cancelled, so the
+ * register still holds California alone.
+ */
+test('UI2-2: Review, a decided requirement, the gap note and the signing dialog at 1440 and 400 px', async ({ page }) => {
+  await signIn(page, DANA);
+  await page.waitForURL(/\/programs\/[^/]+\//);
+  const programId = new URL(page.url()).pathname.split('/')[2];
+  const overview = await (await page.request.get(`/api/v1/programs/${programId}/overview`)).json();
+  const az = await (await page.request.get(`/api/v1/assessments/${overview.assessment.id}/mappings?jurisdiction=AZ`)).json();
+  const decisions = { EVIDENCE_FOUND: 'ACCEPTED', AMBIGUOUS: 'EVIDENCE_REQUESTED', EVIDENCE_MISSING: 'GAP_CONFIRMED' } as const;
+  for (const m of az.mappings as { id: string; finding: keyof typeof decisions; decision: unknown; stale: boolean }[]) {
+    if (m.decision === null && !m.stale) {
+      const kind = decisions[m.finding];
+      const note = kind === 'ACCEPTED' ? null : 'Recorded for the screenshot review.';
+      expect((await apiPost(page, `/api/v1/mappings/${m.id}/reviews`, { kind, note })).status()).toBe(201);
+    }
+  }
+
+  for (const [width, height] of [[1440, 900], [400, 860]] as const) {
+    await page.setViewportSize({ width, height });
+    await nav(page, 'Review').click();
+    await stateTab(page, 'TX').click();
+    await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^TX-/);
+    await page.waitForTimeout(900);
+    await shoot(page, `ui2-2-review-${width}`);
+
+    // A decision lands: the row's icon fills and the next requirement slides in.
+    const decided = await page.getByTestId('requirement-heading').getAttribute('data-ref');
+    await page.getByRole('button', { name: 'Accept evidence' }).click();
+    await expect(page.getByTestId('message')).toContainText(`${decided}: Accepted.`);
+    await page.waitForTimeout(900);
+    await shoot(page, `ui2-2-decided-${width}`);
+
+    await page.getByRole('button', { name: 'Gap', exact: true }).click();
+    await expect(page.getByLabel('Note', { exact: true })).toBeFocused();
+    await page.keyboard.type('No course covers the state law requirement.');
+    await page.waitForTimeout(400);
+    await shoot(page, `ui2-2-gap-note-${width}`);
+
+    await stateTab(page, 'AZ').click();
+    const sign = page.getByRole('button', { name: 'Sign Arizona' });
+    await expect(sign).toBeVisible();
+    await page.waitForTimeout(900);
+    await shoot(page, `ui2-2-ready-to-sign-${width}`);
+    await sign.click();
+    const dialog = page.getByRole('dialog', { name: 'Sign Arizona' });
+    await dialog.getByText('Determined to meet', { exact: true }).click();
+    await page.waitForTimeout(400);
+    await shoot(page, `ui2-2-signing-${width}`);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toBeHidden();
   }
 });

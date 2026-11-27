@@ -1,4 +1,4 @@
-import { DANA, PRIYA, expect, expectAccessible, nav, signIn, test } from './support';
+import { DANA, PRIYA, expect, expectAccessible, nav, signIn, stateTab, test } from './support';
 
 const story = (page: import('@playwright/test').Page) => page.locator('[data-story]');
 
@@ -53,7 +53,7 @@ test('the command palette opens with the shortcut and jumps to Review for a stat
   await expect(palette.getByRole('menuitem').first()).toContainText('Review Texas');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/review\?jurisdiction=TX$/);
-  await expect(page.getByRole('tab', { name: 'TX', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(stateTab(page, 'TX')).toHaveAttribute('aria-selected', 'true');
   await expect(palette).toBeHidden();
 
   // The command used last comes first the next time, and the shortcuts list names the palette.
