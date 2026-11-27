@@ -38,12 +38,7 @@ declares it optional. `org.bouncycastle:bcprov-jdk18on` is pinned to **1.87** (t
 published 2026-11-11, sixteen days before this work; `maven-metadata.xml` lists 1.81.1 to 1.87), as the property
 `bouncycastle.version` in `backend/pom.xml`. No Bouncy Castle artifact was on the classpath before.
 
-**Known limit.** Each concurrent sign-in or password set holds 32 MiB of heap. The login rate limit (10 a minute per
-client address and instance, D-092) bounds one source, and the hashing takes the CPU before it takes the heap, but
-many addresses at once could add up: Tomcat's 200 request threads would be 6.4 GiB against a default heap of about 1.5 GiB
-(2 GiB task, `MaxRAMPercentage=75`), and the JVM exits on out-of-memory (`ExitOnOutOfMemoryError`). Bcrypt used 4 KiB per
-hash, so this is new. A small fix is a semaphore around the Argon2 encoder sized to the processors; it is not part of this
-item, which asked for the encoder and its upgrade path, and is reported to the orchestrator as a follow-up.
+**Memory.** Each hash holds 32 MiB of heap while it runs, where bcrypt used 4 KiB; D-407 bounds how many run at once.
 
 Rejected: Spring's defaults (14 to 17 ms, below the floor); 64 MiB with 3 passes (116 to 123 ms, twice the heap per
 sign-in for a cost this application does not need); PBKDF2 (no memory hardness); scrypt (Spring's encoder is slower to
@@ -135,3 +130,42 @@ text the application runs. `PerfSeed.addAuditVolume` is test code.
 seed's users have `{argon2}` hashes and the demo password signs in), `IndexUsageTest` (D-403). The hash time is not
 asserted: a timing assertion would fail on a loaded machine and say nothing about the cost parameters, which
 `PasswordEncodersTest` pins by reading them out of the hash. The measurement in D-400 is a one-off.
+
+#### D-407 At most N password hashes at once, behind one gate; a refused caller gets 503 and nothing is hashed
+
+Each Argon2id hash holds 32 MiB (D-400). Without a bound, Tomcat's 200 request threads could ask for 6.4 GiB against a default
+heap of about 1.5 GiB (2 GiB task, `MaxRAMPercentage=75`), and the JVM exits on out-of-memory (`ExitOnOutOfMemoryError`): a
+few hundred distinct client addresses, each inside the per-address login budget (D-092), would take the instance down.
+
+`PasswordHashGate` is a fair `Semaphore` with `lexvay.security.password-hash-concurrency` permits (environment variable
+`LEXVAY_PASSWORD_HASH_CONCURRENCY`; unset means `max(2, availableProcessors())`; `@Positive` validated, so `0` or a negative
+value stops the start). `GatedPasswordEncoder` wraps the whole delegating encoder, so every `encode` and every `matches` takes a
+permit, Argon2 and legacy bcrypt alike (bcrypt is cheap, but one rule is simpler than two). `upgradeEncoding` only reads the
+parameters inside a hash and takes none. The permit is acquired with `tryAcquire(2, SECONDS)` and always released. A caller that
+waits two seconds gets `PasswordHashBusyException` before anything is hashed or compared:
+
+- Sign-in: the exception is an `AuthenticationServiceException`, so it reaches the form login's failure handler, which answers 503
+  with the problem detail "Sign-in is busy. Try again in a moment." and `Retry-After: 2` instead of the 401. An unknown email is
+  refused the same way, because Spring hashes a dummy password for it (timing protection) through the same gate.
+- Choosing a password (`POST /auth/setup`): `ApiExceptionHandler` answers the same 503 and header. The refusal comes at the hash,
+  before the code is claimed, so the code is not used up.
+- Sign-in with an old hash does two operations in turn (the comparison, then the new hash); each takes a permit in its turn and
+  never both at once, so a caller cannot deadlock against itself. Under pressure the second may be refused after the password
+  matched: the person sees 503 and signs in again, which upgrades the hash then.
+
+**Sizing.** Heap needed is permits x 32 MiB on top of the application's normal use. The default (processors, at least 2) is 2 x 32 =
+64 MiB on a one-processor task and 256 MiB on eight; both are small against the default 1.5 GiB heap, and CPU, not memory, is the
+limit at that point (one hash is about 73 ms of one core). `docs/OPERATIONS.md` documents the figure next to the JVM options.
+Fairness means callers are served in arrival order, so a burst delays everyone a little instead of starving the early callers.
+
+Tests: `PasswordHashGateTest` (six callers on two permits finish and the encoder never sees more than two at once; a caller refused
+after its wait hashes nothing and the permit comes back; a failing hash returns its permit; `upgradeEncoding` needs none; zero
+permits and non-positive properties are refused; the default), `PasswordHashBusyApiTest` (real filter chain with two permits: a
+single sign-in succeeds, a sign-in and an unknown-email sign-in with both permits held answer 503 with `Retry-After: 2` and compare
+nothing, choosing a password shares the gate and keeps its code, six concurrent real sign-ins answer 200 or 503 and the gate
+never holds more than two).
+
+Rejected: sizing by Tomcat threads (`server.tomcat.threads.max`; it also limits requests that hash nothing); a queue without a wait
+limit (threads pile up and every request times out at the proxy); a separate pool of hashing threads (a handoff for no gain, since
+the request thread must wait for the result anyway); refusing immediately when no permit is free (a burst of a few more callers
+than permits would be refused although they would be served in milliseconds).

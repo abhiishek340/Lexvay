@@ -1,6 +1,6 @@
 # SEC-2 progress
 
-Argon2id passwords and the audit list index, backend only (no migration; D-400 to D-406 in `docs/decisions/SEC-2.md`).
+Argon2id passwords and the audit list index, backend only (no migration; D-400 to D-407 in `docs/decisions/SEC-2.md`).
 
 ## Built
 
@@ -41,5 +41,6 @@ the slowest p95 is 6.63 ms (program overview), budget 40 ms.
 - No `V017`: the index named in the roadmap already exists (V001). The export's sort is the planner's choice for reading a quarter
   of a tenant's rows, not a missing index.
 - Parameters are explicit (32 MiB, 4 passes) rather than Spring's defaults, which measured 14 to 17 ms, below the 50 ms floor.
-- Follow-up for the orchestrator: each concurrent hash holds 32 MiB; many distinct client addresses signing in at once could exhaust the
-  heap (D-400, "Known limit"). A semaphore around the encoder is the small fix.
+- Review change (D-407): every hash goes through a fair gate of `lexvay.security.password-hash-concurrency` permits (default
+  `max(2, processors)`); a caller that waits 2 s gets 503 "Sign-in is busy. Try again in a moment." with `Retry-After: 2` and nothing is
+  hashed. Tests: `PasswordHashGateTest`, `PasswordHashBusyApiTest`.

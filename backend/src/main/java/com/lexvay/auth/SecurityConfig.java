@@ -29,7 +29,7 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties(RateLimitProperties.class)
+@EnableConfigurationProperties({RateLimitProperties.class, PasswordHashProperties.class})
 public class SecurityConfig {
 
     public static final String LOGIN_URL = "/api/v1/auth/login";
@@ -64,8 +64,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    PasswordEncoder passwordEncoder() {
-        return PasswordEncoders.application();
+    PasswordEncoder passwordEncoder(PasswordHashGate gate) {
+        return new GatedPasswordEncoder(PasswordEncoders.application(), gate);
     }
 
     @Bean
@@ -101,8 +101,14 @@ public class SecurityConfig {
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             json.writeValue(response.getOutputStream(), AuthController.toView(user));
                         })
-                        .failureHandler((request, response, exception) ->
-                                problems.write(response, HttpStatus.UNAUTHORIZED, "Email or password is incorrect")))
+                        .failureHandler((request, response, exception) -> {
+                            if (exception instanceof PasswordHashBusyException) {
+                                response.setHeader("Retry-After", Integer.toString(PasswordHashBusyException.RETRY_AFTER_SECONDS));
+                                problems.write(response, HttpStatus.SERVICE_UNAVAILABLE, PasswordHashBusyException.MESSAGE);
+                            } else {
+                                problems.write(response, HttpStatus.UNAUTHORIZED, "Email or password is incorrect");
+                            }
+                        }))
                 .logout(logout -> logout
                         .logoutUrl(LOGOUT_URL)
                         .logoutSuccessHandler((request, response, authentication) -> {
