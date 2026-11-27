@@ -16,12 +16,12 @@ export default defineConfig({
     trace: 'retain-on-failure',
     ...devices['Desktop Chrome'],
   },
-  // Every spec shares one seeded stack, and a jurisdiction can be signed once. The register and records specs read the
-  // California signature that review-and-sign.spec.ts records, so they run after the rest of the suite.
+  // Every spec shares one seeded stack, and a jurisdiction can be signed once. The register, records and report check
+  // specs read the California signature that review-and-sign.spec.ts records, so they run after the rest of the suite.
   projects: [
-    { name: 'suite', testIgnore: /(register|records)\.spec\.ts$/ },
+    { name: 'suite', testIgnore: /(register|records|report-check)\.spec\.ts$/ },
     { name: 'register', testMatch: /register\.spec\.ts$/, dependencies: ['suite'] },
-    { name: 'records', testMatch: /records\.spec\.ts$/, dependencies: ['suite'] },
+    { name: 'records', testMatch: /(records|report-check)\.spec\.ts$/, dependencies: ['suite'] },
   ],
   webServer: {
     command: `npm start -- --port ${webPort} --proxy-config proxy.e2e.conf.mjs`,
