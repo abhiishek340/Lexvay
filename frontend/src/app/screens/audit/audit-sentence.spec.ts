@@ -81,6 +81,8 @@ describe('audit sentences', () => {
       ['PACKAGE_REQUESTED', { determinationId: 'd', jobId: 'j' }, 'Dana Whitfield requested an evidence package'],
       ['PACKAGE_DOWNLOADED', { determinationId: 'd', bytes: 2048 }, 'Dana Whitfield downloaded an evidence package'],
       ['JOB_FAILED', { type: 'BUILD_PACKAGE', error: 'too large' }, 'Dana Whitfield could not finish an evidence package'],
+      ['REPORT_CHECKED', { match: true, sha256: 'a'.repeat(64) }, 'Dana Whitfield checked a report file: it matches'],
+      ['REPORT_CHECKED', { match: false, sha256: 'b'.repeat(64) }, 'Dana Whitfield checked a report file: no match'],
       ['JOB_FAILED', { type: 'RUN_ASSESSMENT', error: 'boom' }, 'Dana Whitfield could not finish an assessment'],
     ];
     for (const [action, detail, sentence] of cases) {

@@ -157,10 +157,14 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         Set<String> covered = new TreeSet<>();
         rows().forEach(row -> covered.add(row.endpoint()));
         covered.add("POST /api/v1/programs/{programId}/documents");
+        covered.add("POST /api/v1/reports/check");
         assertThat(covered).containsAll(handled);
     }
 
-    /** Upload rows. Every file has distinct content, because identical content in a program is a conflict. */
+    /**
+     * Upload and report check rows. Every upload has distinct content, because identical content in a program is a
+     * conflict.
+     */
     static Stream<Arguments> multipartRows() {
         String upload = "/api/v1/programs/" + PROGRAM + "/documents";
         return Stream.of(
@@ -176,7 +180,11 @@ class InputValidationTableTest extends AbstractDatabaseTest {
                 Arguments.of("upload: control character in file name", upload, Map.of("kind", "SYLLABUS"),
                         file("a\u0000b.txt"), 400),
                 Arguments.of("upload: line break in file name", upload, Map.of("kind", "SYLLABUS"),
-                        file("a\r\nb.txt"), 400));
+                        file("a\r\nb.txt"), 400),
+                Arguments.of("report check: file part missing", "/api/v1/reports/check", Map.of(), null, 400),
+                Arguments.of("report check: file is not a PDF", "/api/v1/reports/check", Map.of(), file("report.pdf"), 400),
+                Arguments.of("report check: file is empty", "/api/v1/reports/check", Map.of(),
+                        new MockMultipartFile("file", "report.pdf", "application/pdf", new byte[0]), 400));
     }
 
     private static MockMultipartFile file(String filename) {

@@ -12,6 +12,116 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
   "LEXVAY_PRIMEUI_LICENSE='<key>'"` (never commit it). Alternative if declined: Angular 21 with PrimeNG 21 (MIT),
   a framework downgrade the orchestrator does not recommend.
 
+## Real-data validation track (founder master prompt v3, 2026-11-27; D-550)
+The founder's master prompt v3 ("free-first") sets the next stage: keep the demo, add an authorized real-data
+vertical slice for **one Utah clinical mental health counseling pathway and one public academic program**, and prove
+acquisition, temporal correctness, pathway reasoning and evidence with measured results. It also sets a hard budget
+gate: no paid data, connector, scraping, OCR or metered inference without explicit founder approval. The intake is in
+`docs/INTAKE-2026-11-27.md`.
+
+Gates: **G0** intake (done, pinned at `7b04d82`) → **G1** source feasibility → **G2** real-data vertical slice →
+**G3** measured trust → G4/G5 are commercial and not engineering items.
+
+Every PR in this track states: the inspected SHA, evidence links, tests run with exit codes, remaining unknowns, a
+**no-cost declaration** (no paid service called, bought or trialled), and whether results come from fixtures, local
+runs, sandbox, authorized real data or production.
+
+### Order and owners (one branch each; migration numbers reserved)
+| ID | Work package | Depends on | Model | Migration | Status |
+|---|---|---|---|---|---|
+| RG-1 | Legal time and status model; fix fetch-date-as-effective-date (P0); keep every observed change (A→B→C) | — | Sonnet 5.5 | V021 | in progress |
+| MODE-1 | Persisted tenant data mode (DEMO/LIVE) and the spend gate for paid providers | — | Sonnet 5.5 | V022 | in progress |
+| RG-2 | Source registry governance: allowed hosts and paths, authority class, rights and access state, owner, expected identifiers, conditional GET, per-host throttle, robots, block-page detection | RG-1 | Sonnet 5.5 | V023 | queued |
+| RG-3 | Utah official-source adapter (DOPL, R156-60e, Utah Code 58-60-405, State Bulletin), with archived-version replay and an observed-change test | RG-2 | Sonnet 5.5 | — | queued |
+| AC-1 | Academic pathway model: catalog version, credits, choice groups, substitutions, and "every valid graduation path" evaluated with three-valued logic | — | Sonnet 5.5 | V024 | queued |
+| AC-2 | Governed export ingestion: manifest v1, local drop folder and read-only SFTP (Apache MINA SSHD), full and delta, tombstones, checkpoints | AC-1 | Sonnet 5.5 | V025 | queued |
+| AC-3 | Public catalog feasibility adapter (University of Utah CMHC program requirements and handbooks): proposed facts with citations and a missing-evidence manifest; no university text committed | RG-2, AC-1 | Sonnet 5.5 | — | queued |
+| EV-1 | Local inference adapter (OpenAI-compatible endpoint for a locally run model), configured explicitly and never defaulted; evaluation runs labelled scripted, replay, local-live or paid-live | MODE-1 | Sonnet 5.5 | — | queued |
+| EV-2 | Evaluation lab: answer-key format, frozen holdout, severe-false-assurance metric, denominators and confidence bounds, baseline comparison report | EV-1 | Sonnet 5.5 | — | queued |
+| UX-1 | Source health, freshness and coverage, legal status and dates, change queue, and the data-mode banner in the v3 UI (supersedes F12b's scope) | RG-2, UI3-0 | Opus 5.5 | — | queued |
+| SP-1 | SharePoint least-privilege spike (`Sites.Selected`, delta under selected scope) | an authorized test tenant | Sonnet 5.5 | — | **blocked: needs a tenant from the founder** |
+| DOM-1 | Expert review of the Utah pathway and source checklist | a qualified licensure expert | — | — | **blocked: needs a person** |
+
+UI3-1 to UI3-3 remain, bounded to restyling built screens with no new features (master prompt: do not spend weeks
+styling). SEC-3 and F15 continue; they serve evidence integrity (§6).
+
+### RG-1 — Legal time and status model (backend; slot 2; Sonnet 5.5; V021; D-551 to D-559)
+Defects confirmed in the intake:
+- `CheckRuleSourceHandler` sets a draft's `effective_from` to the fetch date.
+- A change seen while a draft waits is discarded (`DRAFT_EXISTS`, no document stored).
+
+Decided model. Unknown stays unknown, and nothing becomes law because a crawler saw it.
+1. **V021 on `rule_version`:**
+   - `effective_from` becomes nullable.
+   - Add `effective_to date` (CHECK `effective_to > effective_from`), `published_at date` and `adopted_at date`.
+   - Add `legal_status text NOT NULL DEFAULT 'UNKNOWN'` (`PROPOSED`, `FINAL_NOT_EFFECTIVE`, `IN_FORCE`, `SUPERSEDED`,
+     `REPEALED`, `WITHDRAWN`, `UNKNOWN`).
+   - Add `dates_basis text`: the reviewer's citation for the dates, required when any date is set.
+   - Add `observed_at timestamptz`: when the source text was acquired; null for uploads.
+   - Backfill existing rows: `legal_status = 'IN_FORCE'` where approved, else `UNKNOWN`; keep their `effective_from`
+     and set `dates_basis = 'Entered at creation before V021'`.
+   - **Immutability:** dates and status are not edited in place. A correction is a new row in
+     `rule_version_status` (`rule_version_id`, `legal_status`, the dates, `dates_basis`, `recorded_by`,
+     `recorded_at`), append-only with `forbid_change()`. The current status is the newest row; the `rule_version`
+     columns hold only the creation values. Write this in D-552.
+2. **Monitor:**
+   - A changed source creates a draft with `effective_from NULL`, `legal_status UNKNOWN` and `observed_at` equal to
+     the check time. The label is "<source label>, observed <date>". It never uses "fetched" as if it were a date
+     in law.
+   - **Every** changed observation stores its document and a `rule_source_check` row with outcome `CHANGED`, even
+     when a draft waits. `DRAFT_EXISTS` becomes `CHANGED_QUEUED`, with the document and a link to the waiting draft.
+     The review queue lists the observations after the draft, oldest first, so B and C are never lost.
+3. **Approval requires dates:** approving a version's requirements needs `effective_from`, `legal_status` in
+   {`IN_FORCE`, `FINAL_NOT_EFFECTIVE`} and `dates_basis`, recorded as the first status row (409 otherwise).
+   `PROPOSED`, `WITHDRAWN` and `UNKNOWN` versions cannot be approved for assessment.
+4. **Selection:** an assessment carries `assessment_as_of` (default today, request-settable). The rule version used
+   for a state is the approved one whose current status is `IN_FORCE`, or `FINAL_NOT_EFFECTIVE` with
+   `effective_from <= as_of`, and whose `effective_to` is null or after `as_of`. If none matches, the state is
+   **"No rule in force on <date>"** and the assessment does not run for that state. Never fall back to the newest
+   version. A `FINAL_NOT_EFFECTIVE` version with a future date shows as "Upcoming from <date>" on the overview API.
+5. **API:** rule version views expose the status, the dates, `dates_basis`, `observed_at` and the queued
+   observations. `POST /rule-versions/{id}/status` (REVIEWER, ADMIN) appends a status row and is audited as
+   `RULE_STATUS_RECORDED`. Add it to Rule 9, `InputValidationTableTest` and `audit-sentence.ts`.
+6. **Tests:**
+   - The fetch date is never an effective date.
+   - A→B→C: three changes while a draft waits are all kept, in order.
+   - A version that is approved but `PROPOSED` is refused.
+   - Selection by `as_of` across superseded, future and expired versions.
+   - "No rule in force" stops the assessment.
+   - Status corrections append and never update.
+   - Signed determinations keep their exact versions after a status change (rule 6).
+   - RLS on the new table.
+7. **Seed:** the fictional demo versions get explicit fictional dates, status `IN_FORCE` and `dates_basis "Fictional
+   demo data"`. Decisions go in `docs/decisions/RG-1.md`, progress in `docs/progress/RG-1.md`. The Rules screen
+   shows the new fields only as plain text (a meta line); UX-1 designs them.
+
+### MODE-1 — Data mode and spend gate (backend, small frontend; slot 8; Sonnet 5.5; V022; D-560 to D-565)
+1. **V022:** add `tenant.data_mode text NOT NULL DEFAULT 'LIVE' CHECK (data_mode IN ('DEMO','LIVE'))`. The seed loader
+   creates its tenants as `DEMO`, and the `lexvay.demo-tenant-names` configuration is removed.
+   `/auth/session.demo` derives from `data_mode`. Changing a mode is not exposed by any API (a database
+   administrator task, documented in OPERATIONS).
+2. **LIVE tenants:**
+   - The scripted fake model is refused (a `LIVE` tenant whose provider is `fake` fails the job with "No model is
+     configured for real data").
+   - The seed loader refuses to write into them.
+   - Requirements cannot be approved from a rule version whose `dates_basis` says "Fictional demo data" (after RG-1;
+     if RG-1 has not merged, leave a failing-closed hook and note it).
+
+   **DEMO tenants** keep everything as today, and every report, export and package they produce carries "Fictional
+   demo data" in its header.
+3. **Spend gate:**
+   - `LEXVAY_LLM_PAID_APPROVED` (default `false`) and `LEXVAY_LLM_MONTHLY_BUDGET_USD` (default `0`).
+   - A metered provider (`anthropic`) refuses every call unless approved is `true` and the month-to-date recorded
+     cost plus this call's maximum estimated cost stays under the budget.
+   - Costs come from `LlmUsageRepository` and a rate table in configuration (no hard-coded prices; the default table
+     is empty, so the cost is unknown and the call is refused).
+   - Refusals are audited `LLM_CALL_REFUSED` with the reason and logged without content.
+   - Startup logs one line stating the provider, whether paid calls are approved, and the budget.
+4. **Tests:** every refusal path, a DEMO tenant unaffected, the seed's refusal on a LIVE tenant, session `demo` from
+   the mode, Rule 9 and the input table rows, and the frontend banner driven by the session flag (unchanged
+   component). Decisions go in `docs/decisions/MODE-1.md`, progress in `docs/progress/MODE-1.md`. `.env.example`
+   documents the new variables.
+
 ## Design system v3 "Ledger" (owner directive 2026-11-27: "not AI slop", professional, human craft)
 The owner reviewed v2 on the running app and rejected it: yellow and orange accents, icon-heavy pills and cards, a
 palette and card art that look generated. `docs/DESIGN.md` is rewritten as v3 and is the contract. Every screen
@@ -200,9 +310,9 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F10a Coverage matrix API | `feat-coverage-api` | 8 | Sonnet 5.5 | merged (PR #35) |
 | F10b Coverage matrix screen (v2) | `ui2-coverage` | 7 | Opus 5.5 | merged (#41) |
 | FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | merged (#42) |
-| F12b Rule sources in the Rules workspace (v3) | `ui3-rule-sources` | 5 | Opus 5.5 | queued (after UI3-3) |
+| F12b Rule sources in the Rules workspace (v3) | `ui3-rule-sources` | 5 | Opus 5.5 | superseded by UX-1 |
 | FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | merged (#45) |
-| F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | in progress |
+| F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | merged (#47) |
 | INFRA-2 Remote state, WAF, flow logs, egress | `infra-hardening` | — | Sonnet 5.5 | merged (#46) |
 | FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | in progress |
 | UI3-0 Design v3 foundation, shell, sign-in, overview | `ui3-foundation` | 1 | Opus 5.5 | in progress |
@@ -211,6 +321,10 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI3-3 Rules, requests, setup in v3 | `ui3-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI3-0, UI2-4) |
 | SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | in progress |
 | F15 Evidence package | `feat-evidence-package` | 7 | Sonnet 5.5 | in progress |
+| RG-1 Legal time and status model (P0) | `rg-legal-time` | 2 | Sonnet 5.5 | in progress |
+| MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | in progress |
+| RG-2, RG-3, AC-1, AC-2, AC-3, EV-1, EV-2, UX-1 | see Real-data validation track | — | — | queued |
+| SP-1 SharePoint spike, DOM-1 expert review | — | — | — | blocked (founder) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
