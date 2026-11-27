@@ -1,0 +1,162 @@
+<p-tabs class="lx-coverage" [value]="jurisdiction()" (valueChange)="select($event)" [selectOnFocus]="true" [scrollable]="true" [showNavigators]="false">
+  <header class="lx-head">
+    <div class="lx-title">
+      <h1>Coverage</h1>
+      <lx-info-tip label="About coverage">
+        <span class="lx-legend">
+          <span><span class="lx-mark" data-kind="SYSTEM" aria-hidden="true"></span>A quote the system verified in the course's documents.</span>
+          <span><span class="lx-mark" data-kind="PERSON" aria-hidden="true"></span>A passage a person provided.</span>
+          <span><span class="lx-mark" data-kind="OUTDATED" aria-hidden="true"></span>A quote on an older version of the course.</span>
+        </span>
+        The flags say where the evidence sits, never whether it is enough. People decide that in Review.
+      </lx-info-tip>
+    </div>
+    @if (pills().length > 0) { <lx-state-pills class="lx-pills" [states]="pills()" [active]="jurisdiction()" /> }
+    <p class="lx-sr-only" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
+  </header>
+
+  @if (context.error(); as e) { <p-message class="lx-error" severity="error">{{ e }}</p-message> }
+
+  <p-tabpanels class="lx-panels">
+    @for (code of codes(); track code) {
+      <p-tabpanel [value]="code">
+        @if (code === jurisdiction()) {
+          @if (error(); as e) {
+            <p-message class="lx-error" severity="error">{{ e }}</p-message>
+          } @else if (view(); as v) {
+            @if (v.rows.length === 0) {
+              <div class="lx-empty lx-card">
+                <ng-icon name="phosphorGridFourDuotone" size="32" aria-hidden="true" />
+                <p>No finished assessment for {{ context.jurisdictionName(code) }} yet.</p>
+                <a pButton size="small" [outlined]="true" routerLink="../overview"><span pButtonLabel>Open overview</span></a>
+              </div>
+            } @else {
+              <div class="lx-toolbar">
+                @if (chips().length > 0) {
+                  <span id="lx-flags-label" class="lx-sr-only">Highlight a flag</span>
+                  <p-selectbutton class="lx-chips" [options]="chips()" optionValue="flag" optionLabel="name" [allowEmpty]="true"
+                                  [ngModel]="filter()" (ngModelChange)="filter.set($event)" ariaLabelledBy="lx-flags-label">
+                    <ng-template #item let-chip>
+                      <span class="lx-chip-body" [attr.data-tone]="chip.tone">
+                        <ng-icon [name]="chip.icon" size="16" aria-hidden="true" /><span>{{ chip.label }}</span><span class="lx-chip-count">{{ chip.count }}</span>
+                      </span>
+                    </ng-template>
+                  </p-selectbutton>
+                }
+                @if (matrix()?.ruleVersion; as rv) { <span class="lx-version">{{ rv.label }}</span> }
+              </div>
+
+              <div class="lx-frame">
+                <table class="lx-matrix" [attr.aria-label]="'Coverage, ' + context.jurisdictionName(code)" (keydown)="onKey($event)">
+                  <colgroup><col /></colgroup>
+                  @for (group of v.groups; track $index) { <colgroup [attr.span]="group.span"></colgroup> }
+                  <colgroup><col /><col /></colgroup>
+                  <thead>
+                    <tr>
+                      <th scope="col" rowspan="2" class="lx-req-col lx-enter-col" style="--lx-c: 0">Requirement</th>
+                      @for (col of v.columns; track col.key) {
+                        <th scope="col" [attr.rowspan]="col.required === null ? 2 : null" class="lx-col-head lx-enter-col"
+                            [class.lx-col-on]="hover()?.col === col.index" [style.--lx-c]="delay(col.index + 1)">
+                          @if (col.required === null) {
+                            <span class="lx-program-head">{{ col.code }}</span>
+                          } @else {
+                            <span class="lx-code" [pTooltip]="col.title" tooltipPosition="top">{{ col.code }}</span>
+                          }
+                        </th>
+                      }
+                      <th scope="col" rowspan="2" class="lx-flag-col lx-enter-col" [style.--lx-c]="delay(v.columns.length + 1)"><span class="lx-flag-head">Flag</span></th>
+                    </tr>
+                    <tr class="lx-groups">
+                      @for (group of v.groups; track $index) {
+                        <th scope="colgroup" [attr.colspan]="group.span" class="lx-group" [attr.data-required]="group.required">
+                          <span>{{ group.required ? 'Required' : 'Elective' }}</span>
+                        </th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of v.rows; track row.requirement.mappingId; let r = $index) {
+                      <tr [class.lx-dim]="dimmed(row)" [class.lx-row-on]="hover()?.row === r" [attr.data-ref]="row.requirement.ref">
+                        <th scope="row" class="lx-req-col lx-enter-col" style="--lx-c: 0">
+                          <span class="lx-ref">{{ row.requirement.ref }}</span>
+                          <span class="lx-req-title">{{ row.requirement.title }}</span>
+                        </th>
+                        @if (row.rulesEngine) {
+                          <td class="lx-engine lx-enter-col" [attr.colspan]="v.columns.length" style="--lx-c: 1">
+                            <span><ng-icon name="phosphorCalculator" size="16" aria-hidden="true" />Checked by the rules engine</span>
+                          </td>
+                        } @else {
+                          @for (cell of row.cells; track $index; let c = $index) {
+                            <td class="lx-cell lx-enter-col" [class.lx-col-on]="hover()?.col === c" [style.--lx-c]="delay(c + 1)">
+                              @if (cell) {
+                                <button #cellEl type="button" class="lx-dot" [attr.data-kind]="cell.kind" [attr.data-pos]="r + '-' + c"
+                                        [class.lx-dot-open]="previewed()?.cell === cell" [attr.aria-label]="cell.name" [tabindex]="isStop(r, c) ? 0 : -1"
+                                        (focus)="onFocus(r, c, cellEl)" (blur)="scheduleClose()" (mouseenter)="onEnter(r, c, cellEl)" (mouseleave)="onLeave()"
+                                        (click)="onFocus(r, c, cellEl)">
+                                  <span class="lx-mark" [attr.data-kind]="cell.kind" aria-hidden="true"></span>
+                                  @if (cell.outdated.length > 0) { <ng-icon class="lx-clock" name="phosphorClock" size="11" aria-hidden="true" /> }
+                                </button>
+                              } @else {
+                                <span class="lx-blank" aria-hidden="true"></span>
+                              }
+                            </td>
+                          }
+                        }
+                        <td class="lx-flag-col lx-enter-col" [style.--lx-c]="delay(v.columns.length + 1)">
+                          @if (row.flag; as f) {
+                            <span class="lx-flag" [attr.data-tone]="flags[f].tone" [attr.data-flag]="f">
+                              <ng-icon [name]="flags[f].icon" size="16" aria-hidden="true" /><span class="lx-flag-text">{{ flags[f].label }}</span>
+                            </span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          } @else {
+            <div class="lx-frame lx-skeleton" aria-hidden="true">
+              @for (i of [0, 1, 2, 3, 4, 5]; track i) {
+                <div class="lx-skeleton-row">
+                  <p-skeleton width="12rem" height="1rem" />
+                  @for (j of [0, 1, 2, 3, 4, 5, 6, 7]; track j) { <p-skeleton shape="circle" size="20px" /> }
+                </div>
+              }
+            </div>
+          }
+        }
+      </p-tabpanel>
+    }
+  </p-tabpanels>
+</p-tabs>
+
+<p-popover #card [focusOnShow]="false" [ariaLabel]="previewed()?.cell?.column?.code ?? 'Evidence'" styleClass="lx-cell-card" (onShow)="onCardShown()">
+  @if (previewed(); as p) {
+    <div class="lx-card-body" (mouseenter)="keepOpen()" (mouseleave)="scheduleClose()" (focusout)="scheduleClose()" (keydown)="onCardKey($event)">
+      <div class="lx-card-head">
+        <span class="lx-card-code">{{ p.cell.column.code }}</span>
+        @if (p.cell.column.required !== null) { <span class="lx-card-kind">{{ p.cell.column.required ? 'Required' : 'Elective' }}</span> }
+      </div>
+      <p class="lx-card-title">{{ p.cell.column.title }}</p>
+      <ul class="lx-card-lines">
+        @if (p.cell.system > 0) {
+          <li><span class="lx-mark" data-kind="SYSTEM" aria-hidden="true"></span><span>From the system</span><span class="lx-card-n">{{ p.cell.system }} {{ p.cell.system === 1 ? 'quote' : 'quotes' }}</span></li>
+        }
+        @if (p.cell.person > 0) {
+          <li><span class="lx-mark" data-kind="PERSON" aria-hidden="true"></span><span>From a person</span><span class="lx-card-n">{{ p.cell.person }} {{ p.cell.person === 1 ? 'quote' : 'quotes' }}</span></li>
+        }
+        @for (o of p.cell.outdated; track $index) {
+          <li><span class="lx-mark" data-kind="OUTDATED" aria-hidden="true"></span><span>{{ o.catalogYear }} version, {{ o.source === 'SYSTEM' ? 'system' : 'person' }}</span><span class="lx-card-n">{{ o.quoteCount }} {{ o.quoteCount === 1 ? 'quote' : 'quotes' }}</span></li>
+        }
+        @for (d of p.cell.documents; track d.documentId + d.source) {
+          <li><span class="lx-mark" [attr.data-kind]="d.source" aria-hidden="true"></span><span class="lx-card-file">{{ d.filename }}</span></li>
+        }
+      </ul>
+      <a #cardAction pButton size="small" class="lx-card-action" [routerLink]="['/programs', programId(), 'review']"
+         [queryParams]="{ jurisdiction: jurisdiction(), ref: p.row.requirement.ref }" (click)="closeCard()">
+        <span pButtonLabel>Open in Review</span>
+      </a>
+    </div>
+  }
+</p-popover>
