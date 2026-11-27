@@ -60,16 +60,17 @@ public class AssessmentRepository {
         jdbc.sql("UPDATE assessment SET status = 'FAILED', finished_at = now() WHERE id = :id").param("id", id).update();
     }
 
-    /** Finding and decision counts per jurisdiction code for the overview. */
+    /**
+     * Finding and decision counts per jurisdiction code for the overview. "Decided" is the negation of
+     * {@link MappingRepository#UNDECIDED}, the predicate the signing gate and the work queue use (D-192).
+     */
     public List<Map<String, Object>> findingCounts(UUID assessmentId) {
-        return jdbc.sql("""
-                SELECT j.code AS jurisdiction, m.finding, count(*) AS n,
-                       count(*) FILTER (WHERE le.kind IS NOT NULL AND le.kind <> 'REOPENED' AND NOT m.stale) AS decided
-                FROM mapping m JOIN jurisdiction j ON j.id = m.jurisdiction_id JOIN requirement r ON r.id = m.requirement_id
-                LEFT JOIN LATERAL (SELECT re.kind FROM review_event re WHERE re.mapping_id = m.id
-                                   ORDER BY re.created_at DESC, re.id DESC LIMIT 1) le ON true
-                WHERE m.assessment_id = :id
-                """ + MappingRepository.CURRENT + " GROUP BY j.code, m.finding ORDER BY j.code, m.finding")
+        return jdbc.sql("SELECT j.code AS jurisdiction, m.finding, count(*) AS n, count(*) FILTER (WHERE NOT "
+                        + MappingRepository.UNDECIDED + ") AS decided "
+                        + "FROM mapping m JOIN jurisdiction j ON j.id = m.jurisdiction_id JOIN requirement r ON r.id = m.requirement_id"
+                        + MappingRepository.LATEST_EVENT
+                        + " WHERE m.assessment_id = :id" + MappingRepository.CURRENT
+                        + " GROUP BY j.code, m.finding ORDER BY j.code, m.finding")
                 .param("id", assessmentId).query().listOfRows();
     }
 }
