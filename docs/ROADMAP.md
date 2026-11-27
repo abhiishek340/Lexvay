@@ -24,7 +24,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | merged (PR #16) |
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
-| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (merges after V011) |
+| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (final merge of main) |
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | in progress |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
@@ -37,7 +37,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | in progress |
 | F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
-| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | PR #19 approved (final merge of main after F6) |
+| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | in progress |
 
 ---
@@ -593,7 +593,7 @@ Purpose: change tracking today starts only when a person uploads a new rule text
 changes on a web page or PDF without notice; the product must notice them. The system fetches, detects a
 textual change, creates an **unapproved** draft rule version and opens the existing change flow. It never
 approves anything and never alters an approved version (product rules 1, 5, 6). Decisions D-180 to D-189 in
-`docs/decisions/F12.md`.
+`DECISIONS.md (D-180 to D-189)`.
 1. **Schema** (`V011__rule_source.sql`; RLS + FORCE + policy as in V002, so the schema tests pick it up):
    `rule_source` (`id`, `tenant_id`, `jurisdiction_id` → jurisdiction, `license_type`, `label`, `url`
    (http or https only, CHECK with a regex on the scheme), `check_interval_hours` int CHECK ≥ 1 AND ≤ 720,
@@ -750,6 +750,8 @@ D-259 in `docs/decisions/F7c.md`.
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
 ## Follow-ups recorded from reviews
+- F12: a failed check waits a full interval (up to 30 days) before the scheduler retries; a shorter backoff
+  needs a `next_check_at` column. No screen lists rule sources yet; add a Sources tab to the F3 rule workspace.
 - F12 deployment note: the SSRF guard resolves the host before connecting and the JDK client resolves it
   again, so a DNS-rebinding window remains; production egress must also block private ranges (Terraform).
 - WS-UI: the overview still finds the latest assessment through the audit log; switch it to the WS-PERF
