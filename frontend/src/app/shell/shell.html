@@ -1,33 +1,77 @@
-<a class="skip-link" href="#main">Skip to main content</a>
-@if (session.demo()) {
-  <div class="banner" role="status">
-    <strong>Fictional data.</strong> {{ session.tenantName() }}, its people, courses, rule text and findings are invented for this prototype. Nothing here is licensing guidance.
-  </div>
-}
-<div class="layout">
-  <header class="topbar">
-    <span class="brand">Lexvay</span>
-    <div class="topbar-right">
-      <label class="theme">
-        <span>Theme</span>
-        <select [value]="theme.theme()" (change)="theme.set(($any($event.target)).value)" aria-label="Colour theme">
-          <option value="system">System</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </label>
-      @if (session.user(); as user) {
-        <span class="who">{{ user.displayName }} · {{ user.role | lowercase }}</span>
-        <button type="button" class="link" (click)="signOut()">Sign out</button>
+<a class="lx-skip" href="#main">Skip to main content</a>
+<div class="lx-app" [class.lx-app--chrome]="chrome()">
+  @if (chrome()) {
+    @if (session.demo()) {
+      <aside class="lx-notice" aria-label="Fictional data notice">
+        <ng-icon name="phosphorInfo" size="16" aria-hidden="true" />
+        <p><strong>Fictional data.</strong> {{ session.tenantName() }}, its people, courses, rule text and findings are invented for this prototype. Nothing here is licensing guidance.</p>
+      </aside>
+    }
+    <header class="lx-topbar">
+      <a class="lx-wordmark" routerLink="/">Lexvay</a>
+      <span class="lx-topbar-divider" aria-hidden="true"></span>
+      <span class="lx-tenant">{{ session.tenantName() }}</span>
+      @defer (when context.programs().length > 1) {
+        @if (context.programs().length > 1) {
+        <span id="program-label" class="lx-sr-only">Program</span>
+        <p-select class="lx-program-select" [options]="context.programs()" optionLabel="name" optionValue="id" [ngModel]="programId()"
+                  (ngModelChange)="switchProgram($event)" ariaLabelledBy="program-label" size="small" appendTo="body" />
+        }
       }
-    </div>
-  </header>
-  <div class="body">
-    @if (currentProgramId(); as pid) {
-      <nav class="sidenav" aria-label="Screens">
+      <span class="lx-topbar-spacer"></span>
+      <span id="theme-label" class="lx-sr-only">Colour theme</span>
+      <p-selectbutton class="lx-theme" [options]="themes" optionLabel="label" optionValue="value" [allowEmpty]="false" size="small"
+                      [ngModel]="theme.theme()" (ngModelChange)="theme.set($event)" ariaLabelledBy="theme-label">
+        <ng-template #item let-option>
+          <ng-icon [name]="option.icon" size="16" aria-hidden="true" />
+          <span class="lx-theme-text">{{ option.label }}</span>
+        </ng-template>
+      </p-selectbutton>
+      @if (session.user(); as user) {
+        <button pButton type="button" class="lx-user" [text]="true" severity="secondary" size="small" (click)="toggleMenu($event)"
+                [attr.aria-label]="user.displayName + ', ' + roleLabel[user.role]" aria-haspopup="menu">
+          <ng-icon name="phosphorUserCircle" size="18" aria-hidden="true" />
+          <span class="lx-user-name">{{ user.displayName }}</span>
+          <span class="lx-user-role">{{ roleLabel[user.role] }}</span>
+          <ng-icon name="phosphorCaretDown" size="14" aria-hidden="true" />
+        </button>
+        @defer (on idle) {
+        <p-menu #accountMenu [model]="menuItems" [popup]="true" appendTo="body" ariaLabel="Account">
+          <ng-template #start>
+            <div class="lx-menu-who">
+              <span class="lx-menu-name">{{ user.displayName }}</span>
+              <span class="lx-menu-meta">{{ roleLabel[user.role] }} · {{ user.email }}</span>
+            </div>
+          </ng-template>
+          <ng-template #item let-item>
+            <a class="p-menu-item-link lx-menu-link">
+              <ng-icon name="phosphorSignOut" size="16" aria-hidden="true" />
+              <span>{{ item.label }}</span>
+            </a>
+          </ng-template>
+        </p-menu>
+        }
+      }
+    </header>
+  }
+  <div class="lx-frame">
+    @if (chrome() && programId(); as pid) {
+      <nav class="lx-rail" aria-label="Screens">
         <ul>
-          @for (link of links(pid); track link.label) {
-            <li><a [routerLink]="link.path" routerLinkActive="active" ariaCurrentWhenActive="page">{{ link.label }}</a></li>
+          @for (link of links(); track link.id) {
+            <li>
+              <a [routerLink]="['/programs', pid, link.id]" routerLinkActive="lx-active" ariaCurrentWhenActive="page"
+                 [attr.aria-describedby]="link.badge > 0 ? 'nav-badge-' + link.id : null">
+                <ng-icon [name]="link.icon" size="18" aria-hidden="true" />
+                <span class="lx-nav-label">{{ link.label }}</span>
+                @if (link.badge > 0) {
+                  <p-badge class="lx-nav-badge" [value]="link.badge" severity="secondary" aria-hidden="true" />
+                }
+              </a>
+              @if (link.badge > 0) {
+                <span class="lx-sr-only" [id]="'nav-badge-' + link.id">{{ link.badgeText }}</span>
+              }
+            </li>
           }
         </ul>
       </nav>
@@ -37,3 +81,16 @@
     </main>
   </div>
 </div>
+@defer (on idle) {
+<p-toast position="bottom-right" [life]="5000">
+  <ng-template #message let-message>
+    <div class="lx-toast">
+      <ng-icon [name]="message.severity === 'error' ? 'phosphorWarning' : message.severity === 'success' ? 'phosphorCheckCircle' : 'phosphorInfo'" size="18" aria-hidden="true" />
+      <div>
+        <p class="lx-toast-summary">{{ message.summary }}</p>
+        @if (message.detail) { <p class="lx-toast-detail">{{ message.detail }}</p> }
+      </div>
+    </div>
+  </ng-template>
+</p-toast>
+}

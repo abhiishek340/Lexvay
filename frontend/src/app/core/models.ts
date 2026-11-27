@@ -4,6 +4,8 @@ export type DecisionKind = 'ACCEPTED' | 'EVIDENCE_REQUESTED' | 'GAP_CONFIRMED';
 export type Outcome = 'MEETS' | 'DOES_NOT_MEET' | 'NOT_DETERMINED';
 
 export interface UserView { id: string; tenantId: string; email: string; displayName: string; role: Role; }
+/** GET /users: the people of the caller's tenant, for resolving ids to names. */
+export interface UserSummary { id: string; displayName: string; role: Role; email: string; }
 export interface SessionView { authenticated: boolean; user: UserView | null; csrfHeaderName: string | null; tenantName: string | null; demo: boolean; }
 
 export interface Program { id: string; name: string; licenseType: string; catalogYear: string; jurisdictions: string[]; createdAt: string; }

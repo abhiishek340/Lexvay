@@ -2,9 +2,13 @@ import { AssessmentView, Determination, JurisdictionSummary, Program } from './m
 
 export interface OverviewCounts { jurisdictions: number; requirements: number; waitingForReview: number; determinationsSigned: number; }
 
+/** Where a jurisdiction's determination stands; status is the same in words (review counts are shown separately). */
+export type JurisdictionState = 'SIGNED' | 'READY' | 'IN_REVIEW' | 'NOT_ASSESSED';
+
 export interface JurisdictionRow {
   code: string;
   summary: JurisdictionSummary | null;
+  state: JurisdictionState;
   status: string;
   signed: Determination | null;
 }
@@ -27,17 +31,22 @@ export function jurisdictionRows(program: Program, assessment: AssessmentView | 
     const summary = assessment?.jurisdictions.find((s) => s.jurisdiction === code) ?? null;
     const signed = determinations.find((d) => d.jurisdiction === code && d.status === 'SIGNED') ?? null;
     const reopened = determinations.find((d) => d.jurisdiction === code && d.status === 'REOPENED') ?? null;
+    let state: JurisdictionState;
     let status: string;
     if (signed) {
+      state = 'SIGNED';
       status = 'Signed';
     } else if (!summary) {
+      state = 'NOT_ASSESSED';
       status = 'Not assessed';
     } else if (summary.decided === summary.total) {
+      state = 'READY';
       status = reopened ? 'Reopened, ready to sign' : 'Ready to sign';
     } else {
-      status = `${summary.decided} of ${summary.total} reviewed`;
+      state = 'IN_REVIEW';
+      status = reopened ? 'Reopened, not signed' : 'Not signed';
     }
-    return { code, summary, status, signed };
+    return { code, summary, state, status, signed };
   });
 }
 
