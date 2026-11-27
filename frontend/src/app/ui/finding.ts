@@ -53,7 +53,7 @@ export class FindingLabel {
   viewProviders: [provideIcons(DECISION_STATE_ICONS)],
   template: `<ng-icon [name]="icon()" size="14" aria-hidden="true" /><span>{{ label() }}</span>`,
   styles: `
-    :host { display: inline-flex; align-items: center; gap: 6px; color: var(--p-lx-text-secondary); white-space: nowrap; }
+    :host { display: inline-flex; align-items: center; gap: 6px; color: var(--p-lx-text-2); white-space: nowrap; }
     :host(.lx-decided) { color: var(--p-lx-text); }
     ng-icon { flex: none; }
   `,

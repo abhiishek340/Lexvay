@@ -17,12 +17,12 @@ let nextId = 0;
     <svg class="lx-bar" width="100%" height="10" role="img" [attr.aria-label]="description()" preserveAspectRatio="none">
       <defs>
         <pattern [attr.id]="id + '-hatch'" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width="4" height="4" style="fill: var(--p-lx-ambiguous-bg)" />
+          <rect width="4" height="4" style="fill: var(--p-lx-ambiguous-tint)" />
           <rect width="2" height="4" style="fill: var(--p-lx-ambiguous)" />
         </pattern>
         <pattern [attr.id]="id + '-cross'" width="4" height="4" patternUnits="userSpaceOnUse">
           <rect width="4" height="4" style="fill: var(--p-lx-missing)" />
-          <rect x="1" y="1" width="2" height="2" style="fill: var(--p-lx-missing-bg)" />
+          <rect x="1" y="1" width="2" height="2" style="fill: var(--p-lx-missing-tint)" />
         </pattern>
       </defs>
       @for (seg of placed(); track seg.finding) {
@@ -40,7 +40,7 @@ let nextId = 0;
   `,
   styles: `
     :host { display: block; min-width: 180px; }
-    .lx-bar { display: block; border-radius: 2px; background: var(--p-lx-sunken); outline: 1px solid var(--p-lx-hairline); outline-offset: -1px; }
+    .lx-bar { display: block; border-radius: 2px; background: var(--p-lx-surface-2); outline: 1px solid var(--p-lx-line); outline-offset: -1px; }
     .lx-legend { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 12px; line-height: 16px; }
     .lx-legend li { display: inline-flex; align-items: center; gap: 4px; }
     .lx-legend-count { color: var(--p-lx-text); }

@@ -2,23 +2,23 @@
 :host ::ng-deep .lx-report-select { width: 100%; }
 
 .lx-document-page {
-  max-width: 880px; box-sizing: border-box; background: var(--p-lx-card); border: 1px solid var(--p-lx-hairline); border-radius: 4px;
+  max-width: 880px; box-sizing: border-box; background: var(--p-lx-surface); border-radius: var(--lx-r-hero); box-shadow: var(--p-lx-e2);
   padding: 40px 48px 48px; font-family: var(--lx-font-serif); font-size: 15px; line-height: 24px;
 }
-.lx-doc-head { padding-bottom: 20px; border-bottom: 1px solid var(--p-lx-hairline); margin-bottom: 24px; }
+.lx-doc-head { padding-bottom: 20px; border-bottom: 1px solid var(--p-lx-line); margin-bottom: 24px; }
 .lx-doc-head h2 { font-family: var(--lx-font-serif); font-size: 24px; line-height: 32px; font-weight: 400; margin-top: 6px; }
-.lx-doc-head h2 .lx-mono { font-size: 13px; color: var(--p-lx-text-secondary); margin-left: 6px; }
-.lx-doc-sub { color: var(--p-lx-text-secondary); margin-top: 4px; }
+.lx-doc-head h2 .lx-mono { font-size: 13px; color: var(--p-lx-text-2); margin-left: 6px; }
+.lx-doc-sub { color: var(--p-lx-text-2); margin-top: 4px; }
 .lx-label { font-family: var(--lx-font-sans); }
 
-.lx-stamp { font-family: var(--lx-font-sans); font-size: 14px; line-height: 20px; padding: 16px 20px; border-radius: 4px; margin-bottom: 32px; }
-.lx-stamp-draft { border: 2px dashed var(--p-lx-control); color: var(--p-lx-text); }
-.lx-stamp-draft p + p { color: var(--p-lx-text-secondary); margin-top: 4px; }
-.lx-stamp-signed { border: 1px solid var(--p-lx-found-border); background: var(--p-lx-found-bg); }
+.lx-stamp { font-family: var(--lx-font-sans); font-size: 14px; line-height: 20px; padding: 16px 20px; border-radius: var(--lx-r-card); margin-bottom: 32px; }
+.lx-stamp-draft { border: 2px dashed var(--p-lx-line-strong); color: var(--p-lx-text); }
+.lx-stamp-draft p + p { color: var(--p-lx-text-2); margin-top: 4px; }
+.lx-stamp-signed { background: var(--p-lx-found-tint); }
 .lx-stamp-title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; }
 .lx-stamp-signed .lx-stamp-title { color: var(--p-lx-found); }
 .lx-stamp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 24px; margin-top: 14px; }
-.lx-stamp-grid dt { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--p-lx-text-secondary); }
+.lx-stamp-grid dt { font-size: 12px; font-weight: 600; color: var(--p-lx-text-2); }
 .lx-stamp-grid dd { margin-top: 2px; }
 .lx-stamp-wide { grid-column: span 2; }
 .lx-hash { word-break: break-all; }
@@ -29,11 +29,11 @@
 :host ::ng-deep .lx-table { font-family: var(--lx-font-sans); font-size: 14px; line-height: 20px; }
 .lx-col-req { min-width: 220px; }
 .lx-req-title { display: block; font-family: var(--lx-font-sans); font-weight: 500; margin: 2px 0 4px; }
-.lx-req-text { display: block; font-family: var(--lx-font-serif); font-size: 14px; line-height: 21px; color: var(--p-lx-text-secondary); }
+.lx-req-text { display: block; font-family: var(--lx-font-serif); font-size: 14px; line-height: 21px; color: var(--p-lx-text-2); }
 .lx-decision-note { display: block; margin-top: 4px; font-family: var(--lx-font-serif); font-style: italic; font-size: 13px; }
 .lx-col-evidence { min-width: 220px; }
-.lx-cell-quote { margin: 0 0 6px; padding-left: 10px; border-left: 2px solid var(--p-lx-hairline); font-family: var(--lx-font-serif); font-size: 14px; line-height: 21px; }
-.lx-cite { font-size: 12px; color: var(--p-lx-text-secondary); }
+.lx-cell-quote { margin: 0 0 6px; padding-left: 10px; border-left: 2px solid var(--p-lx-line); font-family: var(--lx-font-serif); font-size: 14px; line-height: 21px; }
+.lx-cite { font-size: 12px; color: var(--p-lx-text-2); }
 .lx-skeleton { display: flex; flex-direction: column; gap: 8px; }
 
 @media (max-width: 720px) {
@@ -41,6 +41,6 @@
   .lx-stamp-grid { grid-template-columns: minmax(0, 1fr); }
   .lx-stamp-wide { grid-column: auto; }
   :host ::ng-deep .lx-table thead { display: none; }
-  :host ::ng-deep .lx-table tbody tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--p-lx-hairline); }
+  :host ::ng-deep .lx-table tbody tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--p-lx-line); }
   :host ::ng-deep .lx-table tbody td { display: block; border: 0; padding: 4px 0; min-width: 0; }
 }

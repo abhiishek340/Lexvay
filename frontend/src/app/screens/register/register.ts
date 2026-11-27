@@ -3,7 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorArrowCounterClockwise, phosphorCopy, phosphorDownloadSimple, phosphorMinusCircle, phosphorPrinter, phosphorSealCheck, phosphorXCircle } from '@ng-icons/phosphor-icons/regular';
+import { phosphorArrowCounterClockwise, phosphorCheckCircle, phosphorCopy, phosphorDownloadSimple, phosphorMinusCircle, phosphorPrinter, phosphorSealCheck, phosphorXCircle } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -32,7 +32,7 @@ interface TagView { severity: Severity; label: string; icon: IconName }
 
 const OUTCOMES: Outcome[] = ['MEETS', 'DOES_NOT_MEET', 'NOT_DETERMINED'];
 /** The icons the register shows beyond SHELL_ICONS, provided by its route (register.routes.ts). */
-export const REGISTER_ICONS = { phosphorArrowCounterClockwise, phosphorCopy, phosphorDownloadSimple, phosphorMinusCircle, phosphorPrinter, phosphorSealCheck, phosphorXCircle };
+export const REGISTER_ICONS = { phosphorArrowCounterClockwise, phosphorCheckCircle, phosphorCopy, phosphorDownloadSimple, phosphorMinusCircle, phosphorPrinter, phosphorSealCheck, phosphorXCircle };
 
 /** A distinct shape per signed outcome, so the outcome never depends on colour alone. */
 const OUTCOME_ICON: Record<Outcome, IconName> = { MEETS: 'phosphorCheckCircle', DOES_NOT_MEET: 'phosphorXCircle', NOT_DETERMINED: 'phosphorMinusCircle' };

@@ -2,227 +2,165 @@ import { definePreset } from '@primeuix/themes';
 import auraBase from '@primeuix/themes/aura/base';
 import auraBadge from '@primeuix/themes/aura/badge';
 import auraButton from '@primeuix/themes/aura/button';
-import auraDatatable from '@primeuix/themes/aura/datatable';
-import auraIconfield from '@primeuix/themes/aura/iconfield';
-import auraInputtext from '@primeuix/themes/aura/inputtext';
-import auraMenu from '@primeuix/themes/aura/menu';
-import auraMessage from '@primeuix/themes/aura/message';
-import auraPassword from '@primeuix/themes/aura/password';
-import auraSelect from '@primeuix/themes/aura/select';
-import auraSelectbutton from '@primeuix/themes/aura/selectbutton';
-import auraSkeleton from '@primeuix/themes/aura/skeleton';
-import auraTabs from '@primeuix/themes/aura/tabs';
-import auraTag from '@primeuix/themes/aura/tag';
-import auraToast from '@primeuix/themes/aura/toast';
-import auraTogglebutton from '@primeuix/themes/aura/togglebutton';
+import auraPopover from '@primeuix/themes/aura/popover';
 import auraTooltip from '@primeuix/themes/aura/tooltip';
+import { PALETTE, Pair } from './tokens';
 
 /**
- * The Lexvay design tokens (docs/DESIGN.md, "Tokens"), written once here as light-dark() pairs.
- * PrimeNG resolves light-dark() through the color-scheme it sets for [data-theme="dark"], and the
- * `extend.lx` group below publishes the same values as CSS variables (--p-lx-*) for application CSS.
+ * LexvayPreset v2 (docs/DESIGN.md v2). Every colour token is one light-dark() value (D-081), so a single
+ * [data-theme] attribute drives PrimeNG and the application CSS alike; `extend.lx` publishes the same values as
+ * --p-lx-* custom properties for application CSS.
  */
-const ld = (light: string, dark: string): string => `light-dark(${light}, ${dark})`;
-
-const t = {
-  ground: ld('#F7F7F5', '#0F1113'),
-  card: ld('#FFFFFF', '#16191C'),
-  raised: ld('#FFFFFF', '#1C2024'),
-  sunken: ld('#F0F0EC', '#121518'),
-  hover: ld('#F2F2EE', '#1E2226'),
-  hairline: ld('#DCDCD6', '#2A2F35'),
-  /** Boundary of form controls: 3:1 against the card in both themes (WCAG 1.4.11). */
-  control: ld('#8B8D86', '#6B727A'),
-  text: ld('#15171A', '#ECEDEE'),
-  textSecondary: ld('#555B63', '#A3AAB3'),
-  primary: ld('#1B3A6B', '#9DB8E8'),
-  primaryHover: ld('#142C52', '#B6CBEE'),
-  primaryActive: ld('#0F2240', '#C9D8F2'),
-  onPrimary: ld('#FFFFFF', '#0F1113'),
-  selected: ld('#E7EDF6', '#1D2A3D'),
-  selectedText: ld('#14305A', '#DCE5F3'),
-  found: ld('#1D6B3A', '#7CCF98'),
-  foundBg: ld('#E9F3EC', '#14261B'),
-  foundBorder: ld('#A9CFB6', '#2C5A3B'),
-  ambiguous: ld('#8A5A00', '#E8B45A'),
-  ambiguousBg: ld('#FAF1DE', '#2B220F'),
-  ambiguousBorder: ld('#DFC48A', '#5E4719'),
-  missing: ld('#9B2C1F', '#F0958A'),
-  missingBg: ld('#F9EAE7', '#2E1714'),
-  missingBorder: ld('#E0AFA7', '#663129'),
-  noticeBg: ld('#FBF3DC', '#2E2609'),
-  noticeFg: ld('#5A3E00', '#F3DFA0'),
-  shadow: '0 8px 24px rgba(15, 17, 19, 0.14), 0 1px 3px rgba(15, 17, 19, 0.08)',
-};
-
-/** The design tokens, for lazy screens that register their own component token sets (each screen's `<screen>-theme.ts`). */
-export const lexvayTokens = t;
-
-const severity = (fg: string, bg: string, border: string) => ({
-  background: bg,
-  borderColor: border,
-  color: fg,
-  detailColor: t.text,
-  shadow: 'none',
-  closeButton: { hoverBackground: t.hover, focusRing: { color: t.primary, shadow: 'none' } },
-  outlined: { color: fg, borderColor: fg },
-  simple: { color: fg },
-});
-
-/** Ink blue scale around the primary (#1B3A6B light, #9DB8E8 dark), used where PrimeNG asks for a shade. */
-const ink = {
-  50: '#EEF2F9', 100: '#DCE5F3', 200: '#B9CBE7', 300: '#9DB8E8', 400: '#6F8FC4', 500: '#3F6299',
-  600: '#1B3A6B', 700: '#152E56', 800: '#102342', 900: '#0B182E', 950: '#060E1C',
-};
-
+const ld = ({ light, dark }: Pair): string => `light-dark(${light}, ${dark})`;
+type Tokens = { [K in keyof typeof PALETTE]: string };
+const colours = Object.fromEntries(Object.entries(PALETTE).map(([name, pair]) => [name, ld(pair)])) as Tokens;
 
 /**
- * Aura limited to the components the shell and first paint render (D-082): the full Aura preset carries token sets
- * for about 90 components (130 kB of the initial bundle). A component that only some screens render registers its
- * token set from the chunk that renders it (registerComponentTokens in component-tokens.ts; each screen's
- * `<screen>-theme.ts`), never here. A component added to the shell or to a first paint must be added here.
+ * Elevation (DESIGN.md "Elevation"). Light: soft shadows with a 1 px ring. Dark: no shadow, a 1 px ring in `line`
+ * and an inner top highlight. Each layer carries both themes through light-dark(), so one value serves both.
+ */
+const ink = (alpha: number): string => `rgb(13 16 20 / ${alpha})`;
+const ring = (alpha: number): string => `0 0 0 1px light-dark(${ink(alpha)}, ${PALETTE.line.dark})`;
+const highlight = 'inset 0 1px 0 light-dark(transparent, rgb(255 255 255 / .04))';
+const elevation = {
+  e1: `0 1px 2px light-dark(${ink(0.05)}, transparent), ${ring(0.04)}, ${highlight}`,
+  e2: `0 6px 16px -4px light-dark(${ink(0.08)}, transparent), ${ring(0.05)}, ${highlight}`,
+  e3: `0 24px 48px -12px light-dark(${ink(0.18)}, transparent), ${ring(0.06)}, ${highlight}`,
+};
+
+/** The tokens as values, for the component token sets that chunks register (the `*-tokens.ts` files beside this one). */
+export const lexvayTokens = { ...colours, ...elevation };
+const t = lexvayTokens;
+
+/** "surface2" is --p-lx-surface-2 and "accentTint" --p-lx-accent-tint, the names DESIGN.md uses. */
+const cssName = (name: string): string => name.replace(/([a-z])([A-Z])/g, '$1-$2').replace(/([a-z]{2})(\d)/g, '$1-$2').toLowerCase();
+const published = Object.fromEntries(Object.entries(lexvayTokens).map(([name, value]) => [cssName(name), value]));
+
+/** Accent blue scale for the places PrimeNG asks for a shade (#2346E0 light, #7D9BFF dark). */
+const accentScale = {
+  50: '#EBEFFF', 100: '#D6DEFE', 200: '#AEBDFD', 300: '#7D9BFF', 400: '#5574F0', 500: '#2346E0',
+  600: '#1C38B6', 700: '#172D8F', 800: '#11226B', 900: '#0C1849', 950: '#070F2E',
+};
+
+/**
+ * Aura limited to what the shell paints first: buttons, the work queue badge, popovers (InfoTip, the StateMap card,
+ * the shell's menus) and tooltips (the rail's full names, the program pill). Every other component's token set, Lexvay's overrides included, is registered by the chunk that
+ * renders it (theme/component-tokens.ts and the `*-tokens.ts` files beside this one; docs/PERF.md, cut 2). The semantic
+ * tokens below (form fields, lists, overlays, navigation) restyle every component, registered early or late.
  */
 const Aura = {
   ...auraBase,
-  components: { badge: auraBadge, button: auraButton, datatable: auraDatatable, iconfield: auraIconfield, inputtext: auraInputtext, menu: auraMenu, message: auraMessage, password: auraPassword, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, tabs: auraTabs, tag: auraTag, toast: auraToast, togglebutton: auraTogglebutton, tooltip: auraTooltip },
+  components: { badge: auraBadge, button: auraButton, popover: auraPopover, tooltip: auraTooltip },
 };
 
 export const LexvayPreset = definePreset(Aura, {
   primitive: {
-    borderRadius: { none: '0', xs: '2px', sm: '4px', md: '4px', lg: '4px', xl: '4px' },
+    borderRadius: { none: '0', xs: '4px', sm: '6px', md: '8px', lg: '12px', xl: '16px' },
   },
   semantic: {
-    focusRing: { width: '2px', style: 'solid', color: t.primary, offset: '2px', shadow: 'none' },
+    transitionDuration: '120ms',
+    focusRing: { width: '2px', style: 'solid', color: t.accent, offset: '2px', shadow: 'none' },
     iconSize: '1rem',
-    primary: {
-      ...ink,
-      color: t.primary,
-      contrastColor: t.onPrimary,
-      hoverColor: t.primaryHover,
-      activeColor: t.primaryActive,
-    },
+    primary: { ...accentScale, color: t.accent, contrastColor: t.onAccent, hoverColor: t.accentHover, activeColor: t.accentActive },
     surface: {
       0: '#FFFFFF',
-      50: ld('#F7F7F5', '#ECEDEE'),
-      100: ld('#EFEFEB', '#E6E8EA'),
-      200: ld('#DCDCD6', '#DADDE0'),
-      300: ld('#C8C8C1', '#C4C9CE'),
-      400: ld('#9C9E99', '#A3AAB3'),
-      500: ld('#6B7077', '#6B727A'),
-      600: ld('#555B63', '#3A4047'),
-      700: ld('#3A3F45', '#2A2F35'),
-      800: ld('#24282C', '#1C2024'),
-      900: ld('#15171A', '#16191C'),
-      950: ld('#0B0C0E', '#0F1113'),
+      50: ld({ light: '#F7F7F4', dark: '#EEF0F3' }),
+      100: ld({ light: '#F1F1ED', dark: '#D9DDE2' }),
+      200: ld({ light: '#E6E6E0', dark: '#A4ACB7' }),
+      300: ld({ light: '#CFCFC8', dark: '#6F7783' }),
+      400: ld({ light: '#8B919B', dark: '#59616C' }),
+      500: ld({ light: '#6B727C', dark: '#3A414B' }),
+      600: ld({ light: '#565D67', dark: '#252B33' }),
+      700: ld({ light: '#3A4048', dark: '#1B2027' }),
+      800: ld({ light: '#23272D', dark: '#171B21' }),
+      900: ld({ light: '#15181C', dark: '#111419' }),
+      950: ld({ light: '#0D1014', dark: '#0A0C0F' }),
     },
-    text: { color: t.text, hoverColor: t.text, mutedColor: t.textSecondary, hoverMutedColor: t.text },
-    content: { borderRadius: '4px', background: t.card, hoverBackground: t.hover, borderColor: t.hairline, color: t.text, hoverColor: t.text },
-    highlight: { background: t.selected, focusBackground: t.selected, color: t.selectedText, focusColor: t.selectedText },
-    mask: { background: ld('rgba(21, 23, 26, 0.36)', 'rgba(0, 0, 0, 0.6)'), color: t.text },
+    text: { color: t.text, hoverColor: t.text, mutedColor: t.text2, hoverMutedColor: t.text },
+    content: { borderRadius: '12px', background: t.surface, hoverBackground: t.surface2, borderColor: t.line, color: t.text, hoverColor: t.text },
+    highlight: { background: t.accentTint, focusBackground: t.accentTint, color: t.text, focusColor: t.text },
+    mask: { background: ld({ light: 'rgb(13 16 20 / .32)', dark: 'rgb(0 0 0 / .6)' }), color: t.text },
     formField: {
-      background: t.card,
-      disabledBackground: t.sunken,
-      filledBackground: t.card,
-      filledHoverBackground: t.card,
-      filledFocusBackground: t.card,
-      borderColor: t.control,
-      hoverBorderColor: t.text,
-      focusBorderColor: t.primary,
+      paddingX: '0.75rem',
+      paddingY: '0.5rem',
+      background: t.surface,
+      disabledBackground: t.surface2,
+      filledBackground: t.surface,
+      filledHoverBackground: t.surface,
+      filledFocusBackground: t.surface,
+      borderColor: t.lineStrong,
+      hoverBorderColor: t.text2,
+      focusBorderColor: t.accent,
       invalidBorderColor: t.missing,
       color: t.text,
-      disabledColor: t.textSecondary,
-      placeholderColor: t.textSecondary,
+      disabledColor: t.text2,
+      // Placeholders are 14 px content, so they use text-2 (text-3 is for 18 px and up, D-303).
+      placeholderColor: t.text2,
       invalidPlaceholderColor: t.missing,
-      iconColor: t.textSecondary,
-      borderRadius: '4px',
+      iconColor: t.text2,
+      borderRadius: '8px',
       shadow: 'none',
-      focusRing: { width: '2px', style: 'solid', color: t.primary, offset: '-1px', shadow: 'none' },
+      focusRing: { width: '2px', style: 'solid', color: t.accent, offset: '-1px', shadow: 'none' },
+    },
+    list: {
+      padding: '0.375rem',
+      gap: '2px',
+      option: { padding: '0.5rem 0.75rem', borderRadius: '6px', focusBackground: t.surface2, color: t.text, focusColor: t.text, selectedBackground: t.accentTint, selectedFocusBackground: t.accentTint, selectedColor: t.text, selectedFocusColor: t.text },
+      optionGroup: { padding: '0.5rem 0.75rem 0.25rem', fontWeight: '600', color: t.text2 },
     },
     overlay: {
-      select: { borderRadius: '4px', background: t.raised, borderColor: t.hairline, color: t.text, shadow: t.shadow },
-      popover: { borderRadius: '4px', padding: '0.75rem', background: t.raised, borderColor: t.hairline, color: t.text, shadow: t.shadow },
-      modal: { borderRadius: '4px', padding: '1.5rem', background: t.raised, borderColor: t.hairline, color: t.text, shadow: t.shadow },
-      navigation: { shadow: t.shadow },
+      select: { borderRadius: '12px', background: t.raised, borderColor: 'transparent', color: t.text, shadow: t.e3 },
+      popover: { borderRadius: '12px', padding: '1rem', background: t.raised, borderColor: 'transparent', color: t.text, shadow: t.e3 },
+      modal: { borderRadius: '16px', padding: '1.5rem', background: t.raised, borderColor: 'transparent', color: t.text, shadow: t.e3 },
+      navigation: { shadow: t.e3 },
     },
-    list: { option: { focusBackground: t.hover, color: t.text, focusColor: t.text } },
-    navigation: { item: { focusBackground: t.hover, activeBackground: t.hover, color: t.text, focusColor: t.text, activeColor: t.text } },
+    navigation: {
+      list: { padding: '0.375rem', gap: '2px' },
+      item: { padding: '0.5rem 0.75rem', borderRadius: '6px', gap: '0.625rem', focusBackground: t.surface2, activeBackground: t.surface2, color: t.text, focusColor: t.text, activeColor: t.text, icon: { color: t.text2, focusColor: t.text, activeColor: t.text } },
+      submenuLabel: { padding: '0.5rem 0.75rem 0.25rem', fontWeight: '600', color: t.text2 },
+    },
   },
   components: {
     button: {
       root: {
-        label: { fontWeight: '500' }, paddingY: '0.4375rem', paddingX: '0.875rem',
+        borderRadius: '8px', gap: '0.5rem', paddingX: '0.875rem', paddingY: '0.5rem',
+        label: { fontWeight: '550' },
+        sm: { fontSize: '0.8125rem', paddingX: '0.625rem', paddingY: '0.3125rem' },
+        primary: { borderColor: t.accent, hoverBorderColor: t.accentHover, activeBorderColor: t.accentActive },
         secondary: {
-          background: t.card, hoverBackground: t.hover, activeBackground: t.sunken,
-          borderColor: t.control, hoverBorderColor: t.text, activeBorderColor: t.text,
+          background: t.surface2, hoverBackground: t.line, activeBackground: t.line,
+          borderColor: 'transparent', hoverBorderColor: 'transparent', activeBorderColor: 'transparent',
           color: t.text, hoverColor: t.text, activeColor: t.text,
-          focusRing: { color: t.primary, shadow: 'none' },
+          focusRing: { color: t.accent, shadow: 'none' },
         },
+        danger: { background: t.missing, hoverBackground: t.missing, activeBackground: t.missing, borderColor: t.missing, hoverBorderColor: t.missing, activeBorderColor: t.missing, color: t.onAccent, hoverColor: t.onAccent, activeColor: t.onAccent },
       },
       outlined: {
-        primary: { hoverBackground: t.selected, activeBackground: t.selected, borderColor: t.primary, color: t.primary },
-        danger: { hoverBackground: t.missingBg, activeBackground: t.missingBg, borderColor: t.missing, color: t.missing },
-        secondary: { hoverBackground: t.hover, activeBackground: t.sunken, borderColor: t.control, color: t.text },
+        primary: { hoverBackground: t.accentTint, activeBackground: t.accentTint, borderColor: t.accent, color: t.accent },
+        danger: { hoverBackground: t.missingTint, activeBackground: t.missingTint, borderColor: t.missing, color: t.missing },
+        secondary: { hoverBackground: t.surface2, activeBackground: t.surface2, borderColor: t.lineStrong, color: t.text },
       },
       text: {
-        primary: { hoverBackground: t.selected, activeBackground: t.selected, color: t.primary },
-        secondary: { hoverBackground: t.hover, activeBackground: t.sunken, color: t.text },
-        danger: { hoverBackground: t.missingBg, activeBackground: t.missingBg, color: t.missing },
+        primary: { hoverBackground: t.accentTint, activeBackground: t.accentTint, color: t.accent },
+        secondary: { hoverBackground: t.surface2, activeBackground: t.line, color: t.text },
+        danger: { hoverBackground: t.missingTint, activeBackground: t.missingTint, color: t.missing },
       },
-      link: { color: t.primary, hoverColor: t.primaryHover, activeColor: t.primaryActive },
+      link: { color: t.accent, hoverColor: t.accentHover, activeColor: t.accentActive },
     },
-    tag: {
-      root: { fontSize: '0.75rem', fontWeight: '500', padding: '0.125rem 0.5rem', gap: '0.375rem', borderRadius: '2px' },
-      primary: { background: t.selected, color: t.selectedText },
-      info: { background: t.selected, color: t.selectedText },
-      secondary: { background: t.sunken, color: t.textSecondary },
-      success: { background: t.foundBg, color: t.found },
-      warn: { background: t.ambiguousBg, color: t.ambiguous },
-      danger: { background: t.missingBg, color: t.missing },
+    badge: {
+      root: { borderRadius: '999px', padding: '0 0.4375rem', fontSize: '0.6875rem', fontWeight: '600', minWidth: '1.25rem', height: '1.25rem' },
+      primary: { background: t.accent, color: t.onAccent },
+      secondary: { background: t.surface2, color: t.text2 },
     },
-    message: {
-      info: severity(t.primary, t.selected, t.hairline),
-      success: severity(t.found, t.foundBg, t.foundBorder),
-      warn: severity(t.ambiguous, t.ambiguousBg, t.ambiguousBorder),
-      error: severity(t.missing, t.missingBg, t.missingBorder),
-      secondary: severity(t.textSecondary, t.sunken, t.hairline),
+    popover: {
+      root: { gutter: '8px', borderColor: 'transparent' },
+      content: { padding: '1rem' },
     },
-    toast: {
-      root: { width: '24rem', borderRadius: '4px', blur: '0' },
-      info: { ...severity(t.primary, t.raised, t.hairline), shadow: t.shadow },
-      success: { ...severity(t.found, t.raised, t.foundBorder), shadow: t.shadow },
-      warn: { ...severity(t.ambiguous, t.raised, t.ambiguousBorder), shadow: t.shadow },
-      error: { ...severity(t.missing, t.raised, t.missingBorder), shadow: t.shadow },
-    },
-    datatable: {
-      headerCell: { background: 'transparent', color: t.textSecondary, borderColor: t.hairline, padding: '0.5rem 0.75rem' },
-      columnTitle: { fontWeight: '600', fontSize: '0.6875rem' },
-      row: { background: 'transparent', hoverBackground: t.hover, color: t.text },
-      bodyCell: { borderColor: t.hairline, padding: '0.625rem 0.75rem' },
-    },
-    tabs: {
-      tablist: { background: 'transparent', borderColor: t.hairline },
-      tab: { color: t.textSecondary, hoverColor: t.text, activeColor: t.primary, padding: '0.625rem 1rem', fontWeight: '600' },
-      tabpanel: { background: 'transparent', padding: '0' },
-      activeBar: { height: '2px', background: t.primary },
-    },
-    selectbutton: {
-      root: { borderRadius: '4px' },
-    },
-    togglebutton: {
-      root: {
-        background: t.card, checkedBackground: t.selected, hoverBackground: t.hover,
-        borderColor: t.control, checkedBorderColor: t.primary,
-        color: t.textSecondary, hoverColor: t.text, checkedColor: t.selectedText,
-        borderRadius: '4px', padding: '0.25rem 0.625rem', fontWeight: '500',
-      },
-      content: { checkedBackground: 'transparent', checkedShadow: 'none', padding: '0', borderRadius: '2px' },
-      icon: { color: t.textSecondary, hoverColor: t.text, checkedColor: t.selectedText },
-    },
-    skeleton: {
-      root: { background: t.sunken, animationBackground: ld('rgba(255, 255, 255, 0.5)', 'rgba(255, 255, 255, 0.04)') },
+    tooltip: {
+      root: { background: t.text, color: t.surface, borderRadius: '6px', padding: '0.375rem 0.625rem', fontSize: '0.8125rem', maxWidth: '20rem', shadow: t.e2 },
     },
   },
   extend: {
-    lx: t,
+    lx: published,
   },
 });

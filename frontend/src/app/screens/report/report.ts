@@ -16,7 +16,9 @@ import { OUTCOME_LABEL, licenseLabel } from '../../core/labels';
 import { Mapping } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
+import { registerComponentTokens } from '../../theme/component-tokens';
 import { DecisionState, FindingLabel } from '../../ui/finding';
+import { REPORT_TOKENS } from './report-theme';
 
 /** The icons the report shows beyond SHELL_ICONS, provided by its route (report.routes.ts). */
 export const REPORT_ICONS = { phosphorDownloadSimple, phosphorFilePdf, phosphorSealCheck };
@@ -50,6 +52,7 @@ export class Report {
   readonly signed = computed(() => this.context.determinations().find((d) => d.jurisdiction === this.jurisdiction() && d.status === 'SIGNED') ?? null);
 
   constructor() {
+    registerComponentTokens(REPORT_TOKENS);
     effect(() => {
       const id = this.programId();
       untracked(() => this.context.ensure(id));

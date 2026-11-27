@@ -29,7 +29,8 @@
               "src/styles.css"
             ],
             "define": {
-              "LEXVAY_PRIMEUI_LICENSE": "\"\""
+              "LEXVAY_PRIMEUI_LICENSE": "\"\"",
+              "LEXVAY_DEMO_ACCOUNTS": "[]"
             }
           },
           "configurations": {
@@ -37,8 +38,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "700kB",
-                  "maximumError": "800kB"
+                  "maximumWarning": "680kB",
+                  "maximumError": "760kB"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -59,7 +60,11 @@
             "development": {
               "optimization": false,
               "extractLicenses": false,
-              "sourceMap": true
+              "sourceMap": true,
+              "define": {
+                "LEXVAY_PRIMEUI_LICENSE": "\"\"",
+                "LEXVAY_DEMO_ACCOUNTS": "[{\"email\":\"dana.whitfield@northfield.example\",\"name\":\"Dana Whitfield\",\"role\":\"SIGNER\"},{\"email\":\"priya.raman@northfield.example\",\"name\":\"Dr. Priya Raman\",\"role\":\"REVIEWER\"},{\"email\":\"jordan.ellis@northfield.example\",\"name\":\"Jordan Ellis\",\"role\":\"CONTRIBUTOR\"},{\"email\":\"admin@northfield.example\",\"name\":\"Northfield Admin\",\"role\":\"ADMIN\"}]"
+              }
             }
           },
           "defaultConfiguration": "production"

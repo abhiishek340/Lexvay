@@ -1,21 +1,48 @@
-<div class="lx-login">
-  <p class="lx-login-wordmark">Lexvay</p>
-  <h1>Sign in</h1>
-  <p class="lx-login-lede">Lexvay sets a program's curriculum beside state licensing rules and records what qualified staff decide. The software proposes; people decide.</p>
-  <form (ngSubmit)="submit()" novalidate>
-    <div class="lx-field">
-      <label for="email">Email</label>
-      <input pInputText id="email" name="email" type="email" autocomplete="username" required [(ngModel)]="email" [invalid]="!!error()"
-             [attr.aria-describedby]="error() ? 'login-error' : null" fluid />
+<div class="lx-signin">
+  <section class="lx-story" aria-label="Lexvay" [attr.data-story]="story()">
+    <div class="lx-story-inner">
+      <lx-state-map class="lx-story-map" size="compact" [states]="picture()" [interactive]="false" />
+      <p class="lx-display lx-story-headline">Every requirement, traced to its evidence.</p>
     </div>
-    <div class="lx-field">
-      <label for="password">Password</label>
-      <p-password inputId="password" name="password" autocomplete="current-password" [feedback]="false" [required]="true" [(ngModel)]="password"
-                  [invalid]="!!error()" [fluid]="true" />
+  </section>
+
+  <section class="lx-form-side">
+    <div class="lx-form-card">
+      <div class="lx-form-brand"><lx-mark [size]="32" /><span class="lx-form-wordmark">Lexvay</span></div>
+      <h1>Sign in</h1>
+      <form (ngSubmit)="submit()" (input)="stopStory()" novalidate>
+        <div class="lx-field">
+          <label for="email">Email</label>
+          <input pInputText id="email" name="email" type="email" autocomplete="username" required [(ngModel)]="email"
+                 [invalid]="error()?.field === 'email'" [attr.aria-describedby]="error()?.field === 'email' ? 'login-error' : null" fluid />
+          @if (error(); as e) {
+            @if (e.field === 'email') { <p-message id="login-error" severity="error" size="small" variant="simple">{{ e.text }}</p-message> }
+          }
+        </div>
+        <div class="lx-field">
+          <label for="password">Password</label>
+          <p-password inputId="password" name="password" autocomplete="current-password" [feedback]="false" [required]="true" [(ngModel)]="password"
+                      [invalid]="error()?.field === 'password'" [fluid]="true" />
+          @if (error(); as e) {
+            @if (e.field === 'password') { <p-message id="login-error" severity="error" size="small" variant="simple">{{ e.text }}</p-message> }
+          }
+        </div>
+        <p-button type="submit" label="Sign in" [loading]="busy()" [fluid]="true" size="large" />
+      </form>
+      @if (demoAccounts.length > 0) {
+        <div class="lx-demo-accounts" role="group" aria-labelledby="demo-accounts-label">
+          <p id="demo-accounts-label" class="lx-demo-label">Demo accounts</p>
+          <div class="lx-demo-chips">
+            @for (account of demoAccounts; track account.email) {
+              <button pButton type="button" size="small" [rounded]="true" severity="secondary" class="lx-demo-chip"
+                      [attr.aria-label]="roleLabel[account.role] + ', ' + account.name"
+                      (click)="useAccount(account)">
+                <span pButtonLabel>{{ roleLabel[account.role] }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
     </div>
-    @if (error(); as message) {
-      <p-message id="login-error" severity="error" size="small" variant="simple">{{ message }}</p-message>
-    }
-    <p-button type="submit" label="Sign in" [loading]="busy()" [fluid]="true" />
-  </form>
+  </section>
 </div>

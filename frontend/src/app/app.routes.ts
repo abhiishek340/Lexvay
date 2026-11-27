@@ -28,6 +28,10 @@ export const routes: Routes = [
     ],
   },
   { path: 'register', canActivate: [authGuard], loadChildren: () => import('./screens/register/register.routes') },
+  // The shared v2 components at every size, for screenshot review; development builds only, like the viewer harness.
+  ...(ngDevMode
+    ? [{ path: 'dev/ui', canActivate: [authGuard], loadComponent: () => import('./dev/ui-harness').then((m) => m.UiHarness), title: 'Components · Lexvay' }]
+    : []),
   { path: '**', redirectTo: '' },
 ];
 

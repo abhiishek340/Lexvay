@@ -1,15 +1,15 @@
 .lx-figures {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 32px;
-  border-top: 1px solid var(--p-lx-hairline); border-bottom: 1px solid var(--p-lx-hairline);
+  border-top: 1px solid var(--p-lx-line); border-bottom: 1px solid var(--p-lx-line);
 }
 .lx-figures > div { padding: 14px 20px 16px; }
-.lx-figures > div + div { border-left: 1px solid var(--p-lx-hairline); }
+.lx-figures > div + div { border-left: 1px solid var(--p-lx-line); }
 .lx-figures > div:first-child { padding-left: 0; }
 .lx-figures dd { margin-top: 6px; font-size: 28px; line-height: 32px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.lx-of { font-size: 14px; color: var(--p-lx-text-secondary); font-weight: 400; }
+.lx-of { font-size: 14px; color: var(--p-lx-text-2); font-weight: 400; }
 
 .lx-section { margin-top: 24px; }
-.lx-section-title { font-size: 11px; line-height: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--p-lx-text-secondary); margin-bottom: 8px; }
+.lx-section-title { margin-bottom: 8px; }
 
 .lx-row-link { cursor: pointer; }
 .lx-state-name { display: block; font-weight: 500; font-size: 14px; }
@@ -26,11 +26,11 @@
 
 @media (max-width: 720px) {
   .lx-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .lx-figures > div:nth-child(3) { border-left: 0; padding-left: 0; border-top: 1px solid var(--p-lx-hairline); }
-  .lx-figures > div:nth-child(4) { border-top: 1px solid var(--p-lx-hairline); }
+  .lx-figures > div:nth-child(3) { border-left: 0; padding-left: 0; border-top: 1px solid var(--p-lx-line); }
+  .lx-figures > div:nth-child(4) { border-top: 1px solid var(--p-lx-line); }
   .lx-figures dd { font-size: 22px; line-height: 28px; }
   /* The table becomes one block per jurisdiction. */
   :host ::ng-deep .lx-table thead { display: none; }
-  :host ::ng-deep .lx-table tbody tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--p-lx-hairline); }
+  :host ::ng-deep .lx-table tbody tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--p-lx-line); }
   :host ::ng-deep .lx-table tbody td { display: block; border: 0; padding: 4px 0; width: auto; text-align: left; }
 }

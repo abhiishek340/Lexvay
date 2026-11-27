@@ -1,5 +1,5 @@
 .lx-requests-filter { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-.lx-filter-count { margin-left: 6px; color: var(--p-lx-text-secondary); }
+.lx-filter-count { margin-left: 6px; color: var(--p-lx-text-2); }
 
 .lx-toggle-cell { width: 2.5rem; padding-right: 0; }
 .lx-request-ids { display: flex; gap: 8px; }
@@ -22,7 +22,7 @@
 
 @media (max-width: 720px) {
   :host ::ng-deep .lx-requests-table thead { display: none; }
-  :host ::ng-deep .lx-requests-table tbody tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--p-lx-hairline); }
+  :host ::ng-deep .lx-requests-table tbody tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--p-lx-line); }
   :host ::ng-deep .lx-requests-table tbody td { display: block; border: 0; padding: 4px 0; max-width: none; }
   .lx-request-detail { padding-left: 0; }
 }

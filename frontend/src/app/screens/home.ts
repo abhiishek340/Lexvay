@@ -8,6 +8,9 @@ import { ApiService } from '../core/api.service';
 import { licenseLabel } from '../core/labels';
 import { Program } from '../core/models';
 import { problemDetail } from '../core/problem';
+import { registerComponentTokens } from '../theme/component-tokens';
+import { lexvayMessage } from '../theme/message-tokens';
+import { lexvaySkeleton } from '../theme/skeleton-tokens';
 
 /** Lands on the only program, or lists them. */
 @Component({
@@ -38,8 +41,8 @@ import { problemDetail } from '../core/problem';
     </div>
   `,
   styles: `
-    .lx-programs { list-style: none; padding: 0; margin: 0; max-width: 720px; border-top: 1px solid var(--p-lx-hairline); }
-    .lx-programs li { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--p-lx-hairline); }
+    .lx-programs { list-style: none; padding: 0; margin: 0; max-width: 720px; border-top: 1px solid var(--p-lx-line); }
+    .lx-programs li { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--p-lx-line); }
     .lx-programs a { font-weight: 500; }
     .lx-programs span { flex: 1; }
     .lx-skeleton { display: flex; flex-direction: column; gap: 8px; }
@@ -53,6 +56,7 @@ export class Home {
   readonly license = licenseLabel;
 
   constructor() {
+    registerComponentTokens({ message: lexvayMessage, skeleton: lexvaySkeleton });
     firstValueFrom(this.api.programs()).then((list) => {
       if (list.length === 1) {
         this.router.navigate(['/programs', list[0].id, 'overview'], { replaceUrl: true });

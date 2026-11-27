@@ -71,6 +71,8 @@ export class Rules {
   readonly programId = input.required<string>();
   /** From the route "rules/:ruleVersionId"; absent on "rules". */
   readonly ruleVersionId = input<string>();
+  /** `?new=1` (the command palette's New rule version) opens the new-version dialog for those who may enter one. */
+  readonly new = input<string>();
 
   readonly users = signal<UserSummary[]>([]);
   readonly error = signal<string | null>(null);
@@ -101,6 +103,14 @@ export class Rules {
     effect(() => {
       const id = this.programId();
       untracked(() => this.context.ensure(id));
+    });
+    effect(() => {
+      if (this.new() === '1' && this.session.canEnterRules()) {
+        untracked(() => {
+          this.newOpen.set(true);
+          this.router.navigate([], { queryParams: { new: null }, queryParamsHandling: 'merge', replaceUrl: true });
+        });
+      }
     });
     firstValueFrom(this.api.users()).then((users) => this.users.set(users), () => this.users.set([]));
 

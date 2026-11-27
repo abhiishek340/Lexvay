@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorArrowsClockwise, phosphorCaretRight, phosphorEnvelopeOpen, phosphorPaperPlaneTilt, phosphorQuotes } from '@ng-icons/phosphor-icons/regular';
+import { phosphorArrowsClockwise, phosphorCaretDown, phosphorCaretRight, phosphorCheckCircle, phosphorEnvelopeOpen, phosphorPaperPlaneTilt, phosphorQuotes } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -20,7 +20,7 @@ import { EvidenceDrawer } from './evidence-drawer';
 import { REQUESTS_TOKENS } from './requests-theme';
 
 /** The icons the inbox and its answer drawer show beyond SHELL_ICONS, provided by its route (requests.routes.ts). */
-export const REQUESTS_ICONS = { phosphorArrowsClockwise, phosphorCaretRight, phosphorEnvelopeOpen, phosphorPaperPlaneTilt, phosphorQuotes };
+export const REQUESTS_ICONS = { phosphorArrowsClockwise, phosphorCaretDown, phosphorCaretRight, phosphorCheckCircle, phosphorEnvelopeOpen, phosphorPaperPlaneTilt, phosphorQuotes };
 
 export const REQUEST_STATE: Record<RequestState, { label: string; icon: IconName; severity: 'info' | 'success' | 'warn' }> = {
   OPEN: { label: 'Open', icon: 'phosphorEnvelopeOpen', severity: 'info' },

@@ -387,6 +387,11 @@ End-to-end stacks are slot-based (`LEXVAY_E2E_SLOT`) so several checkouts can te
 
 **D-002 addendum (WS-SEC).** `com.bucket4j:bucket4j_jdk17-core` 8.22.0 (checked on repo1.maven.org 2026-11-26; 8.23.0 was four days old). `spring-boot-starter-security-oauth2-client` and `caffeine` 3.2.4 come from the Boot 4.1.3 BOM.
 
+**D-002 addendum (UI2-0).** `@fontsource-variable/inter` 5.3.0 (published 2026-07-19) and
+`@fontsource-variable/source-serif-4` 5.3.1 (published 2026-10-11), both the registry's `latest` on 2026-11-27 and more
+than 14 days old; `@fontsource/ibm-plex-sans` and `@fontsource/ibm-plex-serif` removed, `@fontsource/ibm-plex-mono`
+5.3.0 kept (docs/decisions/UI2-0.md, D-301).
+
 **D-300 — Design system v2 (owner directive, 2026-11-26).** The owner judged the v1 interface not good enough and asked
 for a world-class one: clean, few words, animated, impressive on first sight. `docs/DESIGN.md` v1 is replaced by v2:
 one focal point per screen, a word budget with explanations behind InfoTips, depth instead of hairlines, a motion

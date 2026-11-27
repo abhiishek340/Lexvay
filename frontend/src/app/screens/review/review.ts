@@ -3,7 +3,7 @@ import { Component, DestroyRef, ElementRef, computed, effect, inject, input, lin
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorEye, phosphorKeyboard, phosphorMagnifyingGlass, phosphorSealCheck, phosphorSignature, phosphorUser } from '@ng-icons/phosphor-icons/regular';
+import { phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorEye, phosphorKeyboard, phosphorSealCheck, phosphorSignature, phosphorUser } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
@@ -23,6 +23,7 @@ import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { SessionService } from '../../core/session.service';
 import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
+import { paletteShortcut } from '../../ui/command-palette/shortcut';
 import { DecisionState, FindingLabel } from '../../ui/finding';
 import { registerComponentTokens } from '../../theme/component-tokens';
 import { REVIEW_TOKENS } from './review-theme';
@@ -31,7 +32,7 @@ import { REVIEW_FILTERS, ReviewFilter, ReviewWorkspace, SHORTCUT_HELP, ShortcutC
 const WIDE = '(min-width: 1024px)';
 
 /** The icons the Review workspace shows beyond SHELL_ICONS, provided by its route (review.routes.ts). */
-export const REVIEW_ICONS = { phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorEye, phosphorKeyboard, phosphorMagnifyingGlass, phosphorSealCheck, phosphorSignature, phosphorUser };
+export const REVIEW_ICONS = { phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorEye, phosphorKeyboard, phosphorSealCheck, phosphorSignature, phosphorUser };
 
 @Component({
   selector: 'lx-review',
@@ -50,9 +51,14 @@ export class Review {
   readonly context = inject(ProgramContext);
 
   readonly programId = input.required<string>();
+  /** Query parameters from links and the command palette: the state to open and a requirement (by ref) to select. */
+  readonly jurisdictionParam = input<string | undefined>(undefined, { alias: 'jurisdiction' });
+  readonly ref = input<string | undefined>();
   readonly workspace = new ReviewWorkspace();
   readonly filters = REVIEW_FILTERS;
   readonly shortcuts = SHORTCUT_HELP;
+  /** The command palette works everywhere; the list names it beside the review keys. */
+  readonly paletteKeys = paletteShortcut(typeof navigator === 'undefined' ? '' : navigator.platform);
   readonly decisionLabel = DECISION_LABEL;
   readonly outcomeLabel = OUTCOME_LABEL;
   readonly outcomes: Outcome[] = ['MEETS', 'DOES_NOT_MEET', 'NOT_DETERMINED'];
@@ -72,6 +78,8 @@ export class Review {
 
   /** A jurisdiction asked for before the assessment was known. */
   private requested: string | null = null;
+  /** A requirement asked for by ref, selected once its jurisdiction's list has loaded. */
+  private requestedRef: string | null = null;
   private readonly noteField = viewChild<ElementRef<HTMLTextAreaElement>>('noteField');
   private readonly listPane = viewChild<ElementRef<HTMLElement>>('listPane');
 
@@ -114,6 +122,19 @@ export class Review {
       const wanted = this.requested ?? this.route.snapshot.queryParamMap.get('jurisdiction');
       untracked(() => this.selectJurisdiction(wanted && program.jurisdictions.includes(wanted) ? wanted : program.jurisdictions[0]));
     });
+    // A later link to another state or requirement while the screen is open (the command palette, the work queue).
+    effect(() => {
+      const code = this.jurisdictionParam();
+      const ref = this.ref();
+      untracked(() => {
+        if (ref) { this.requestedRef = ref; }
+        if (code && this.jurisdiction() && code !== this.jurisdiction()) {
+          this.selectJurisdiction(code);
+        } else if (this.workspace.mappings().length > 0) {
+          this.selectRequested();
+        }
+      });
+    });
     // Evidence people provided is fetched with the selected mapping, once per mapping (and again when more arrived).
     effect(() => {
       const m = this.selected();
@@ -148,11 +169,22 @@ export class Review {
       if (this.jurisdiction() === code) {
         this.workspace.load(view.mappings);
         this.resetNote();
+        this.selectRequested();
       }
     } catch (e: unknown) {
       this.error.set(problemDetail(e, `The requirements for ${code} could not be loaded.`));
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  private selectRequested(): void {
+    const ref = this.requestedRef;
+    this.requestedRef = null;
+    const mapping = ref ? this.workspace.mappings().find((m) => m.requirement.ref === ref) : undefined;
+    if (mapping) {
+      this.select(mapping.id);
+      this.scrollSelectedIntoView();
     }
   }
 
