@@ -2,9 +2,10 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, switchMap } from 'rxjs';
 import {
-  Account, AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, DeterminationLists, DocumentPage, EvidenceRequest, EvidenceResponse, EvidenceResponseBody,
-  Jurisdiction, Mapping, MappingsView, NewRuleVersion, Outcome, Program, ProgramDocument, ProgramOverview, RegisterFilter, RegisterRow, Role,
-  NewUser, RequirementDraft, RequirementsView, RuleVersionDiff, RuleVersionView, SessionView, UserSetup, UserSummary, UserView, WorkQueue,
+  Account, AssessmentView, AuditEntry, ChangeEvent, CoverageMatrix, DecisionKind, Determination, DeterminationLists, DocumentPage, EvidenceRequest,
+  EvidenceResponse, EvidenceResponseBody, Jurisdiction, Mapping, MappingsView, NewRuleVersion, NewUser, Outcome, Program, ProgramDocument, ProgramOverview,
+  RegisterFilter, RegisterRow, RequirementDraft, RequirementsView, Role, RuleVersionDiff, RuleVersionView, SessionView, UserSetup, UserSummary, UserView,
+  WorkQueue,
 } from './models';
 import { REGISTER_PATH, registerQuery } from './register';
 import { ReportAnswer, readReport } from './report-answer';
@@ -70,6 +71,11 @@ export class ApiService {
   }
   provideEvidence(mappingId: string, body: EvidenceResponseBody): Observable<EvidenceResponse> {
     return this.http.post<EvidenceResponse>(`${this.base}/mappings/${mappingId}/evidence-responses`, body);
+  }
+
+  /** Which course carries the evidence of each requirement of one target state (F10a); read only. */
+  coverage(programId: string, jurisdiction: string): Observable<CoverageMatrix> {
+    return this.http.get<CoverageMatrix>(`${this.base}/programs/${programId}/coverage`, { params: { jurisdiction } });
   }
 
   determinations(programId: string): Observable<Determination[]> { return this.http.get<Determination[]>(`${this.base}/programs/${programId}/determinations`); }

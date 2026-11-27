@@ -233,7 +233,7 @@ describe('header and pill progress', () => {
       { jurisdiction: 'CA', total: 8, decided: 6, evidenceFound: 5, evidenceMissing: 1, ambiguous: 2 },
       { jurisdiction: 'UT', total: 9, decided: 0, evidenceFound: 7, evidenceMissing: 1, ambiguous: 1 },
     ]);
-    expect(progress.get('CA')).toEqual({ decided: 6, total: 8, label: '6 of 8 reviewed' });
+    expect(progress.get('CA')).toEqual({ value: 6, total: 8, label: '6 of 8 reviewed' });
     expect(progress.get('UT')?.label).toBe('0 of 9 reviewed');
     expect(progress.get('TX')).toBeUndefined();
   });
