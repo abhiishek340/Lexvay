@@ -149,22 +149,6 @@ test('the overview with the v2 shell is accessible in both themes at 1440 and 40
   await expect(menu.getByRole('menuitem')).toHaveText(['Evidence report', 'Audit trail']);
   await page.keyboard.press('Escape');
 });
-  expect(await bar.evaluate((n) => n.scrollWidth - n.clientWidth)).toBeLessThanOrEqual(0);
-  await expect(nav(page, 'Audit trail')).toBeHidden();
-  const more = bar.getByRole('button', { name: 'More screens' });
-  await more.click();
-  await expect(more).toHaveAttribute('aria-expanded', 'true');
-  const menu = page.getByRole('menu', { name: 'More screens' });
-  for (const name of ['Determination register', 'Program setup', 'Coverage', 'Evidence report', 'Audit trail']) {
-    await expect(menu.getByRole('menuitem', { name })).toBeVisible();
-  }
-  await expectAccessible(page, 'More screens at 400 px');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('End');
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/audit$/);
-  await expect(more).toHaveClass(/lx-active/);
-});
 
 test('signing out from the avatar menu returns to the sign-in page', async ({ page }) => {
   await signIn(page, PRIYA);
