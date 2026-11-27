@@ -18,6 +18,8 @@ import com.lexvay.program.ProgramService;
 import com.lexvay.rule.CreateRuleVersionRequest;
 import com.lexvay.rule.NumericField;
 import com.lexvay.rule.RuleVersionService;
+import com.lexvay.rule.source.CreateRuleSourceRequest;
+import com.lexvay.rule.source.RuleSourceService;
 import com.lexvay.tenant.AppUserRepository;
 import com.lexvay.tenant.TenantBootstrapService;
 import java.io.IOException;
@@ -60,12 +62,13 @@ public class SeedLoader {
     private final DocumentService documents;
     private final ProgramFactService facts;
     private final RuleVersionService ruleVersions;
+    private final RuleSourceService ruleSources;
     private final AssessmentService assessments;
     private final JobRunner jobs;
 
     public SeedLoader(TenantBootstrapService tenants, AppUserRepository users, ProgramService programs, CourseService courses,
                       DocumentService documents, ProgramFactService facts, RuleVersionService ruleVersions,
-                      AssessmentService assessments, JobRunner jobs) {
+                      RuleSourceService ruleSources, AssessmentService assessments, JobRunner jobs) {
         this.tenants = tenants;
         this.users = users;
         this.programs = programs;
@@ -73,6 +76,7 @@ public class SeedLoader {
         this.documents = documents;
         this.facts = facts;
         this.ruleVersions = ruleVersions;
+        this.ruleSources = ruleSources;
         this.assessments = assessments;
         this.jobs = jobs;
     }
@@ -143,6 +147,12 @@ public class SeedLoader {
                 UUID ruleVersionId = createApprovedRuleVersion(t.program().licenseType(), rv.jurisdiction(), rv.label(), rv.sourceUrl(),
                         rv.effectiveFrom(), null, readText(seedDir.resolve("rules").resolve(rv.text())), contributor, reviewer, model);
                 requirementCount += ruleVersions.requirements(ruleVersionId).requirements().size();
+            }
+            if (t.ruleSources() != null) {
+                for (SeedManifest.RuleSource source : t.ruleSources()) {
+                    as(reviewer, () -> ruleSources.register(new CreateRuleSourceRequest(source.jurisdiction(),
+                            t.program().licenseType(), source.label(), source.url(), source.checkIntervalHours())));
+                }
             }
             model.beforeMatching(documentByFile);
             UUID assessmentId = as(reviewer, () -> assessments.start(programId).assessmentId());
