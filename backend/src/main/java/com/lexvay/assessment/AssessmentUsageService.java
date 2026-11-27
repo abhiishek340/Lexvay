@@ -22,7 +22,8 @@ public class AssessmentUsageService {
 
     /**
      * {@code wallTimeMs} is the assessment's own run time (null until it has finished); {@code modelTimeMs}
-     * is the sum of the model calls' durations. The cost is an estimate: tokens times the configured prices.
+     * is the sum of the model calls' durations. The cost is an estimate, tokens times the configured prices,
+     * and null when no price is configured.
      */
     public record UsageView(UUID assessmentId, String model, long calls, long inputTokens, long outputTokens,
                             long modelTimeMs, Long wallTimeMs, BigDecimal estimatedCostUsd, Prices prices,
@@ -34,8 +35,8 @@ public class AssessmentUsageService {
     private final Prices prices;
 
     public AssessmentUsageService(AssessmentService assessments, LlmUsageRepository usage,
-                                  @Value("${lexvay.llm.price-input-per-mtok}") BigDecimal inputPerMtok,
-                                  @Value("${lexvay.llm.price-output-per-mtok}") BigDecimal outputPerMtok) {
+                                  @Value("${lexvay.llm.price.input-per-mtok}") BigDecimal inputPerMtok,
+                                  @Value("${lexvay.llm.price.output-per-mtok}") BigDecimal outputPerMtok) {
         this.assessments = assessments;
         this.usage = usage;
         this.prices = new Prices(inputPerMtok, outputPerMtok);
@@ -56,6 +57,9 @@ public class AssessmentUsageService {
     }
 
     private BigDecimal cost(long inputTokens, long outputTokens) {
+        if (prices.inputPerMtok().signum() == 0 && prices.outputPerMtok().signum() == 0) {
+            return null;
+        }
         return prices.inputPerMtok().multiply(BigDecimal.valueOf(inputTokens))
                 .add(prices.outputPerMtok().multiply(BigDecimal.valueOf(outputTokens)))
                 .divide(TOKENS_PER_PRICE_UNIT, 6, RoundingMode.HALF_UP);
