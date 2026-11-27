@@ -65,7 +65,7 @@ public record RetrievalReport(int documents, List<RetrievalScorer.Result> baseli
         out.append("Written by `make eval` (`RetrievalService`); do not edit by hand. Fictional data: the corpus is the demo seed plus the syllabi in\n");
         out.append("`eval/retrieval/docs`, and the questions are in `eval/retrieval/queries.yml`. A query is recalled when its expected page is among\n");
         out.append("the first eight pages the ranker returns for the requirement's title and text. \"BM25 + terms\" also searches the requirement's\n");
-        out.append("search terms (F7c), which the file holds per query, hand-written before the expected page was looked at. Excerpt coverage is the\n");
+        out.append("search terms (F7c), which the file holds per query, hand-written for the requirement alone and never adjusted after a run (D-258). Excerpt coverage is the\n");
         out.append("share of recalled queries whose expected evidence is inside the excerpt that would be shown to the model (D-174).\n\n");
         out.append(String.format(Locale.ROOT, "Corpus: %d documents. Queries: %d counted and %d lexical gaps.%n%n", documents,
                 baseline.counted().recallAtDeep().denominator(), baseline.gap().recallAtDeep().denominator()));

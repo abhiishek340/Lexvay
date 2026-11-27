@@ -3,7 +3,7 @@
 Written by `make eval` (`RetrievalService`); do not edit by hand. Fictional data: the corpus is the demo seed plus the syllabi in
 `eval/retrieval/docs`, and the questions are in `eval/retrieval/queries.yml`. A query is recalled when its expected page is among
 the first eight pages the ranker returns for the requirement's title and text. "BM25 + terms" also searches the requirement's
-search terms (F7c), which the file holds per query, hand-written before the expected page was looked at. Excerpt coverage is the
+search terms (F7c), which the file holds per query, hand-written for the requirement alone and never adjusted after a run (D-258). Excerpt coverage is the
 share of recalled queries whose expected evidence is inside the excerpt that would be shown to the model (D-174).
 
 Corpus: 27 documents. Queries: 29 counted and 6 lexical gaps.
