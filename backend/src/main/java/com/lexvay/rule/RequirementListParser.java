@@ -20,6 +20,9 @@ public class RequirementListParser {
 
     public static final String SCHEMA = "llm/requirement-extraction.schema.json";
     private static final Set<String> OPERATORS = Set.of(">=", "<=", "=", ">", "<");
+    static final int MAX_REF_LENGTH = 50;
+    static final int MAX_TITLE_LENGTH = 200;
+    static final int MAX_TEXT_LENGTH = 20_000;
 
     private final JsonSchemaValidator validator;
 
@@ -64,6 +67,9 @@ public class RequirementListParser {
             if (body.isEmpty()) {
                 errors.add(where + ".text must not be blank");
             }
+            requireAtMost(errors, where + ".ref", ref, MAX_REF_LENGTH);
+            requireAtMost(errors, where + ".title", title, MAX_TITLE_LENGTH);
+            requireAtMost(errors, where + ".text", body, MAX_TEXT_LENGTH);
             RequirementType type;
             try {
                 type = RequirementType.valueOf(item.path("type").asString(""));
@@ -92,8 +98,8 @@ public class RequirementListParser {
                 if (!OPERATORS.contains(operator)) {
                     errors.add(where + ".numeric_operator is not one of the allowed values");
                 }
-                if (!valueNode.isNumber() || valueNode.decimalValue().signum() <= 0) {
-                    errors.add(where + ".numeric_value must be a positive number");
+                if (!valueNode.isNumber() || !Double.isFinite(valueNode.doubleValue()) || valueNode.decimalValue().signum() <= 0) {
+                    errors.add(where + ".numeric_value must be a finite positive number");
                 } else {
                     value = valueNode.decimalValue();
                 }
@@ -106,6 +112,12 @@ public class RequirementListParser {
             throw new InvalidRequirementListException(errors);
         }
         return drafts;
+    }
+
+    private static void requireAtMost(List<String> errors, String field, String value, int max) {
+        if (value.length() > max) {
+            errors.add(field + " must be at most " + max + " characters");
+        }
     }
 
     private static boolean isNull(JsonNode node) {
