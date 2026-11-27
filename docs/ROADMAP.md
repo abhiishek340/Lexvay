@@ -110,7 +110,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | PERF-FE-1 Icons and theme tokens per chunk | `perf-frontend-chunks` | 6 | Sonnet 5.5 | merged (PR #29); remaining cuts in UI2-0 |
 | UI2-0 Design v2 foundation, shell and sign-in | `ui2-foundation` | 1 | Opus 5.5 | merged (PR #34) |
 | UI2-1 Overview and register in v2 | `ui2-overview-register` | 2 | Opus 5.5 | merged (PR #39) |
-| UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | in progress |
+| UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | merged (#37) |
 | UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | merged (PR #38) |
 | UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | in progress |
 | FIX-3 Work queue and evidence request follow-ups | `fix-queue-followups` | 9 | Sonnet 5.5 | merged (PR #31) |
@@ -123,6 +123,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10a Coverage matrix API | `feat-coverage-api` | 8 | Sonnet 5.5 | merged (PR #35) |
 | F10b Coverage matrix screen (v2) | `ui2-coverage` | 7 | Opus 5.5 | in progress |
+| FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | in progress |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
@@ -1191,6 +1192,56 @@ D-259 in `docs/decisions/F7c.md`.
    `SEARCH_TERMS`, replace endpoint stores terms and rejects 13, extraction with the fake model stores the
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
+## FIX-6 — OCR checkpoints per page (backend only; slot 5; Sonnet 5.5; migration `V017__document_ocr_page.sql`)
+Problem (F11 follow-up): `IngestDocumentHandler` OCRs every scanned page inside the job's single transaction. A
+failure on page 150 of a 200-page scan rolls everything back, and the retry runs Tesseract on all 200 pages again
+(minutes of CPU each time, three attempts). Decided design: each page's OCR result is checkpointed in its own
+committed transaction, and a retry reuses those checkpoints. No job-per-page, no change to `JobRunner`.
+
+1. **Table** `document_ocr_page` (V017): `tenant_id uuid NOT NULL REFERENCES tenant`, `document_id uuid NOT NULL
+   REFERENCES document`, `page_number int NOT NULL CHECK (page_number > 0)`, `text text NOT NULL` (normalized OCR
+   output, possibly empty), `mean_confidence numeric(5,2)` (NULL when the engine returned nothing), `render_dpi int
+   NOT NULL CHECK (render_dpi > 0)`, `created_at timestamptz NOT NULL DEFAULT now()`, `PRIMARY KEY (document_id,
+   page_number)`. RLS enabled and forced, with the same tenant policy and grants as `document_page`. It is
+   immutable: `forbid_change()` trigger on UPDATE and DELETE (V003 pattern). No other index: the PK serves the
+   one read. Rows stay after ingest; they record how a page's text was obtained (rule 5).
+2. **What is stored:** the raw normalized OCR result of every page that was sent to the engine, including pages
+   whose result is too short to count as read. The "enough text" decision (`TextExtractor.hasEnoughText`) is
+   made in code every time, from the stored text, so a checkpoint never changes the outcome.
+3. **`OcrCheckpoints`** (interface, package `document`): `Optional<OcrPage> find(int pageNumber)` and
+   `void save(int pageNumber, OcrPage page, int renderDpi)`, with `OcrCheckpoints.NONE` (finds nothing, saves
+   nothing). `TextExtractor.extract(FileType, byte[], OcrCheckpoints)` is the full form. `extract(FileType,
+   byte[])` delegates with `NONE` and stays for rule texts, rule sources and tests. In `pdfPages`, a page that
+   needs OCR first asks `find`. On a hit it uses the stored text and confidence, without rendering or calling
+   the engine. On a miss it renders, recognizes and calls `save` before moving to the next page. When the engine
+   returns `Optional.empty()`, save `text = ''` with a NULL confidence. A hit whose `render_dpi` differs from
+   `renderDpi(page)` is ignored and the page is OCR'd again (the DPI rule changed). The insert is still
+   `ON CONFLICT DO NOTHING`, and the in-memory result uses the new OCR.
+4. **`DocumentOcrCheckpoints`** (`@Component`, backed by `DocumentRepository`):
+   `OcrCheckpoints forDocument(UUID tenantId, UUID documentId)`. It loads every checkpoint of the document in one
+   query when created. `save` runs its INSERT ... ON CONFLICT DO NOTHING through a `TransactionTemplate` with
+   `PROPAGATION_REQUIRES_NEW`, so the row commits even when the job's transaction later rolls back.
+   `TenantAwareDataSource` sets `lexvay.tenant_id` on the new connection; prove it with a test, do not assume it.
+   It needs no worker flag: the ingest job already runs as its tenant.
+5. **`IngestDocumentHandler`** passes `forDocument(...)`. The `DOCUMENT_INGESTED` audit details gain
+   `ocrPagesReused` (count of checkpoint hits). This is not a new action, so `audit-sentence.spec.ts` needs no row.
+   No endpoint changes.
+6. **Tests** (no network; Tesseract only where the existing OCR test already uses it):
+   - `TextExtractorTest`: a counting fake `OcrEngine` plus in-memory checkpoints. A second extract performs zero
+     engine calls and returns pages equal to the first, with the same text, offsets, source and confidence. A
+     short-text checkpoint still falls back to the text layer. A DPI mismatch triggers a fresh OCR.
+   - Integration, existing Testcontainers harness: the fake engine throws on page 3 of a 4-page scanned PDF on the
+     first attempt only.
+     - After the failed attempt, rows for pages 1 and 2 exist, committed despite the rollback.
+     - The retry calls the engine for pages 3 and 4 only.
+     - The final `document_page` rows equal those of a clean single run.
+     - The audit shows `ocrPagesReused = 2`.
+   - Rule 7: tenant B cannot see tenant A's checkpoints, and `Rule7_EveryTableHasPolicyTest` covers the table.
+   - Rule 5: UPDATE and DELETE are rejected.
+7. **Docs:** decisions D-436 to D-441 in `docs/decisions/FIX-6.md`, progress in `docs/progress/FIX-6.md`,
+   `docs/OPERATIONS.md` (one sentence: checkpoints make OCR retries resume). Do not edit DECISIONS.md, PROGRESS.md
+   or the ROADMAP board; the orchestrator folds them.
+
 ## Follow-ups recorded from reviews
 - FIX-5: `MappingRepository.latestAssessmentsUsing` still has its own correlated copy of the "latest finished"
   ordering (alias `a2`); give `AssessmentRepository` a correlated form of `LATEST_FINISHED` and use it there.
@@ -1249,8 +1300,8 @@ D-259 in `docs/decisions/F7c.md`.
   RLS because `jsonb ->>` is not leakproof and the payload expression indexes are ignored. FIX-2: add a generated
   `payload_entity_id uuid` column on `job` (from the payload's entity id), index it, and compare with `=`. Decided
   by the orchestrator when scheduled; spec to follow.
-- F11: OCR of a 200-page scan runs inside the job's single transaction and a retry redoes every page. Follow-up:
-  OCR per page in its own transaction (or a job per page) inside `JobRunner`.
+- F11: OCR of a 200-page scan runs inside the job's single transaction and a retry redoes every page. Scheduled as
+  FIX-6 (per-page checkpoints committed in their own transactions).
 - F11 spec change (decided during review): a PDF page's text layer is never discarded; OCR replaces it only when
   the layer is under 20 characters and OCR yields at least 20.
 - WS-SEC: every new endpoint must add a row to `InputValidationTableTest` (its `everyEndpointHasARow` guard fails

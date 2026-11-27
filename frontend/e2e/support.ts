@@ -98,6 +98,14 @@ export async function switchUser(page: Page, email: string): Promise<void> {
   await signIn(page, email);
 }
 
+/** The seeded program's target states: Review names its state pills by their full names. */
+export const STATE: Record<string, string> = { AZ: 'Arizona', CA: 'California', CO: 'Colorado', TX: 'Texas', UT: 'Utah' };
+
+/** A state pill in Review's header (a tab named by the state's full name). */
+export function stateTab(page: Page, code: string) {
+  return page.getByRole('tab', { name: STATE[code], exact: true });
+}
+
 export function nav(page: Page, name: string) {
   return page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name, exact: true });
 }
@@ -121,7 +129,7 @@ export async function citedRequirement(page: Page, jurisdiction: string): Promis
 /** Opens Review on a state and selects one requirement by its ref. */
 export async function openRequirement(page: Page, jurisdiction: string, ref: string): Promise<void> {
   await nav(page, 'Review').click();
-  await page.getByRole('tab', { name: jurisdiction, exact: true }).click();
+  await stateTab(page, jurisdiction).click();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', new RegExp(`^${jurisdiction}-`));
   await page.getByRole('region', { name: 'Requirements' }).getByRole('button').filter({ hasText: new RegExp(`^${ref}(?!\\d)`) }).click();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', ref);

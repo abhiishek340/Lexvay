@@ -9,6 +9,7 @@ import { Dialog } from 'primeng/dialog';
 import { InputNumber } from 'primeng/inputnumber';
 import { Message } from 'primeng/message';
 import { Skeleton } from 'primeng/skeleton';
+import { Tooltip } from 'primeng/tooltip';
 import { ApiService } from '../../core/api.service';
 import { DocumentPageCache } from '../../core/document-page-cache';
 import { problemDetail } from '../../core/problem';
@@ -16,7 +17,7 @@ import { registerComponentTokens } from '../../theme/component-tokens';
 import { lexvayDialog } from '../../theme/dialog-tokens';
 import { lexvayMessage } from '../../theme/message-tokens';
 import { lexvaySkeleton } from '../../theme/skeleton-tokens';
-import { CharRange, PassageSelection, isRange, ocrNote, rangeOffsets, splitForHighlight } from './page-text';
+import { CharRange, PassageSelection, isRange, ocrNote, rangeOffsets, softWrap, splitForHighlight } from './page-text';
 
 /** The icons the viewer shows beyond SHELL_ICONS; it provides them itself because several screens embed it. */
 export const DOCUMENT_VIEWER_ICONS = { phosphorArrowSquareOut, phosphorCaretLeft, phosphorCaretRight, phosphorCursorText, phosphorQuotes, phosphorWarning };
@@ -28,14 +29,15 @@ interface PendingSelection { selection: PassageSelection; top: number; left: num
 const TOOLBAR_WIDTH = 168;
 
 /**
- * One page of an ingested document in the document frame: its text exactly as stored, set in serif, with the
- * cited span marked from the stored offsets. The viewer never searches the text; the server verified the
- * quote, the viewer only shows where it is. With `selectable`, a person can choose a passage with the mouse
+ * One page of an ingested document in the document frame: its text as stored, set in serif, with line breaks that
+ * only wrap a sentence shown as spaces (softWrap, one character for one, so offsets are unchanged) and the cited
+ * span marked from the stored offsets. The viewer never searches the text; the server verified the quote, the viewer
+ * only shows where it is. With `selectable`, a person can choose a passage with the mouse
  * or, from the keyboard, by character range; both emit `selection`.
  */
 @Component({
   selector: 'lx-document-viewer',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, InputNumber, Message, Skeleton],
+  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, InputNumber, Message, Skeleton, Tooltip],
   viewProviders: [provideIcons(DOCUMENT_VIEWER_ICONS)],
   templateUrl: './document-viewer.html',
   styleUrl: './document-viewer.css',
@@ -87,12 +89,16 @@ export class DocumentViewer {
   readonly hasNext = computed(() => this.pageCount() !== null && this.current() < this.pageCount()!);
   readonly fileUrl = computed(() => this.api.documentFileUrl(this.documentId()));
 
-  private readonly onCitedPage = computed(() => this.highlight() !== null && this.loaded()?.pageNumber === this.pageNumber());
-  /** The text around and inside the mark, or null when there is nothing to mark on this page. */
-  readonly parts = computed(() => {
+  /** The page text as shown: the stored text with sentence-wrapping line breaks as spaces, of the same length. */
+  readonly shown = computed(() => {
     const page = this.loaded();
+    return page ? softWrap(page.text) : '';
+  });
+  private readonly onCitedPage = computed(() => this.highlight() !== null && this.loaded()?.pageNumber === this.pageNumber());
+  /** The shown text around and inside the mark, or null when there is nothing to mark on this page. */
+  readonly parts = computed(() => {
     const highlight = this.highlight();
-    return page && highlight && this.onCitedPage() ? splitForHighlight(page.text, highlight.charStart, highlight.charEnd) : null;
+    return highlight && this.onCitedPage() ? splitForHighlight(this.shown(), highlight.charStart, highlight.charEnd) : null;
   });
   /** The stored offsets do not fit the stored page: show the page unmarked and say so. */
   readonly mismatch = computed(() => this.onCitedPage() && this.parts() === null);

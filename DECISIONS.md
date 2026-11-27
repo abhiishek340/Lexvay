@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, no V017 (SEC-2 found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6 (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -3504,3 +3504,99 @@ bundle 605.46 kB raw (main 596.16 kB, styles 9.30 kB), 155.80 kB estimated trans
 Also global (`styles.css`): a link button (`<a pButton>`) takes the button's colours and no underline. The global link
 rule is unlayered, so it beat PrimeNG's layered button colours: a filled link button (the map card's action) drew
 accent text on the accent fill. The rule now reads `a:not(.p-button)`.
+
+### UI2-2 — Review and signing in design v2 (D-330 to D-339)
+
+**D-330 — Review is split into parts, each with its own styles.** The screen (`review.ts`) keeps the state, the data and
+the keys; `RequirementList` (the 288 px rail), `RequirementCard` (the hero), `EvidencePane` (the DocumentViewer and the
+provided passages) and `SignDialog` live beside it in `screens/review/`, and `DecisionBar` is a shared component in
+`ui/decision-bar/` as DESIGN.md lists it. One component with every pane's styles would cross the 10 kB component style
+budget (D-083); each part now stays well under it. The parts have no `viewProviders`, so `REVIEW_ICONS` names their
+icons; `DecisionBar` registers its own (`DECISION_BAR_ICONS`, a unit in `icons.spec.ts`) and its Textarea and Message
+token sets. Splitter and ProgressBar are no longer rendered by Review and left `REVIEW_TOKENS`. Rejected: keeping the
+Splitter between the centre and the evidence (its gutter is the hairline v2 removes, and the rail is a fixed 288 px).
+
+**D-331 — Header: pills as tabs, the active pill as the shared element.** The states stay a PrimeNG `Tabs` list (arrow,
+Home and End keys, `selectOnFocus`), restyled as pills: a 20 px ProgressRing (decided of total, from the assessment's
+per-state summary, `stateProgress`) and the full name. The tab's accessible name is the full name ("California"); its
+ring is hidden from assistive technology and its numbers are the tab's description ("6 of 8 reviewed") through
+`aria-describedby` on hidden text outside the tab, so the name stays the name. The active pill carries
+`view-transition-name: state-<code>`, the target UI2-1's map tile morphs into. The header progress is a 40 px ring
+(hidden) beside "6 of 8" with " reviewed" for screen readers. The pills scroll sideways when they do not fit
+(PrimeNG's scrollable list without navigator buttons). The page title stays "Review": the shell focuses `main h1` after
+navigation, and the program name left the header (the top bar's pill shows it).
+
+**D-332 — "Sign <state>" exists only once every requirement is decided.** Before that the header shows progress and
+nothing to sign (v1 showed a disabled button with a help line). The button enters with one pulse (scale and opacity,
+720 ms, `animate.enter`), then stays still. A reviewer who is not a signer sees it disabled with an InfoTip "Only a
+signer can sign." A signed state shows its Seal (40 px, named in one sentence) with "Signed" and the outcome; a reopened
+determination shows a "Reopened" chip with an InfoTip. Under 640 px the action takes its own row under the pills.
+
+**D-333 — The DecisionBar and the note.** Accept (A), Request (R) and Gap (G) on the raised, blurred bar. It sits in
+flow 24 px under the requirement and is sticky at 16 px from the foot of the centre pane, so it follows a short
+requirement and sticks to the foot only when the requirement is longer than the pane (orchestrator review: pinning it
+to the foot left a band of empty space under short requirements). Under 1024 px it is the last item of the one-column
+layout, so it stays at the foot of the window while the list, the requirement or the evidence is in view. Visible words follow the spec; the accessible names
+of Accept and Request stay full ("Accept evidence", "Request evidence") and contain the visible word. Gap, its key and a
+note button open the note field in place; with the note open the third action reads "Confirm gap", and Accept and
+Request send the note too. The note button ("Add note") exists because a request's note is what the program reads (F4)
+and an accept after provided evidence asks which evidence was relied on (D-267): the spec opens the field only for
+Gap, which would have left requests without a note. Where a person answered an evidence request the note opens by
+itself. Escape in an empty note closes it and returns focus to Gap; a note with words stays open. A gap without a note
+opens the field and says why, as before. Under 640 px the key hints are hidden (a phone has no keys) and the actions
+keep one row.
+
+**D-334 — The decision sequence, never in the way.** After the server records a decision: the decided row's StatusIcon
+turns filled and pops in on the spring, an ink ring draws around it in its status colour (stroke-dashoffset, 240 ms)
+and fades, the row settles (520 ms, `--lx-spring`), the next requirement's card slides in 16 px from the right (from
+the left when the selection moved up the list: `ReviewWorkspace.travel`), and both rings advance by their stroke
+transitions. Only transform, opacity and stroke-dashoffset move. The card is keyed by mapping (`@for` over the
+selection) and enters with `animate.enter`; it starts at 20 % opacity rather than 0 so it is never invisible. Nothing
+waits for motion: the bar is outside the keyed card and keeps focus, keys act during the entrance (the e2e test presses
+K and J while the card slides in), and the global reduced-motion rule removes every animation (the e2e test runs the
+whole California review under reduced motion and asserts that no animation is running after each decision).
+
+**D-335 — The signing dialog and the stamp.** "Sign California": a subtitle "8 of 8 decided" with an InfoTip holding the
+explanation that used to be a paragraph, the three outcomes as large cards (each a label around a PrimeNG RadioButton,
+in a fieldset, with its own icon and colour, the chosen one ringed in the accent), and a preview of the Seal with the
+signer's initials and today's date, faint and hidden from assistive technology (nothing is signed until the server says
+so). Nothing is preselected. After the server signs, the dialog shows the recorded determination's Seal stamping down
+(scale 1.12 to 1, -8 degrees to 0, `--lx-spring`, 420 ms, one ink ring fading over 600 ms), the outcome in words, who
+and when, and Done, which takes the focus; the header behind it already shows the seal. `Seal` gained a `stamp` input
+for this (the stamp is on the host, as D-315 foresaw). Rejected: closing the dialog at once (the moment would happen
+off screen) and closing it on a timer (motion must not decide when the person moves on).
+
+**D-336 — `softWrap`, display only.** `softWrap(text)` in `page-text.ts`: a newline becomes a space when the next
+character is a lower-case letter (`\p{Ll}`), a digit (`\p{Nd}`) or "(" and the previous one is not ".", "!" or "?".
+One refinement of the spec: a newline after another newline also stays, so a blank line between paragraphs is never
+turned into a line break plus a space (a blank line is a paragraph, not a wrap). The viewer renders `softWrap(page.text)`
+and cuts the mark out of that, at the stored offsets; selection offsets are measured on the shown text and the quote is
+still sliced from the stored text, so a passage chosen across a joined line break carries the stored newline. Vitest
+proves equal length, that only joined newlines differ, and that a DOM selection over the shown text with the mark maps
+back to the stored text exactly; the viewer e2e test compares the page with `softWrap` of the stored page and selects
+across a joined break on the harness. The "Quote only" disclosure still shows the stored quote as is.
+
+**D-337 — Hero card and evidence pane, in few words.** The hero: ref chip (mono), title at Title size, rule text in the
+Document type in a `surface-2` inset with its rule version, date and source link, the finding as a large tinted chip,
+how it was checked in one line (`checkMethod`: "Rules engine: Internship hours >= 600", "Quote verified on page 1",
+"No passage found"; the explanation behind an InfoTip "How it was checked"), the model's rationale in three lines with
+"Show all" (`lxClamp`), and the current decision with who and when and its note. The evidence pane drops its "Evidence"
+label (screen-reader heading only) and the "File" entry in the three-pane layout (the viewer names the file), and its
+"No quoted evidence" reason moved to the hero's method line. The DocumentViewer header became an icon pager (Previous
+page, "Page 1 of 2", Next page) and an icon link "Open original", all with their words as accessible names and
+tooltips; the names are unchanged, so Rules and the evidence drawer keep working as before.
+
+**D-338 — Filter as a segmented icon control.** Five icons (list, dashed circle, and the three finding icons the
+StatusIcon uses before review, which a unit test pins). Each segment's name and tooltip put the count first ("7 to
+review", "1 ambiguous", "9 requirements"): SelectButton gives the option label to its toggle as `aria-label`, so the
+count reaches assistive technology without a second text. The list keeps the selected row in view by scrolling the
+list itself, never the page (under 1024 px the page scrolls, and a decision there must not jump it to the list).
+
+**D-339 — End-to-end changes.** Names that changed: the state tabs (full names; `stateTab(page, code)` and `STATE` in
+`support.ts`), "Request evidence", "Gap" then "Confirm gap", "Sign California", the dialogs "Sign California" and
+"Signed", the filter segments, `getByLabel('Note', { exact: true })` (the note button's name contains "note"). Flows
+that changed with the design: a request with a note opens the note first ("Add note"); "Sign <state>" is absent until
+everything is decided. New checks: reduced motion with no running animation after each decision, keys during the
+entrance, Escape in the note, the bar staying in view at 400 px, the pill descriptions, the seal preview hidden from
+assistive technology, the stamped seal and Done's focus, axe on Review at 1440 and 400 px, the gap note, the signing
+dialog at 1440 and 400 px with and without an outcome, and the signed seal, each in both themes.
