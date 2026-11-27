@@ -6,7 +6,7 @@ import { Tooltip } from 'primeng/tooltip';
 import { filter, firstValueFrom } from 'rxjs';
 import { ApiService } from '../core/api.service';
 import { ROLE_LABEL } from '../core/labels';
-import { navLinks, screenOf } from '../core/navigation';
+import { beforeSignIn, navLinks, screenOf } from '../core/navigation';
 import { ProgramContext } from '../core/program-context';
 import { SessionService } from '../core/session.service';
 import { CommandPalette } from '../ui/command-palette/command-palette';
@@ -52,20 +52,23 @@ export class Shell {
   readonly programId = signal<string | null>(null);
   /** Until the first navigation resolves, the frame stays invisible, so the bar never pushes a painted frame down. */
   readonly pending = computed(() => this.url() === null);
-  /** The top bar and navigation appear once someone is signed in; the sign-in page stands alone. */
-  readonly chrome = computed(() => this.session.authenticated() && this.url() !== null && !this.url()!.startsWith('/login'));
-  /** The rail is on every program screen and on the tenant-wide register, which needs no program. */
-  readonly railVisible = computed(() => this.chrome() && (this.programId() !== null || (this.url() ?? '').split(/[?#]/)[0] === '/register'));
+  /** The top bar and navigation appear once someone is signed in; sign-in and choosing a password stand alone. */
+  readonly chrome = computed(() => this.session.authenticated() && this.url() !== null && !beforeSignIn(this.url()!));
+  /** The rail is on every program screen and on the tenant-wide ones (the register, People), which need no program. */
+  readonly railVisible = computed(() => {
+    const path = (this.url() ?? '').split(/[?#]/)[0];
+    return this.chrome() && (this.programId() !== null || this.links().some((link) => link.tenant && link.path.join('/') === path));
+  });
   /** The screen segment kept when switching programs ("review" in /programs/p1/review?jurisdiction=CA). */
   readonly screen = computed(() => (this.url() ?? '').split(/[?#]/)[0].split('/')[3] ?? 'overview');
 
-  /** The register first, then the screens of the program in the URL (on the register, of the program last worked on). */
+  /** The tenant-wide screens first, then those of the program in the URL (elsewhere, of the program last worked on). */
   readonly links = computed(() => navLinks(this.programId() ?? this.context.program()?.id ?? null, {
     waitingForReview: this.context.counts()?.waitingForReview ?? 0,
     openChanges: this.context.openChanges(),
     rulesWaiting: this.context.rulesWaiting(),
     openRequests: this.context.openRequests(),
-  }));
+  }, this.session.user()?.role ?? null));
 
   readonly initials = computed(() => initials(this.session.user()?.displayName ?? ''));
   readonly collapsed = signal(readCollapsed());

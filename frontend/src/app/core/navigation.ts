@@ -1,4 +1,5 @@
 import type { IconName } from '../theme/icons';
+import type { Role } from './models';
 
 /** A screen of the product as the rail, the bottom tab bar and the command palette show it. */
 export interface NavLink {
@@ -20,19 +21,25 @@ export interface NavCounts { readonly waitingForReview: number; readonly openReq
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
 /**
- * The tenant-wide register first, then the screens of the given program (none before a program was opened). The
- * only list of screens: the rail and the command palette both read it.
+ * The tenant-wide screens first (the register; People for administrators, who alone manage accounts), then the
+ * screens of the given program (none before a program was opened). The only list of screens: the rail and the
+ * command palette both read it.
  */
-export function navLinks(programId: string | null, counts: NavCounts): NavLink[] {
-  const register: NavLink = { id: 'register', path: ['/register'], label: 'Determination register', short: 'Determination register', icon: 'phosphorBookBookmark', tenant: true, badge: 0, badgeText: '' };
+export function navLinks(programId: string | null, counts: NavCounts, role: Role | null): NavLink[] {
+  const tenant = (id: string, label: string, icon: IconName): NavLink =>
+    ({ id, path: [`/${id}`], label, short: label, icon, tenant: true, badge: 0, badgeText: '' });
+  const tenantLinks = [
+    tenant('register', 'Determination register', 'phosphorBookBookmark'),
+    ...(role === 'ADMIN' ? [tenant('people', 'People', 'phosphorUsers')] : []),
+  ];
   if (!programId) {
-    return [register];
+    return tenantLinks;
   }
   const screen = (id: string, label: string, icon: IconName, badge = 0, badgeText = '', short = label): NavLink =>
     ({ id, path: ['/programs', programId, id], label, short, icon, tenant: false, badge, badgeText });
   const { waitingForReview: waiting, openRequests: requests, openChanges: open, rulesWaiting: rules } = counts;
   return [
-    register,
+    ...tenantLinks,
     screen('overview', 'Program overview', 'phosphorSquaresFour'),
     screen('review', 'Review', 'phosphorListChecks', waiting, `${plural(waiting, 'requirement', 'requirements')} waiting for review`),
     screen('requests', 'Evidence requests', 'phosphorTray', requests, `${plural(requests, 'open evidence request', 'open evidence requests')}`, 'Requests'),
@@ -41,6 +48,11 @@ export function navLinks(programId: string | null, counts: NavCounts): NavLink[]
     screen('report', 'Evidence report', 'phosphorFileText'),
     screen('audit', 'Audit trail', 'phosphorClockCounterClockwise'),
   ];
+}
+
+/** Sign-in and choosing a password: pages that stand alone, without the top bar and the rail, signed in or not. */
+export function beforeSignIn(url: string): boolean {
+  return /^\/(login|setup)(?=[/?#]|$)/.test(url);
 }
 
 /** "/programs/p1/rules/rv7?x=1" is the screen "/programs/p1/rules": the path up to the screen's own segment. */

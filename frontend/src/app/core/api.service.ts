@@ -2,9 +2,9 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, switchMap } from 'rxjs';
 import {
-  AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, DeterminationLists, DocumentPage, EvidenceRequest, EvidenceResponse, EvidenceResponseBody,
-  Jurisdiction, Mapping, MappingsView, NewRuleVersion, Outcome, Program, ProgramDocument, ProgramOverview, RegisterFilter, RegisterRow,
-  RequirementDraft, RequirementsView, RuleVersionDiff, RuleVersionView, SessionView, UserSummary, UserView, WorkQueue,
+  Account, AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, DeterminationLists, DocumentPage, EvidenceRequest, EvidenceResponse, EvidenceResponseBody,
+  Jurisdiction, Mapping, MappingsView, NewRuleVersion, Outcome, Program, ProgramDocument, ProgramOverview, RegisterFilter, RegisterRow, Role,
+  NewUser, RequirementDraft, RequirementsView, RuleVersionDiff, RuleVersionView, SessionView, UserSetup, UserSummary, UserView, WorkQueue,
 } from './models';
 import { REGISTER_PATH, registerQuery } from './register';
 import { ReportAnswer, readReport } from './report-answer';
@@ -21,6 +21,10 @@ export class ApiService {
     return this.http.post<UserView>(`${this.base}/auth/login`, body.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
   }
   logout(): Observable<void> { return this.http.post<void>(`${this.base}/auth/logout`, null); }
+  /** Anonymous, CSRF like login: a setup code and the password its holder chooses (D-373). Signs nobody in. */
+  setPassword(code: string, password: string): Observable<void> {
+    return this.http.post<void>(`${this.base}/auth/setup`, { code, password });
+  }
 
   programs(): Observable<Program[]> { return this.http.get<Program[]>(`${this.base}/programs`); }
   programOverview(id: string): Observable<ProgramOverview> { return this.http.get<ProgramOverview>(`${this.base}/programs/${id}/overview`); }
@@ -95,6 +99,14 @@ export class ApiService {
   workQueue(): Observable<WorkQueue> { return this.http.get<WorkQueue>(`${this.base}/work-queue`); }
   workQueueCount(): Observable<{ total: number }> { return this.http.get<{ total: number }>(`${this.base}/work-queue/count`); }
   users(): Observable<UserSummary[]> { return this.http.get<UserSummary[]>(`${this.base}/users`); }
+  /** The same list with each account's state; the server adds those fields for administrators only (D-375). */
+  accounts(): Observable<Account[]> { return this.http.get<Account[]>(`${this.base}/users`); }
+  /** 201 with the only copy of the new person's setup code. */
+  createUser(body: NewUser): Observable<UserSetup> { return this.http.post<UserSetup>(`${this.base}/users`, body); }
+  /** A new code; every earlier unused code of the person stops working. */
+  issueSetupCode(userId: string): Observable<UserSetup> { return this.http.post<UserSetup>(`${this.base}/users/${userId}/setup-code`, null); }
+  changeRole(userId: string, role: Role): Observable<Account> { return this.http.put<Account>(`${this.base}/users/${userId}/role`, { role }); }
+  setActive(userId: string, active: boolean): Observable<Account> { return this.http.put<Account>(`${this.base}/users/${userId}/active`, { active }); }
   /** Newest first; `filters` are the query parameters of audit-view's auditParams, applied by the server (D-116). */
   audit(filters: Record<string, string>, limit: number, offset: number): Observable<AuditEntry[]> {
     return this.http.get<AuditEntry[]>(`${this.base}/audit`, { params: { ...filters, limit, offset } });
