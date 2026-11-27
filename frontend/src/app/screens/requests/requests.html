@@ -76,7 +76,9 @@
                 <p-tag [severity]="st.severity" [value]="st.label"><ng-template #icon><ng-icon [name]="st.icon" size="14" aria-hidden="true" /></ng-template></p-tag>
               </td>
               <td class="lx-answers-cell">
+                <!-- The number sits under the Answers header; a card (narrow screens, no header) says it in words. -->
                 <span class="lx-answer-count">{{ row.responseCount }}</span>
+                <span class="lx-answer-words" data-testid="answer-words">{{ answersText(row.responseCount) }}</span>
                 @if (row.latestResponse; as latest) {
                   <p class="lx-help">Latest: {{ latest.providedByName }}, {{ latest.createdAt | date: 'd MMM' }}, {{ latest.filename }}, page {{ latest.pageNumber }}</p>
                 }

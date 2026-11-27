@@ -1,7 +1,6 @@
 import { Component, computed, effect, inject, output, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { problemDetail } from '../../core/problem';
@@ -9,7 +8,7 @@ import type { IconName } from '../../theme/icons';
 import { Enter } from '../../ui/enter';
 import { ProgressRing } from '../../ui/progress-ring';
 import { CheckId, ReadinessCheck, SetupStep } from './setup-model';
-import { SetupStore } from './setup-store';
+import { SetupNotice, SetupStore } from './setup-store';
 
 /** Where a failing line sends the person to fix it. */
 const FIX_STEP: Partial<Record<CheckId, SetupStep>> = { COURSE_DOCUMENTS: 'DOCUMENTS', READING: 'DOCUMENTS', FACTS: 'FACTS' };
@@ -26,9 +25,8 @@ const FIX_STEP: Partial<Record<CheckId, SetupStep>> = { COURSE_DOCUMENTS: 'DOCUM
   styleUrl: './steps.css',
 })
 export class ReadinessStep {
-  private readonly toast = inject(MessageService);
   readonly store = inject(SetupStore);
-  readonly announce = output<string>();
+  readonly announce = output<SetupNotice>();
   readonly goTo = output<SetupStep>();
 
   readonly checks = computed(() => this.store.readiness()?.checks ?? []);
@@ -42,7 +40,7 @@ export class ReadinessStep {
   readonly fixStep = FIX_STEP;
 
   constructor() {
-    // The run's end is said once: a toast and the live region.
+    // The run's end is said once, by the workspace: a toast and the hidden live region.
     let announced: string | null = null;
     effect(() => {
       const run = this.store.run();
@@ -51,8 +49,7 @@ export class ReadinessStep {
       untracked(() => {
         const finished = run.view.status === 'FINISHED';
         const detail = finished ? `${run.processed} requirements have proposed findings, ready for review.` : 'The assessment stopped before it finished. Run it again.';
-        this.toast.add({ severity: finished ? 'success' : 'error', summary: finished ? 'Assessment finished' : 'Assessment failed', detail });
-        this.announce.emit(detail);
+        this.announce.emit({ severity: finished ? 'success' : 'error', summary: finished ? 'Assessment finished' : 'Assessment failed', detail });
       });
     });
   }
@@ -79,7 +76,7 @@ export class ReadinessStep {
     this.error.set(null);
     try {
       await this.store.startAssessment();
-      this.announce.emit('Assessment started. The model proposes findings; nobody is bound by them.');
+      this.announce.emit({ summary: 'Assessment started', detail: 'The model proposes findings; nobody is bound by them.' });
     } catch (e: unknown) {
       this.error.set(problemDetail(e, 'The assessment could not be started.'));
     } finally {

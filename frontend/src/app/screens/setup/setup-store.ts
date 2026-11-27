@@ -21,6 +21,9 @@ function localToday(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+/** What a step just did: a toast on screen, and the sentence for the hidden live region. */
+export interface SetupNotice { readonly summary: string; readonly detail: string; readonly severity?: 'success' | 'error' }
+
 /** A started assessment as the Readiness step follows it: requirements processed out of the requirements it will assess. */
 export interface AssessmentRun { readonly view: AssessmentView; readonly processed: number; readonly total: number }
 

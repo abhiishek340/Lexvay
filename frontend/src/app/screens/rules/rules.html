@@ -56,11 +56,6 @@
           <lx-rule-version-detail [version]="v" [all]="context.ruleVersions()" [users]="users()" (notice)="notify($event)" (changed)="refresh()" />
         } @else if (ruleVersionId()) {
           <div class="lx-empty-state"><ng-icon name="phosphorScalesDuotone" size="32" aria-hidden="true" /><p>This rule version does not exist here.</p></div>
-        } @else if (groups().length > 0) {
-          <div class="lx-empty-state lx-choose" data-testid="choose-version">
-            <ng-icon name="phosphorScalesDuotone" size="32" aria-hidden="true" />
-            <p>Choose a version.</p>
-          </div>
         }
       </section>
     </div>

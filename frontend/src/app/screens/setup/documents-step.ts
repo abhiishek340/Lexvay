@@ -12,7 +12,7 @@ import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
 import { Sheet } from '../../shared/sheet/sheet';
 import { Enter } from '../../ui/enter';
 import { DocumentState, currentVersion } from './setup-model';
-import { SetupStore } from './setup-store';
+import { SetupNotice, SetupStore } from './setup-store';
 import { UploadEntry, UploadState } from './upload-queue';
 
 /** The kinds a program document can have; rule text is entered through rule versions (D-009). */
@@ -55,7 +55,7 @@ const DOCUMENT_STATE: Record<DocumentState, { label: string; severity: 'info' | 
 })
 export class DocumentsStep {
   readonly store = inject(SetupStore);
-  readonly announce = output<string>();
+  readonly announce = output<SetupNotice>();
   private readonly uploader = viewChild<FileUpload>('uploader');
 
   readonly uploadState = UPLOAD_STATE;
@@ -97,7 +97,7 @@ export class DocumentsStep {
   async upload(): Promise<void> {
     const count = this.store.queue.waiting().length;
     await this.store.uploadWaiting();
-    this.announce.emit(`${count} ${count === 1 ? 'file' : 'files'} sent; reading starts at once.`);
+    this.announce.emit({ summary: `${count} ${count === 1 ? 'file' : 'files'} sent`, detail: 'Reading starts at once.' });
   }
 
   /** "Ready (2 pages)": the state's word, with the page count once read. */

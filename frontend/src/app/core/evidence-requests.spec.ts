@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { awaitingAnswer, blockedReason, canAnswer, matchesRequestFilter, requestCounts, requestState } from './evidence-requests';
+import { answersText, awaitingAnswer, blockedReason, canAnswer, matchesRequestFilter, requestCounts, requestState } from './evidence-requests';
 import { EvidenceRequest } from './models';
 
 function row(id: string, status: EvidenceRequest['status'], stale = false, signed = false): EvidenceRequest {
@@ -53,5 +53,11 @@ describe('evidence request status', () => {
     const rows = [row('1', 'OPEN'), row('2', 'OPEN', true), row('3', 'ANSWERED'), row('4', 'OPEN', false, true), row('5', 'OPEN', true, true)];
     expect(awaitingAnswer(rows)).toBe(2);
     expect(awaitingAnswer([])).toBe(0);
+  });
+
+  it('says the number of answers in words for the cards that have no column header', () => {
+    expect(answersText(0)).toBe('No answers');
+    expect(answersText(1)).toBe('1 answer');
+    expect(answersText(3)).toBe('3 answers');
   });
 });

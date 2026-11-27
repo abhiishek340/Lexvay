@@ -9,7 +9,8 @@
     </div>
     @if (store.program(); as p) { <p class="lx-setup-subtitle">{{ p.name }}</p> }
   </header>
-  <p class="lx-status-line" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
+  <!-- What a step just did, for assistive technology only: the toast says it on screen (no confirmation stays under the title). -->
+  <p class="lx-sr-only" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
   @if (store.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
   @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
 

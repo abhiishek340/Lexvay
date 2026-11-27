@@ -30,7 +30,7 @@ import { DocumentsStep } from './documents-step';
 import { FactsStep } from './facts-step';
 import { ReadinessStep } from './readiness-step';
 import { SETUP_STEPS, SetupStep, firstOpenStep, licenseTypes } from './setup-model';
-import { SetupStore } from './setup-store';
+import { SetupNotice, SetupStore } from './setup-store';
 import { SETUP_TOKENS } from './setup-theme';
 
 /** The icons the setup workspace and its steps show beyond SHELL_ICONS, provided by its route (setup.routes.ts). */
@@ -165,8 +165,7 @@ export class SetupWorkspace {
       const body: NewProgram = { name: f.name.trim(), licenseType: f.licenseType.trim(), catalogYear: f.catalogYear.trim(), jurisdictions: f.jurisdictions };
       const program = await this.store.create(body);
       const text = `${program.name} created with ${program.jurisdictions.length} ${program.jurisdictions.length === 1 ? 'state' : 'states'}.`;
-      this.message.set(text);
-      this.toast.add({ severity: 'success', summary: 'Program created', detail: text });
+      this.announce({ summary: 'Program created', detail: text });
       this.form.set({ ...EMPTY });
       await this.router.navigate(['/programs', program.id, 'setup'], { replaceUrl: true });
     } catch (e: unknown) {
@@ -181,9 +180,10 @@ export class SetupWorkspace {
     }
   }
 
-  /** A step's sentence for the live region, from the step that finished something. */
-  announce(text: string): void {
-    this.message.set(text);
+  /** A step finished something: a toast says it on screen, the hidden live region to assistive technology. */
+  announce(notice: SetupNotice): void {
+    this.message.set(`${notice.summary}. ${notice.detail}`);
+    this.toast.add({ severity: notice.severity ?? 'success', summary: notice.summary, detail: notice.detail });
   }
 
   private summarise(): Record<SetupStep, string> {

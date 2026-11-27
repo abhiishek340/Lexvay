@@ -15,7 +15,7 @@ import { problemDetail } from '../../core/problem';
 import { Enter } from '../../ui/enter';
 import { InfoTip } from '../../ui/info-tip';
 import { currentVersion } from './setup-model';
-import { SetupStore } from './setup-store';
+import { SetupNotice, SetupStore } from './setup-store';
 
 interface CourseRow { course: Course; catalogYear: string; required: boolean; versions: number }
 interface CourseForm { code: string; title: string; required: boolean }
@@ -33,7 +33,7 @@ interface VersionForm { catalogYear: string; required: boolean }
 })
 export class CoursesStep {
   readonly store = inject(SetupStore);
-  readonly announce = output<string>();
+  readonly announce = output<SetupNotice>();
 
   readonly rows = computed<CourseRow[] | null>(() => this.store.courses()?.map((course) => {
     const current = currentVersion(course);
@@ -76,7 +76,7 @@ export class CoursesStep {
     try {
       const added = await this.store.addCourse({ code: c.code.trim(), title: c.title.trim(), required: c.required });
       this.addOpen.set(false);
-      this.announce.emit(`${added.code} added for catalog year ${currentVersion(added)?.catalogYear ?? ''}.`);
+      this.announce.emit({ summary: 'Course added', detail: `${added.code}, catalog year ${currentVersion(added)?.catalogYear ?? ''}.` });
     } catch (e: unknown) {
       // The only conflict a new course can meet is a code the program already has.
       if (e instanceof HttpErrorResponse && e.status === 409) {
@@ -117,7 +117,7 @@ export class CoursesStep {
     try {
       await this.store.addVersion(course.id, { catalogYear: v.catalogYear.trim(), required: v.required, supersedesId: currentVersion(course)?.id ?? null });
       this.versionOf.set(null);
-      this.announce.emit(`${course.code} now follows catalog year ${v.catalogYear.trim()}.`);
+      this.announce.emit({ summary: 'Catalog year added', detail: `${course.code} now follows catalog year ${v.catalogYear.trim()}.` });
     } catch (e: unknown) {
       this.general.set(problemDetail(e, 'The catalog year could not be added.'));
     } finally {

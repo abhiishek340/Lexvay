@@ -12,7 +12,7 @@ import { SelectButton } from 'primeng/selectbutton';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { Tag } from 'primeng/tag';
-import { BlockedReason, REQUEST_FILTERS, RequestFilter, RequestState, blockedReason, canAnswer, matchesRequestFilter, requestCounts, requestState } from '../../core/evidence-requests';
+import { BlockedReason, REQUEST_FILTERS, RequestFilter, RequestState, answersText, blockedReason, canAnswer, matchesRequestFilter, requestCounts, requestState } from '../../core/evidence-requests';
 import { EvidenceRequest, EvidenceResponse } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
@@ -60,6 +60,7 @@ export class Requests {
   readonly programId = input.required<string>();
   readonly filters = REQUEST_FILTERS;
   readonly canAnswer = canAnswer;
+  readonly answersText = answersText;
   readonly blockedText = BLOCKED_TEXT;
   readonly initials = initials;
 

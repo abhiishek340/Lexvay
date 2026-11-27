@@ -65,6 +65,13 @@ test('a reviewer reads the seeded Colorado revision: its list, its rule text and
   await nav(page, 'Rules').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Rules' })).toBeVisible();
   await expect(nav(page, 'Rules')).toHaveAttribute('aria-current', 'page');
+  // Nothing waits for a person, so Rules opens on the newest approved version of the program's first state, in place
+  // of the bare address (Back does not return to an empty detail).
+  await expect(page).toHaveURL(/\/rules\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole('heading', { level: 2, name: 'Demo rule set - Utah (fictional) 2026' })).toBeVisible();
+  await page.goBack();
+  await expect(page).not.toHaveURL(/\/rules$/);
+  await nav(page, 'Rules').click();
 
   // The seed approves both Colorado versions; the revision supersedes the original.
   const revision = versions(page).getByRole('option', { name: REVISION });

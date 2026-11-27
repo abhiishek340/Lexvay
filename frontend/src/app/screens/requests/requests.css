@@ -26,6 +26,7 @@
 }
 .lx-answers-cell { min-width: 7rem; }
 .lx-answer-count { font-size: 15px; font-weight: 600; }
+.lx-answer-words { display: none; font-size: 13px; color: var(--p-lx-text-2); }
 .lx-action { min-width: 11rem; text-align: right; }
 .lx-action .lx-help { max-width: 30ch; }
 .lx-action button { gap: 6px; }
@@ -46,4 +47,6 @@
   :host ::ng-deep .lx-requests-table tbody tr.lx-request-detail-row td { grid-column: auto; }
   .lx-request-detail { padding-left: 0; }
   .lx-action { min-width: 0; }
+  .lx-answer-count { display: none; }
+  .lx-answer-words { display: inline; }
 }

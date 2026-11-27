@@ -17,7 +17,7 @@ import { Sheet } from '../../shared/sheet/sheet';
 import { Enter } from '../../ui/enter';
 import { InfoTip } from '../../ui/info-tip';
 import { factHistory, quoteShowsValue } from './setup-model';
-import { SetupStore } from './setup-store';
+import { SetupNotice, SetupStore } from './setup-store';
 
 /**
  * The Program facts step: one row per number the program's rules check (derived from their approved requirement
@@ -34,7 +34,7 @@ import { SetupStore } from './setup-store';
 })
 export class FactsStep {
   readonly store = inject(SetupStore);
-  readonly announce = output<string>();
+  readonly announce = output<SetupNotice>();
   readonly fieldLabel = NUMERIC_FIELD_LABEL;
 
   readonly rows = computed(() => {
@@ -87,7 +87,7 @@ export class FactsStep {
     this.failure.set(null);
     try {
       const fact = await this.store.recordFact({ key, value, documentId, pageNumber: selection.pageNumber, quote: selection.quote });
-      this.announce.emit(`${NUMERIC_FIELD_LABEL[key]} recorded as ${fact.value}, from ${fact.filename}, page ${fact.pageNumber}.`);
+      this.announce.emit({ summary: 'Fact recorded', detail: `${NUMERIC_FIELD_LABEL[key]} ${fact.value}, from ${fact.filename}, page ${fact.pageNumber}.` });
       this.close();
     } catch (e: unknown) {
       const message = problemDetail(e, 'The fact could not be recorded.');

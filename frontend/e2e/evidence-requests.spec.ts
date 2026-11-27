@@ -181,6 +181,9 @@ test('at 400 px: the inbox, the drawer, a blocked request and the provided evide
   await nav(page, 'Evidence requests').click();
   const row = page.getByRole('table', { name: 'Evidence requests' }).locator(`tr[data-ref="${ambiguous.requirement.ref}"]`);
   await expect(row).toContainText('Open');
+  // A card has no column headers, so its answer count is said in words.
+  await expect(row.getByTestId('answer-words')).toBeVisible();
+  await expect(row.getByTestId('answer-words')).toHaveText('No answers');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await expectAccessible(page, 'Evidence requests at 400 px');

@@ -14,7 +14,6 @@
   font-size: 12px; line-height: 20px; font-weight: 600; color: var(--p-lx-text-2); background: var(--p-lx-surface);
 }
 .lx-version-pane { min-width: 0; }
-.lx-choose { min-height: 20rem; justify-content: center; }
 
 :host ::ng-deep .lx-version-list.p-listbox { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 :host ::ng-deep .lx-version-list .p-listbox-list { padding: 0 8px 12px; gap: 2px; }

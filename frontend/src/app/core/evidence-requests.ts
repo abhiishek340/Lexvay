@@ -54,3 +54,8 @@ export function awaitingAnswer(rows: readonly EvidenceRequest[]): number {
 export function canAnswer(row: EvidenceRequest): boolean {
   return requestState(row) === 'OPEN';
 }
+
+/** "No answers", "1 answer", "3 answers": the count in words, where no column header names it (the inbox's cards). */
+export function answersText(count: number): string {
+  return count === 0 ? 'No answers' : `${count} ${count === 1 ? 'answer' : 'answers'}`;
+}
