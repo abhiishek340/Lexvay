@@ -208,6 +208,4 @@ instances cannot be waited for in a test run; `UserStampCheckTest` proves it wit
 seen) and `UserAdminApiTest` proves the consequence at the service (a change made behind the cache). (2) The constant-time
 comparison cannot be observed from a test; `SetupCodesTest` proves the behaviour (any position of a difference fails) and
 reads the source to prove that no secret is compared with `equals`, which is a structural guard and nothing more.
-Follow-ups outside this item: the screens (F5b); the migration number gap (V014 is on another branch; Flyway on a database
-that already ran V015 will refuse V014 unless `outOfOrder` is set, a problem only for long-lived development databases);
-the password length limit of D-373.
+Follow-ups outside this item: the screens (F5b); the password length limit of D-373.
