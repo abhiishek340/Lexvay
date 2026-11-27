@@ -139,8 +139,10 @@ It fails if the planner does not use a kept index, or if it starts using a rejec
 | `audit_log_entity_idx` | audit history of one record | yes |
 | `assessment_program_status_finished_idx` | latest finished assessment of a program | yes |
 
-`requirement (rule_version_id)`: not created. The existing unique index `requirement_rule_version_id_ref_key`
-serves it (planner: Bitmap Heap Scan on requirement; Bitmap Index Scan on requirement_rule_version_id_ref_key; Bitmap Index Scan on requirement_tenant_idx).
+`requirement (rule_version_id)`: not created. The existing unique index `requirement_ordinal_key` (V012,
+`(rule_version_id, ordinal)`) serves it (planner: Bitmap Heap Scan on requirement; Bitmap Index Scan on
+requirement_ordinal_key; Bitmap Index Scan on requirement_tenant_idx). Before V012 it was
+`requirement_rule_version_id_ref_key`; `IndexUsageTest` still named that index and had failed on `main` since FIX-1.
 
 ### Dropped (the planner never chose them with row-level security)
 
@@ -148,15 +150,60 @@ serves it (planner: Bitmap Heap Scan on requirement; Bitmap Index Scan on requir
 |---|---|---|---|
 | `rejected_document_program_idx` | documents of a program (unique index tenant_id, program_id, sha256 serves it) | Index Scan using document_tenant_id_program_id_sha256_key on document | Bitmap Heap Scan on document; Bitmap Index Scan on rejected_document_program_idx |
 | `rejected_change_event_status_created_idx` | open change events, newest first | Bitmap Heap Scan on change_event; Bitmap Index Scan on change_event_tenant_idx | Seq Scan on change_event |
-| `rejected_job_document_id_idx` | ingest status of a document | Seq Scan on job | Index Scan using rejected_job_document_id_idx on job |
-| `rejected_job_rule_version_id_idx` | extraction status of a rule version | Seq Scan on job | Index Scan using rejected_job_rule_version_id_idx on job |
 
-The job indexes work without row-level security (right column) and are ignored with it. The `job` table's policy
-has an OR branch for the worker flag, and `jsonb ->>` is not leakproof, so the planner may not use the condition as
-an index condition below the policy. Recommendation, not implemented (schema change outside the spec): a generated
-`uuid` column holding the payload id plus an index, compared with a leakproof `=`. Until then `GET /documents/{id}`
-and the rule version views scan the job table (jobs are never deleted); at the seed size this costs nothing
-measurable, at hundreds of thousands of jobs it will.
+The two job candidates that stood here (an expression index on `payload->>'documentId'` and one on
+`payload->>'ruleVersionId'`) are gone: FIX-2 replaced the payload comparison with a column, see the next section.
+
+## Job lookups (FIX-2)
+
+`V013__job_entity_id.sql` adds `job.entity_id uuid NOT NULL` (the one record a job works on) and
+`job_entity_idx (tenant_id, type, entity_id, created_at DESC)`. `JobRepository.latest`, `latestByEntity`, the
+work queue's failed extraction test and the rule source scheduler's "already queued" test compare `entity_id = ...`,
+a leakproof comparison, instead of `payload->>'key'`. `IndexUsageTest` runs `EXPLAIN` as the application role under
+row-level security on about 200 tenants, with synthetic finished jobs (20 re-ingests per document, 20 extractions per
+rule version, 30 checks per rule source, as the seed never produces them) and fails on a sequential scan of `job`:
+
+| Statement | Before (payload) | After (`entity_id`) |
+|---|---|---|
+| ingest status of a document (`GET /documents/{id}`) | Seq Scan on job | Index Scan using job_entity_idx on job |
+| extraction status of a rule version (`GET /rule-versions/{id}`) | Seq Scan on job | Index Scan using job_entity_idx on job |
+| extraction status of every rule version (`GET /rule-versions`) | Seq Scan on job | Index Scan using job_entity_idx on job |
+| a check of a source already queued, manual and scheduler | not measured (payload comparison) | Index Scan using job_claim_idx on job j (see below) |
+
+The "before" plans are from the WS-PERF run recorded above (the payload expression index was never chosen under
+row-level security) and, for the lookups, from running the old statement against the new database: a sequential scan
+of the 1304 pages of `job`. The dedupe uses `job_claim_idx (status, created_at)`, not `job_entity_idx`: the statement
+only looks for QUEUED or RUNNING jobs, which are few, so the planner reads those by status and filters the entity.
+It never reads the whole table, which is what the test asserts.
+
+Latency of the two endpoints, `make perf`, one run each (not a median of three; the machine was shared with other
+builds, so differences of a factor of two are noise). The seeded database holds under a thousand jobs, so a
+sequential scan costs nothing measurable there and none of these rows is expected to move:
+
+| Endpoint | Pass | p50 ms before | after | p95 ms before | after | p99 ms before | after | connections per call before | after |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| GET /documents/{id} | seed (2 tenants) | 1.87 | 1.83 | 2.65 | 2.66 | 3.37 | 3.10 | 1.0 | 1.0 |
+| GET /documents/{id} | 62 tenants | 3.75 | 6.02 | 6.84 | 11.18 | 13.15 | 17.68 | 1.0 | 1.0 |
+| GET /rule-versions | seed (2 tenants) | 1.81 | 3.05 | 3.78 | 6.01 | 4.37 | 8.48 | 1.0 | 1.0 |
+| GET /rule-versions | 62 tenants | 4.22 | 4.21 | 10.41 | 7.88 | 22.51 | 11.44 | 1.0 | 1.0 |
+
+Read the table with the noise in mind: the same code ran the 62-tenant document endpoint at p50 3.75 ms in one run and
+6.02 ms in the next. Every p95 is far inside the 40 ms budget before and after. What changed is the work per request
+as the table grows, measured on the database of `IndexUsageTest` (shared buffers touched by one `EXPLAIN (ANALYZE,
+BUFFERS)` of the ingest status lookup, application role, row-level security; three runs gave the same counts):
+
+| Access path | Buffers |
+|---|---:|
+| sequential scan of `job` (the old payload statement) | 1304 |
+| `job_entity_idx (tenant_id, type, entity_id, created_at DESC)` (V013) | 636 |
+| `(type, entity_id, created_at DESC)` (tried in a scratch run, not created) | 21 to 25 |
+
+The V013 index is chosen and removes the sequential scan, but it is only about twice as cheap as the scan here. The
+policies of `job` have an OR branch for the worker flag, so `tenant_id = current_tenant()` is a filter, not an index
+condition: the leading column `tenant_id` is unconstrained, PostgreSQL 18 walks the index with a skip scan over every
+tenant, and the cost grows with the number of tenants. An index without the leading `tenant_id` is about thirty times
+cheaper. Recommendation for the orchestrator (D-202): change the key to `(type, entity_id, created_at DESC)` before
+the first deployment of V013.
 
 ## Work queue (F13)
 
