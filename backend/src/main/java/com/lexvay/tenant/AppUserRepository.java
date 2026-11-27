@@ -138,6 +138,17 @@ public class AppUserRepository {
                 .param("active", active).param("id", id).update();
     }
 
+    /**
+     * Replaces a hash by another hash of the same password (D-401). The stamp does not move: nobody's session ends.
+     * Returns false, and changes nothing, when the stored hash is no longer {@code expectedHash}, which means the
+     * password was set again in the meantime and the new hash would overwrite it.
+     */
+    public boolean rehashPassword(UUID id, String expectedHash, String newHash) {
+        return jdbc.sql("UPDATE app_user SET password_hash = :newHash WHERE id = :id AND password_hash = :expectedHash")
+                .param("newHash", newHash).param("id", id).param("expectedHash", expectedHash)
+                .update() == 1;
+    }
+
     /** Sets the hash and ends every session the user has (the stamp moves). */
     public void setPassword(UUID id, String passwordHash) {
         jdbc.sql("UPDATE app_user SET password_hash = :hash, security_stamp = security_stamp + 1 WHERE id = :id")
