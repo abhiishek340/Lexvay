@@ -1,7 +1,7 @@
 # Operations
 
 How to build, run, configure and observe Lexvay in production form. Decisions behind this page are in
-`docs/decisions/F6.md` (D-140 to D-149).
+`DECISIONS.md (D-140 to D-149)` (D-140 to D-149).
 
 ## Build
 

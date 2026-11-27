@@ -21,7 +21,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | merged (PR #14) |
 | F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | merged (PR #9) |
 | F4a Evidence requests API | `feat-evidence-requests-api` | 6 | Sonnet 5.5 | merged (PR #8) |
-| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | PR #16 in review (renumber to V010, merge after #14, #13) |
+| F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | merged (PR #16) |
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (merges after V011) |
@@ -34,7 +34,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | PR #17 in review (merges after #14, #13, #16) |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | queued (after F7, FIX-1) |
-| OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | queued (after F6) |
+| OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | in progress |
 | F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | in progress |
@@ -390,7 +390,7 @@ Migration file name: `V007__evidence_response.sql` (V006 is reserved for WS-PERF
    running job finish within the grace period.
 Tests for the SPA fallback (deep link returns index, `/api/unknown` stays a 404 problem detail), request id
 rules, metrics presence after a pipeline run, usage endpoint with tenant isolation. Decisions in
-`docs/decisions/F6.md` (D-140 to D-149).
+`DECISIONS.md (D-140 to D-149)` (D-140 to D-149).
 
 ## F9 — Curriculum search API (ready to start; slot 8)
 Reviewers must be able to look for a passage themselves instead of trusting the shortlist.
