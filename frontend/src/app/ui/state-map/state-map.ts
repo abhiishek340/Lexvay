@@ -1,22 +1,23 @@
 import { Component, DestroyRef, ElementRef, computed, inject, input, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { phosphorCheckCircle, phosphorCircleDashed, phosphorMinusCircle, phosphorXCircle } from '@ng-icons/phosphor-icons/regular';
+import { phosphorCheckCircle, phosphorCircleDashed, phosphorCircleHalf, phosphorMinusCircle, phosphorXCircle } from '@ng-icons/phosphor-icons/regular';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Popover } from 'primeng/popover';
 import { ProgressRing } from '../progress-ring';
-import { MapCell, MapKey, MapState, TileStatus, mapCells, nextTarget, reviewedShare, tileName } from './state-map-model';
+import { MapCell, MapKey, MapState, TileStatus, legendEntries, mapCells, nextTarget, reviewedShare, tileName } from './state-map-model';
 import { UsTile } from './us-tiles';
 
 export type MapSize = 'hero' | 'compact' | 'mini';
 
 const KEYS = new Set<string>(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']);
 /** The map registers the icons of its cards itself, so a screen that shows it names nothing for it. */
-export const STATE_MAP_ICONS = { phosphorCheckCircle, phosphorCircleDashed, phosphorMinusCircle, phosphorXCircle };
+export const STATE_MAP_ICONS = { phosphorCheckCircle, phosphorCircleDashed, phosphorCircleHalf, phosphorMinusCircle, phosphorXCircle };
 const STATUS_ICON: Record<TileStatus, keyof typeof STATE_MAP_ICONS> = {
   MEETS: 'phosphorCheckCircle',
   DOES_NOT_MEET: 'phosphorXCircle',
   NOT_DETERMINED: 'phosphorMinusCircle',
+  MIXED: 'phosphorCircleHalf',
   IN_REVIEW: 'phosphorCircleDashed',
 };
 
@@ -29,7 +30,10 @@ const STATUS_ICON: Record<TileStatus, keyof typeof STATE_MAP_ICONS> = {
  * full names; arrow keys, Home and End move between them (one tab stop); hovering or focusing one opens a card with
  * its ring, status and action, and Enter or a click runs the action. Tiles wave in from west to east on first view.
  * `interactive` false draws a picture only (the sign-in story): no buttons, hidden from assistive technology.
+ * `legend` adds the one legend below the map, naming only the statuses it shows.
  * Sizes: hero (44 px tiles, shrinking to fit), compact (34 px), mini (16 px, no codes).
+ * The tile whose action runs takes `view-transition-name: state-<code>` for that navigation, so it morphs into the
+ * element of the next screen that carries the same name (Review's state header).
  */
 @Component({
   selector: 'lx-state-map',
@@ -46,12 +50,16 @@ export class StateMap {
   /** The wave entrance on first view; off for a map whose data replaces an earlier map in place. */
   readonly wave = input(true);
   readonly label = input('States');
+  readonly legend = input(false);
 
   private readonly router = inject(Router);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly card = viewChild<Popover>('card');
 
   readonly cells = computed<MapCell[]>(() => mapCells(this.states()));
+  readonly legendEntries = computed(() => legendEntries(this.states()));
+  /** The state whose action is running: its tile carries the shared-element name during the route transition. */
+  readonly departing = signal<string | null>(null);
   private readonly targets = computed<UsTile[]>(() => this.cells().filter((c) => c.state).map((c) => c.tile));
   /** The roving tab stop: the focused target, else the first one in reading order. */
   private readonly focused = signal<string | null>(null);
@@ -103,9 +111,15 @@ export class StateMap {
 
   activate(state: MapState): void {
     if (state.action) {
-      this.closeCard();
+      this.depart(state);
       this.router.navigate([...state.action.commands], { queryParams: state.action.queryParams });
     }
+  }
+
+  /** Before the card's link or the tile navigates: name the tile for the shared-element transition, close the card. */
+  depart(state: MapState): void {
+    this.departing.set(state.code);
+    this.closeCard();
   }
 
   /** Leaving a tile or the card closes it shortly after, so the pointer can travel from one to the other. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MapState, mapCells, nextTarget, reviewedShare, tileName } from './state-map-model';
+import { MapState, legendEntries, mapCells, nextTarget, reviewedShare, tileName } from './state-map-model';
 import { MAP_COLS, MAP_ROWS, US_TILES, usTile } from './us-tiles';
 
 const STATES_AND_DC = ('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC '
@@ -44,7 +44,16 @@ describe('tile names and fill', () => {
   it('names the state, the progress and the status', () => {
     expect(tileName('California', state('CA', { reviewed: 8, total: 8, status: 'Determined not to meet', tile: 'DOES_NOT_MEET' })))
       .toBe('California, 8 of 8 reviewed, determined not to meet');
-    expect(tileName('Utah', state('UT', { reviewed: 0, total: 0, status: 'Not assessed' }))).toBe('Utah, not assessed, not assessed');
+    expect(tileName('Utah', state('UT', { reviewed: 0, total: 0, status: 'Not assessed' }))).toBe('Utah, not assessed');
+    expect(tileName('Texas', state('TX', { reviewed: 0, total: 0, status: 'Signed in 2 programs', tile: 'MIXED' }))).toBe('Texas, signed in 2 programs');
+  });
+
+  it('lists in the legend only the statuses on the map, in a fixed order, and the quiet tiles', () => {
+    const labels = (states: MapState[]) => legendEntries(states).map((e) => e.label);
+    expect(labels([state('TX'), state('CA', { tile: 'DOES_NOT_MEET' })])).toEqual(['Determined not to meet', 'In review', 'Not a target']);
+    expect(labels([state('UT', { tile: 'MIXED' }), state('AZ', { tile: 'MEETS' }), state('CO', { tile: 'NOT_DETERMINED' })]))
+      .toEqual(['Determined to meet', 'No determination made', 'Different outcomes', 'Not a target']);
+    expect(labels([])).toEqual(['Not a target']);
   });
 
   it('fills by the share reviewed', () => {

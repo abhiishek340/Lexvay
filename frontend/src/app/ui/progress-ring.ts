@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 
-export type RingTone = 'accent' | 'found' | 'ambiguous' | 'missing' | 'neutral';
+export type RingTone = 'accent' | 'found' | 'ambiguous' | 'missing' | 'neutral' | 'seal';
 export interface RingSegment { readonly tone: RingTone; readonly value: number }
 export type RingSize = 20 | 40 | 96;
 
@@ -62,6 +62,7 @@ export function arcEnds(segments: readonly RingSegment[], total: number): number
     .lx-ring-ambiguous { stroke: var(--p-lx-ambiguous); }
     .lx-ring-missing { stroke: var(--p-lx-missing); }
     .lx-ring-neutral { stroke: var(--p-lx-neutral); }
+    .lx-ring-seal { stroke: var(--p-lx-seal); }
     .lx-ring-centre { position: relative; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; line-height: 1.1; }
     :host([data-size="40"]) .lx-ring-centre { font-size: 11px; }
     :host([data-size="96"]) .lx-ring-centre { font-size: 20px; letter-spacing: -0.02em; }
