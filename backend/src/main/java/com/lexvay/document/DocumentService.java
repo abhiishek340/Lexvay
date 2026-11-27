@@ -108,6 +108,30 @@ public class DocumentService {
         return new UploadResult(documentId, jobId);
     }
 
+    /**
+     * Stores rule text, which belongs to no program (D-009): the file, the document row and its already extracted
+     * pages (D-044), so a rule version can be extracted at once without an ingest job. The caller is a person or,
+     * for a rule source check, the system (no user). Content already stored for this tenant is a
+     * {@link DuplicateDocumentException} carrying the existing document. It runs in the caller's transaction and is not
+     * itself transactional, so a caller that handles the duplicate does not find the transaction marked for rollback.
+     */
+    public UUID storeRuleText(byte[] bytes, String filename, List<ExtractedPage> pages) {
+        String sha256 = sha256(bytes);
+        documents.findDuplicate(null, sha256).ifPresent(existing -> {
+            throw new DuplicateDocumentException(existing.id());
+        });
+        UUID tenantId = TenantContext.require();
+        UUID actor = CurrentUser.idOrNull();
+        UUID documentId = UUID.randomUUID();
+        String storageKey = tenantId + "/" + documentId;
+        files.put(storageKey, bytes);
+        documents.insert(documentId, tenantId, null, null, filename, sha256, storageKey, DocumentKind.RULE_TEXT, actor);
+        for (ExtractedPage page : pages) {
+            documents.insertPage(tenantId, documentId, page, actor);
+        }
+        return documentId;
+    }
+
     @Transactional(readOnly = true)
     public DocumentView get(UUID id) {
         Document document = find(id);

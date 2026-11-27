@@ -22,8 +22,7 @@ public class AuditService {
 
     /** Records an action by the currently authenticated user, in the current tenant. */
     public void record(String action, String entityType, UUID entityId, Map<String, ?> detail) {
-        UUID actor = CurrentUser.get().map(u -> u.id()).orElse(null);
-        recordAs(actor, action, entityType, entityId, detail);
+        recordAs(CurrentUser.idOrNull(), action, entityType, entityId, detail);
     }
 
     /** Records an action by an explicit actor (or {@code null} for the system), in the current tenant. */
