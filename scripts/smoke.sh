@@ -6,7 +6,7 @@
 #   scripts/smoke.sh <image-tag>   tests an image that already exists (CI passes lexvay:ci-<sha>); nothing is built
 # The Docker daemon is the one the docker CLI already points at: DOCKER_HOST when set, otherwise the default.
 # The compose project and the ports come from scripts/lib/stack.sh, so several checkouts can run at once:
-# LEXVAY_E2E_SLOT (0-9) shifts them. Slot 0: PostgreSQL :5433, app :8081, management :8091 (slot n adds n to each).
+# LEXVAY_E2E_SLOT (0-9) shifts them. Slot 0: PostgreSQL :5433, app :8081, management :9091 (slot n adds n to each).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/lib/stack.sh
@@ -14,7 +14,7 @@ stack_init smoke
 IMAGE="${1:-}"
 export LEXVAY_IMAGE="${IMAGE:-lexvay:local}"
 export LEXVAY_APP_PORT=$((8081 + SLOT))
-export LEXVAY_APP_MANAGEMENT_PORT=$((8091 + SLOT))
+export LEXVAY_APP_MANAGEMENT_PORT=$((9091 + SLOT))
 APP="http://localhost:$LEXVAY_APP_PORT"
 MGMT="http://localhost:$LEXVAY_APP_MANAGEMENT_PORT"
 EMAIL="priya.raman@northfield.example"

@@ -68,7 +68,7 @@ docker compose --profile app run --rm --no-deps -v "$PWD/seed:/seed:ro" \
 ```
 
 `make smoke` does all of the above in an isolated compose project (`LEXVAY_E2E_SLOT` shifts the ports: database
-5433+slot, app 8081+slot, management 8091+slot) and then proves: non-root user, read-only root filesystem, no source
+5433+slot, app 8081+slot, management 9091+slot) and then proves: non-root user, read-only root filesystem, no source
 or caches in the image, the app shell on `/` and on a deep link with the right cache headers, sign-in through the
 container, an API read, a 404 problem detail with the request id, the usage endpoint, the scrape, ECS logs, and a
 graceful stop.

@@ -64,7 +64,7 @@ Also: never invent regulatory content (seed data is fictional and labeled), and 
 - Commands: `make test` (backend + frontend unit + end-to-end), `make backend-test`, `make frontend-test`,
   `make e2e`, `make dev`, `make seed`, `make seed-pdfs`.
 - Several checkouts run end-to-end tests at the same time. Use the slot assigned to your work item:
-  `LEXVAY_E2E_SLOT=<n> make e2e` (slot n shifts PostgreSQL 5433+n, backend 8081+n, web 4300+n).
+  `LEXVAY_E2E_SLOT=<n> make e2e` (slot n shifts PostgreSQL 5433+n, backend 8081+n, web 4300+n, management 9091+n).
   Slot 0 belongs to the orchestrator. Never use ports 5432, 8080 or 4200 in tests.
 - In a fresh worktree run `cd frontend && npm ci` once before frontend commands.
 
