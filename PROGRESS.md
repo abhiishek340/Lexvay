@@ -1494,3 +1494,73 @@ Branch `test-scripted-e2e-model`, end-to-end slot 11. Decisions: `docs/decisions
 - The roadmap bullet says "profile `e2e`"; no such profile exists, the e2e stack is configured by environment
   variables in `scripts/e2e.sh`, so the property is set there (D-284).
 - Match scripts are not loaded at startup (they need document ids); only extraction is (D-280).
+
+## F8 — Determination register (PR #26)
+
+Branch `feat-determination-register`, end-to-end slot 2. Decisions D-270 to D-279 in `docs/decisions/F8.md`.
+
+### Delivered
+1. `GET /api/v1/determinations/register?programId=&jurisdiction=&outcome=&current=` — one statement, read-only
+   transaction, in `EndpointLatencyTest`, `ReadPathConnectionsTest` and `InputValidationTableTest`.
+2. `GET /api/v1/programs/{id}/determination-lists` — one statement; the three lists partition the program's targets
+   (`RegisterApiTest.theThreeListsPartitionTheTargetsExactly`, `...signingAgainAfterTheReopening...`,
+   `RegisterSeedTest`).
+3. `GET /api/v1/determinations/register.csv` — `common/CsvWriter` (RFC 4180, CRLF, every field quoted, formula prefix,
+   UTF-8; `CsvWriterTest`), audited as `REGISTER_EXPORTED` with the filters and the row count, listed in
+   `Rule9_AuditCoverageTest.AUDITED_READ_ENDPOINTS`.
+4. Screen `/register` with the tenant-wide rail entry, Register and By program tabs, print stylesheet.
+5. Tests: backend as above; Vitest `core/register.spec.ts`; Playwright `e2e/register.spec.ts` (runs after the suite,
+   D-278) with axe in both themes at 1280 and 400 px; screenshots in `docs/screens/register-*`.
+
+### Evidence (after merging `origin/main` at 05fd4ce; runs on 2026-11-26)
+
+`make backend-test`:
+```
+[INFO] Tests run: 813, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+```
+The first run after the merge failed once in `RuleSourceSchedulerLoopTest` (F12, untouched here: `expected 0L but was
+1L` for the inactive source); run alone it failed 1 of 3 times, and the full rerun above is green. It is a timing race
+in that test, reported to the orchestrator.
+
+`make frontend-test`:
+```
+ Test Files  13 passed (13)
+      Tests  80 passed (80)
+```
+
+`LEXVAY_E2E_SLOT=2 LEXVAY_SCREENSHOTS=1 make test` (backend and frontend as above, then Playwright):
+```
+  ✓  14 [suite] › e2e/viewer.spec.ts:85:1 › a passage can be chosen by mouse selection and by character range from the keyboard (3.3s)
+  ✓  15 [register] › e2e/register.spec.ts:14:1 › the register lists the California signature, filters, exports CSV, groups the program and prints (3.3s)
+  ✓  16 [register] › e2e/register.spec.ts:109:1 › the register is accessible in both themes at 400 px and fits without horizontal scroll (2.8s)
+  16 passed (1.8m)
+```
+
+`make perf` (run after the first merge, at 8134fff; the second merge changed only scripts and frontend):
+`EndpointLatencyTest` passes (every read endpoint under the 40 ms p95 budget; the highest p95 of the 62 rows
+is 6.32 ms). The new endpoints, all one connection per call:
+
+| Endpoint | 2 tenants p95 ms | 62 tenants p95 ms |
+|---|---:|---:|
+| GET /determinations/register | 2.32 | 1.61 |
+| GET /determinations/register?programId=&current=false | 1.67 | 1.68 |
+| GET /programs/{id}/determination-lists | 2.13 | 2.38 |
+
+The second step, `IndexUsageTest`, fails with `[indexes of V008 the planner did not choose: drop them] Expecting empty
+but was: ["requirement_rule_version_id_ref_key"]`. It fails the same way on unmodified `origin/main` (checked from a
+clean export): FIX-1's `requirement_ordinal_key (rule_version_id, ordinal)` is now chosen for the candidate query, which
+still orders by `created_at, ref`. Not part of this item; reported.
+
+Production build: initial bundle 703.1 kB raw (warning budget 700 kB; `origin/main` at 05fd4ce alone 698.9 kB), see D-277.
+
+Screenshots: `docs/screens/register-{light,dark}.png`, `register-by-program-{light,dark}.png`,
+`register-print-{light,dark}.png` (print media; both black on white). The other screenshots were retaken because the
+rail now starts with the register entry.
+
+### Notes for review
+- `register.spec.ts` reads the California signature recorded by `review-and-sign.spec.ts` rather than signing it
+  itself (D-278).
+- The lists entry carries `reopenedAt` in addition to the spec's fields, needed for "Reopened on <date> after a
+  change" (D-272).

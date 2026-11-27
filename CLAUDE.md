@@ -41,11 +41,18 @@ Also: never invent regulatory content (seed data is fictional and labeled), and 
 - No secrets in the repository. Configuration through `LEXVAY_*` environment variables and `.env.example`.
 - Every mutating endpoint is audited and listed in `Rule9_AuditCoverageTest`.
 
-## UI bar (details in docs/DESIGN.md)
-- PrimeNG 22 components with the Lexvay preset. Do not hand-build a component PrimeNG provides.
-- Phosphor icons through `@ng-icons`. No emoji, no Unicode glyphs as icons, no decorative gradients, no
-  "AI look": no sparkle icons, no purple-to-pink anything, no card grids of marketing copy.
-- IBM Plex Sans for UI, IBM Plex Serif for rule text and quoted evidence, IBM Plex Mono for ids and offsets.
+## UI bar (design system v2, details in docs/DESIGN.md)
+- The owner wants a world-class interface that impresses on first sight: clean, few words, motion with meaning.
+  One focal point per screen; numbers shown as rings and the state map; explanations behind an InfoTip, never as
+  paragraphs on screen (word budget in docs/DESIGN.md).
+- PrimeNG 22 for behaviour and accessibility, restyled completely by the Lexvay preset v2. Do not hand-build a
+  component PrimeNG provides; do make it look like ours.
+- Inter (UI), Source Serif 4 (rule text, quoted evidence, report body), IBM Plex Mono (ids, hashes, offsets),
+  self-hosted. Phosphor icons through `@ng-icons` (duotone at 32 px and larger).
+- Motion with native CSS, `animate.enter`/`animate.leave`, View Transitions and the Web Animations API; only
+  transform, opacity, clip-path and SVG stroke; everything off under `prefers-reduced-motion`.
+- Forbidden: emoji or glyph icons, sparkle icons, purple-to-pink or decorative gradients, confetti, looping attention
+  animations, coloured or glowing shadows, blur anywhere except the Review DecisionBar.
 - WCAG 2.1 AA, keyboard operable, visible focus, state by icon and text as well as colour, responsive to
   400 px, light and dark themes. The end-to-end suite runs axe on every screen: zero serious or critical.
 
