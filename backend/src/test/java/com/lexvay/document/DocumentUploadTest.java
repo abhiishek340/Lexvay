@@ -184,6 +184,61 @@ class DocumentUploadTest extends AbstractDatabaseTest {
     }
 
     @Test
+    void docxThatInflatesBeyondTheLimitsIsRejectedAtUploadAndNotStored() throws Exception {
+        byte[] bomb = ContentLimitsTest.archive(0, 30L << 20);
+        var result = upload(t.admin(), programId, "bomb.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", bomb, "HANDBOOK", null);
+        assertThat(result).hasStatus(400);
+        assertThat(result.getResponse().getContentType()).contains("application/problem+json");
+        assertThat(body(result).get("detail").asString()).isEqualTo("DOCX expands to more than 100 times its size");
+        assertThat(TenantContext.runAs(t.tenantId(), () -> documents.findDuplicate(programId, DocumentService.sha256(bomb)))).isEmpty();
+    }
+
+    @Test
+    void pdfOverTheFiveHundredPageCapFailsIngestWithTheLimitMessage() throws Exception {
+        byte[] pdf = TestDocuments.pdf(java.util.Collections.nCopies(501, List.of("Fictional. Prototype data.")));
+        var result = upload(t.admin(), programId, "long.pdf", "application/pdf", pdf, "HANDBOOK", null);
+        assertThat(result).hasStatus(202);
+        runner.runPending();
+        var doc = getDocument(UUID.fromString(body(result).get("documentId").asString()));
+        assertThat(doc.get("ingest").get("status").asString()).isEqualTo("FAILED");
+        assertThat(doc.get("ingest").get("error").asString()).isEqualTo("PDF has 501 pages; the limit is 500");
+        assertThat(doc.get("pages")).isEmpty();
+    }
+
+    @Test
+    void pdfAtTheFiveHundredPageCapIsIngested() throws Exception {
+        byte[] pdf = TestDocuments.pdf(java.util.Collections.nCopies(500, List.of("Fictional. Prototype data.")));
+        var result = upload(t.admin(), programId, "cap.pdf", "application/pdf", pdf, "HANDBOOK", null);
+        assertThat(result).hasStatus(202);
+        runner.runPending();
+        var doc = getDocument(UUID.fromString(body(result).get("documentId").asString()));
+        assertThat(doc.get("ingest").get("status").asString()).isEqualTo("DONE");
+        assertThat(doc.get("pages")).hasSize(500);
+    }
+
+    @Test
+    void filesWhoseContentDoesNotMatchTheirTypeAreRejectedWithAProblemDetail() throws Exception {
+        byte[] pdfBytes = TestDocuments.pdf(List.of(List.of("Fictional. Prototype data.")));
+        byte[] docxBytes = TestDocuments.docx(List.of("Fictional. Prototype data."));
+        var cases = Map.of(
+                "pdf extension, text content", new Object[] {"a.pdf", TestDocuments.txt("plain text")},
+                "docx extension, pdf content", new Object[] {"b.docx", pdfBytes},
+                "pdf extension, docx content", new Object[] {"c.pdf", docxBytes},
+                "txt extension, binary content", new Object[] {"d.txt", new byte[] {'a', 0, 'b'}},
+                "txt extension, invalid UTF-8", new Object[] {"e.txt", new byte[] {(byte) 0xC3, (byte) 0x28}},
+                "unknown extension", new Object[] {"f.exe", TestDocuments.txt("MZ")},
+                "no extension", new Object[] {"g", TestDocuments.txt("text")});
+        for (var entry : cases.entrySet()) {
+            var result = upload(t.admin(), programId, (String) entry.getValue()[0], "application/octet-stream",
+                    (byte[]) entry.getValue()[1], "HANDBOOK", null);
+            assertThat(result).as(entry.getKey()).hasStatus(400);
+            assertThat(result.getResponse().getContentType()).as(entry.getKey()).contains("application/problem+json");
+            assertThat(body(result).get("detail").asString()).as(entry.getKey()).contains("Unsupported file type");
+        }
+    }
+
+    @Test
     void courseVersionMustBelongToTheProgram() throws Exception {
         var otherProgram = mvc.post().uri("/api/v1/programs").with(user(t.admin())).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
