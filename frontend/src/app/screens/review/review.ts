@@ -70,8 +70,14 @@ export class Review {
   private readonly listPane = viewChild<ElementRef<HTMLElement>>('listPane');
 
   readonly selected = this.workspace.selected;
-  /** Under 1024 px the page is shown on request; each requirement starts with it collapsed again. */
-  readonly showOnPage = linkedSignal({ source: this.workspace.selectedId, computation: () => false });
+  readonly evidence = this.workspace.evidence;
+  /**
+   * Under 1024 px each page (the system's evidence, each provided passage) is shown on request, by key; each
+   * requirement starts with all of them collapsed again.
+   */
+  readonly showOnPage = linkedSignal<string | null, ReadonlySet<string>>({ source: this.workspace.selectedId, computation: () => new Set() });
+  /** Mapping ids whose responses are being fetched, so a selection never asks twice. */
+  private readonly fetching = new Set<string>();
   readonly signed = computed(() => this.context.determinations().find((d) => d.jurisdiction === this.jurisdiction() && d.status === 'SIGNED') ?? null);
   readonly reopened = computed(() => !this.signed() && this.context.determinations().some((d) => d.jurisdiction === this.jurisdiction() && d.status === 'REOPENED'));
   readonly canSign = computed(() => this.workspace.allDecided() && this.session.isSigner() && !this.signed());
@@ -100,6 +106,13 @@ export class Review {
       }
       const wanted = this.requested ?? this.route.snapshot.queryParamMap.get('jurisdiction');
       untracked(() => this.selectJurisdiction(wanted && program.jurisdictions.includes(wanted) ? wanted : program.jurisdictions[0]));
+    });
+    // Evidence people provided is fetched with the selected mapping, once per mapping (and again when more arrived).
+    effect(() => {
+      const m = this.selected();
+      if (m && this.workspace.evidence()?.providedLoading) {
+        untracked(() => this.fetchResponses(m.id));
+      }
     });
     if (typeof matchMedia === 'function') {
       const media = matchMedia(WIDE);
@@ -173,6 +186,8 @@ export class Review {
       this.toast.add({ severity: 'success', summary: `${DECISION_LABEL[kind]}: ${updated.requirement.ref}`, detail: this.workspace.progressLabel() });
       this.scrollSelectedIntoView();
       this.context.refreshAssessment();
+      // A request opens or an answered one is decided: the inbox and its badge follow.
+      this.context.refreshEvidenceRequests();
     } catch (e: unknown) {
       this.error.set(problemDetail(e, 'The decision could not be recorded.'));
     } finally {
@@ -248,6 +263,26 @@ export class Review {
     return m.method === 'RULES_ENGINE'
       ? 'This requirement is a number. The rules engine checked it against the program facts, so there is no passage to quote.'
       : 'No passage in the program documents answers this requirement.';
+  }
+
+  toggleOnPage(key: string): void {
+    this.showOnPage.update((keys) => {
+      const next = new Set(keys);
+      if (!next.delete(key)) { next.add(key); }
+      return next;
+    });
+  }
+
+  private async fetchResponses(mappingId: string): Promise<void> {
+    if (this.fetching.has(mappingId)) { return; }
+    this.fetching.add(mappingId);
+    try {
+      this.workspace.setResponses(mappingId, await firstValueFrom(this.api.evidenceResponses(mappingId)));
+    } catch (e: unknown) {
+      this.error.set(problemDetail(e, 'The evidence provided for this requirement could not be loaded.'));
+    } finally {
+      this.fetching.delete(mappingId);
+    }
   }
 
   private resetNote(): void {
