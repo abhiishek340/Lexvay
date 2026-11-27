@@ -4,11 +4,10 @@ import com.lexvay.assessment.AssessmentService;
 import com.lexvay.auth.LexvayUser;
 import com.lexvay.auth.Role;
 import com.lexvay.common.TenantContext;
+import com.lexvay.common.YamlFile;
 import com.lexvay.document.DocumentKind;
 import com.lexvay.document.DocumentService;
 import com.lexvay.job.JobRunner;
-import com.lexvay.llm.FakeLlmClient;
-import com.lexvay.llm.LlmClient;
 import com.lexvay.program.AddCourseVersionRequest;
 import com.lexvay.program.CourseService;
 import com.lexvay.program.CreateCourseRequest;
@@ -26,6 +25,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,20 +38,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.dataformat.yaml.YAMLMapper;
 
 /**
  * Loads the fictional demo tenants through the real services (D-060): the same validation, audit and
- * jobs as the API. Needs {@link FakeLlmClient}, which it scripts from seed/fake-llm.yml, resolving
- * document file names to ids (D-061). Running twice is safe: a tenant whose first user exists is skipped.
+ * jobs as the API. How the language model is prepared is a {@link ModelStrategy}: the demo seed scripts the
+ * fake model, the evaluation harness may use a real one. Running twice is safe: a tenant whose first user
+ * exists is skipped.
  */
 @Service
 public class SeedLoader {
 
     private static final Logger log = LoggerFactory.getLogger(SeedLoader.class);
 
-    public record Result(String tenant, boolean skipped, UUID programId, UUID assessmentId, int documents, int requirements) {
+    public record Result(String tenant, boolean skipped, UUID tenantId, UUID programId, UUID assessmentId, int documents, int requirements) {
     }
 
     private final TenantBootstrapService tenants;
@@ -62,13 +62,10 @@ public class SeedLoader {
     private final RuleVersionService ruleVersions;
     private final AssessmentService assessments;
     private final JobRunner jobs;
-    private final LlmClient llm;
-    private final ObjectMapper json;
-    private final YAMLMapper yaml = YAMLMapper.builder().build();
 
     public SeedLoader(TenantBootstrapService tenants, AppUserRepository users, ProgramService programs, CourseService courses,
                       DocumentService documents, ProgramFactService facts, RuleVersionService ruleVersions,
-                      AssessmentService assessments, JobRunner jobs, LlmClient llm, ObjectMapper json) {
+                      AssessmentService assessments, JobRunner jobs) {
         this.tenants = tenants;
         this.users = users;
         this.programs = programs;
@@ -78,32 +75,31 @@ public class SeedLoader {
         this.ruleVersions = ruleVersions;
         this.assessments = assessments;
         this.jobs = jobs;
-        this.llm = llm;
-        this.json = json;
     }
 
-    public List<Result> load(Path seedDir, String demoPassword) {
-        if (!(llm instanceof FakeLlmClient fake)) {
-            throw new IllegalStateException("The seed scripts the model; run it with LEXVAY_LLM_PROVIDER=fake");
-        }
-        SeedManifest manifest = read(seedDir.resolve("manifest.yml"), SeedManifest.class);
+    /** Reads seed/manifest.yml and refuses data that is not declared fictional. */
+    public SeedManifest manifest(Path seedDir) {
+        SeedManifest manifest = YamlFile.read(seedDir.resolve("manifest.yml"), SeedManifest.class);
         if (!manifest.fictional()) {
             throw new IllegalStateException("seed/manifest.yml must declare fictional: true");
         }
-        FakeLlmScripts scripts = read(seedDir.resolve("fake-llm.yml"), FakeLlmScripts.class);
-        List<Result> results = new java.util.ArrayList<>();
-        for (SeedManifest.Tenant tenant : manifest.tenants()) {
-            results.add(loadTenant(tenant, seedDir, demoPassword, scripts, fake));
+        return manifest;
+    }
+
+    public List<Result> load(Path seedDir, String demoPassword, ModelStrategy model) {
+        List<Result> results = new ArrayList<>();
+        for (SeedManifest.Tenant tenant : manifest(seedDir).tenants()) {
+            results.add(loadTenant(tenant, seedDir, demoPassword, model));
         }
         return results;
     }
 
-    private Result loadTenant(SeedManifest.Tenant t, Path seedDir, String password, FakeLlmScripts scripts, FakeLlmClient fake) {
+    public Result loadTenant(SeedManifest.Tenant t, Path seedDir, String password, ModelStrategy model) {
         SeedManifest.User adminSpec = t.users().stream().filter(u -> u.role().equals("ADMIN")).findFirst()
                 .orElseThrow(() -> new IllegalStateException("Tenant " + t.name() + " needs one ADMIN user"));
         if (users.findForLogin(adminSpec.email()).isPresent()) {
             log.info("Seed: tenant '{}' already exists, skipping", t.name());
-            return new Result(t.name(), true, null, null, 0, 0);
+            return new Result(t.name(), true, null, null, null, 0, 0);
         }
         var created = tenants.createTenant(t.name(), adminSpec.email(), adminSpec.displayName(), password);
         UUID tenantId = created.tenantId();
@@ -121,7 +117,7 @@ public class SeedLoader {
             UUID programId = as(contributor, () -> programs.create(new CreateProgramRequest(t.program().name(), t.program().licenseType(),
                     t.program().catalogYear(), t.program().jurisdictions())).id());
             if (t.courses() == null) {
-                return new Result(t.name(), false, programId, null, 0, 0);
+                return new Result(t.name(), false, tenantId, programId, null, 0, 0);
             }
             Map<String, UUID> courseVersionByCode = new LinkedHashMap<>();
             for (SeedManifest.Course c : t.courses()) {
@@ -144,56 +140,31 @@ public class SeedLoader {
             }
             int requirementCount = 0;
             for (SeedManifest.RuleVersion rv : t.ruleVersions()) {
-                var extraction = scripts.extraction().get(rv.label());
-                if (extraction == null) {
-                    throw new IllegalStateException("fake-llm.yml has no extraction script for '" + rv.label() + "'");
-                }
-                fake.script("EXTRACT:" + rv.label(), json.writeValueAsString(extraction));
-                String text = readText(seedDir.resolve("rules").resolve(rv.text()));
-                var result = as(contributor, () -> ruleVersions.create(new CreateRuleVersionRequest(rv.jurisdiction(), t.program().licenseType(),
-                        rv.label(), rv.sourceUrl(), rv.effectiveFrom(), null, text)));
-                jobs.runPending();
-                as(reviewer, () -> ruleVersions.approveRequirements(result.ruleVersionId()));
-                requirementCount += (int) ruleVersions.requirements(result.ruleVersionId()).requirements().size();
+                UUID ruleVersionId = createApprovedRuleVersion(t.program().licenseType(), rv.jurisdiction(), rv.label(), rv.sourceUrl(),
+                        rv.effectiveFrom(), null, readText(seedDir.resolve("rules").resolve(rv.text())), contributor, reviewer, model);
+                requirementCount += ruleVersions.requirements(ruleVersionId).requirements().size();
             }
-            for (var entry : scripts.match().entrySet()) {
-                FakeLlmScripts.MatchScript m = entry.getValue();
-                Map<String, Object> out = new HashMap<>();
-                out.put("finding", m.finding());
-                out.put("document_id", m.document() == null ? null : requireDocument(documentByFile, m.document()).toString());
-                out.put("page_number", m.page());
-                out.put("quote", m.quote());
-                out.put("rationale", m.rationale());
-                fake.script("MATCH:" + entry.getKey(), json.writeValueAsString(out));
-            }
+            model.beforeMatching(documentByFile);
             UUID assessmentId = as(reviewer, () -> assessments.start(programId).assessmentId());
             jobs.runPending();
             if (t.changes() != null) {
-                applyChanges(t, seedDir, scripts, fake, contributor, reviewer, programId, courseVersionByCode, documentByFile);
+                applyChanges(t, seedDir, model, contributor, reviewer, programId, courseVersionByCode, documentByFile);
             }
             log.info("Seed: tenant '{}' loaded: program {}, {} documents, {} requirements, assessment {}", t.name(), programId,
                     documentByFile.size(), requirementCount, assessmentId);
-            return new Result(t.name(), false, programId, assessmentId, documentByFile.size(), requirementCount);
+            return new Result(t.name(), false, tenantId, programId, assessmentId, documentByFile.size(), requirementCount);
         });
     }
 
     /** Milestone 7 demo: a superseding rule version and a new course version, left as OPEN change events. */
-    private void applyChanges(SeedManifest.Tenant t, Path seedDir, FakeLlmScripts scripts, FakeLlmClient fake, LexvayUser contributor,
+    private void applyChanges(SeedManifest.Tenant t, Path seedDir, ModelStrategy model, LexvayUser contributor,
                               LexvayUser reviewer, UUID programId, Map<String, UUID> courseVersionByCode, Map<String, UUID> documentByFile) {
         SeedManifest.ChangeRuleVersion rv = t.changes().ruleVersion();
         if (rv != null) {
             UUID previous = ruleVersions.list().stream().filter(v -> v.label().equals(rv.supersedes())).map(v -> v.id()).findFirst()
                     .orElseThrow(() -> new IllegalStateException("changes.ruleVersion.supersedes not found: " + rv.supersedes()));
-            var extraction = scripts.extraction().get(rv.label());
-            if (extraction == null) {
-                throw new IllegalStateException("fake-llm.yml has no extraction script for '" + rv.label() + "'");
-            }
-            fake.script("EXTRACT:" + rv.label(), json.writeValueAsString(extraction));
-            String text = readText(seedDir.resolve("rules").resolve(rv.text()));
-            var created = as(contributor, () -> ruleVersions.create(new CreateRuleVersionRequest(rv.jurisdiction(), t.program().licenseType(),
-                    rv.label(), rv.sourceUrl(), rv.effectiveFrom(), previous, text)));
-            jobs.runPending();
-            as(reviewer, () -> ruleVersions.approveRequirements(created.ruleVersionId()));
+            createApprovedRuleVersion(t.program().licenseType(), rv.jurisdiction(), rv.label(), rv.sourceUrl(), rv.effectiveFrom(),
+                    previous, readText(seedDir.resolve("rules").resolve(rv.text())), contributor, reviewer, model);
         }
         SeedManifest.ChangeCourseVersion cv = t.changes().courseVersion();
         if (cv != null) {
@@ -207,6 +178,20 @@ public class SeedLoader {
         }
     }
 
+    /** Creates a rule version, lets the model extract its requirements, and has the reviewer approve the list. */
+    private UUID createApprovedRuleVersion(String licenseType, String jurisdiction, String label, String sourceUrl, LocalDate effectiveFrom,
+                                           UUID supersedesId, String text, LexvayUser contributor, LexvayUser reviewer, ModelStrategy model) {
+        model.beforeExtraction(label);
+        var created = as(contributor, () -> ruleVersions.create(new CreateRuleVersionRequest(jurisdiction, licenseType, label, sourceUrl,
+                effectiveFrom, supersedesId, text)));
+        jobs.runPending();
+        as(reviewer, () -> {
+            model.afterExtraction(jurisdiction, created.ruleVersionId());
+            return ruleVersions.approveRequirements(created.ruleVersionId());
+        });
+        return created.ruleVersionId();
+    }
+
     private UUID upload(LexvayUser as, UUID programId, Path seedDir, String file, DocumentKind kind, UUID courseVersionId) {
         byte[] bytes;
         try {
@@ -217,14 +202,6 @@ public class SeedLoader {
         return as(as, () -> documents.upload(programId, new BytesMultipartFile(file, "application/pdf", bytes), kind, courseVersionId).documentId());
     }
 
-    private static UUID requireDocument(Map<String, UUID> byFile, String file) {
-        UUID id = byFile.get(file);
-        if (id == null) {
-            throw new IllegalStateException("fake-llm.yml refers to unknown document " + file);
-        }
-        return id;
-    }
-
     /** Runs an action with the given seeded user authenticated, so audit rows name a real person. */
     private static <T> T as(LexvayUser user, Supplier<T> action) {
         var previous = SecurityContextHolder.getContext().getAuthentication();
@@ -233,14 +210,6 @@ public class SeedLoader {
             return action.get();
         } finally {
             SecurityContextHolder.getContext().setAuthentication(previous);
-        }
-    }
-
-    private <T> T read(Path path, Class<T> type) {
-        try {
-            return yaml.readValue(Files.readString(path, StandardCharsets.UTF_8), type);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Cannot read " + path, e);
         }
     }
 

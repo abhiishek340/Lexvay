@@ -31,6 +31,9 @@ lexvay:
     model: ${LEXVAY_LLM_MODEL:claude-sonnet-5-5}
     effort: ${LEXVAY_LLM_EFFORT:medium}       # low | medium | high | xhigh | max
     max-output-tokens: 16000
+    price:                                    # USD per million tokens; used only by the evaluation cost report
+      input-per-mtok: ${LEXVAY_LLM_PRICE_INPUT_PER_MTOK:0}
+      output-per-mtok: ${LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK:0}
   matching:
     min-quote-chars: ${LEXVAY_MIN_QUOTE_CHARS:40}
     shortlist-size: 8
@@ -66,3 +69,19 @@ lexvay:
   seed:
     dir: ${LEXVAY_SEED_DIR:../seed}
     demo-password: ${LEXVAY_DEMO_PASSWORD:lexvay-demo}
+
+---
+# `make eval`: seed a fresh tenant, run the pipeline, score it against eval/golden.yml, then exit. No job polling.
+spring:
+  config:
+    activate:
+      on-profile: eval
+server:
+  port: 0
+lexvay:
+  jobs:
+    polling-enabled: false
+  seed:
+    dir: ${LEXVAY_SEED_DIR:../seed}
+  eval:
+    dir: ${LEXVAY_EVAL_DIR:../eval}

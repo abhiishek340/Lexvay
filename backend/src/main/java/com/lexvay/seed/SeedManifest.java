@@ -3,13 +3,19 @@ package com.lexvay.seed;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import tools.jackson.databind.annotation.JsonDeserialize;
 
 /** Shape of seed/manifest.yml. Unknown fields are rejected so typos surface at once. */
 public record SeedManifest(boolean fictional, List<Tenant> tenants) {
 
     public record Tenant(String name, boolean demo, List<User> users, Program program, List<Course> courses,
                          List<Document> documents, List<Fact> facts, List<RuleVersion> ruleVersions, Changes changes) {
+
+        /** A copy for one evaluation run: unique tenant name and user emails, and without the change-tracking demo. */
+        public Tenant isolated(String suffix) {
+            List<User> renamed = users.stream()
+                    .map(u -> new User(u.email().replace("@", "." + suffix + "@"), u.displayName(), u.title(), u.role())).toList();
+            return new Tenant(name + " (evaluation " + suffix + ")", false, renamed, program, courses, documents, facts, ruleVersions, null);
+        }
     }
 
     public record User(String email, String displayName, String title, String role) {

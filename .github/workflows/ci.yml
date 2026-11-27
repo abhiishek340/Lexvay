@@ -1,8 +1,14 @@
 name: ci
 
+# One run per change: pushes to main, and pull requests. A newer commit on the same ref cancels the older run.
 on:
   push:
+    branches: [main]
   pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -29,3 +35,20 @@ jobs:
 
       - name: Run every test suite
         run: make test
+
+      - name: Score the pipeline against the golden set
+        run: make eval
+
+  infra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.17.2"
+          terraform_wrapper: false
+
+      - name: Validate Terraform (format, validate, offline tests; never plan or apply)
+        run: make infra-validate
