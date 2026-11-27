@@ -154,6 +154,10 @@ export class Coverage {
   private async load(programId: string, code: string): Promise<void> {
     if (this.requested.has(code)) { return; }
     this.requested.add(code);
+    if (this.errors().has(code)) {
+      // Asked again after a failure: the skeleton replaces the old message while the request runs.
+      this.errors.update((all) => { const next = new Map(all); next.delete(code); return next; });
+    }
     try {
       const matrix = await firstValueFrom(this.api.coverage(programId, code));
       if (this.loadedFor === programId) { this.matrices.update((all) => new Map(all).set(code, matrix)); }
