@@ -1,14 +1,21 @@
-<section class="login">
-  <h1>Sign in to Lexvay</h1>
-  <p class="muted">Lexvay compares a program's curriculum with state licensing rules and records what qualified staff decide. The software proposes; people decide.</p>
+<div class="lx-login">
+  <p class="lx-login-wordmark">Lexvay</p>
+  <h1>Sign in</h1>
+  <p class="lx-login-lede">Lexvay sets a program's curriculum beside state licensing rules and records what qualified staff decide. The software proposes; people decide.</p>
   <form (ngSubmit)="submit()" novalidate>
-    <label for="email">Email</label>
-    <input id="email" name="email" type="email" autocomplete="username" required [(ngModel)]="email" />
-    <label for="password">Password</label>
-    <input id="password" name="password" type="password" autocomplete="current-password" required [(ngModel)]="password" />
+    <div class="lx-field">
+      <label for="email">Email</label>
+      <input pInputText id="email" name="email" type="email" autocomplete="username" required [(ngModel)]="email" [invalid]="!!error()"
+             [attr.aria-describedby]="error() ? 'login-error' : null" fluid />
+    </div>
+    <div class="lx-field">
+      <label for="password">Password</label>
+      <p-password inputId="password" name="password" autocomplete="current-password" [feedback]="false" [required]="true" [(ngModel)]="password"
+                  [invalid]="!!error()" [fluid]="true" />
+    </div>
     @if (error(); as message) {
-      <p class="error" role="alert">{{ message }}</p>
+      <p-message id="login-error" severity="error" size="small" variant="simple">{{ message }}</p-message>
     }
-    <button type="submit" class="primary" [disabled]="busy()">Sign in</button>
+    <p-button type="submit" label="Sign in" [loading]="busy()" [fluid]="true" />
   </form>
-</section>
+</div>

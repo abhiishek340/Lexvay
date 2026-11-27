@@ -195,6 +195,8 @@ class InputValidationTableTest extends AbstractDatabaseTest {
                 "/api/v1/auth/session?q=%00%ff", null, null, 200));
         rows.add(row("me: hostile query parameter is ignored", "GET /api/v1/auth/me", HttpMethod.GET,
                 "/api/v1/auth/me?q=%00%ff", null, null, 200));
+        rows.add(row("users: hostile query parameter is ignored", "GET /api/v1/users", HttpMethod.GET,
+                "/api/v1/users?q=%00%ff", null, null, 200));
 
         // --- jurisdictions, jobs, audit ---
         rows.add(row("jurisdictions: hostile query parameter is ignored", "GET /api/v1/jurisdictions", HttpMethod.GET,

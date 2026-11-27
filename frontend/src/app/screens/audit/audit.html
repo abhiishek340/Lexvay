@@ -1,21 +1,47 @@
-<header class="page-header">
-  <h1>Audit trail</h1>
-  <p class="muted">Every action, newest first: who, when, what, and on which record.</p>
-</header>
-@if (error(); as e) { <p class="error" role="alert">{{ e }}</p> }
-@if (entries(); as list) {
-  <table class="table" aria-label="Audit trail">
-    <thead><tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">Record</th><th scope="col">Details</th><th scope="col">By</th></tr></thead>
-    <tbody>
-      @for (e of list; track e.id) {
+<div class="lx-page">
+  <header class="lx-page-header">
+    <div>
+      <h1>Audit trail</h1>
+      <p>Every action, newest first: who did it, when, what it was, and on which record.</p>
+    </div>
+  </header>
+  @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
+
+  @if (rows(); as all) {
+    <div class="lx-filters" role="group" aria-label="Filter the audit trail">
+      <div class="lx-filter">
+        <span id="action-filter-label" class="lx-label">Action</span>
+        <p-select [options]="actions()" optionLabel="label" optionValue="value" [ngModel]="action()" (ngModelChange)="action.set($event)"
+                  placeholder="All actions" [showClear]="true" ariaLabelledBy="action-filter-label" appendTo="body" styleClass="lx-filter-select" />
+      </div>
+      <div class="lx-filter">
+        <span id="record-filter-label" class="lx-label">Record type</span>
+        <p-select [options]="entityTypes()" optionLabel="label" optionValue="value" [ngModel]="entityType()" (ngModelChange)="entityType.set($event)"
+                  placeholder="All record types" [showClear]="true" ariaLabelledBy="record-filter-label" appendTo="body" styleClass="lx-filter-select" />
+      </div>
+      <p class="lx-count lx-help" aria-live="polite">{{ visible().length }} of {{ all.length }} entries{{ all.length === limit ? ' (the newest ' + limit + ')' : '' }}</p>
+    </div>
+
+    <p-table [value]="visible()" dataKey="id" [pt]="{ table: { 'aria-label': 'Audit trail' } }" styleClass="lx-table">
+      <ng-template #header>
+        <tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">Record</th><th scope="col">Details</th><th scope="col">By</th></tr>
+      </ng-template>
+      <ng-template #body let-r>
         <tr>
-          <td><time [attr.datetime]="e.createdAt">{{ e.createdAt | slice:0:19 }}</time></td>
-          <td>{{ label(e.action) }}</td>
-          <td>{{ e.entityType }} <code>{{ (e.entityId ?? '') | slice:0:8 }}</code></td>
-          <td>{{ summary(e) }}</td>
-          <td>{{ e.userId ? (e.userId | slice:0:8) : 'system' }}</td>
+          <td class="lx-mono lx-when"><time [attr.datetime]="r.at">{{ r.at | date: 'yyyy-MM-dd HH:mm:ss' }}</time></td>
+          <td class="lx-action">{{ r.actionLabel }}</td>
+          <td class="lx-record"><span>{{ r.entityLabel }}</span> @if (r.entityId) { <span class="lx-mono lx-muted" [attr.title]="r.entityId">{{ r.entityId.slice(0, 8) }}</span> }</td>
+          <td class="lx-details">{{ r.details }}</td>
+          <td class="lx-actor" [class.lx-muted]="r.actor === 'System'">{{ r.actor }}</td>
         </tr>
-      }
-    </tbody>
-  </table>
-}
+      </ng-template>
+      <ng-template #emptymessage>
+        <tr><td colspan="5" class="lx-muted">No entries match these filters.</td></tr>
+      </ng-template>
+    </p-table>
+  } @else if (!error()) {
+    <div class="lx-skeleton" aria-busy="true" aria-label="Loading the audit trail">
+      @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) { <p-skeleton height="2.25rem" /> }
+    </div>
+  }
+</div>
