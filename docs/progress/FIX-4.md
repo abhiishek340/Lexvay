@@ -16,15 +16,17 @@ decisions D-380 to D-389 in `docs/decisions/FIX-4.md`. Backend and evaluation on
   `job_entity_idx`, which failed the first `make perf` run on this branch; FIX-3 had already fixed it (`Candidate.eitherOf`), so the merge took its version.
 
 ### Verification
+All four run on the tree after merging `origin/main` (FIX-3 included).
+
 `make backend-test` (exit 0):
 ```
-[INFO] Tests run: 900, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 904, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
 `make perf` (exit 0, run after merging `origin/main`):
 ```
-[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 143.5 s -- in com.lexvay.perf.EndpointLatencyTest
-[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 162.0 s -- in com.lexvay.perf.IndexUsageTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 95.49 s -- in com.lexvay.perf.EndpointLatencyTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 91.42 s -- in com.lexvay.perf.IndexUsageTest
 [INFO] BUILD SUCCESS
 | `rule_source_due_idx` | which active rule sources are due (scheduler, worker flag, all tenants; V016) | yes | Index Scan using rule_source_due_idx on rule_source rs; Index Scan using job_claim_idx on job j | yes | |
 ```
