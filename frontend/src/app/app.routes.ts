@@ -17,5 +17,6 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'overview' },
     ],
   },
+  { path: 'register', loadComponent: () => import('./screens/register/register').then((m) => m.Register), canActivate: [authGuard], title: 'Determination register · Lexvay' },
   { path: '**', redirectTo: '' },
 ];

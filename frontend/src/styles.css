@@ -105,6 +105,12 @@ kbd {
 @media (max-width: 640px) {
   .lx-page { padding: var(--lx-space-4) var(--lx-space-4) var(--lx-space-6); }
 }
+/* Paper is black on white whatever the screen theme: every token resolves to its light value, and the toast never prints. */
+@media print {
+  :root, :root[data-theme='dark'] { color-scheme: light; }
+  body { background: #fff; color: #000; }
+  .p-toast { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
 }

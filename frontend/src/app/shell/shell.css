@@ -51,6 +51,8 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; outline: none; }
 .lx-rail a.lx-active::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px; background: var(--p-lx-primary); }
 .lx-rail a.lx-active ng-icon { color: var(--p-lx-primary); }
 .lx-nav-label { flex: 1; white-space: nowrap; }
+/* The tenant-wide entry sits above the program's screens, set apart by a hairline. */
+.lx-rail-tenant { padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--p-lx-hairline); }
 
 .lx-menu-who { display: flex; flex-direction: column; padding: 8px 12px; border-bottom: 1px solid var(--p-lx-hairline); margin-bottom: 4px; }
 .lx-menu-name { font-weight: 500; }
@@ -81,9 +83,19 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; outline: none; }
   }
   .lx-rail ul { display: flex; }
   .lx-rail li { flex: 1 0 auto; }
+  .lx-rail-tenant { padding-bottom: 0; margin-bottom: 0; border-bottom: 0; border-right: 1px solid var(--p-lx-hairline); }
   .lx-rail a { height: 44px; padding: 0 12px; }
   .lx-rail a.lx-active { background: transparent; }
   .lx-rail a.lx-active::before { left: 8px; right: 8px; top: auto; bottom: 0; width: auto; height: 2px; }
   .lx-tenant, .lx-topbar-divider, .lx-theme-text, .lx-user-name { display: none; }
   .lx-topbar { gap: 8px; padding: 0 8px 0 12px; }
+}
+
+/* Printing shows the page, not the product around it; the fictional-data notice stays on demo tenants. */
+@media print {
+  .lx-skip, .lx-topbar, .lx-rail { display: none; }
+  .lx-app { display: block; height: auto; overflow: visible; }
+  .lx-frame { display: block; }
+  main { overflow: visible; }
+  .lx-notice { background: #fff; color: #000; border: 1px solid #000; margin-bottom: 16px; }
 }

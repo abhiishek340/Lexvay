@@ -16,7 +16,7 @@ import { SessionService } from '../core/session.service';
 import { Theme, ThemeService } from '../core/theme.service';
 import { IconName } from '../theme/icons';
 
-interface NavLink { id: string; label: string; icon: IconName; badge: number; badgeText: string }
+interface NavLink { id: string; programId: string; label: string; icon: IconName; badge: number; badgeText: string }
 
 @Component({
   selector: 'lx-shell',
@@ -42,15 +42,23 @@ export class Shell {
   /** The top bar and navigation appear once someone is signed in; the sign-in page stands alone. */
   readonly chrome = computed(() => this.session.authenticated() && !this.url().startsWith('/login'));
 
+  /** The rail is on every program screen and on the tenant-wide register, which needs no program. */
+  readonly railVisible = computed(() => this.chrome() && (this.programId() !== null || this.url().split(/[?#]/)[0] === '/register'));
+
+  /** The program screens of the program in the URL, or on the register those of the program last worked on. */
   readonly links = computed<NavLink[]>(() => {
+    const programId = this.programId() ?? this.context.program()?.id;
+    if (!programId) {
+      return [];
+    }
     const waiting = this.context.counts()?.waitingForReview ?? 0;
     const open = this.context.openChanges();
     return [
-      { id: 'overview', label: 'Program overview', icon: 'phosphorSquaresFour', badge: 0, badgeText: '' },
-      { id: 'review', label: 'Review', icon: 'phosphorListChecks', badge: waiting, badgeText: `${waiting} requirement${waiting === 1 ? '' : 's'} waiting for review` },
-      { id: 'changes', label: 'Changes', icon: 'phosphorGitDiff', badge: open, badgeText: `${open} open change${open === 1 ? '' : 's'}` },
-      { id: 'report', label: 'Evidence report', icon: 'phosphorFileText', badge: 0, badgeText: '' },
-      { id: 'audit', label: 'Audit trail', icon: 'phosphorClockCounterClockwise', badge: 0, badgeText: '' },
+      { id: 'overview', programId, label: 'Program overview', icon: 'phosphorSquaresFour', badge: 0, badgeText: '' },
+      { id: 'review', programId, label: 'Review', icon: 'phosphorListChecks', badge: waiting, badgeText: `${waiting} requirement${waiting === 1 ? '' : 's'} waiting for review` },
+      { id: 'changes', programId, label: 'Changes', icon: 'phosphorGitDiff', badge: open, badgeText: `${open} open change${open === 1 ? '' : 's'}` },
+      { id: 'report', programId, label: 'Evidence report', icon: 'phosphorFileText', badge: 0, badgeText: '' },
+      { id: 'audit', programId, label: 'Audit trail', icon: 'phosphorClockCounterClockwise', badge: 0, badgeText: '' },
     ];
   });
 
