@@ -59,6 +59,12 @@ are `@defer` blocks. Rejected: a 600 kB raw budget (Angular core, router, forms 
 400 kB raw; meeting it would mean dropping PrimeNG from the shell). The component style budget is raised to
 10 kB / 14 kB because the review workspace styles three panes and two dialogs in one component.
 
+Critical-CSS inlining is switched off in the production configuration (`optimization.styles.inlineCritical:
+false`): it adds an inline `<script>` that swaps the stylesheet's `media`, which the backend's
+Content-Security-Policy (`default-src 'self'`, no inline scripts) blocks, leaving the global styles unapplied.
+The built `index.html` now has one external module script and one stylesheet link; fonts load from `./media`.
+PrimeNG's runtime `<style>` elements rely on `style-src 'unsafe-inline'`, which the policy allows.
+
 ## D-084 Fonts: latin and latin-ext subsets only
 The `@fontsource` packages ship cyrillic, greek and vietnamese subsets as well. Only `latin` and
 `latin-ext` are imported for Sans 400/500/600, Serif 400 and 400 italic, and Mono 400. Rejected: the
