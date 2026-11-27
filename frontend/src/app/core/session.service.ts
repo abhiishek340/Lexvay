@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from './api.service';
@@ -7,6 +8,8 @@ import { SessionView, UserView } from './models';
 export class SessionService {
   private readonly api = inject(ApiService);
   private readonly state = signal<SessionView | null>(null);
+  /** Why the last session ended without the person signing out ("Your access changed. Sign in again."); sign-in shows it. */
+  readonly notice = signal<string | null>(null);
 
   readonly loaded = computed(() => this.state() !== null);
   readonly user = computed<UserView | null>(() => this.state()?.user ?? null);
@@ -20,10 +23,23 @@ export class SessionService {
   /** Entering a rule version (POST /rule-versions) is for contributors and administrators. */
   readonly canEnterRules = computed(() => ['CONTRIBUTOR', 'ADMIN'].includes(this.user()?.role ?? ''));
 
+  /**
+   * A session that no longer matches its account is answered 401 once and is gone after that answer (D-374), so the
+   * second call reports the signed-out state.
+   */
   async load(): Promise<SessionView> {
-    const session = await firstValueFrom(this.api.session());
+    const session = await firstValueFrom(this.api.session()).catch((e: unknown) => {
+      if (e instanceof HttpErrorResponse && e.status === 401) { return firstValueFrom(this.api.session()); }
+      throw e;
+    });
     this.state.set(session);
     return session;
+  }
+
+  /** The server ended the session: forget it here too, so the next screen asks again, and keep the reason for sign-in. */
+  end(notice: string): void {
+    this.state.set(null);
+    this.notice.set(notice);
   }
 
   /** Loads the session first so the CSRF cookie exists before the login POST (the header is only added when the cookie is present). */
@@ -32,6 +48,7 @@ export class SessionService {
       await this.load();
     }
     await firstValueFrom(this.api.login(email, password));
+    this.notice.set(null);
     await this.load();
   }
 

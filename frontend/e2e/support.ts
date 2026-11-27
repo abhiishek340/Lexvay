@@ -110,6 +110,20 @@ export function nav(page: Page, name: string) {
   return page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name, exact: true });
 }
 
+/**
+ * Opens a screen from the rail, or, in the bottom tab bar under 640 px where it may not fit, from the "More" menu
+ * (shell tabBarOverflow).
+ */
+export async function goTo(page: Page, name: string): Promise<void> {
+  const link = nav(page, name);
+  if (await link.isVisible()) {
+    await link.click();
+    return;
+  }
+  await page.getByRole('navigation', { name: 'Screens' }).getByRole('button', { name: /^More screens/ }).click();
+  await page.getByRole('menu', { name: 'More screens' }).getByRole('menuitem', { name }).click();
+}
+
 export interface Evidence { documentId: string; filename: string; pageNumber: number; charStart: number; charEnd: number; quote: string; }
 
 /**
