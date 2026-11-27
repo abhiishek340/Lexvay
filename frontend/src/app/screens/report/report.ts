@@ -21,6 +21,7 @@ import { Enter } from '../../ui/enter';
 import { InfoTip } from '../../ui/info-tip';
 import { Seal } from '../../ui/seal';
 import { StatusIcon } from '../../ui/status-icon';
+import { ReportCheckDialog } from './report-check-dialog';
 import { REPORT_TOKENS } from './report-theme';
 
 /** The icons the report shows beyond SHELL_ICONS, provided by its route (report.routes.ts). */
@@ -31,11 +32,12 @@ const POLL_LIMIT = 60;
 
 /**
  * The evidence report (DESIGN.md "Evidence report"): one jurisdiction's requirements as a document sheet, with the Seal
- * when the determination is signed and a Draft stamp when it is not, and a floating pill that downloads the PDF.
+ * when the determination is signed and a Draft stamp when it is not, and a floating pill that downloads the PDF. "Check a
+ * file" opens the report check (F14), deferred until it is first asked for.
  */
 @Component({
   selector: 'lx-report',
-  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, Select, Skeleton, Enter, InfoTip, Seal, StatusIcon],
+  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, Select, Skeleton, Enter, InfoTip, Seal, StatusIcon, ReportCheckDialog],
   templateUrl: './report.html',
   styleUrl: './report.css',
 })
@@ -47,6 +49,8 @@ export class Report {
   private readonly document = inject(DOCUMENT);
   readonly context = inject(ProgramContext);
   readonly programId = input.required<string>();
+  /** The `jurisdiction` query parameter (router input binding): a link to another state's report changes it in place. */
+  readonly wanted = input<string | undefined>(undefined, { alias: 'jurisdiction' });
   readonly outcomeLabel = OUTCOME_LABEL;
   readonly license = licenseLabel;
 
@@ -56,6 +60,9 @@ export class Report {
   /** The generated PDF of the signed determination on screen, once it is ready. */
   private readonly pdf = signal<{ determinationId: string; file: Blob; filename: string } | null>(null);
   readonly preparing = signal(false);
+  readonly checkOpen = signal(false);
+  /** The assessment and jurisdiction whose requirements are on screen or loading, so each pair is read once. */
+  private shown = '';
 
   readonly options = computed(() => (this.context.program()?.jurisdictions ?? []).map((code) => ({ code, label: `${this.context.jurisdictionName(code)} (${code})` })));
   readonly requirementsTitle = computed(() => {
@@ -70,21 +77,25 @@ export class Report {
       const id = this.programId();
       untracked(() => this.context.ensure(id));
     });
+    // The program's report for the jurisdiction the URL names (its first one otherwise), read again when either changes:
+    // the report check links to any program's report from this screen.
     effect(() => {
       const program = this.context.program();
-      if (!program || !this.context.ready() || untracked(this.jurisdiction)) { return; }
+      const wanted = this.wanted();
+      if (!program || !this.context.ready()) { return; }
       if (!this.context.assessment()) {
         untracked(() => this.error.set('No finished assessment exists for this program yet. The report is built from one.'));
         return;
       }
-      const wanted = this.route.snapshot.queryParamMap.get('jurisdiction');
       untracked(() => this.selectJurisdiction(wanted && program.jurisdictions.includes(wanted) ? wanted : program.jurisdictions[0]));
     });
   }
 
   async selectJurisdiction(code: string): Promise<void> {
     const assessment = this.context.assessment();
-    if (!assessment || !code) { return; }
+    const key = `${assessment?.id}/${code}`;
+    if (!assessment || !code || this.shown === key) { return; }
+    this.shown = key;
     this.jurisdiction.set(code);
     this.mappings.set(null);
     if (needsJurisdictionParam(this.route.snapshot.queryParamMap.get('jurisdiction'), code, this.context.program()?.jurisdictions[0])) {
@@ -92,8 +103,9 @@ export class Report {
     }
     try {
       const view = await firstValueFrom(this.api.mappings(assessment.id, code));
-      if (this.jurisdiction() === code) { this.mappings.set(view.mappings); }
+      if (this.shown === key) { this.mappings.set(view.mappings); }
     } catch (e: unknown) {
+      if (this.shown === key) { this.shown = ''; }
       this.error.set(problemDetail(e, `The report for ${code} could not be loaded.`));
     }
   }

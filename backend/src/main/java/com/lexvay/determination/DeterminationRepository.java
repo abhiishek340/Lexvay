@@ -30,6 +30,16 @@ public class DeterminationRepository {
                 + " AND sd.jurisdiction_id = " + jurisdictionId + " AND sd.status = 'SIGNED')";
     }
 
+    /**
+     * When the determination {@code determinationId} (an SQL expression) was reopened: the time of its
+     * DETERMINATION_REOPENED audit entry, because the determination row keeps no reopening time. Null for one never
+     * reopened. Served by {@code audit_log_entity_idx}.
+     */
+    public static String reopenedAt(String determinationId) {
+        return "(SELECT max(a.created_at) FROM audit_log a WHERE a.entity_id = " + determinationId
+                + " AND a.action = 'DETERMINATION_REOPENED')";
+    }
+
     private final JdbcClient jdbc;
 
     public DeterminationRepository(JdbcClient jdbc) {
