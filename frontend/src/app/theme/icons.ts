@@ -41,11 +41,13 @@ import {
   phosphorSealCheck,
   phosphorSealWarning,
   phosphorSignOut,
+  phosphorSidebarSimple,
   phosphorSignature,
   phosphorSpinner,
   phosphorSquaresFour,
   phosphorSun,
   phosphorTrash,
+  phosphorTray,
   phosphorUserCircle,
   phosphorWarning,
   phosphorWarningCircle,
@@ -102,11 +104,13 @@ export const LEXVAY_ICONS = {
   phosphorSealCheck,
   phosphorSealWarning,
   phosphorSignOut,
+  phosphorSidebarSimple,
   phosphorSignature,
   phosphorSpinner,
   phosphorSquaresFour,
   phosphorSun,
   phosphorTrash,
+  phosphorTray,
   phosphorUserCircle,
   phosphorWarning,
   phosphorWarningCircle,
@@ -114,4 +118,5 @@ export const LEXVAY_ICONS = {
   phosphorXCircleBold,
 };
 
-export type IconName = keyof typeof LEXVAY_ICONS;
+/** The name of a Phosphor icon, as `<ng-icon name>` takes it; the registry that holds it depends on the screen. */
+export type IconName = `phosphor${string}`;

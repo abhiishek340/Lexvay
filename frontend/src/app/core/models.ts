@@ -91,3 +91,11 @@ export interface RuleVersionDiff {
 export interface ProgramOverview { program: Program; assessment: AssessmentView | null; determinations: Determination[]; openChangeEvents: ChangeEvent[]; undecidedTotal: number; }
 /** GET /documents/{id}/pages/{n}: one immutable page of extracted text. */
 export interface DocumentPage { documentId: string; filename: string; kind: string; courseCode: string | null; courseRequired: boolean | null; pageNumber: number; pageCount: number; text: string; textSource: TextSource; ocrConfidence: number | null; }
+
+/** GET /work-queue (F13): what needs the signed-in user. Program fields are null for jurisdiction-wide and tenant-wide kinds. */
+export type WorkQueueKind = 'REQUIREMENTS_TO_REVIEW' | 'EVIDENCE_REQUESTS_OPEN' | 'RULE_VERSIONS_TO_APPROVE' | 'EXTRACTION_FAILED' | 'CHANGES_OPEN' | 'READY_TO_SIGN' | 'ASSESSMENTS_FAILED';
+export interface WorkItem {
+  kind: WorkQueueKind; programId: string | null; programName: string | null; jurisdictionCode: string | null; count: number; oldestAt: string;
+  ids: { assessmentId?: string; mappingIds?: string[]; blockedCount?: number; ruleVersionIds?: string[]; changeKind?: string; changeEventIds?: string[]; programIds?: string[]; assessmentIds?: string[] };
+}
+export interface WorkQueue { generatedAt: string; counts: Partial<Record<WorkQueueKind, number>>; items: WorkItem[]; }

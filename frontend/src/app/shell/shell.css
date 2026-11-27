@@ -1,101 +1,135 @@
+:host { --rail: 232px; }
 .lx-skip {
   position: absolute; left: 8px; top: -64px; z-index: 1200;
-  padding: 8px 12px; background: var(--p-lx-primary); color: var(--p-lx-on-primary); border-radius: 4px; font-weight: 500;
+  padding: 8px 12px; background: var(--p-lx-accent); color: var(--p-lx-on-accent); border-radius: var(--lx-r-control); font-weight: 550;
 }
 .lx-skip:focus { top: 8px; }
 
 .lx-app { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+.lx-print-notice { display: none; }
 
-.lx-notice {
-  display: flex; align-items: flex-start; gap: 8px;
-  padding: 6px 16px; font-size: 13px; line-height: 18px;
-  background: var(--p-lx-notice-bg); color: var(--p-lx-notice-fg);
-  border-bottom: 1px solid var(--p-lx-hairline);
-}
-.lx-notice ng-icon { flex: none; margin-top: 1px; }
-
+/* Top bar: three columns, the search field centred on the page. */
 .lx-topbar {
-  height: var(--lx-topbar); flex: none; box-sizing: border-box;
-  display: flex; align-items: center; gap: 12px; padding: 0 12px 0 16px;
-  background: var(--p-lx-card); border-bottom: 1px solid var(--p-lx-hairline);
+  position: relative; z-index: 2; height: var(--lx-topbar); flex: none; box-sizing: border-box;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 16px; padding: 0 16px;
+  background: var(--p-lx-surface); transition: box-shadow var(--lx-t-2) var(--lx-ease-out);
 }
-.lx-wordmark { font-weight: 600; font-size: 17px; letter-spacing: -0.01em; color: var(--p-lx-text); text-decoration: none; }
-.lx-wordmark:hover { color: var(--p-lx-text); }
-.lx-topbar-divider { width: 1px; height: 20px; background: var(--p-lx-hairline); }
-.lx-tenant { font-size: 13px; color: var(--p-lx-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lx-topbar-spacer { flex: 1; }
-.lx-theme ng-icon { flex: none; }
-.lx-theme-text { font-size: 12px; }
-:host ::ng-deep .lx-theme .p-togglebutton-content { gap: 6px; }
-.lx-user-name { font-weight: 500; color: var(--p-lx-text); }
-.lx-user-role { color: var(--p-lx-text-secondary); font-weight: 400; }
-.lx-user { gap: 8px; }
+.lx-topbar--scrolled { box-shadow: var(--p-lx-e1); }
+.lx-topbar-start, .lx-topbar-end { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.lx-topbar-end { justify-content: flex-end; gap: 8px; }
+.lx-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--p-lx-text); text-decoration: none; border-radius: var(--lx-r-control); flex: none; }
+.lx-brand:hover { color: var(--p-lx-text); }
+.lx-wordmark { font-size: 17px; font-weight: 650; letter-spacing: -0.02em; }
+.lx-switcher { min-width: 0; }
+.lx-switcher-placeholder {
+  display: inline-block; max-width: 15rem; box-sizing: border-box; padding: 5px 40px 5px 14px; border-radius: var(--lx-r-pill);
+  background: var(--p-lx-surface-2); font-size: 13px; line-height: 20px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
+.lx-search {
+  width: min(400px, 36vw); height: 36px; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 12px;
+  border: 0; border-radius: var(--lx-r-pill); background: var(--p-lx-surface-2); color: var(--p-lx-text-2); font: inherit; cursor: pointer;
+  transition: background-color var(--lx-t-1) var(--lx-ease-out), box-shadow var(--lx-t-1) var(--lx-ease-out);
+}
+.lx-search:hover { background: var(--p-lx-line); color: var(--p-lx-text); }
+.lx-search-text { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lx-search kbd { background: var(--p-lx-surface); }
+
+.lx-demo {
+  display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 4px 0 10px; border-radius: var(--lx-r-pill);
+  background: var(--p-lx-ambiguous-tint); color: var(--p-lx-ambiguous); font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.lx-demo ::ng-deep .lx-info-tip { color: var(--p-lx-ambiguous); }
+
+.lx-icon-button {
+  position: relative; width: 36px; height: 36px; padding: 0; border: 0; border-radius: var(--lx-r-control); display: grid; place-items: center;
+  background: transparent; color: var(--p-lx-text-2); cursor: pointer; transition: background-color var(--lx-t-1) var(--lx-ease-out), color var(--lx-t-1);
+}
+.lx-icon-button:hover, .lx-icon-button[aria-expanded='true'] { background: var(--p-lx-surface-2); color: var(--p-lx-text); }
+.lx-queue-badge { position: absolute; top: 3px; right: 1px; transform: translate(40%, -30%); pointer-events: none; }
+.lx-avatar {
+  width: 32px; height: 32px; margin-left: 4px; padding: 0; border: 0; border-radius: var(--lx-r-pill); flex: none; cursor: pointer;
+  background: var(--p-lx-accent-tint); color: var(--p-lx-accent); font: inherit; font-size: 12px; font-weight: 650; letter-spacing: 0.02em;
+  transition: box-shadow var(--lx-t-1) var(--lx-ease-out);
+}
+.lx-avatar:hover, .lx-avatar[aria-expanded='true'] { box-shadow: 0 0 0 3px var(--p-lx-surface-2); }
+
+/* The frame under the bar. */
 .lx-frame { flex: 1; display: flex; min-height: 0; }
 main { flex: 1; min-width: 0; min-height: 0; overflow: auto; outline: none; }
 
+/* Rail: icon and label, the active item an accent-tint pill that glides between items. */
 .lx-rail {
-  flex: none; width: 220px; padding: 12px 0;
-  border-right: 1px solid var(--p-lx-hairline); background: var(--p-lx-ground);
-  overflow-y: auto; box-sizing: border-box;
+  flex: none; width: var(--rail); box-sizing: border-box; padding: 12px 12px; display: flex; flex-direction: column;
+  background: var(--p-lx-ground); overflow-y: auto; overflow-x: hidden;
 }
-.lx-rail ul { list-style: none; margin: 0; padding: 0; }
+.lx-rail ul { position: relative; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.lx-rail-pill {
+  position: absolute; left: 0; right: 0; top: 0; height: 40px; border-radius: 10px; background: var(--p-lx-accent-tint);
+  transition: transform var(--lx-t-3) var(--lx-ease-out); pointer-events: none;
+}
 .lx-rail a {
-  display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px 0 16px;
-  color: var(--p-lx-text-secondary); text-decoration: none; font-weight: 500; font-size: 13px;
-  position: relative;
+  position: relative; display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 10px;
+  color: var(--p-lx-text-2); text-decoration: none; font-weight: 550; font-size: 14px; white-space: nowrap;
+  transition: color var(--lx-t-1) var(--lx-ease-out), background-color var(--lx-t-1) var(--lx-ease-out);
 }
-.lx-rail a:hover { color: var(--p-lx-text); background: var(--p-lx-hover); }
+.lx-rail a:hover { color: var(--p-lx-text); background: var(--p-lx-surface-2); }
+.lx-rail a.lx-active { color: var(--p-lx-accent); background: transparent; }
 .lx-rail a:focus-visible { outline-offset: -2px; }
-.lx-rail a.lx-active { color: var(--p-lx-text); background: var(--p-lx-card); }
-.lx-rail a.lx-active::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px; background: var(--p-lx-primary); }
-.lx-rail a.lx-active ng-icon { color: var(--p-lx-primary); }
-.lx-nav-label { flex: 1; white-space: nowrap; }
-/* The tenant-wide entry sits above the program's screens, set apart by a hairline. */
-.lx-rail-tenant { padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--p-lx-hairline); }
+.lx-rail ng-icon { flex: none; }
+.lx-nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.lx-nav-count {
+  flex: none; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 6px; border-radius: var(--lx-r-pill);
+  display: inline-grid; place-items: center; font-size: 11px; font-weight: 650; background: var(--p-lx-surface-2); color: var(--p-lx-text-2);
+}
+.lx-rail a.lx-active .lx-nav-count { background: var(--p-lx-surface); color: var(--p-lx-accent); }
+/* The tenant-wide entry sits above the program's screens, set apart by a divider. */
+.lx-rail-tenant { padding-bottom: 10px; margin-bottom: 8px; border-bottom: 1px solid var(--p-lx-line); }
+.lx-rail-toggle {
+  margin-top: auto; align-self: flex-start; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 10px; display: grid; place-items: center;
+  background: transparent; color: var(--p-lx-text-2); cursor: pointer;
+}
+.lx-rail-toggle:hover { background: var(--p-lx-surface-2); color: var(--p-lx-text); }
 
-.lx-menu-who { display: flex; flex-direction: column; padding: 8px 12px; border-bottom: 1px solid var(--p-lx-hairline); margin-bottom: 4px; }
-.lx-menu-name { font-weight: 500; }
-.lx-menu-meta { font-size: 12px; color: var(--p-lx-text-secondary); }
-.lx-menu-link { display: flex; align-items: center; gap: 8px; color: var(--p-lx-text); text-decoration: none; padding: 6px 10px; }
-
-.lx-toast { display: flex; gap: 10px; align-items: flex-start; }
-.lx-toast ng-icon { flex: none; margin-top: 1px; }
-.lx-toast-summary { font-weight: 600; color: var(--p-lx-text); }
-.lx-toast-detail { color: var(--p-lx-text-secondary); font-size: 13px; line-height: 18px; margin-top: 2px; }
-
-/* Under 960 px the rail keeps only its icons; the labels stay as accessible names. */
+/* Collapsed (chosen, or any window under 1200 px): icons only, labels kept as accessible names. */
+.lx-app--collapsed .lx-rail { --rail: 64px; }
+.lx-app--collapsed .lx-nav-label, .lx-app--collapsed .lx-nav-count { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.lx-app--collapsed .lx-rail a { justify-content: center; padding: 0; }
+@media (max-width: 1199px) {
+  .lx-rail { --rail: 64px; }
+  .lx-nav-label, .lx-nav-count { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .lx-rail a { justify-content: center; padding: 0; }
+  .lx-rail-toggle { display: none; }
+}
 @media (max-width: 960px) {
-  .lx-rail { width: 60px; }
-  .lx-rail a { justify-content: center; padding: 0; height: 40px; }
-  .lx-nav-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .lx-nav-badge { position: absolute; top: 2px; right: 6px; }
-  .lx-user-role { display: none; }
+  .lx-search { width: 40px; padding: 0; justify-content: center; }
+  .lx-search-text, .lx-search kbd { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .lx-topbar { grid-template-columns: minmax(0, 1fr) auto auto; }
 }
 
-/* Under 640 px the navigation becomes a tab strip under the top bar. */
-@media (max-width: 640px) {
-  .lx-frame { flex-direction: column; }
+/* Under 640 px the rail is a tab bar along the bottom of the window. */
+@media (max-width: 639px) {
+  .lx-frame { flex-direction: column-reverse; }
   .lx-rail {
-    flex: none; width: auto; padding: 0;
-    border-right: 0; border-bottom: 1px solid var(--p-lx-hairline); background: var(--p-lx-card);
-    overflow-x: auto;
+    width: auto; height: 56px; padding: 0 4px; flex-direction: row; overflow-x: auto; overflow-y: hidden;
+    background: var(--p-lx-surface); box-shadow: var(--p-lx-e1);
   }
-  .lx-rail ul { display: flex; }
-  .lx-rail li { flex: 1 0 auto; }
-  .lx-rail-tenant { padding-bottom: 0; margin-bottom: 0; border-bottom: 0; border-right: 1px solid var(--p-lx-hairline); }
-  .lx-rail a { height: 44px; padding: 0 12px; }
-  .lx-rail a.lx-active { background: transparent; }
-  .lx-rail a.lx-active::before { left: 8px; right: 8px; top: auto; bottom: 0; width: auto; height: 2px; }
-  .lx-tenant, .lx-topbar-divider, .lx-theme-text, .lx-user-name { display: none; }
+  .lx-rail ul { flex-direction: row; flex: 1; gap: 0; }
+  .lx-rail li { flex: 1 0 44px; }
+  .lx-rail-pill, .lx-rail-toggle { display: none; }
+  .lx-rail-tenant { padding: 0; margin: 0; border: 0; }
+  .lx-rail a { height: 56px; border-radius: 0; }
+  .lx-rail a.lx-active { box-shadow: inset 0 -2px 0 var(--p-lx-accent); }
   .lx-topbar { gap: 8px; padding: 0 8px 0 12px; }
+  .lx-wordmark, .lx-switcher, .lx-switcher-placeholder, .lx-demo-text { display: none; }
+  .lx-demo { padding: 0 4px; background: transparent; }
 }
 
-/* Printing shows the page, not the product around it; the fictional-data notice stays on demo tenants. */
+/* Printing shows the page, not the product around it; demo tenants keep the fictional-data notice. */
 @media print {
   .lx-skip, .lx-topbar, .lx-rail { display: none; }
   .lx-app { display: block; height: auto; overflow: visible; }
   .lx-frame { display: block; }
   main { overflow: visible; }
-  .lx-notice { background: #fff; color: #000; border: 1px solid #000; margin-bottom: 16px; }
+  .lx-print-notice { display: block; background: #fff; color: #000; border: 1px solid #000; padding: 8px 12px; margin-bottom: 16px; font-size: 13px; }
 }
