@@ -1,6 +1,7 @@
 package com.lexvay.assessment;
 
 import jakarta.validation.constraints.Pattern;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
@@ -28,6 +29,11 @@ public class AssessmentController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     AssessmentService.StartResult start(@PathVariable UUID programId) {
         return service.start(programId);
+    }
+
+    @GetMapping("/programs/{programId}/assessments")
+    List<Assessment> list(@PathVariable UUID programId) {
+        return service.listForProgram(programId);
     }
 
     @GetMapping("/assessments/{id}")

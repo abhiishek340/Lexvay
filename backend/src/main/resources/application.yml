@@ -50,6 +50,10 @@ lexvay:
 
 server:
   port: ${LEXVAY_PORT:8080}
+  compression:
+    enabled: true
+    mime-types: application/json,application/problem+json
+    min-response-size: 1KB
   # Behind a load balancer set LEXVAY_FORWARD_HEADERS=native so the client address (rate limits) and the
   # scheme (HSTS, secure cookies) come from the trusted proxy headers (D-093).
   forward-headers-strategy: ${LEXVAY_FORWARD_HEADERS:none}
