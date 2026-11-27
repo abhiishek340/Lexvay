@@ -23,7 +23,7 @@
 .lx-wordmark { font-size: 17px; font-weight: 650; letter-spacing: -0.02em; }
 .lx-switcher { min-width: 0; }
 .lx-switcher-placeholder {
-  display: inline-block; max-width: 15rem; box-sizing: border-box; padding: 5px 40px 5px 14px; border-radius: var(--lx-r-pill);
+  display: inline-block; max-width: 360px; box-sizing: border-box; padding: 5px 40px 5px 14px; border-radius: var(--lx-r-pill);
   background: var(--p-lx-surface-2); font-size: 13px; line-height: 20px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 

@@ -1,9 +1,15 @@
-/* Tile size, gap and radius per size; the hero map shrinks with its container so it always fits. */
-:host { display: block; container-type: inline-size; --tile: 44px; --gap: 4px; --radius: 10px; --code: 12px; }
-:host([data-size='hero']) { --tile: min(44px, calc((100cqw - 11 * var(--gap)) / 12)); }
-:host([data-size='compact']) { --tile: 34px; --gap: 4px; --radius: 8px; --code: 11px; }
-:host([data-size='mini']) { --tile: 16px; --gap: 2px; --radius: 4px; --code: 0px; }
-@container (max-width: 460px) { .lx-map { --code: 10px; --radius: 7px; } }
+/* Tile size per size. Hero and compact are fluid: their tiles fill the host's width (a container; `100cqw` is read
+   inside it, on the grid) up to a ceiling, 44 px and 34 px, which a host can raise with --lx-map-max-tile (the
+   sign-in stage does). Radius and code size follow the tile. */
+:host { display: block; container-type: inline-size; }
+.lx-map {
+  --gap: 4px;
+  --tile: min(var(--lx-map-max-tile, 44px), calc((100cqw - 11 * var(--gap)) / 12));
+  --radius: calc(var(--tile) * 0.23);
+  --code: clamp(10px, calc(var(--tile) * 0.27), 13px);
+}
+:host([data-size='compact']) .lx-map { --tile: min(var(--lx-map-max-tile, 34px), calc((100cqw - 11 * var(--gap)) / 12)); }
+:host([data-size='mini']) .lx-map { --tile: 16px; --gap: 2px; --radius: 4px; }
 
 .lx-map {
   display: grid; grid-template-columns: repeat(12, var(--tile)); grid-auto-rows: var(--tile); gap: var(--gap);

@@ -299,17 +299,17 @@ Next cuts, with what each is worth (estimates from the same metafile; the first 
 
 Same method, branch `ui2-foundation` after merging PERF-FE-1. Cut 1: `SHELL_ICONS` is a generated copy of the shell's
 13 icons (`scripts/shell-icons.mjs`, checked against the package by `theme/icons.spec.ts`), so `main` no longer imports
-`@ng-icons/phosphor-icons`. Cut 2: the shared preset keeps the Button, Badge and Popover sets; every other set (with
+`@ng-icons/phosphor-icons`. Cut 2: the shared preset keeps the Button, Badge, Popover and Tooltip sets (PrimeNG Tooltip, for the rail and the program pill, is 17.6 kB of `main`); every other set (with
 Lexvay's overrides, one `theme/*-tokens.ts` file per component) is registered by the chunk that renders it. The v2
 shell also defers its program switcher, command palette, work queue popover, avatar menu and toast (each a chunk with
 its own icons and token sets).
 
 | | PERF-FE-1 | UI2-0 |
 |---|---:|---:|
-| Initial total, raw | 695.03 kB | 589.08 kB |
-| Initial total, estimated transfer | 168.22 kB | 152.77 kB |
-| main.js, raw | 687.58 kB | 579.90 kB |
-| styles.css, raw | 7.45 kB | 9.18 kB |
+| Initial total, raw | 695.03 kB | 606.77 kB |
+| Initial total, estimated transfer | 168.22 kB | 155.87 kB |
+| main.js, raw | 687.58 kB | 597.55 kB |
+| styles.css, raw | 7.45 kB | 9.22 kB |
 
 New lazy chunks (raw / transfer): login 51.0 / 13.4 kB, command palette 50.4 / 12.8 kB, toast 51.0 / 10.4 kB (both
 mostly PrimeNG's Toast, Dialog and Menu code, loaded when the page is idle). The fonts are separate media files (Inter

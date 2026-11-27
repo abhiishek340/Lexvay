@@ -29,6 +29,20 @@
         </div>
         <p-button type="submit" label="Sign in" [loading]="busy()" [fluid]="true" size="large" />
       </form>
+      @if (demoAccounts.length > 0) {
+        <div class="lx-demo-accounts" role="group" aria-labelledby="demo-accounts-label">
+          <p id="demo-accounts-label" class="lx-demo-label">Demo accounts</p>
+          <div class="lx-demo-chips">
+            @for (account of demoAccounts; track account.email) {
+              <button pButton type="button" size="small" [rounded]="true" severity="secondary" class="lx-demo-chip"
+                      [attr.aria-label]="roleLabel[account.role] + ', ' + account.name"
+                      (click)="useAccount(account)">
+                <span pButtonLabel>{{ roleLabel[account.role] }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
     </div>
   </section>
 </div>

@@ -3,10 +3,12 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import auraInputtext from '@primeuix/themes/aura/inputtext';
 import auraPassword from '@primeuix/themes/aura/password';
-import { Button } from 'primeng/button';
+import { Button, ButtonDirective, ButtonLabel } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
 import { Password } from 'primeng/password';
+import { DEMO_ACCOUNTS, DemoAccount } from '../../core/demo';
+import { ROLE_LABEL } from '../../core/labels';
 import { MotionPreferences } from '../../core/motion';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
@@ -24,7 +26,7 @@ type Field = 'email' | 'password';
  */
 @Component({
   selector: 'lx-login',
-  imports: [FormsModule, Button, InputText, Message, Password, Mark, StateMap],
+  imports: [FormsModule, Button, ButtonDirective, ButtonLabel, InputText, Message, Password, Mark, StateMap],
   templateUrl: './login.html',
   styleUrl: './login.css',
 })
@@ -35,6 +37,8 @@ export class Login {
   password = '';
   readonly error = signal<{ field: Field; text: string } | null>(null);
   readonly busy = signal(false);
+  readonly demoAccounts = DEMO_ACCOUNTS;
+  readonly roleLabel = ROLE_LABEL;
 
   readonly story = signal<Story>(inject(MotionPreferences).reduced() ? 'off' : 'playing');
   private readonly elapsed = signal(0);
@@ -56,6 +60,14 @@ export class Login {
       clearInterval(this.timer);
       this.story.set('stopped');
     }
+  }
+
+  /** A demo chip fills the email and moves on to the password (the fictional seed's shared password). */
+  useAccount(account: DemoAccount): void {
+    this.stopStory();
+    this.email = account.email;
+    this.error.set(null);
+    document.getElementById('password')?.focus();
   }
 
   async submit(): Promise<void> {

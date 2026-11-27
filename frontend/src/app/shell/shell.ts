@@ -2,6 +2,7 @@ import { Component, DestroyRef, ElementRef, computed, inject, signal, viewChild 
 import { ActivatedRouteSnapshot, NavigationEnd, ResolveEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
 import { Badge } from 'primeng/badge';
+import { Tooltip } from 'primeng/tooltip';
 import { filter, firstValueFrom } from 'rxjs';
 import { ApiService } from '../core/api.service';
 import { ROLE_LABEL } from '../core/labels';
@@ -28,7 +29,7 @@ const RAIL_KEY = 'lexvay.rail.collapsed';
  */
 @Component({
   selector: 'lx-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIcon, Badge, InfoTip, Mark, AccountMenu, CommandPalette, ProgramSwitcher, ShellToast, WorkQueueMenu],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIcon, Badge, Tooltip, InfoTip, Mark, AccountMenu, CommandPalette, ProgramSwitcher, ShellToast, WorkQueueMenu],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
   host: { '(document:keydown)': 'onKey($event)' },

@@ -3,6 +3,7 @@ import auraBase from '@primeuix/themes/aura/base';
 import auraBadge from '@primeuix/themes/aura/badge';
 import auraButton from '@primeuix/themes/aura/button';
 import auraPopover from '@primeuix/themes/aura/popover';
+import auraTooltip from '@primeuix/themes/aura/tooltip';
 import { PALETTE, Pair } from './tokens';
 
 /**
@@ -42,14 +43,14 @@ const accentScale = {
 };
 
 /**
- * Aura limited to what the shell paints first: buttons, the work queue badge and popovers (InfoTip, the StateMap card,
- * the shell's menus). Every other component's token set, Lexvay's overrides included, is registered by the chunk that
+ * Aura limited to what the shell paints first: buttons, the work queue badge, popovers (InfoTip, the StateMap card,
+ * the shell's menus) and tooltips (the rail's full names, the program pill). Every other component's token set, Lexvay's overrides included, is registered by the chunk that
  * renders it (theme/component-tokens.ts and the `*-tokens.ts` files beside this one; docs/PERF.md, cut 2). The semantic
  * tokens below (form fields, lists, overlays, navigation) restyle every component, registered early or late.
  */
 const Aura = {
   ...auraBase,
-  components: { badge: auraBadge, button: auraButton, popover: auraPopover },
+  components: { badge: auraBadge, button: auraButton, popover: auraPopover, tooltip: auraTooltip },
 };
 
 export const LexvayPreset = definePreset(Aura, {
@@ -154,6 +155,9 @@ export const LexvayPreset = definePreset(Aura, {
     popover: {
       root: { gutter: '8px', borderColor: 'transparent' },
       content: { padding: '1rem' },
+    },
+    tooltip: {
+      root: { background: t.text, color: t.surface, borderRadius: '6px', padding: '0.375rem 0.625rem', fontSize: '0.8125rem', maxWidth: '20rem', shadow: t.e2 },
     },
   },
   extend: {

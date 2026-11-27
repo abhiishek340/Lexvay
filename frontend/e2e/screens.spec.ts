@@ -108,11 +108,13 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
 test('screenshots of the v2 shell and sign-in at 1440 and 400 px', async ({ page }) => {
   for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await page.setViewportSize({ width, height });
+    // Under reduced motion the story stands still at its fullest moment, so both themes show the same coloured map.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/login');
     await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
-    // The story at its fullest: most states signed, the last ones still in review.
-    await page.waitForTimeout(4400);
+    await expect(page.getByRole('group', { name: 'Demo accounts' })).toBeVisible();
     await shoot(page, `ui2-sign-in-${width}`);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
 
     await signIn(page, DANA);
     await expect(page.getByRole('table', { name: 'Jurisdictions' })).toContainText('California');

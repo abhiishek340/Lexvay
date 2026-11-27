@@ -4,7 +4,10 @@ import type { IconName } from '../theme/icons';
 export interface NavLink {
   readonly id: string;
   readonly path: string[];
+  /** The full name: the link's accessible name, the tooltip and the command palette's entry. */
   readonly label: string;
+  /** What the rail prints; shorter than the label only where the full name would not fit (word budget). */
+  readonly short: string;
   readonly icon: IconName;
   /** Tenant-wide screens sit above the divider, program screens below it. */
   readonly tenant: boolean;
@@ -21,18 +24,18 @@ const plural = (n: number, one: string, many: string): string => `${n} ${n === 1
  * only list of screens: the rail and the command palette both read it.
  */
 export function navLinks(programId: string | null, counts: NavCounts): NavLink[] {
-  const register: NavLink = { id: 'register', path: ['/register'], label: 'Determination register', icon: 'phosphorBookBookmark', tenant: true, badge: 0, badgeText: '' };
+  const register: NavLink = { id: 'register', path: ['/register'], label: 'Determination register', short: 'Determination register', icon: 'phosphorBookBookmark', tenant: true, badge: 0, badgeText: '' };
   if (!programId) {
     return [register];
   }
-  const screen = (id: string, label: string, icon: IconName, badge = 0, badgeText = ''): NavLink =>
-    ({ id, path: ['/programs', programId, id], label, icon, tenant: false, badge, badgeText });
+  const screen = (id: string, label: string, icon: IconName, badge = 0, badgeText = '', short = label): NavLink =>
+    ({ id, path: ['/programs', programId, id], label, short, icon, tenant: false, badge, badgeText });
   const { waitingForReview: waiting, openRequests: requests, openChanges: open, rulesWaiting: rules } = counts;
   return [
     register,
     screen('overview', 'Program overview', 'phosphorSquaresFour'),
     screen('review', 'Review', 'phosphorListChecks', waiting, `${plural(waiting, 'requirement', 'requirements')} waiting for review`),
-    screen('requests', 'Evidence requests', 'phosphorTray', requests, `${plural(requests, 'open evidence request', 'open evidence requests')}`),
+    screen('requests', 'Evidence requests', 'phosphorTray', requests, `${plural(requests, 'open evidence request', 'open evidence requests')}`, 'Requests'),
     screen('changes', 'Changes', 'phosphorGitDiff', open, `${plural(open, 'open change', 'open changes')}`),
     screen('rules', 'Rules', 'phosphorScales', rules, `${plural(rules, 'rule version', 'rule versions')} waiting for approval`),
     screen('report', 'Evidence report', 'phosphorFileText'),

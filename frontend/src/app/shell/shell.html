@@ -59,9 +59,11 @@
           @for (link of links(); track link.id) {
             <li [class.lx-rail-tenant]="link.tenant">
               <a [routerLink]="link.path" routerLinkActive="lx-active" ariaCurrentWhenActive="page"
+                 [attr.aria-label]="link.short !== link.label ? link.label : null"
+                 [pTooltip]="link.label" tooltipPosition="right" [tooltipDisabled]="link.short === link.label && !collapsed()" [showDelay]="300"
                  [attr.aria-describedby]="link.badge > 0 ? 'nav-badge-' + link.id : null">
                 <ng-icon [name]="link.icon" size="20" aria-hidden="true" />
-                <span class="lx-nav-label">{{ link.label }}</span>
+                <span class="lx-nav-label">{{ link.short }}</span>
                 @if (link.badge > 0) { <span class="lx-nav-count" aria-hidden="true">{{ link.badge }}</span> }
               </a>
               @if (link.badge > 0) {

@@ -20,6 +20,16 @@ test('the sign-in story plays, stops when the person types, and is accessible in
   await expectAccessible(page, 'Sign in at 400 px');
 });
 
+test('a demo account chip fills the email for the fictional tenant', async ({ page }) => {
+  await page.goto('/login');
+  const accounts = page.getByRole('group', { name: 'Demo accounts' });
+  await expect(accounts.getByRole('button')).toHaveCount(4);
+  await accounts.getByRole('button', { name: /^Signer, Dana Whitfield/ }).click();
+  await expect(page.getByLabel('Email')).toHaveValue(DANA);
+  await expect(page.getByLabel('Password')).toBeFocused();
+  await expect(story(page)).toHaveAttribute('data-story', 'stopped');
+});
+
 test('under reduced motion the sign-in story never plays', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/login');
