@@ -5,6 +5,7 @@ export const PASSWORD = process.env['LEXVAY_DEMO_PASSWORD'] ?? 'lexvay-demo';
 export const DANA = 'dana.whitfield@northfield.example';
 export const PRIYA = 'priya.raman@northfield.example';
 export const JORDAN = 'jordan.ellis@northfield.example';
+export const ADMIN = 'admin@northfield.example';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
