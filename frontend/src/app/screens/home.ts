@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
 import { Message } from 'primeng/message';
 import { Skeleton } from 'primeng/skeleton';
@@ -12,7 +12,7 @@ import { registerComponentTokens } from '../theme/component-tokens';
 import { lexvayMessage } from '../theme/message-tokens';
 import { lexvaySkeleton } from '../theme/skeleton-tokens';
 
-/** Lands on the only program, or lists them. */
+/** Lists the programs; the landing guard has already sent anyone with a single program to its overview. */
 @Component({
   selector: 'lx-home',
   imports: [RouterLink, NgIcon, Message, Skeleton],
@@ -50,19 +50,13 @@ import { lexvaySkeleton } from '../theme/skeleton-tokens';
 })
 export class Home {
   private readonly api = inject(ApiService);
-  private readonly router = inject(Router);
   readonly programs = signal<Program[] | null>(null);
   readonly error = signal<string | null>(null);
   readonly license = licenseLabel;
 
   constructor() {
     registerComponentTokens({ message: lexvayMessage, skeleton: lexvaySkeleton });
-    firstValueFrom(this.api.programs()).then((list) => {
-      if (list.length === 1) {
-        this.router.navigate(['/programs', list[0].id, 'overview'], { replaceUrl: true });
-      } else {
-        this.programs.set(list);
-      }
-    }).catch((e: unknown) => this.error.set(problemDetail(e, 'The programs could not be loaded.')));
+    firstValueFrom(this.api.programs()).then((list) => this.programs.set(list))
+      .catch((e: unknown) => this.error.set(problemDetail(e, 'The programs could not be loaded.')));
   }
 }

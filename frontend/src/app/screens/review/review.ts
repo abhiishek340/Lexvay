@@ -15,6 +15,7 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { DECISION_LABEL, OUTCOME_LABEL } from '../../core/labels';
 import { DecisionKind, Determination, Outcome } from '../../core/models';
+import { needsJurisdictionParam } from '../../core/navigation';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { SessionService } from '../../core/session.service';
@@ -194,9 +195,11 @@ export class Review {
     this.message.set(null);
     this.error.set(null);
     this.loading.set(true);
-    this.ownNavigations.add(code);
-    this.router.navigate([], { relativeTo: this.route, queryParams: { jurisdiction: code }, replaceUrl: true })
-      .finally(() => this.ownNavigations.delete(code));
+    if (needsJurisdictionParam(this.route.snapshot.queryParamMap.get('jurisdiction'), code, this.context.program()?.jurisdictions[0])) {
+      this.ownNavigations.add(code);
+      this.router.navigate([], { relativeTo: this.route, queryParams: { jurisdiction: code }, replaceUrl: true })
+        .finally(() => this.ownNavigations.delete(code));
+    }
     try {
       const view = await firstValueFrom(this.api.mappings(assessment.id, code));
       if (this.jurisdiction() === code) {

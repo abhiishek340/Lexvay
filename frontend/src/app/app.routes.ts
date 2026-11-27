@@ -1,5 +1,5 @@
 import { Routes, UrlMatchResult, UrlSegment } from '@angular/router';
-import { authGuard } from './core/auth.guard';
+import { authGuard, landingGuard } from './core/auth.guard';
 
 /**
  * Each screen is its own lazy chunk; the shell, session and theme are the only eager code. A screen that shows icons
@@ -8,7 +8,7 @@ import { authGuard } from './core/auth.guard';
  */
 export const routes: Routes = [
   { path: 'login', loadComponent: () => import('./screens/login/login').then((m) => m.Login), title: 'Sign in · Lexvay' },
-  { path: '', loadComponent: () => import('./screens/home').then((m) => m.Home), canActivate: [authGuard], pathMatch: 'full', title: 'Programs · Lexvay' },
+  { path: '', loadComponent: () => import('./screens/home').then((m) => m.Home), canActivate: [authGuard, landingGuard], pathMatch: 'full', title: 'Programs · Lexvay' },
   {
     path: 'programs/:programId',
     canActivate: [authGuard],

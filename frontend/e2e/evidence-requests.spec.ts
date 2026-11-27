@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { JORDAN, PRIYA, apiPost, expect, expectAccessible, nav, openRequirement, signIn, stateTab, switchUser, test } from './support';
+import { JORDAN, PRIYA, allowConsoleErrors, apiPost, expect, expectAccessible, nav, openRequirement, signIn, stateTab, switchUser, test } from './support';
 
 const NOTE = 'Please send the passage that covers clinical supervision for this requirement.';
 
@@ -118,6 +118,8 @@ test('a reviewer asks for evidence, a contributor answers with a verified passag
   expect(tampered.status()).toBe(400);
   const detail: string = (await tampered.json()).detail;
   expect(detail).toContain('not found on page 1');
+  // Chromium logs the 400 the tampered submission through the screen is answered with.
+  allowConsoleErrors(page, /status of 400.*\/api\/v1\/mappings\/[^/]+\/evidence-responses/);
   await page.route('**/evidence-responses', async (route) => {
     const body = route.request().postDataJSON();
     await route.continue({ postData: JSON.stringify({ ...body, quote: 'This course covers clinical supervision in depth.' }) });

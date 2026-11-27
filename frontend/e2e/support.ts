@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, Page, test as base } from '@playwright/test';
+import { ConsoleMessage, expect, Page, test as base } from '@playwright/test';
 
 export const PASSWORD = process.env['LEXVAY_DEMO_PASSWORD'] ?? 'lexvay-demo';
 export const DANA = 'dana.whitfield@northfield.example';
@@ -9,11 +9,24 @@ export const ADMIN = 'admin@northfield.example';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
+const allowedConsoleErrors = new WeakMap<Page, RegExp[]>();
+
+/**
+ * Declares that this test deliberately causes a console error (Chromium logs every 4xx and 5xx response as "Failed to
+ * load resource"). The pattern is matched against the message text and the URL it came from, so make it specific to
+ * that response's URL or status; there is no global allowlist.
+ */
+export function allowConsoleErrors(page: Page, pattern: RegExp): void {
+  allowedConsoleErrors.set(page, [...(allowedConsoleErrors.get(page) ?? []), pattern]);
+}
+
+const consoleErrorText = (message: ConsoleMessage): string => `${message.text()} (${message.location().url})`;
+
 /**
  * Every test fails if the page asked any host other than localhost for anything: fonts, icons and
  * scripts are bundled, and the product makes no third-party requests.
  */
-export const test = base.extend<{ thirdPartyGuard: void; iconGuard: void }>({
+export const test = base.extend<{ thirdPartyGuard: void; iconGuard: void; consoleGuard: void }>({
   thirdPartyGuard: [async ({ page }, use) => {
     const foreign: string[] = [];
     page.on('request', (request) => {
@@ -36,6 +49,20 @@ export const test = base.extend<{ thirdPartyGuard: void; iconGuard: void }>({
     });
     await use();
     expect(missing, 'icons that no provider registers').toEqual([]);
+  }, { auto: true }],
+  /**
+   * Every test fails if the browser console logged an error or the page threw one, unless the test declared it with
+   * `allowConsoleErrors`. A screen that logs errors on the happy path is broken even when its assertions pass.
+   */
+  consoleGuard: [async ({ page }, use) => {
+    const errors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') { errors.push(consoleErrorText(message)); }
+    });
+    page.on('pageerror', (error) => errors.push(error.message));
+    await use();
+    const allowed = allowedConsoleErrors.get(page) ?? [];
+    expect(errors.filter((e) => !allowed.some((pattern) => pattern.test(e))), 'console errors').toEqual([]);
   }, { auto: true }],
 });
 export { expect };

@@ -1,4 +1,4 @@
-import { DANA, PRIYA, SCREENSHOTS, expect, expectAccessible, nav, shoot, signIn, stateTab, test } from './support';
+import { DANA, PRIYA, SCREENSHOTS, allowConsoleErrors, expect, expectAccessible, nav, shoot, signIn, stateTab, test } from './support';
 
 test('Dana Whitfield reviews every California requirement, signs, and sees the audit entries', async ({ page }) => {
   await signIn(page, DANA);
@@ -161,6 +161,8 @@ test('the review tabs are keyboard operable and the sign-in page is accessible',
   await expect(page.getByText('Enter your email and password.')).toBeVisible();
   await page.getByLabel('Email').fill(PRIYA);
   await page.getByLabel('Password').fill('wrong password');
+  // Chromium logs the 401 the wrong password is answered with.
+  allowConsoleErrors(page, /status of 401.*\/api\/v1\/auth\/login/);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByText('Email or password is incorrect.')).toBeVisible();
   await expectAccessible(page, 'Sign in with an error');
