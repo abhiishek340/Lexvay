@@ -21,6 +21,7 @@ import { RuleVersionStatus } from '../../core/rules';
 import { SessionService } from '../../core/session.service';
 import { Clamp } from '../../ui/clamp';
 import { EditableRequirement, RequirementListEditor } from './requirement-list-editor';
+import { UnsavedChanges } from './unsaved-changes';
 import type { Notice } from './rule-version-detail';
 
 /**
@@ -72,6 +73,9 @@ export class RequirementsPanel {
       const v = this.version();
       untracked(() => this.follow(v));
     });
+    // The screen asks before navigation or a reload throws these edits away.
+    const unsaved = inject(UnsavedChanges);
+    effect(() => unsaved.dirty.set(this.editing() && this.editor.dirty()));
   }
 
   typeName(r: RequirementView): string {

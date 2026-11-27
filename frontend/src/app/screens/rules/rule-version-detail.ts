@@ -8,9 +8,9 @@ import { licenseLabel } from '../../core/labels';
 import { RuleVersionView, UserSummary } from '../../core/models';
 import { ProgramContext } from '../../core/program-context';
 import { RULE_STATUS, ruleVersionStatus } from '../../core/rules';
+import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
 import { RequirementsPanel } from './requirements-panel';
 import { RuleCompare } from './rule-compare';
-import { RuleText } from './rule-text';
 
 /** A finished operation, for the screen's live region and toast. */
 export interface Notice { summary: string; detail: string; severity?: 'success' | 'info' | 'warn' | 'error' }
@@ -20,7 +20,7 @@ type DetailTab = 'requirements' | 'text' | 'compare';
 /** One rule version: what it is, where it stands, and its three tabs. */
 @Component({
   selector: 'lx-rule-version-detail',
-  imports: [DatePipe, NgIcon, Message, Tab, TabList, TabPanel, TabPanels, Tabs, Tag, RequirementsPanel, RuleCompare, RuleText],
+  imports: [DatePipe, NgIcon, Message, Tab, TabList, TabPanel, TabPanels, Tabs, Tag, DocumentViewer, RequirementsPanel, RuleCompare],
   templateUrl: './rule-version-detail.html',
   styleUrl: './rule-version-detail.css',
 })
