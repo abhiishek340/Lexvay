@@ -49,7 +49,8 @@ final class PerfSeed {
 
     /**
      * Rows the seed never produces but a tenant that has used the product for a while has: repeated
-     * assessments per program and signed or reopened determinations. Inserted as the database owner of the
+     * assessments per program, signed or reopened determinations and a review history on most mappings
+     * (none, an open evidence request, a reopening, or a request answered and accepted). Inserted as the database owner of the
      * test container (which bypasses row-level security) so that those tables are big enough for the planner
      * to consider an index. Synthetic; used only to check which indexes the planner chooses.
      */
@@ -69,6 +70,16 @@ final class PerfSeed {
                 JOIN rule_version rv ON rv.tenant_id = a.tenant_id
                 CROSS JOIN generate_series(1, 2) g
                 JOIN LATERAL (SELECT id FROM app_user WHERE tenant_id = a.tenant_id LIMIT 1) u ON true
+                """);
+        admin.execute("""
+                INSERT INTO review_event (tenant_id, mapping_id, kind, note, user_id, created_at)
+                SELECT m.tenant_id, m.id, k.kind, 'Synthetic history.', u.id, now() - (4 - k.n) * interval '1 hour'
+                FROM mapping m
+                JOIN LATERAL (SELECT id FROM app_user WHERE tenant_id = m.tenant_id LIMIT 1) u ON true
+                CROSS JOIN (VALUES (1, 'EVIDENCE_REQUESTED'), (2, 'REOPENED'), (3, 'ACCEPTED')) k(n, kind)
+                WHERE k.n <= CASE WHEN abs(hashtext(m.id::text)) % 10 < 3 THEN 0
+                                  WHEN abs(hashtext(m.id::text)) % 10 < 6 THEN 3
+                                  WHEN abs(hashtext(m.id::text)) % 10 < 8 THEN 1 ELSE 2 END
                 """);
     }
 

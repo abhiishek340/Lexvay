@@ -7,7 +7,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 
 import com.lexvay.assessment.AssessmentFixtures;
-import com.lexvay.auth.LexvayUser;
 import com.lexvay.job.JobRunner;
 import com.lexvay.llm.FakeLlmClient;
 import com.lexvay.llm.LlmClient;
@@ -56,7 +55,7 @@ class InputValidationTableTest extends AbstractDatabaseTest {
     private static final String BAD_ID = "not-a-uuid";
     private static final String JSON = MediaType.APPLICATION_JSON_VALUE;
 
-    private enum As { ADMIN, SIGNER }
+    private enum As { ADMIN, SIGNER, ANONYMOUS }
 
     /**
      * One malformed request. {@code endpoint} is the handler mapping it exercises, in the same
@@ -110,8 +109,12 @@ class InputValidationTableTest extends AbstractDatabaseTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("rows")
     void malformedInputIsRefusedWithAProblemDetail(Row row) throws Exception {
-        LexvayUser actor = row.as() == As.SIGNER ? t.signer() : t.admin();
-        var builder = request(row.method(), java.net.URI.create(fill(row.uri()))).with(user(actor)).with(csrf());
+        var builder = request(row.method(), java.net.URI.create(fill(row.uri()))).with(csrf());
+        switch (row.as()) {
+            case ADMIN -> builder.with(user(t.admin()));
+            case SIGNER -> builder.with(user(t.signer()));
+            case ANONYMOUS -> { }
+        }
         if (row.body() != null) {
             builder.contentType(row.contentType()).content(fill(row.body()));
         }
@@ -413,6 +416,15 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(row("change event rerun: id is not a UUID", "POST /api/v1/change-events/{id}/rerun", HttpMethod.POST,
                 "/api/v1/change-events/" + BAD_ID + "/rerun", null, null, 400));
 
+        // --- work queue (no input beyond the session) ---
+        rows.add(row("work queue: hostile query parameter is ignored", "GET /api/v1/work-queue", HttpMethod.GET,
+                "/api/v1/work-queue?q=%00%ff&role=ADMIN", null, null, 200));
+        rows.add(anonymousRow("work queue: no session", "GET /api/v1/work-queue", HttpMethod.GET, "/api/v1/work-queue", 401));
+        rows.add(row("work queue count: hostile query parameter is ignored", "GET /api/v1/work-queue/count", HttpMethod.GET,
+                "/api/v1/work-queue/count?q=%00%ff&role=ADMIN", null, null, 200));
+        rows.add(anonymousRow("work queue count: no session", "GET /api/v1/work-queue/count", HttpMethod.GET,
+                "/api/v1/work-queue/count", 401));
+
         // --- rule sources ---
         Map<String, Object> ruleSource = Map.of("jurisdictionCode", "CA", "licenseType", "L", "label", "Demo rule source",
                 "url", "https://rules.example.test/rules.pdf", "checkIntervalHours", 24);
@@ -471,6 +483,10 @@ class InputValidationTableTest extends AbstractDatabaseTest {
 
     private static Row signerRow(String name, String endpoint, HttpMethod method, String uri, String body, String contentType, int status) {
         return new Row(name, endpoint, method, uri, body, contentType, status, As.SIGNER);
+    }
+
+    private static Row anonymousRow(String name, String endpoint, HttpMethod method, String uri, int status) {
+        return new Row(name, endpoint, method, uri, null, null, status, As.ANONYMOUS);
     }
 
     private static Row rawJson(String name, String endpoint, HttpMethod method, String uri, String body, int status) {

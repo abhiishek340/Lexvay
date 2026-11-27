@@ -158,6 +158,36 @@ an index condition below the policy. Recommendation, not implemented (schema cha
 and the rule version views scan the job table (jobs are never deleted); at the seed size this costs nothing
 measurable, at hundreds of thousands of jobs it will.
 
+## Work queue (F13)
+
+`GET /work-queue` and `GET /work-queue/count` (D-190 to D-199, `docs/decisions/F13.md`): one statement and one
+connection each, signer role (it sees five of the seven kinds). One `make perf` run (not a median of three),
+milliseconds on loopback:
+
+| Pass | Endpoint | p50 | p95 | p99 | connections per call | wire bytes |
+|---|---|---:|---:|---:|---:|---:|
+| 2 seeded tenants | GET /work-queue | 1.70 | 3.05 | 5.09 | 1.0 | 997 |
+| 2 seeded tenants | GET /work-queue/count | 1.56 | 2.73 | 3.82 | 1.0 | 12 |
+| 62 tenants | GET /work-queue | 3.47 | 5.80 | 8.07 | 1.0 | 997 |
+| 62 tenants | GET /work-queue/count | 3.90 | 15.36 | 24.94 | 1.0 | 12 |
+
+The 15 ms p95 of the count on the 62-tenant pass is one noisy run (its p50 is 3.9 ms); the budget is 40 ms.
+A second full run after the last merge of main (rule source endpoints in the list), same machine: seed
+`/work-queue` p50 4.07, p95 14.15, p99 25.32 and count p95 4.22; 62 tenants `/work-queue` p95 3.74 and count
+p95 3.77. Variation between runs is machine noise; every p95 is far inside the budget.
+
+Plan: `IndexUsageTest` runs `EXPLAIN (ANALYZE, BUFFERS)` of the exact statement as the application role under
+row-level security on about 200 tenants with synthetic review history, for each role, and fails on a sequential scan
+of `mapping`, `review_event` or `job` (plans in `backend/target/perf/work-queue-plan.txt`). Execution time
+1.7 to 2.0 ms per role, planning 1.2 to 2.2 ms. Mappings use `mapping_assessment_jurisdiction_idx` and
+`mapping_tenant_idx`, review events `review_event_mapping_idx`, the latest finished assessment
+`assessment_program_status_finished_idx`, failed extraction jobs the `job_claim_idx` status condition, signed
+determinations `determination_program_jurisdiction_status_idx`. The only sequential scan is the 51-row `jurisdiction`
+table. No index is needed, so there is no `V014__work_queue_indexes.sql`. A first run before the history volume
+existed showed a sequential scan of `review_event`: the table was empty and the planner ignores indexes on empty
+tables, which is why `PerfSeed.addHistoryVolume` now adds review events. Known cost: `MappingRepository.CURRENT` is
+quadratic in the mappings of one assessment (D-199).
+
 ## Not covered
 
 - All numbers are loopback. Production adds network latency per round trip, which favours the new design.
