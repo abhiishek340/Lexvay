@@ -2,8 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, DocumentPage, Jurisdiction, Mapping, MappingsView, NewRuleVersion, Outcome, Program, ProgramOverview,
-  ReportStatusView, RequirementDraft, RequirementsView, RuleVersionDiff, RuleVersionView, SessionView, UserSummary, UserView,
+  AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, DocumentPage, EvidenceRequest, EvidenceResponse, EvidenceResponseBody, Jurisdiction, Mapping,
+  MappingsView, NewRuleVersion, Outcome, Program, ProgramDocument, ProgramOverview, ReportStatusView, RequirementDraft, RequirementsView, RuleVersionDiff, RuleVersionView, SessionView, UserSummary, UserView,
 } from './models';
 
 /** Thin, typed wrapper over /api/v1. Holds no business rules. */
@@ -49,6 +49,17 @@ export class ApiService {
     return this.http.post<Mapping>(`${this.base}/mappings/${mappingId}/reviews`, { kind, note });
   }
 
+  /** Every request of the latest finished assessment, open and answered; the screens filter it. */
+  evidenceRequests(programId: string): Observable<EvidenceRequest[]> {
+    return this.http.get<EvidenceRequest[]>(`${this.base}/programs/${programId}/evidence-requests`, { params: { status: 'ALL' } });
+  }
+  evidenceResponses(mappingId: string): Observable<EvidenceResponse[]> {
+    return this.http.get<EvidenceResponse[]>(`${this.base}/mappings/${mappingId}/evidence-responses`);
+  }
+  provideEvidence(mappingId: string, body: EvidenceResponseBody): Observable<EvidenceResponse> {
+    return this.http.post<EvidenceResponse>(`${this.base}/mappings/${mappingId}/evidence-responses`, body);
+  }
+
   determinations(programId: string): Observable<Determination[]> { return this.http.get<Determination[]>(`${this.base}/programs/${programId}/determinations`); }
   sign(programId: string, jurisdiction: string, outcome: Outcome): Observable<Determination> {
     return this.http.post<Determination>(`${this.base}/programs/${programId}/determinations`, { jurisdiction, outcome });
@@ -72,6 +83,7 @@ export class ApiService {
   users(): Observable<UserSummary[]> { return this.http.get<UserSummary[]>(`${this.base}/users`); }
   audit(limit = 200): Observable<AuditEntry[]> { return this.http.get<AuditEntry[]>(`${this.base}/audit`, { params: { limit } }); }
 
+  programDocuments(programId: string): Observable<ProgramDocument[]> { return this.http.get<ProgramDocument[]>(`${this.base}/programs/${programId}/documents`); }
   /** Immutable and cached by the browser for a year (D-112); read through DocumentPageCache. */
   documentPage(documentId: string, pageNumber: number): Observable<DocumentPage> {
     return this.http.get<DocumentPage>(`${this.base}/documents/${documentId}/pages/${pageNumber}`);

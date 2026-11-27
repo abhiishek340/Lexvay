@@ -46,9 +46,11 @@ export class Shell {
     const waiting = this.context.counts()?.waitingForReview ?? 0;
     const open = this.context.openChanges();
     const rules = this.context.rulesWaiting();
+    const requests = this.context.openRequests();
     return [
       { id: 'overview', label: 'Program overview', icon: 'phosphorSquaresFour', badge: 0, badgeText: '' },
       { id: 'review', label: 'Review', icon: 'phosphorListChecks', badge: waiting, badgeText: `${waiting} requirement${waiting === 1 ? '' : 's'} waiting for review` },
+      { id: 'requests', label: 'Evidence requests', icon: 'phosphorTray', badge: requests, badgeText: `${requests} open evidence request${requests === 1 ? '' : 's'}` },
       { id: 'changes', label: 'Changes', icon: 'phosphorGitDiff', badge: open, badgeText: `${open} open change${open === 1 ? '' : 's'}` },
       { id: 'rules', label: 'Rules', icon: 'phosphorScales', badge: rules, badgeText: `${rules} rule version${rules === 1 ? '' : 's'} waiting for approval` },
       { id: 'report', label: 'Evidence report', icon: 'phosphorFileText', badge: 0, badgeText: '' },
