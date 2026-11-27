@@ -13,6 +13,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class CourseRepository {
 
+    /** Course version {@code cv} has a successor, so it is no longer the current version of its course. Uses the unique index on {@code supersedes_id}. */
+    public static final String SUPERSEDED = "EXISTS (SELECT 1 FROM course_version n WHERE n.supersedes_id = cv.id)";
+
     private static final RowMapper<CourseVersion> VERSION = (rs, i) -> new CourseVersion(
             rs.getObject("id", UUID.class), rs.getObject("course_id", UUID.class), rs.getObject("program_id", UUID.class),
             rs.getString("catalog_year"), rs.getBoolean("required"), rs.getObject("supersedes_id", UUID.class));
