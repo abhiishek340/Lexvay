@@ -57,6 +57,7 @@ export class Register {
 
   readonly filter = signal<RegisterFilter>(NO_FILTER);
   readonly rows = signal<RegisterRow[] | null>(null);
+  readonly rowsError = signal<string | null>(null);
   readonly loadedAt = signal<Date | null>(null);
   private request = 0;
 
@@ -121,6 +122,7 @@ export class Register {
   private async loadRows(): Promise<void> {
     const request = ++this.request;
     this.rows.set(null);
+    this.rowsError.set(null);
     try {
       const rows = await firstValueFrom(this.api.register(this.filter()));
       if (request === this.request) {
@@ -128,7 +130,7 @@ export class Register {
         this.loadedAt.set(new Date());
       }
     } catch (e: unknown) {
-      if (request === this.request) { this.error.set(problemDetail(e, 'The register could not be loaded.')); }
+      if (request === this.request) { this.rowsError.set(problemDetail(e, 'The register could not be loaded.')); }
     }
   }
 
