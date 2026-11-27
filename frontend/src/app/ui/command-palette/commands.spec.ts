@@ -38,6 +38,12 @@ describe('paletteCommands', () => {
   it('without a program offers the tenant-wide screens and the register download only', () => {
     expect(ids('SIGNER', null)).toEqual(['go:programs', 'go:register', 'do:download-register']);
   });
+
+  it('goes to People for administrators only', () => {
+    expect(ids('ADMIN', null)).toEqual(['go:programs', 'go:register', 'go:people', 'do:download-register']);
+    expect(ids('ADMIN')).toContain('go:people');
+    expect(ids('SIGNER')).not.toContain('go:people');
+  });
 });
 
 describe('paletteSections', () => {
