@@ -5,13 +5,15 @@ import com.lexvay.llm.FakeLlmClient;
 import com.lexvay.llm.LlmClient;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Scripts {@link FakeLlmClient} from seed/fake-llm.yml, resolving document file names to the ids of the
- * documents just uploaded (D-061).
+ * Scripts {@link FakeLlmClient} from fake-llm.yml files, resolving document file names to the ids of the
+ * documents just uploaded (D-061). The seed loads seed/fake-llm.yml; the application can load more files at
+ * startup ({@link FakeLlmStartupScripts}).
  */
 public final class ScriptedFakeModel implements ModelStrategy {
 
@@ -27,10 +29,24 @@ public final class ScriptedFakeModel implements ModelStrategy {
 
     /** Fails unless the configured model is the fake one: the scripts mean nothing to a real model. */
     public static ScriptedFakeModel load(Path seedDir, LlmClient llm, ObjectMapper json) {
+        return load(List.of(seedDir.resolve("fake-llm.yml")), llm, json);
+    }
+
+    /** Reads the files in order; where two script the same key, the later file wins. */
+    public static ScriptedFakeModel load(List<Path> files, LlmClient llm, ObjectMapper json) {
         if (!(llm instanceof FakeLlmClient fake)) {
-            throw new IllegalStateException("The seed scripts the model; run it with LEXVAY_LLM_PROVIDER=fake");
+            throw new IllegalStateException("Scripting the model needs LEXVAY_LLM_PROVIDER=fake");
         }
-        return new ScriptedFakeModel(fake, YamlFile.read(seedDir.resolve("fake-llm.yml"), FakeLlmScripts.class), json);
+        FakeLlmScripts merged = new FakeLlmScripts(null, null);
+        for (Path file : files) {
+            merged = merged.overriddenBy(YamlFile.read(file, FakeLlmScripts.class));
+        }
+        return new ScriptedFakeModel(fake, merged, json);
+    }
+
+    /** Scripts every extraction at once; match scripts need document ids, which exist only once a seed has uploaded them. */
+    public void scriptAllExtractions() {
+        scripts.extraction().keySet().forEach(this::beforeExtraction);
     }
 
     @Override
