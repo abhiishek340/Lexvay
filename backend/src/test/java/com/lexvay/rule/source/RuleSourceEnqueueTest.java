@@ -24,10 +24,10 @@ class RuleSourceEnqueueTest extends AbstractRuleSourceTest {
                 new CreateRuleSourceRequest("CA", LICENSE, label, newUrl("html"), intervalHours)));
     }
 
-    /** Pretends the source was last checked this many hours ago. */
-    private void checkedHoursAgo(TestTenants.TenantWithUsers tenant, UUID sourceId, int hours) {
-        TenantContext.runAs(tenant.tenantId(), () -> jdbc.sql("UPDATE rule_source SET last_checked_at = now() - :hours * interval '1 hour' WHERE id = :id")
-                .param("hours", hours).param("id", sourceId).update());
+    /** Pretends the source is next due this many minutes from now (negative: that long ago). */
+    private void dueInMinutes(TestTenants.TenantWithUsers tenant, UUID sourceId, int minutes) {
+        TenantContext.runAs(tenant.tenantId(), () -> jdbc.sql("UPDATE rule_source SET next_check_at = now() + :minutes * interval '1 minute' WHERE id = :id")
+                .param("minutes", minutes).param("id", sourceId).update());
     }
 
     private long jobs(TestTenants.TenantWithUsers tenant, UUID sourceId) {
@@ -45,9 +45,9 @@ class RuleSourceEnqueueTest extends AbstractRuleSourceTest {
         var other = tenants.create("other");
         UUID neverChecked = register(t, "never checked", 24);
         UUID overdue = register(t, "overdue", 24);
-        checkedHoursAgo(t, overdue, 30);
+        dueInMinutes(t, overdue, -6 * 60);
         UUID recent = register(t, "recent", 24);
-        checkedHoursAgo(t, recent, 1);
+        dueInMinutes(t, recent, 23 * 60);
         UUID inactive = register(t, "inactive", 24);
         TenantContext.runAs(t.tenantId(), () -> repository.setActive(inactive, false));
         UUID otherTenants = register(other, "other tenant", 1);
@@ -57,7 +57,7 @@ class RuleSourceEnqueueTest extends AbstractRuleSourceTest {
         assertThat(queued).isGreaterThanOrEqualTo(3);
         assertThat(jobs(t, neverChecked)).isEqualTo(1);
         assertThat(jobs(t, overdue)).isEqualTo(1);
-        assertThat(jobs(t, recent)).as("checked an hour ago, interval a day").isZero();
+        assertThat(jobs(t, recent)).as("checked an hour ago, due in 23 hours").isZero();
         assertThat(jobs(t, inactive)).as("monitoring is off").isZero();
         assertThat(jobs(other, otherTenants)).as("another tenant is served too").isEqualTo(1);
         assertThat(jobs(t, otherTenants)).as("and the job belongs to that tenant only").isZero();
@@ -80,10 +80,29 @@ class RuleSourceEnqueueTest extends AbstractRuleSourceTest {
         repository.enqueueDue();
         assertThat(jobs(t, id)).as("it was just checked").isEqualTo(1);
 
-        checkedHoursAgo(t, id, 25);
+        dueInMinutes(t, id, -1);
         repository.enqueueDue();
         assertThat(jobs(t, id)).as("the interval has passed").isEqualTo(2);
         repository.enqueueDue();
         assertThat(jobs(t, id)).isEqualTo(2);
+    }
+
+    @Test
+    void aFailedSourceIsQueuedAgainOnlyWhenItsBackoffHasPassed() {
+        UUID id = register(t, "backoff", 24);
+        repository.enqueueDue();
+        runner.runPending();
+
+        repository.enqueueDue();
+        assertThat(jobs(t, id)).as("the first check was just done").isEqualTo(1);
+
+        TenantContext.runAs(t.tenantId(), () -> jdbc.sql("UPDATE rule_source SET consecutive_failures = 1, next_check_at = now() + interval '15 minutes' WHERE id = :id")
+                .param("id", id).update());
+        repository.enqueueDue();
+        assertThat(jobs(t, id)).as("fifteen minutes have not passed").isEqualTo(1);
+
+        dueInMinutes(t, id, -1);
+        repository.enqueueDue();
+        assertThat(jobs(t, id)).as("the retry is due, long before the interval").isEqualTo(2);
     }
 }

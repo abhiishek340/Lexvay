@@ -31,7 +31,7 @@ import org.springframework.stereotype.Component;
  * Fetches one rule source and records what it found (F12, D-184). A changed text becomes a stored document and an
  * UNAPPROVED draft rule version made through {@link RuleVersionService}, so extraction and the change event follow
  * the path an upload takes; this class never approves, edits or replaces anything. A page that cannot be fetched
- * or read is a recorded check, not a failed job: the source is simply checked again at its next interval.
+ * or read is a recorded check, not a failed job: the source is checked again after a short, growing delay (D-381).
  */
 @Component
 public class CheckRuleSourceHandler implements JobHandler {
@@ -84,7 +84,8 @@ public class CheckRuleSourceHandler implements JobHandler {
         UUID checkId = sources.insertCheck(TenantContext.require(), sourceId, finding.outcome(), finding.httpStatus(),
                 finding.contentHash(), finding.detail(), finding.documentId(), finding.ruleVersionId());
         // Only a recorded change moves the baseline. A refused draft keeps it, so the change is not forgotten.
-        sources.markChecked(sourceId, finding.outcome() == CheckOutcome.CHANGED ? finding.contentHash() : source.lastContentHash());
+        sources.markChecked(sourceId, finding.outcome() == CheckOutcome.CHANGED ? finding.contentHash() : source.lastContentHash(),
+                finding.outcome());
         audit.recordAs(null, "RULE_SOURCE_CHECKED", "rule_source", sourceId, auditDetail(job, checkId, finding));
     }
 

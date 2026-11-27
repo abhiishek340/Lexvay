@@ -51,7 +51,8 @@ final class PerfSeed {
      * Rows the seed never produces but a tenant that has used the product for a while has: repeated
      * assessments per program, signed or reopened determinations and a review history on most mappings
      * (none, an open evidence request, a reopening, or a request answered and accepted), and the finished jobs
-     * that pile up because jobs are never deleted (re-ingests, extractions, source checks). Inserted as the
+     * that pile up because jobs are never deleted (re-ingests, extractions, source checks), and the many sources
+     * that are not due yet beside the few that are. Inserted as the
      * database owner of the test container (which bypasses row-level security) so that those tables are big
      * enough for the planner to consider an index. Synthetic; used only to check which indexes the planner chooses.
      */
@@ -82,6 +83,13 @@ final class PerfSeed {
                 UNION ALL
                 SELECT rs.tenant_id, 'CHECK_RULE_SOURCE', rs.id, jsonb_build_object('ruleSourceId', rs.id), 'DONE', now() - g * interval '1 day'
                 FROM rule_source rs CROSS JOIN generate_series(1, 30) g
+                """);
+        // After the job volume above, which is one row per source and day: these sources have no history of their own.
+        admin.execute("""
+                INSERT INTO rule_source (tenant_id, jurisdiction_id, license_type, label, url, check_interval_hours, next_check_at)
+                SELECT rs.tenant_id, rs.jurisdiction_id, rs.license_type, 'Synthetic source ' || g,
+                       'https://example.invalid/rules/' || g, 24, now() + g * interval '1 hour'
+                FROM rule_source rs CROSS JOIN generate_series(1, 200) g
                 """);
         admin.execute("""
                 INSERT INTO review_event (tenant_id, mapping_id, kind, note, user_id, created_at)

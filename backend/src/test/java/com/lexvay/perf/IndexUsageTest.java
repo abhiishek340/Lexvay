@@ -33,7 +33,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Proves with {@code EXPLAIN}, as the application role under row-level security, that the planner chooses
- * each index added by V008 and V013 for the query it was added for, and ignores the candidates that were left out. The database holds 100 renamed copies of the seed
+ * each index added by V008, V013 and V016 for the query it was added for, and ignores the candidates that were left out. The database holds 100 renamed copies of the seed
  * (about 100 tenants), so tables are large enough for the planner to prefer an index over a sequential scan.
  * Run through {@code make perf}.
  */
@@ -99,7 +99,8 @@ class IndexUsageTest extends AbstractDatabaseTest {
                 if (plan.stream().anyMatch(JOB_SEQUENTIAL_SCAN)) {
                     jobSequentialScans.add(candidate.query());
                 }
-                if (candidate.index().equals("job_entity_idx")) {
+                // EXPLAIN ANALYZE executes the statement: only reads are measured, not the manual check's INSERT.
+                if (candidate.index().equals("job_entity_idx") && candidate.sql().startsWith("SELECT")) {
                     List<String> analyzed = TenantContext.runAs(tenantId,
                             () -> jdbc.sql("EXPLAIN (ANALYZE, BUFFERS) " + candidate.sql()).query(String.class).list());
                     int touched = buffers(analyzed);
@@ -124,6 +125,12 @@ class IndexUsageTest extends AbstractDatabaseTest {
         if (!schedulerUsesIndex) {
             keptButIgnored.add("job_claim_idx (scheduler)");
         }
+        boolean dueUsesIndex = scheduler.stream().anyMatch(line -> line.contains("rule_source_due_idx"));
+        report.add("| `rule_source_due_idx` | which active rule sources are due (scheduler, worker flag, all tenants; V016) | yes | "
+                + scans(scheduler) + " | " + (dueUsesIndex ? "yes" : "no") + " | |");
+        if (!dueUsesIndex) {
+            keptButIgnored.add("rule_source_due_idx (scheduler)");
+        }
         if (scheduler.stream().anyMatch(JOB_SEQUENTIAL_SCAN)) {
             jobSequentialScans.add("scheduler");
         }
@@ -143,7 +150,7 @@ class IndexUsageTest extends AbstractDatabaseTest {
         Path out = Path.of("target", "perf", "index-usage.md");
         Files.createDirectories(out.getParent());
         Files.writeString(out, table);
-        assertThat(keptButIgnored).as("indexes of V008 and V013 the planner did not choose: drop them").isEmpty();
+        assertThat(keptButIgnored).as("indexes of V008, V013 and V016 the planner did not choose: drop them").isEmpty();
         assertThat(rejectedButChosen).as("rejected candidates the planner now chooses: add them to V008").isEmpty();
         assertThat(lookupsOverBudget).as("job lookups touching more than " + JOB_LOOKUP_BUFFER_BUDGET
                 + " buffers: a lookup by one record must not walk the index of every tenant").isEmpty();
@@ -234,7 +241,7 @@ class IndexUsageTest extends AbstractDatabaseTest {
                 new Candidate("job_entity_idx", "extraction status of every rule version (rule version list)",
                         "SELECT DISTINCT ON (entity_id) id FROM job WHERE type = 'EXTRACT_REQUIREMENTS' AND entity_id IN ('"
                                 + ruleVersion + "', '" + otherRuleVersion + "') ORDER BY entity_id, created_at DESC"),
-                new Candidate("job_claim_idx", "is a check of a rule source already queued (manual check; only queued jobs are read, V001 index)",
+                new Candidate("job_entity_idx", "is a check of one rule source already queued (manual check; one source, so its jobs are read by entity)",
                         RuleSourceRepository.ENQUEUE.formatted("rs.id = '" + ruleSource + "'").replace(":createdBy", "NULL")),
                 new Candidate("requirement_ordinal_key", "requirements of a rule version (existing unique index, so V008 adds none)",
                         "SELECT id FROM requirement WHERE rule_version_id = '" + ruleVersion + "' ORDER BY ordinal"));
