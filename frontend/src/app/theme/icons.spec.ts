@@ -6,11 +6,13 @@ import { AUDIT_ICONS } from '../screens/audit/audit';
 import { CHANGES_ICONS } from '../screens/changes/changes';
 import { COVERAGE_ICONS } from '../screens/coverage/coverage';
 import { OVERVIEW_ICONS } from '../screens/overview/overview';
+import { PEOPLE_ICONS } from '../screens/people/people';
 import { REGISTER_ICONS } from '../screens/register/register';
 import { REQUESTS_ICONS } from '../screens/requests/requests';
 import { REPORT_ICONS } from '../screens/report/report';
 import { REVIEW_ICONS } from '../screens/review/review';
 import { RULES_ICONS } from '../screens/rules/rules';
+import { SETUP_ICONS } from '../screens/setup/setup';
 import { ACCOUNT_MENU_ICONS } from '../shell/account-menu';
 import { SHELL_TOAST_ICONS } from '../shell/shell-toast';
 import { WORK_QUEUE_ICONS } from '../shell/work-queue-menu';
@@ -47,6 +49,8 @@ const UNITS: Unit[] = [
   { name: 'report', entries: ['screens/report/report.ts'], registered: REPORT_ICONS },
   { name: 'register', entries: ['screens/register/register.ts'], registered: REGISTER_ICONS },
   { name: 'audit', entries: ['screens/audit/audit.ts'], registered: AUDIT_ICONS },
+  { name: 'people', entries: ['screens/people/people.ts'], registered: PEOPLE_ICONS },
+  { name: 'setup', entries: ['screens/setup/setup.ts'], registered: SETUP_ICONS },
   { name: 'document viewer (shared)', entries: ['shared/document-viewer/document-viewer.ts'], registered: DOCUMENT_VIEWER_ICONS, shared: true },
   { name: 'finding labels (shared)', entries: ['ui/finding.ts'], registered: { ...FINDING_LABEL_ICONS, ...DECISION_STATE_ICONS }, shared: true },
   { name: 'account menu (shell, deferred)', entries: ['shell/account-menu.ts'], registered: ACCOUNT_MENU_ICONS, shared: true },

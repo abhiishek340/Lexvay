@@ -8,6 +8,11 @@ export type TextSource = 'TEXT_LAYER' | 'OCR';
 export interface UserView { id: string; tenantId: string; email: string; displayName: string; role: Role; }
 /** GET /users: the people of the caller's tenant, for resolving ids to names. */
 export interface UserSummary { id: string; displayName: string; role: Role; email: string; }
+/** GET /users as an administrator sees it (F5a): the account's state as well. */
+export interface Account extends UserSummary { active: boolean; createdAt: string; passwordSet: boolean; }
+/** POST /users and POST /users/{id}/setup-code: the only copy of the code, valid until expiresAt (D-372). */
+export interface UserSetup { user: Account; setupCode: string; expiresAt: string; }
+export interface NewUser { email: string; displayName: string; role: Role; }
 export interface SessionView { authenticated: boolean; user: UserView | null; csrfHeaderName: string | null; tenantName: string | null; demo: boolean; }
 
 export interface Program { id: string; name: string; licenseType: string; catalogYear: string; jurisdictions: string[]; createdAt: string; }

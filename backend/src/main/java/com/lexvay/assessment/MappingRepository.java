@@ -180,15 +180,21 @@ public class MappingRepository {
                 .param("r", rationale).param("id", mappingId).update();
     }
 
-    /** Latest finished assessment per program that holds mappings for the given rule version. */
+    /**
+     * Each program's latest finished assessment ({@link AssessmentRepository#LATEST_FINISHED}, the one the signing gate
+     * reads) when it holds mappings of rule version {@code :rv}. Public so the index-usage check can run {@code EXPLAIN}
+     * on exactly this text.
+     */
+    public static final String LATEST_ASSESSMENTS_USING = """
+            SELECT la.id AS assessment_id, p.id AS program_id, la.created_by
+            FROM program p
+            JOIN LATERAL (SELECT a.id, a.created_by FROM assessment a WHERE a.program_id = p.id AND %s) la ON true
+            WHERE EXISTS (SELECT 1 FROM mapping m JOIN requirement r ON r.id = m.requirement_id
+                          WHERE m.assessment_id = la.id AND r.rule_version_id = :rv)
+            """.formatted(AssessmentRepository.LATEST_FINISHED);
+
     public List<Map<String, Object>> latestAssessmentsUsing(UUID ruleVersionId) {
-        return jdbc.sql("""
-                SELECT DISTINCT a.id AS assessment_id, a.program_id, a.created_by
-                FROM mapping m JOIN requirement r ON r.id = m.requirement_id JOIN assessment a ON a.id = m.assessment_id
-                WHERE r.rule_version_id = :rv AND a.status = 'FINISHED'
-                  AND a.id = (SELECT a2.id FROM assessment a2 WHERE a2.program_id = a.program_id AND a2.status = 'FINISHED'
-                              ORDER BY a2.finished_at DESC, a2.created_at DESC LIMIT 1)
-                """).param("rv", ruleVersionId).query().listOfRows();
+        return jdbc.sql(LATEST_ASSESSMENTS_USING).param("rv", ruleVersionId).query().listOfRows();
     }
 
     public List<Mapping> findByAssessment(UUID assessmentId) {

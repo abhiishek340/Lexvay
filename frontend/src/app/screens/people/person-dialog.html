@@ -1,0 +1,70 @@
+<p-dialog [header]="phase() === 'form' ? 'Add person' : 'Setup link'" [visible]="visible()" (visibleChange)="visible.set($event)" (onHide)="reset()"
+          [modal]="true" [draggable]="false" [resizable]="false" [style]="{ width: '30rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body"
+          closeAriaLabel="Close">
+  @if (phase() === 'form') {
+    @let p = problems();
+    <form id="person-form" class="lx-person-form" (ngSubmit)="submit()" novalidate>
+      @if (error(); as e) { <p-message severity="error" data-testid="message">{{ e }}</p-message> }
+      <div class="lx-dialog-field">
+        <label for="person-name">Name</label>
+        <input pInputText id="person-name" name="displayName" autocomplete="off" [ngModel]="name()" (ngModelChange)="name.set($event)"
+               [invalid]="!!p.name" [attr.aria-describedby]="p.name ? 'person-name-error' : null" maxlength="200" fluid />
+        @if (p.name; as e) { <p-message id="person-name-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
+      </div>
+      <div class="lx-dialog-field">
+        <label for="person-email">Email</label>
+        <input pInputText id="person-email" name="email" type="email" autocomplete="off" [ngModel]="email()" (ngModelChange)="email.set($event)"
+               [invalid]="!!p.email" [attr.aria-describedby]="p.email ? 'person-email-error' : null" maxlength="254" fluid />
+        @if (p.email; as e) { <p-message id="person-email-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
+      </div>
+      <div class="lx-dialog-field">
+        <span class="lx-role-label">
+          <label id="person-role-label" for="person-role">Role</label>
+          <lx-info-tip label="About roles">
+            <dl class="lx-role-lines">
+              @for (line of roleLines; track line.role) { <div><dt>{{ line.label }}</dt><dd>{{ line.text }}</dd></div> }
+            </dl>
+          </lx-info-tip>
+        </span>
+        <p-select inputId="person-role" [options]="roles" optionLabel="label" optionValue="value" [ngModel]="role()" (ngModelChange)="role.set($event)"
+                  name="role" ariaLabelledBy="person-role-label" appendTo="body" [fluid]="true" />
+      </div>
+    </form>
+  } @else {
+    <div class="lx-code-view" animate.enter="lx-code-in">
+      @if (person(); as who) {
+        <p class="lx-code-who"><strong>{{ who.displayName }}</strong> <span class="lx-muted">{{ who.email }}</span></p>
+      }
+      @if (link(); as url) {
+        <div class="lx-link-box" role="group" aria-labelledby="setup-link-label">
+          <span id="setup-link-label" class="lx-label">Setup link</span>
+          <p class="lx-mono lx-link" data-testid="setup-link">{{ url }}</p>
+          <button pButton #copyButton type="button" size="small" [outlined]="!copied()" (click)="copy()" class="lx-copy">
+            <ng-icon [name]="copied() ? 'phosphorCheck' : 'phosphorCopy'" size="16" aria-hidden="true" />
+            <span pButtonLabel>{{ copied() ? 'Copied' : 'Copy link' }}</span>
+          </button>
+        </div>
+        <p class="lx-expiry"><ng-icon name="phosphorClock" size="16" aria-hidden="true" />{{ expiry() }}</p>
+        <p-message severity="warn">
+          Shown once. Copy it now and hand it over yourself.@if (replaced()) { Earlier links stop working. }
+        </p-message>
+      } @else if (error(); as e) {
+        <p-message severity="error" data-testid="message">{{ e }}</p-message>
+      } @else {
+        <div class="lx-code-loading" aria-busy="true" aria-label="Issuing a setup code">
+          <p-skeleton width="5rem" height="1rem" /><p-skeleton height="3.5rem" /><p-skeleton width="16rem" height="1rem" />
+        </div>
+      }
+      @if (link() && error(); as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
+      <span class="lx-sr-only" role="status">{{ copied() ? 'Link copied.' : '' }}</span>
+    </div>
+  }
+  <ng-template #footer>
+    @if (phase() === 'form') {
+      <button pButton type="button" severity="secondary" [outlined]="true" (click)="visible.set(false)"><span pButtonLabel>Cancel</span></button>
+      <button pButton type="submit" form="person-form" [loading]="busy()"><span pButtonLabel>Add person</span></button>
+    } @else {
+      <button pButton type="button" (click)="visible.set(false)"><span pButtonLabel>Done</span></button>
+    }
+  </ng-template>
+</p-dialog>

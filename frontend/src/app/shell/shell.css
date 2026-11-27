@@ -69,12 +69,15 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; outline: none; }
   position: absolute; left: 0; right: 0; top: 0; height: 40px; border-radius: 10px; background: var(--p-lx-accent-tint);
   transition: transform var(--lx-t-3) var(--lx-ease-out); pointer-events: none;
 }
-.lx-rail a {
+.lx-rail a, .lx-rail-more button {
   position: relative; display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 10px;
   color: var(--p-lx-text-2); text-decoration: none; font-weight: 550; font-size: 14px; white-space: nowrap;
   transition: color var(--lx-t-1) var(--lx-ease-out), background-color var(--lx-t-1) var(--lx-ease-out);
 }
-.lx-rail a:hover { color: var(--p-lx-text); background: var(--p-lx-surface-2); }
+.lx-rail a:hover, .lx-rail-more button:hover { color: var(--p-lx-text); background: var(--p-lx-surface-2); }
+/* The "More" tab exists only in the bottom tab bar. */
+.lx-rail-more { display: none; }
+.lx-rail-more button { width: 100%; border: 0; background: transparent; cursor: pointer; font: inherit; justify-content: center; padding: 0; }
 .lx-rail a.lx-active { color: var(--p-lx-accent); background: transparent; }
 .lx-rail a:focus-visible { outline-offset: -2px; }
 .lx-rail ng-icon { flex: none; }
@@ -120,8 +123,11 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; outline: none; }
   .lx-rail li { flex: 1 0 40px; }
   .lx-rail-pill, .lx-rail-toggle { display: none; }
   .lx-rail-tenant { padding: 0; margin: 0; border: 0; }
-  .lx-rail a { height: 56px; border-radius: 0; }
-  .lx-rail a.lx-active { box-shadow: inset 0 -2px 0 var(--p-lx-accent); }
+  .lx-rail a, .lx-rail-more button { height: 56px; border-radius: 0; }
+  .lx-rail a.lx-active, .lx-rail-more button.lx-active { color: var(--p-lx-accent); box-shadow: inset 0 -2px 0 var(--p-lx-accent); }
+  /* Screens that do not fit go into "More" (tabBarOverflow), so the bar never scrolls sideways. */
+  .lx-rail li.lx-rail-overflow { display: none; }
+  .lx-rail-more { display: block; flex: 1 0 40px; }
   .lx-topbar { gap: 8px; padding: 0 8px 0 12px; }
   .lx-wordmark, .lx-switcher, .lx-switcher-placeholder, .lx-demo-text { display: none; }
   .lx-demo { padding: 0 4px; background: transparent; }
