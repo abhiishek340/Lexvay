@@ -35,7 +35,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | queued (after F7, FIX-1) |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | in progress |
-| F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
+| F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | in progress |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | in progress |
@@ -689,6 +689,66 @@ read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
    re-run, when a determination is signed; `READY_TO_SIGN` parity with the signing endpoint as above; RLS
    (another tenant's items never appear); the perf-tagged latency test; `ForbiddenWordsTest` stays green (the
    kinds above contain no forbidden words). Read-only endpoint, so nothing to add to the audit coverage set.
+
+## F8 — Determination register (slot 2; Opus 5.5; backend and frontend)
+Purpose: an institution must be able to say, for each program, in which states it has determined the curriculum
+meets the educational requirements for licensure, in which it has determined it does not, and in which it has made
+no determination (34 CFR 668.43(a)(5)(v)). Today signed determinations are visible one program and state at a time.
+The register is the tenant-wide record of every signed determination, exactly as signed, with the versions it
+names, and a per-program view grouped into the three regulatory lists. It reports what people signed; it never
+infers an outcome (product rule 1), and absence of a signature is shown as absence, not as an outcome. Decisions
+D-270 to D-279 in `docs/decisions/F8.md`.
+1. **Read API** `GET /api/v1/determinations/register?programId=&jurisdiction=&outcome=&current=true|false`
+   (any role; `current` defaults to true = status `SIGNED`; false includes `REOPENED`): rows `{ determinationId,
+   programId, programName, licenseType, catalogYear, jurisdictionCode, jurisdictionName, outcome, status,
+   signedBy, signedByName, signedAt, ruleVersionId, ruleVersionLabel, ruleEffectiveFrom, versionsHash,
+   assessmentId, courseVersionCount }`, ordered by program name, jurisdiction code, signed time descending. One
+   statement, `@Transactional(readOnly = true)`, added to `EndpointLatencyTest` (40 ms p95) and
+   `ReadPathConnectionsTest`, rows in `InputValidationTableTest` (bad UUID, bad outcome, bad jurisdiction pattern).
+2. **Program disclosure view** `GET /api/v1/programs/{id}/determination-lists` → `{ program, generatedAt,
+   determinedToMeet: [...], determinedNotToMeet: [...], noDeterminationMade: [...] }`. Each entry: jurisdiction
+   code and name plus either the current signed determination's id, signer, date, rule version label and versions
+   hash, or, in `noDeterminationMade` only, `reason`: `SIGNED_NO_DETERMINATION` (a signed NOT_DETERMINED outcome) or
+   `NO_CURRENT_SIGNATURE` (a target jurisdiction of the program with no current SIGNED determination, including
+   reopened ones; then `reopenedDeterminationId` when one exists). Every target jurisdiction of the program appears
+   in exactly one list; jurisdictions that are not targets never appear. One statement. Test: the three lists
+   partition the targets exactly, on seeded data and on a fixture with each case.
+3. **CSV export** `GET /api/v1/determinations/register.csv` with the same filters: RFC 4180 (CRLF, quotes doubled,
+   every field quoted), UTF-8 with a header row, columns in the order of point 1 with human labels, and
+   spreadsheet-formula protection (a cell that starts with `=`, `+`, `-`, `@`, tab or carriage return is prefixed
+   with `'`). `Content-Disposition: attachment; filename="lexvay-determination-register-<yyyy-mm-dd>.csv"`. Built in
+   memory from the same query (the register is bounded by programs × jurisdictions); one helper `CsvWriter` in
+   `common/` with unit tests (quoting, CRLF, formula prefix, non-ASCII). Exporting signed records is audited:
+   `REGISTER_EXPORTED` with the filters and the row count (add the endpoint to `Rule9_AuditCoverageTest` even
+   though it is a GET, and say why in D-27x).
+4. **Screen** `/register` (top-level, inside the shell; rail entry "Determination register" with
+   `phosphorBookBookmark`, shown above the program entries as a tenant-wide item; reachable without choosing a
+   program). Two tabs (PrimeNG Tabs):
+   - **Register**: filters (program Select, jurisdiction Select, outcome Select with the three outcome labels used
+     in signing, "Include reopened" ToggleSwitch), a PrimeNG Table with sortable columns, outcome as Tag with icon
+     and text, status Tag (Signed, Reopened with `phosphorArrowCounterClockwise`), versions hash in mono truncated
+     to 12 with a copy button (`phosphorCopy`, accessible name "Copy versions hash", toast "Copied"), row click
+     opens the program's Evidence report for that jurisdiction. "Download CSV" button (`phosphorDownloadSimple`)
+     with the current filters.
+   - **By program**: program Select, then three sections titled exactly "Determined to meet", "Determined not to
+     meet", "No determination made", each a short table (jurisdiction, signer, date, rule version) with an empty
+     state sentence; entries with `NO_CURRENT_SIGNATURE` read "No current signed determination" (and "Reopened on
+     <date> after a change" when a reopened id is present), entries with `SIGNED_NO_DETERMINATION` read "Signed
+     as no determination made". A short paragraph above the sections states that the lists show signed records
+     only and that the institution's published disclosure is its own responsibility. "Print" button opens the
+     browser print dialog.
+   - **Print stylesheet**: `@media print` hides the shell, rail, filters and buttons; shows a header with tenant
+     name, program, "Generated <date time>", and keeps the fictional-data notice for demo tenants; tables do not
+     split rows across pages; black on white regardless of theme.
+   The UI never uses the words "compliant" or "meets requirements" (`ForbiddenWordsTest`); outcome labels come
+   from the existing `labels.ts`.
+5. **Tests**: backend as listed; Vitest for the grouping view model and the CSV link builder; Playwright
+   (`frontend/e2e/register.spec.ts`, slot 2): sign California in the seeded program, open the register, see the
+   row, filter by outcome, download the CSV and assert its header and the California row, open By program and
+   see California under the right list and every other target state under "No determination made" with the
+   right reason, emulate print media and assert the shell is hidden; axe in both themes at 1280 and 400 px.
+Done when: `LEXVAY_E2E_SLOT=2 make test` green, `make perf` green, screenshots of both tabs in both themes and of the
+print view in `docs/screens/`, `docs/decisions/F8.md` and `docs/progress/F8.md` written.
 
 ## OPS-1 — Image build and smoke in CI (after F6 merges; no slot; Sonnet 5.5)
 Purpose: F6 ships a Dockerfile and `scripts/smoke.sh`; nothing runs them on every change. Decisions D-240 to D-244
