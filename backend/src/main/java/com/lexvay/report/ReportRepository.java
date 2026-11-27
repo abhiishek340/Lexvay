@@ -31,6 +31,13 @@ public class ReportRepository {
                 .param("id", id).query(ROW).optional();
     }
 
+    /** The report that is current for a determination: the newest one whose PDF exists. */
+    public Optional<Report> findLatestReady(UUID determinationId) {
+        return jdbc.sql("SELECT id, determination_id, storage_key, status, created_at, created_by FROM report "
+                        + "WHERE determination_id = :d AND status = 'READY' ORDER BY created_at DESC, id DESC LIMIT 1")
+                .param("d", determinationId).query(ROW).optional();
+    }
+
     public void markReady(UUID id, String storageKey) {
         jdbc.sql("UPDATE report SET status = 'READY', storage_key = :key WHERE id = :id").param("key", storageKey).param("id", id).update();
     }
