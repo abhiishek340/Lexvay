@@ -21,9 +21,6 @@ export const appConfig: ApplicationConfig = {
       withViewTransitions({
         skipInitialTransition: true,
         onViewTransitionCreated: ({ transition }) => {
-          // A skipped or superseded transition rejects these promises; the navigation itself has already happened.
-          transition.ready.catch(() => undefined);
-          transition.finished.catch(() => undefined);
           const router = inject(Router);
           const to = router.getCurrentNavigation()?.finalUrl;
           if (inject(MotionPreferences).reduced() || (to && sameScreen(router.url, router.serializeUrl(to)))) {

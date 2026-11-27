@@ -120,7 +120,7 @@ test('screenshots of the v2 shell and sign-in at 1440 and 400 px', async ({ page
 
     // The shared components at every size (development harness, dev/ui).
     await page.goto('/dev/ui');
-    await expect(page.getByRole('group', { name: 'Illustrative states' })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Illustrative states', exact: true })).toBeVisible();
     await page.waitForTimeout(1400);
     await shoot(page, `ui2-components-${width}`);
     await page.goBack();

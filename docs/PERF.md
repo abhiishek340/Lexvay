@@ -307,12 +307,12 @@ its own icons and token sets).
 
 | | PERF-FE-1 | UI2-0 |
 |---|---:|---:|
-| Initial total, raw | 695.03 kB | 588.84 kB |
-| Initial total, estimated transfer | 168.22 kB | 152.81 kB |
-| main.js, raw | 687.58 kB | 579.66 kB |
+| Initial total, raw | 695.03 kB | 589.08 kB |
+| Initial total, estimated transfer | 168.22 kB | 152.77 kB |
+| main.js, raw | 687.58 kB | 579.90 kB |
 | styles.css, raw | 7.45 kB | 9.18 kB |
 
-New lazy chunks (raw / transfer): login 51.0 / 13.3 kB, command palette 50.4 / 12.8 kB, toast 51.0 / 10.4 kB (both
+New lazy chunks (raw / transfer): login 51.0 / 13.4 kB, command palette 50.4 / 12.8 kB, toast 51.0 / 10.4 kB (both
 mostly PrimeNG's Toast, Dialog and Menu code, loaded when the page is idle). The fonts are separate media files (Inter
 latin 48 kB, Source Serif 4 latin 51 kB, each requested only when a glyph in its range is on the page). The budget is now
 680 kB warning and 760 kB error.
