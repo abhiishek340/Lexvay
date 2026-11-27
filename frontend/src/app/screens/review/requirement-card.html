@@ -20,7 +20,7 @@
     <span class="lx-finding" data-testid="proposed-finding"><span class="lx-sr-only">Proposed finding: </span><lx-status-mark [status]="m.finding" /></span>
     <span class="lx-method">
       <ng-icon [name]="method().icon" size="16" aria-hidden="true" />
-      <span class="lx-term" tabindex="0" [pTooltip]="method().detail" tooltipPosition="bottom" [attr.aria-description]="method().detail">{{ method().line }}</span>
+      <span class="lx-term" tabindex="0" tooltipEvent="both" [pTooltip]="method().detail" tooltipPosition="bottom" [attr.aria-description]="method().detail">{{ method().line }}</span>
     </span>
   </div>
   @if (m.rationale) {

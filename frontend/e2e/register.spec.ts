@@ -43,7 +43,7 @@ test('the register lists the California signature, filters, exports CSV, groups 
   await outcome.click();
   await page.getByRole('option', { name: 'Determined to meet', exact: true }).click();
   await expect(table).toContainText('No signed determination matches these filters.');
-  await expect(map.getByRole('button')).toHaveCount(0);
+  await expect(page.getByTestId('register-count')).toContainText(/^\s*0\s*Signed determinations\s*$/);
   await expect(table.getByRole('button', { name: 'Clear filters' })).toBeVisible();
   await outcome.click();
   await page.getByRole('option', { name: 'Determined not to meet', exact: true }).click();

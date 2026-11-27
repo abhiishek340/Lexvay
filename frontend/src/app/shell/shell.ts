@@ -77,7 +77,7 @@ export class Shell {
   readonly tabBar = computed(() => this.width() < TAB_BAR_WIDTH);
   /** Icons are 16 px in the rail and 20 px in the bottom tab bar. */
   readonly iconSize = computed(() => (this.tabBar() ? '20' : '16'));
-  /** Whether the rail shows icons alone, so each link's name moves into its tooltip. */
+  /** Whether the rail shows icons alone, so each link's name moves into its tooltip (the tab bar has none: touch has no hover). */
   readonly collapsedView = computed(() => !this.tabBar() && (this.collapsed() || this.width() < 1200));
   /** How many tabs the bottom bar has room for, and the screens that go into "More". */
   private readonly slots = computed(() => tabSlots(this.width()));

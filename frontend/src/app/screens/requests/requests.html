@@ -86,7 +86,7 @@
                   </button>
                 } @else if (reason) {
                   <span class="lx-blocked" data-testid="blocked-reason">
-                    <span class="lx-term" tabindex="0" [pTooltip]="blockedText[reason].why" tooltipPosition="left"
+                    <span class="lx-term" tabindex="0" tooltipEvent="both" [pTooltip]="blockedText[reason].why" tooltipPosition="left"
                           [attr.aria-description]="blockedText[reason].why">{{ blockedText[reason].short }}</span>
                   </span>
                 } @else {

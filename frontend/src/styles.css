@@ -115,7 +115,7 @@ kbd {
 .lx-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--lx-space-4); flex-wrap: wrap; margin-bottom: var(--lx-space-5); }
 .lx-page-header p { color: var(--p-lx-ink-2); margin-top: var(--lx-space-1); max-width: 72ch; }
 /* The right end of a title row: the screen's actions, then its one Help. */
-.lx-title-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; flex: none; }
+.lx-title-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; flex: 0 1 auto; min-width: 0; }
 /* A section of a page: 40 px from the one before, a hairline between them. */
 .lx-section { margin-top: var(--lx-space-7); padding-top: var(--lx-space-7); border-top: 1px solid var(--p-lx-line); }
 .lx-section > h2 { margin-bottom: var(--lx-space-3); }

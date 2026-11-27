@@ -57,7 +57,7 @@
                 <li [class.lx-rail-overflow]="overflowIds().has(link.id)">
                   <a [routerLink]="link.path" routerLinkActive="lx-active" ariaCurrentWhenActive="page"
                      [attr.aria-label]="link.short !== link.label ? link.label : null"
-                     [pTooltip]="link.label" tooltipPosition="right" [tooltipDisabled]="!collapsedView() && link.short === link.label" [showDelay]="300"
+                     [pTooltip]="link.label" tooltipPosition="right" [tooltipDisabled]="tabBar() || (!collapsedView() && link.short === link.label)" [showDelay]="300"
                      [attr.aria-describedby]="link.badge > 0 ? 'nav-badge-' + link.id : null">
                     <ng-icon [name]="link.icon" [size]="iconSize()" aria-hidden="true" />
                     <span class="lx-nav-label">{{ link.short }}</span>
