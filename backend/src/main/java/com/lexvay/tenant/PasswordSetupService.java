@@ -4,7 +4,6 @@ import com.lexvay.audit.AuditService;
 import com.lexvay.auth.UserStampCheck;
 import com.lexvay.common.TenantContext;
 import com.lexvay.tenant.SetupTokenRepository.OpenCode;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,8 +18,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class PasswordSetupService {
 
     static final int MIN_CHARACTERS = 12;
-    /** bcrypt, the application's encoder, refuses anything longer; shorter text is not silently cut instead. */
-    static final int MAX_BYTES = 72;
+    /** Argon2id has no byte limit (D-402); the cap only bounds the work a request can ask for. */
+    static final int MAX_CHARACTERS = 128;
 
     private final SetupTokenRepository tokens;
     private final AppUserRepository users;
@@ -61,11 +60,12 @@ public class PasswordSetupService {
     }
 
     private static void requireAcceptable(String password, String email) {
-        if (password.codePointCount(0, password.length()) < MIN_CHARACTERS) {
+        int characters = password.codePointCount(0, password.length());
+        if (characters < MIN_CHARACTERS) {
             throw new IllegalArgumentException("Password must have at least " + MIN_CHARACTERS + " characters");
         }
-        if (password.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES) {
-            throw new IllegalArgumentException("Password must be at most " + MAX_BYTES + " bytes long in UTF-8");
+        if (characters > MAX_CHARACTERS) {
+            throw new IllegalArgumentException("Password must have at most " + MAX_CHARACTERS + " characters");
         }
         if (password.equalsIgnoreCase(email)) {
             throw new IllegalArgumentException("Password must not be the same as the email");

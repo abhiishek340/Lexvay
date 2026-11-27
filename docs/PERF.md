@@ -354,6 +354,27 @@ lookup 1 000, evidence span 900) plus one pass over the assessment's mappings to
 the rows. `IndexUsageTest` fails above 4 000. Plans: `backend/target/perf/mappings-plan.txt` and
 `work-queue-plan.txt` (the work queue plan of the other roles: 2.0 to 3.3 ms).
 
+## Audit list and export (SEC-2)
+
+`IndexUsageTest` adds about 80 000 audit entries to the perf database (300 for each of about 200 tenants, 20 000 more for
+the tenant that runs the statements, inserted oldest first) and runs `EXPLAIN (ANALYZE, BUFFERS)` of `AuditRepository.listSql`
+and `exportSql` as the application role under row-level security, warm (third execution). The index
+`audit_log_newest_idx (tenant_id, created_at DESC)` has existed since V001, so no index was added (D-403).
+
+| Statement | Execution | Buffers | Plan |
+|---|---:|---:|---|
+| list, 100 newest, no filter | 0.06 ms | 11 | Index Scan `audit_log_newest_idx`, Incremental Sort on `id` |
+| list, one action | 0.09 ms | 56 | same, with a filter on the action |
+| list, last 30 days | 0.06 ms | 11 | same, range in the index condition |
+| export, no filter (20 372 rows) | 8.6 ms | 1 690 | Bitmap Heap Scan on `audit_log_tenant_idx`, hash join to `app_user`, in-memory Sort (3 MB) |
+| export, one action (4 060 rows) | 3.2 ms | 1 690 | same |
+| export, last 30 days (3 526 rows) | 1.6 ms | 327 | Bitmap Heap Scan on `audit_log_newest_idx`, Sort (0.5 MB) |
+
+The export reads every matching row and sorts them before the first one is sent, because it reads a quarter of the table;
+a `(tenant_id, created_at DESC, id DESC)` index tried on a throwaway PostgreSQL 18.7 with the same data did not change the
+plan. The test fails when a list scans `audit_log` sequentially or sorts every matching row, and when an export scans it
+sequentially. Plans: `backend/target/perf/audit-plans.txt`.
+
 ## Coverage matrix (F10a)
 
 `GET /programs/{id}/coverage?jurisdiction=CA` (D-390 to D-397, `docs/decisions/F10a.md`): one statement, one row, one

@@ -22,7 +22,7 @@ public record AuditFilter(String action, String entityType, UUID entityId, UUID 
      * Only the filters that are set become predicates (D-116). Columns carry the table name because the export joins
      * {@code app_user}, which has a {@code created_at} of its own.
      */
-    WhereClause where() {
+    public WhereClause where() {
         return new WhereClause()
                 .andIfPresent("audit_log.action = :action", "action", action)
                 .andIfPresent("audit_log.entity_type = :entityType", "entityType", entityType)
