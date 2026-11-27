@@ -123,8 +123,12 @@ test('a contributor sets up a program from nothing to its first assessment', asy
   await step(page, /^4\. Documents/).click();
   const files = page.locator('p-fileupload input[type="file"]');
   for (const [course, file] of [['SCHC 501 Foundations of School Guidance', 'e2e/fixtures/schc501-syllabus.pdf'], ['SCHC 520 School Guidance Seminar', 'e2e/fixtures/schc520-syllabus.docx']]) {
-    await page.getByTestId('upload-target').click();
-    await page.getByRole('option', { name: course }).click();
+    // A Select opened while the previous one's overlay is still leaving can stay empty for a moment; open it again then.
+    await expect(async () => {
+      await page.getByTestId('upload-target').click();
+      await page.getByRole('option', { name: course }).click({ timeout: 2000 });
+    }).toPass();
+    await expect(page.getByTestId('upload-target')).toContainText(course);
     await files.setInputFiles(file);
   }
   const queue = page.getByRole('list', { name: 'Files to upload' });

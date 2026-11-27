@@ -94,6 +94,12 @@
 .lx-run-text { display: flex; flex-direction: column; }
 
 @media (max-width: 720px) {
+  /* The courses table becomes one card per course. */
+  :host ::ng-deep .lx-setup-table thead { display: none; }
+  :host ::ng-deep .lx-setup-table tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--p-lx-line); }
+  :host ::ng-deep .lx-setup-table tbody td { display: block; border: 0; padding: 0; }
+  :host ::ng-deep .lx-setup-table tbody td.lx-strong { flex-basis: 100%; order: -1; }
+  :host ::ng-deep .lx-setup-table tbody td.lx-row-action { margin-left: auto; }
   .lx-queue-row { grid-template-columns: auto minmax(0, 1fr) auto; }
   .lx-queue-kind, .lx-queue-course, .lx-queue-kind-text, .lx-queue-state { grid-column: 2 / -1; }
   .lx-field-row { grid-template-columns: minmax(0, 1fr); }

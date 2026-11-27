@@ -6,6 +6,8 @@
 :host ::ng-deep .lx-step-list.p-steplist { padding: 4px 4px 16px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
 :host ::ng-deep .lx-step-list .p-step { flex: 1 1 0; min-width: 0; }
 :host ::ng-deep .lx-step-list .p-stepper-separator { flex: 1 1 12px; min-width: 12px; transition: background-color var(--lx-t-3) var(--lx-ease-out); }
+/* The panel's content sits flush with the steps (Aura indents it for a vertical stepper). */
+:host ::ng-deep .p-steppanel-content { margin-inline-start: 0; min-width: 0; }
 
 .lx-step {
   display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 8px 10px; border: 0; border-radius: 12px;
@@ -51,16 +53,17 @@
 
 .lx-states { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px 40px; align-items: start; }
 .lx-states-pick { display: flex; flex-direction: column; gap: 16px; max-width: 32rem; }
-.lx-states-map { width: 16.5rem; box-sizing: border-box; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px; border-radius: var(--lx-r-card); background: var(--p-lx-surface-2); }
+.lx-states-map { width: 16.5rem; box-sizing: border-box; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px; border-radius: var(--lx-r-card); box-shadow: var(--p-lx-e1); }
 .lx-states-map lx-state-map { width: 100%; }
 .lx-state-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .lx-state-list li { display: flex; align-items: center; gap: 10px; font-weight: 550; }
 
 @media (max-width: 900px) {
+  /* Numbers only: the open step's name is the panel's title right below. */
   .lx-step-text { display: none; }
-  .lx-step-active .lx-step-text { display: flex; }
-  :host ::ng-deep .lx-step-list .p-step { flex: 0 0 auto; }
-  :host ::ng-deep .lx-step-list .p-step:has(.lx-step-active) { flex: 1 1 auto; }
+  .lx-step { padding: 4px; }
+  :host ::ng-deep .lx-step-list .p-step { flex: 0 0 auto; padding: 0; }
+  :host ::ng-deep .lx-step-list .p-stepper-separator { flex: 1 1 6px; min-width: 6px; }
   .lx-states { grid-template-columns: minmax(0, 1fr); }
   .lx-states-map { justify-self: start; }
 }

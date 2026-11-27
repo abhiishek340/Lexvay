@@ -114,11 +114,14 @@ export class RequirementsPanel {
   }
 
   /** The chips control proposes a new list; the chip model decides what is kept (search-terms.ts). */
-  setTerms(row: EditableRequirement, next: readonly string[] | null): void {
+  setTerms(row: EditableRequirement, next: string[] | null): void {
     const change = applyTerms(next ?? []);
     // The control echoes the list back once it is reset to the kept terms; that echo changes nothing and keeps the message.
     if (!change.problem && sameTerms(change.terms, row.searchTerms)) { return; }
-    this.editor.update(row.key, { searchTerms: change.terms });
+    // When the model keeps the list as the control holds it, the row keeps that very array: NgModel then has nothing to
+    // write back, and the control never resets its input under a person still typing the next term.
+    const kept = next && sameTerms(change.terms, next) ? next : change.terms;
+    this.editor.update(row.key, { searchTerms: kept });
     this.termsProblems.update((problems) => {
       const updated = new Map(problems);
       if (change.problem) { updated.set(row.key, change.problem); } else { updated.delete(row.key); }
