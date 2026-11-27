@@ -17,7 +17,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | in progress |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | queued (after WS-PERF) |
-| FIX-2 Job payload entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1; spec to follow) |
+| FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 3 | Opus 5.5 | queued (after WS-UI, F3a) |
@@ -268,10 +268,10 @@ Reviewers must be able to look for a passage themselves instead of trusting the 
    on the seeded tenant) following the pattern of `EndpointLatencyTest` if it exists on `main`.
 Decisions D-150 to D-159 (folded into `DECISIONS.md`).
 
-## FIX-1 — Requirement order column (after WS-PERF merges; slot 5)
+## FIX-1 — Requirement order column (after WS-PERF merges; slot 5; migration `V011__requirement_ordinal.sql`)
 Defect found in review of F3a: `RuleVersionRepository.requirements` orders by `created_at, ref`; rows of one
 version share a timestamp, so the order is the text order of the ref ("CO-10" before "CO-2").
-1. Migration (next free number; V006 stays unused): inside the migration, `ALTER TABLE requirement NO FORCE
+1. Migration `V011__requirement_ordinal.sql` (V006 stays unused): inside the migration, `ALTER TABLE requirement NO FORCE
    ROW LEVEL SECURITY` and disable the `requirement_locked` trigger, add `ordinal integer`, backfill with
    `row_number() OVER (PARTITION BY rule_version_id ORDER BY created_at, (substring(ref from '(\d+)$'))::int
    NULLS LAST, ref)`, set `NOT NULL`, add `UNIQUE (rule_version_id, ordinal)`, then re-enable the trigger and
@@ -283,6 +283,27 @@ version share a timestamp, so the order is the text order of the ref ("CO-10" be
    version's order" then follows the rule's own order.
 3. Tests: a rule with twelve requirements lists CO-1 … CO-12 in order through the requirements endpoint,
    the mappings endpoint and the diff; replace keeps the submitted order; `Rule5` immutability unchanged.
+
+## FIX-2 — Job entity id column and index (after FIX-1; slot 5; migration `V012__job_entity_id.sql`)
+Defect found in review of WS-PERF (D-115): `JobRepository.latest` filters by `payload->>:key`, which scans the
+whole `job` table under row-level security because `jsonb ->>` is not leakproof and jobs are never deleted.
+Every job payload today holds exactly one id (`documentId`, `ruleVersionId`, `assessmentId`, `changeEventId`,
+`reportId`, and `ruleSourceId` from F12), so the id becomes a real column.
+1. Migration: `ALTER TABLE job ADD COLUMN entity_id uuid`; backfill with the single value of the payload
+   object (`(SELECT value::uuid FROM jsonb_each_text(payload) LIMIT 1)`, guarded by
+   `jsonb_typeof(payload) = 'object'`); `SET NOT NULL`; `CREATE INDEX job_entity_idx ON job (tenant_id, type,
+   entity_id, created_at DESC)`. Prove the backfill expression with a SQL-level test on a temporary table, as
+   FIX-1 does. The job policies in V002 are unchanged; `entity_id = :id` is leakproof, so the planner may use
+   the index under the policy. `IndexUsageTest` (WS-PERF) gains this index and the lookup query.
+2. `JobRepository.enqueue(JobType type, UUID entityId, Map<String, ?> payload)` writes both columns; the five
+   call sites pass the id they already put in the payload (payload stays, for future jobs that need more
+   input). `latest(JobType, UUID entityId)` replaces `latest(JobType, String key, UUID value)`; no string key
+   anywhere. `Job` exposes `entityId`.
+3. Tests: the two lookups return the same job as before (`DocumentService` ingest status, rule version
+   extraction status); `EXPLAIN` under the application role shows an index scan on `job_entity_idx`;
+   `MigrationsApplyCleanlyTest` counts the new file; the WS-PERF latency table in `docs/PERF.md` gets the
+   before and after rows for `GET /documents/{id}` and `GET /rule-versions`.
+Decisions D-200 to D-209 in `docs/decisions/FIX-2.md`.
 
 ## F11 — OCR for scanned documents (slot 6; migration `V009__document_page_text_source.sql`)
 Real syllabi and handbooks are often scans. Today a PDF without a text layer is rejected. OCR text is less
@@ -439,7 +460,7 @@ approves anything and never alters an approved version (product rules 1, 5, 6). 
    isolation on both tables; audit coverage. Nothing in this item can approve a version (assert
    `requirements_approved_at IS NULL` after a CHANGED run).
 
-## F13 — Work queue API (backend only; slot 9; after WS-PERF merges; no schema change unless EXPLAIN demands)
+## F13 — Work queue API (backend only; slot 9; after WS-PERF merges; no schema change unless EXPLAIN demands, then `V013__work_queue_indexes.sql`)
 Purpose: a reviewer, signer, contributor or administrator should open the product and see what needs them,
 across programs and states, without visiting each overview. One read endpoint, one SQL statement, under the
 read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
@@ -467,7 +488,7 @@ read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
 2. One statement: CTEs per kind joined with `UNION ALL`, filtered by the caller's role in SQL (bind the role,
    do not branch in Java). Measure with the WS-PERF harness; budget p95 ≤ 40 ms on the seeded tenant. Add an
    index only if `EXPLAIN (ANALYZE, BUFFERS)` shows a sequential scan on `mapping`, `review_event` or `job`
-   for this statement; if so, the migration is `V011__work_queue_indexes.sql` and the plan goes in
+   for this statement; if so, the migration is `V013__work_queue_indexes.sql` and the plan goes in
    `docs/PERF.md`.
 3. Also `GET /api/v1/work-queue/count` → `{ total }` for the shell badge, same CTEs, `count(*)` only.
 4. Tests: visibility per role (a CONTRIBUTOR never sees `READY_TO_SIGN`); counts move when a reviewer
