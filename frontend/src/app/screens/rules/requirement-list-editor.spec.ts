@@ -34,6 +34,22 @@ describe('RequirementListEditor', () => {
     expect(e.dirty()).toBe(false);
   });
 
+  it('edits the search terms like any other cell: dirty on a change, clean when undone, sent in the body', () => {
+    const e = new RequirementListEditor();
+    e.load([requirement('CO-1', { searchTerms: ['code of ethics'] })]);
+    const key = e.rows()[0].key;
+    e.update(key, { searchTerms: ['code of ethics', 'confidentiality'] });
+    expect(e.dirty()).toBe(true);
+    expect(e.toDrafts()[0].search_terms).toEqual(['code of ethics', 'confidentiality']);
+    e.update(key, { searchTerms: ['confidentiality', 'code of ethics'] });
+    expect(e.dirty()).toBe(true);
+    e.update(key, { searchTerms: ['code of ethics'] });
+    expect(e.dirty()).toBe(false);
+    e.update(key, { searchTerms: ['changed'] });
+    e.restore();
+    expect(e.rows()[0].searchTerms).toEqual(['code of ethics']);
+  });
+
   it('sends back the search terms each row was loaded with after an edit, a move and a type change', () => {
     const e = new RequirementListEditor();
     e.load([requirement('CO-1', { searchTerms: ['code of ethics', 'confidentiality'] }), requirement('CO-2', { searchTerms: ['fieldwork'] }), hours]);

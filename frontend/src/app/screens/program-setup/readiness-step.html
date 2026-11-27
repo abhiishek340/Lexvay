@@ -1,0 +1,53 @@
+<div class="lx-step-head">
+  <h2 class="lx-panel-title">Readiness</h2>
+</div>
+
+@if (store.readiness()) {
+  <ul class="lx-checks" aria-label="Readiness checks">
+    @for (check of checks(); track check.id; let i = $index) {
+      <li class="lx-check" [attr.data-check]="check.id" [attr.data-tone]="tone(check)" [lxEnter]="i">
+        <ng-icon [name]="icon(check)" size="20" aria-hidden="true" />
+        <span class="lx-check-text"><span class="lx-sr-only">{{ verdict(check) }}: </span>{{ check.text }}</span>
+        @if (!check.ok) {
+          @if (check.id === 'RULES') {
+            <a pButton [link]="true" size="small" [routerLink]="['/programs', store.programId(), 'rules']"><span pButtonLabel>Open Rules</span></a>
+          } @else if (fixStep[check.id]; as step) {
+            <button pButton type="button" [link]="true" size="small" (click)="goTo.emit(step)"><span pButtonLabel>Fix</span></button>
+          }
+        }
+      </li>
+    }
+  </ul>
+
+  @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
+
+  <div class="lx-run">
+    @if (store.run(); as r) {
+      <div class="lx-run-progress" data-testid="assessment-progress" [attr.data-status]="r.view.status">
+        <lx-progress-ring [size]="40" [value]="r.processed" [total]="r.total || 1" [label]="r.processed + ' of ' + r.total + ' requirements assessed'">
+          {{ r.processed }}
+        </lx-progress-ring>
+        <div class="lx-run-text">
+          <p class="lx-strong">
+            @switch (r.view.status) {
+              @case ('QUEUED') { Waiting to start }
+              @case ('RUNNING') { Assessing }
+              @case ('FINISHED') { Assessment finished }
+              @case ('FAILED') { Assessment failed }
+            }
+          </p>
+          <p class="lx-help"><span class="lx-mono">{{ r.processed }}</span> of <span class="lx-mono">{{ r.total }}</span> requirements</p>
+        </div>
+        @if (r.view.status === 'FINISHED') {
+          <a pButton [routerLink]="['/programs', store.programId(), 'review']"><span pButtonLabel>Open Review</span></a>
+        }
+      </div>
+    }
+    @if (store.canRun() && !running()) {
+      <button pButton type="button" [disabled]="blocked() || starting()" [loading]="starting()" (click)="run()"
+              [severity]="store.run()?.view.status === 'FINISHED' ? 'secondary' : 'primary'">
+        <ng-icon name="phosphorPlay" size="16" aria-hidden="true" /><span pButtonLabel>Run assessment</span>
+      </button>
+    }
+  </div>
+}

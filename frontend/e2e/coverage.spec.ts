@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { DANA, SCREENSHOTS, expect, expectAccessible, nav, shoot, signIn, test } from './support';
+import { DANA, SCREENSHOTS, expect, expectAccessible, goTo, shoot, signIn, test } from './support';
 
 /**
  * F10b: the coverage matrix on the seeded program. This file runs before the suites that change the seed (the
@@ -12,7 +12,7 @@ const card = (page: Page) => page.locator('.lx-cell-card');
 
 async function openCoverage(page: Page): Promise<void> {
   await signIn(page, DANA);
-  await nav(page, 'Coverage').click();
+  await goTo(page, 'Coverage');
   await expect(page.getByRole('heading', { level: 1, name: 'Coverage' })).toBeVisible();
   // The first target state opens first (Arizona); the tests start on California.
   await expect(state(page, 'Arizona')).toHaveAttribute('aria-selected', 'true');

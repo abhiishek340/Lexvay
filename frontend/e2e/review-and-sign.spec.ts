@@ -1,4 +1,4 @@
-import { DANA, PRIYA, SCREENSHOTS, expect, expectAccessible, nav, shoot, signIn, stateTab, test } from './support';
+import { DANA, PRIYA, SCREENSHOTS, expect, expectAccessible, goTo, nav, shoot, signIn, stateTab, test } from './support';
 
 test('Dana Whitfield reviews every California requirement, signs, and sees the audit entries', async ({ page }) => {
   await signIn(page, DANA);
@@ -16,7 +16,7 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
   // Review, California, under reduced motion: every step below asserts at once, never waiting for an animation.
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 1440, height: 900 });
-  await nav(page, 'Review').click();
+  await goTo(page, 'Review');
   await expect(nav(page, 'Review')).toHaveAttribute('aria-current', 'page');
   await stateTab(page, 'CA').click();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^CA-/);
@@ -115,13 +115,13 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 
   // Other screens render and pass the accessibility check.
-  await nav(page, 'Changes').click();
+  await goTo(page, 'Changes');
   await expect(page.getByRole('heading', { level: 1, name: 'Changes' })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Change events' })).toBeVisible();
   await expectAccessible(page, 'Changes');
 
   // The report opens on the first state, a draft; California now carries the seal of Dana's signature.
-  await nav(page, 'Evidence report').click();
+  await goTo(page, 'Evidence report');
   await expect(page.getByRole('heading', { level: 1, name: 'Evidence report' })).toBeVisible();
   await expect(page.getByRole('note', { name: 'Draft. Not a determination.' })).toBeVisible();
   await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
@@ -131,7 +131,7 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
   await expectAccessible(page, 'Evidence report');
 
   // Audit trail: one sentence per entry, naming the people.
-  await nav(page, 'Audit trail').click();
+  await goTo(page, 'Audit trail');
   const audit = page.getByRole('main');
   await expect(audit).toContainText('Dana Whitfield signed California: determined not to meet');
   await expect(audit).toContainText(/Dana Whitfield (accepted|confirmed a gap on|requested evidence for) CA-\d+/);
@@ -166,7 +166,7 @@ test('the review tabs are keyboard operable and the sign-in page is accessible',
   await expectAccessible(page, 'Sign in with an error');
 
   await signIn(page, PRIYA);
-  await nav(page, 'Review').click();
+  await goTo(page, 'Review');
   // The state pills are listed alphabetically: Arizona, California, Colorado, Texas, Utah.
   await stateTab(page, 'AZ').focus();
   await page.keyboard.press('ArrowRight');
@@ -183,7 +183,7 @@ test('the review tabs are keyboard operable and the sign-in page is accessible',
 
 test('keyboard shortcuts move through the list and record a decision', async ({ page }) => {
   await signIn(page, PRIYA);
-  await nav(page, 'Review').click();
+  await goTo(page, 'Review');
   await stateTab(page, 'TX').click();
   const heading = page.getByTestId('requirement-heading');
   await expect(heading).toHaveAttribute('data-ref', /^TX-/);
@@ -241,7 +241,7 @@ test('keyboard shortcuts move through the list and record a decision', async ({ 
 test('at 400 px the review screen fits without horizontal page scroll', async ({ page }) => {
   await page.setViewportSize({ width: 400, height: 860 });
   await signIn(page, PRIYA);
-  await nav(page, 'Review').click();
+  await goTo(page, 'Review');
   await stateTab(page, 'UT').click();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^UT-/);
   await expect(page.getByRole('button', { name: 'Accept evidence' })).toBeVisible();
@@ -259,7 +259,7 @@ test('at 400 px the review screen fits without horizontal page scroll', async ({
 
 test('the Changes timeline lists the seeded changes and re-runs matching from the course card', async ({ page }) => {
   await signIn(page, PRIYA);
-  await nav(page, 'Changes').click();
+  await goTo(page, 'Changes');
   const timeline = page.getByRole('list', { name: 'Change events' });
   const rule = timeline.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Colorado rules, revision 2' }) });
   const course = timeline.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'COUN 625, new catalog year' }) });
