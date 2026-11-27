@@ -8,6 +8,9 @@ import { ApiService } from '../core/api.service';
 import { licenseLabel } from '../core/labels';
 import { Program } from '../core/models';
 import { problemDetail } from '../core/problem';
+import { registerComponentTokens } from '../theme/component-tokens';
+import { lexvayMessage } from '../theme/message-tokens';
+import { lexvaySkeleton } from '../theme/skeleton-tokens';
 
 /** Lands on the only program, or lists them. */
 @Component({
@@ -53,6 +56,7 @@ export class Home {
   readonly license = licenseLabel;
 
   constructor() {
+    registerComponentTokens({ message: lexvayMessage, skeleton: lexvaySkeleton });
     firstValueFrom(this.api.programs()).then((list) => {
       if (list.length === 1) {
         this.router.navigate(['/programs', list[0].id, 'overview'], { replaceUrl: true });

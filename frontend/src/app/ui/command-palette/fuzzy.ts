@@ -1,9 +1,9 @@
 /**
  * How well `query` matches `text` as a subsequence, the command palette's only matching rule: 0 when the query's
  * characters (spaces ignored, case ignored) do not all appear in order. Otherwise each matched character is worth 1,
- * plus 8 at the start of a word, 5 right after the previous match and 4 more at the very start; a shorter text wins a
- * tie. The best placement is found exactly (dynamic programming), so "ca" scores California's word start, not the
- * "ca" inside "Medical".
+ * plus 8 at the start of a word, 10 right after the previous match (so a run beats scattered word starts) and 4 more
+ * at the very start; a shorter text wins a tie. The best placement is found exactly (dynamic programming), so "ca"
+ * scores California's word start, not the "ca" inside "Medical".
  */
 export function fuzzyScore(query: string, text: string): number {
   const q = query.toLowerCase().replace(/\s+/g, '');
@@ -24,7 +24,7 @@ export function fuzzyScore(query: string, text: string): number {
       if (i === 0) {
         next[j] = gain;
       } else {
-        const consecutive = j > 0 && best[j - 1] !== NONE ? best[j - 1] + gain + 5 : NONE;
+        const consecutive = j > 0 && best[j - 1] !== NONE ? best[j - 1] + gain + 10 : NONE;
         const apart = bestBefore !== NONE ? bestBefore + gain : NONE;
         next[j] = Math.max(consecutive, apart);
       }

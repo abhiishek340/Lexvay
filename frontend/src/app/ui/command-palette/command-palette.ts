@@ -2,13 +2,11 @@ import { Component, ElementRef, computed, effect, inject, model, signal, untrack
 import { Router } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
-  phosphorArrowElbowDownLeft, phosphorBookBookmark, phosphorBuildings, phosphorClockCounterClockwise, phosphorDownloadSimple, phosphorFileText,
-  phosphorGitDiff, phosphorListChecks, phosphorMagnifyingGlass, phosphorMapTrifold, phosphorPlay, phosphorPlus, phosphorScales, phosphorSquaresFour,
-  phosphorTextAlignLeft, phosphorTray,
+  phosphorArrowElbowDownLeft, phosphorBuildings, phosphorDownloadSimple, phosphorMapTrifold, phosphorPlay, phosphorPlus, phosphorTextAlignLeft,
 } from '@ng-icons/phosphor-icons/regular';
 import { phosphorMagnifyingGlassDuotone } from '@ng-icons/phosphor-icons/duotone';
 import auraCommandmenu from '@primeuix/themes/aura/commandmenu';
-import auraDialog from '@primeuix/themes/aura/dialog';
+import auraMenu from '@primeuix/themes/aura/menu';
 import { MenuItem, MessageService } from 'primeng/api';
 import { CommandMenu } from 'primeng/commandmenu';
 import { Dialog } from 'primeng/dialog';
@@ -19,18 +17,20 @@ import { problemDetail } from '../../core/problem';
 import { NO_FILTER, registerCsvUrl } from '../../core/register';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
+import { lexvayDialog } from '../../theme/dialog-tokens';
 import { lexvayTokens as t } from '../../theme/lexvay-preset';
 import { Command, CommandRun, PaletteAction, paletteCommands, paletteSections, pushRecent } from './commands';
 import { commandScore } from './fuzzy';
 
+/** The palette's icons beyond SHELL_ICONS (which already holds every screen's rail icon and the search glass). */
 export const PALETTE_ICONS = {
-  phosphorArrowElbowDownLeft, phosphorBookBookmark, phosphorBuildings, phosphorClockCounterClockwise, phosphorDownloadSimple, phosphorFileText,
-  phosphorGitDiff, phosphorListChecks, phosphorMagnifyingGlass, phosphorMapTrifold, phosphorPlay, phosphorPlus, phosphorScales, phosphorSquaresFour,
-  phosphorTextAlignLeft, phosphorTray, phosphorMagnifyingGlassDuotone,
+  phosphorArrowElbowDownLeft, phosphorBuildings, phosphorDownloadSimple, phosphorMapTrifold, phosphorPlay, phosphorPlus, phosphorTextAlignLeft,
+  phosphorMagnifyingGlassDuotone,
 };
 
 const PALETTE_TOKENS = {
-  dialog: auraDialog,
+  dialog: lexvayDialog,
+  menu: { ...auraMenu, root: { ...auraMenu.root, background: 'transparent', borderColor: 'transparent' } },
   commandmenu: {
     ...auraCommandmenu,
     root: { ...auraCommandmenu.root, background: 'transparent', borderColor: 'transparent', borderRadius: '0', height: 'min(26rem, 70vh)' },

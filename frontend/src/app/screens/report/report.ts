@@ -3,6 +3,7 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
+import { phosphorDownloadSimple, phosphorFilePdf, phosphorSealCheck } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -15,7 +16,12 @@ import { OUTCOME_LABEL, licenseLabel } from '../../core/labels';
 import { Mapping } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
+import { registerComponentTokens } from '../../theme/component-tokens';
 import { DecisionState, FindingLabel } from '../../ui/finding';
+import { REPORT_TOKENS } from './report-theme';
+
+/** The icons the report shows beyond SHELL_ICONS, provided by its route (report.routes.ts). */
+export const REPORT_ICONS = { phosphorDownloadSimple, phosphorFilePdf, phosphorSealCheck };
 
 const POLL_MS = 1000;
 const POLL_LIMIT = 60;
@@ -46,6 +52,7 @@ export class Report {
   readonly signed = computed(() => this.context.determinations().find((d) => d.jurisdiction === this.jurisdiction() && d.status === 'SIGNED') ?? null);
 
   constructor() {
+    registerComponentTokens(REPORT_TOKENS);
     effect(() => {
       const id = this.programId();
       untracked(() => this.context.ensure(id));

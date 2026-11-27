@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, effect, inject, input, signal, untracked } from '@angular/core';
 import { NgIcon } from '@ng-icons/core';
+import { phosphorArrowsClockwise, phosphorBookOpen, phosphorCheckCircle, phosphorWarning } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -10,12 +11,17 @@ import { TableModule } from 'primeng/table';
 import { Tag } from 'primeng/tag';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
-import { CHANGE_KIND } from '../../core/labels';
 import { ChangeEvent } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { SessionService } from '../../core/session.service';
+import { registerComponentTokens } from '../../theme/component-tokens';
+import { CHANGE_KIND } from './change-kind';
 import { rerunBlocker } from './change-rules';
+import { CHANGES_TOKENS } from './changes-theme';
+
+/** The icons the Changes screen shows beyond SHELL_ICONS, provided by its route (changes.routes.ts). */
+export const CHANGES_ICONS = { phosphorArrowsClockwise, phosphorBookOpen, phosphorCheckCircle, phosphorWarning };
 
 const POLL_MS = 1000;
 const POLL_LIMIT = 90;
@@ -40,6 +46,7 @@ export class Changes {
   readonly running = signal<string | null>(null);
 
   constructor() {
+    registerComponentTokens(CHANGES_TOKENS);
     effect(() => {
       const id = this.programId();
       untracked(() => this.context.ensure(id));

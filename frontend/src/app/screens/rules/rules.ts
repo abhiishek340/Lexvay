@@ -2,6 +2,7 @@ import { Component, DestroyRef, ElementRef, computed, effect, inject, input, lin
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
+import { phosphorArchive, phosphorArrowCounterClockwise, phosphorArrowDown, phosphorArrowSquareOut, phosphorArrowUp, phosphorCircleDashed, phosphorEquals, phosphorFloppyDisk, phosphorMinusCircle, phosphorNotePencil, phosphorPencilSimple, phosphorPlus, phosphorPlusCircle, phosphorSealCheck, phosphorSpinner, phosphorTrash, phosphorWarningCircle } from '@ng-icons/phosphor-icons/regular';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
@@ -14,12 +15,35 @@ import { ApiService } from '../../core/api.service';
 import { UserSummary } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
-import { RULE_STATUS, RuleVersionRow, anyExtracting, groupRuleVersions } from '../../core/rules';
+import { RuleVersionRow, anyExtracting, groupRuleVersions } from '../../core/rules';
 import { SessionService } from '../../core/session.service';
+import { registerComponentTokens } from '../../theme/component-tokens';
 import { NewRuleVersionDialog } from './new-rule-version';
 import { Notice, RuleVersionDetail } from './rule-version-detail';
-import { registerRulesTheme } from './rules-theme';
+import { RULES_TOKENS } from './rules-theme';
+import { RULE_STATUS } from './rule-status';
 import { UnsavedChanges, leaveNeedsConfirmation } from './unsaved-changes';
+
+/** The icons the Rules screen and its parts show beyond SHELL_ICONS, provided by its route (rules.routes.ts). */
+export const RULES_ICONS = {
+  phosphorArchive,
+  phosphorArrowCounterClockwise,
+  phosphorArrowDown,
+  phosphorArrowSquareOut,
+  phosphorArrowUp,
+  phosphorCircleDashed,
+  phosphorEquals,
+  phosphorFloppyDisk,
+  phosphorMinusCircle,
+  phosphorNotePencil,
+  phosphorPencilSimple,
+  phosphorPlus,
+  phosphorPlusCircle,
+  phosphorSealCheck,
+  phosphorSpinner,
+  phosphorTrash,
+  phosphorWarningCircle,
+};
 
 /** While an extraction runs the list is fetched again this often (and never while the tab is hidden). */
 const POLL_MS = 5000;
@@ -75,7 +99,7 @@ export class Rules {
   readonly selected = computed(() => this.context.ruleVersions().find((v) => v.id === this.ruleVersionId()) ?? null);
 
   constructor() {
-    registerRulesTheme();
+    registerComponentTokens(RULES_TOKENS);
     effect(() => {
       const id = this.programId();
       untracked(() => this.context.ensure(id));

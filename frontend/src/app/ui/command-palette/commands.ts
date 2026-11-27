@@ -95,8 +95,3 @@ export const RECENT_LIMIT = 5;
 export function pushRecent(recent: readonly string[], id: string): string[] {
   return [id, ...recent.filter((r) => r !== id)].slice(0, RECENT_LIMIT);
 }
-
-/** The palette's shortcut in words, for the key hint and the keyboard shortcuts list. */
-export function paletteShortcut(platform: string): string {
-  return /mac|iphone|ipad/i.test(platform) ? 'Cmd K' : 'Ctrl K';
-}

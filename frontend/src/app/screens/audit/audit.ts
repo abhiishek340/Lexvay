@@ -7,6 +7,8 @@ import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
+import { registerComponentTokens } from '../../theme/component-tokens';
+import { AUDIT_TOKENS } from './audit-theme';
 import { problemDetail } from '../../core/problem';
 import { AuditRow, auditRows, filterOptions, filterRows } from './audit-view';
 
@@ -32,6 +34,7 @@ export class Audit {
   readonly visible = computed(() => filterRows(this.rows() ?? [], { action: this.action(), entityType: this.entityType() }));
 
   constructor() {
+    registerComponentTokens(AUDIT_TOKENS);
     Promise.all([firstValueFrom(this.api.audit(LIMIT)), firstValueFrom(this.api.users())])
       .then(([entries, users]) => this.rows.set(auditRows(entries, users)))
       .catch((e: unknown) => this.error.set(problemDetail(e, 'The audit trail could not be loaded.')));

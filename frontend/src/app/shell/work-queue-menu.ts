@@ -1,9 +1,7 @@
 import { Component, computed, inject, output, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import {
-  phosphorGitDiff, phosphorListChecks, phosphorScales, phosphorSignature, phosphorTray, phosphorWarning, phosphorWarningCircle,
-} from '@ng-icons/phosphor-icons/regular';
+import { phosphorSignature, phosphorWarning, phosphorWarningCircle } from '@ng-icons/phosphor-icons/regular';
 import { phosphorTrayDuotone } from '@ng-icons/phosphor-icons/duotone';
 import { Popover } from 'primeng/popover';
 import { firstValueFrom } from 'rxjs';
@@ -13,9 +11,8 @@ import { problemDetail } from '../core/problem';
 import { ProgramContext } from '../core/program-context';
 import { WORK_QUEUE_LIMIT, workItemView } from '../core/work-queue';
 
-export const WORK_QUEUE_ICONS = {
-  phosphorGitDiff, phosphorListChecks, phosphorScales, phosphorSignature, phosphorTray, phosphorWarning, phosphorWarningCircle, phosphorTrayDuotone,
-};
+/** The kinds' icons the shell does not already register (SHELL_ICONS has the rail's). */
+export const WORK_QUEUE_ICONS = { phosphorSignature, phosphorWarning, phosphorWarningCircle, phosphorTrayDuotone };
 
 /**
  * The work queue popover (F13, DESIGN.md "Shell"): what needs the signed-in person, at most eight items, each a link

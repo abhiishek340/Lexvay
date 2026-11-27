@@ -1,7 +1,9 @@
 import { Component, ElementRef, Injector, afterNextRender, afterRenderEffect, computed, inject, input, linkedSignal, output, signal, viewChild } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { NgIcon } from '@ng-icons/core';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { phosphorArrowSquareOut, phosphorCaretLeft, phosphorCaretRight, phosphorCursorText, phosphorQuotes, phosphorWarning } from '@ng-icons/phosphor-icons/regular';
+import auraInputnumber from '@primeuix/themes/aura/inputnumber';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
 import { InputNumber } from 'primeng/inputnumber';
@@ -10,7 +12,14 @@ import { Skeleton } from 'primeng/skeleton';
 import { ApiService } from '../../core/api.service';
 import { DocumentPageCache } from '../../core/document-page-cache';
 import { problemDetail } from '../../core/problem';
+import { registerComponentTokens } from '../../theme/component-tokens';
+import { lexvayDialog } from '../../theme/dialog-tokens';
+import { lexvayMessage } from '../../theme/message-tokens';
+import { lexvaySkeleton } from '../../theme/skeleton-tokens';
 import { CharRange, PassageSelection, isRange, ocrNote, rangeOffsets, splitForHighlight } from './page-text';
+
+/** The icons the viewer shows beyond SHELL_ICONS; it provides them itself because several screens embed it. */
+export const DOCUMENT_VIEWER_ICONS = { phosphorArrowSquareOut, phosphorCaretLeft, phosphorCaretRight, phosphorCursorText, phosphorQuotes, phosphorWarning };
 
 /** Where the "Use this passage" toolbar sits, relative to the scrolling page body. */
 interface PendingSelection { selection: PassageSelection; top: number; left: number; }
@@ -27,6 +36,7 @@ const TOOLBAR_WIDTH = 168;
 @Component({
   selector: 'lx-document-viewer',
   imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, InputNumber, Message, Skeleton],
+  viewProviders: [provideIcons(DOCUMENT_VIEWER_ICONS)],
   templateUrl: './document-viewer.html',
   styleUrl: './document-viewer.css',
   host: {
@@ -106,6 +116,7 @@ export class DocumentViewer {
   private focused = false;
 
   constructor() {
+    registerComponentTokens({ dialog: lexvayDialog, inputnumber: auraInputnumber, message: lexvayMessage, skeleton: lexvaySkeleton });
     // After the cited page renders (and whenever the cited span changes), bring the mark into view.
     afterRenderEffect(() => {
       this.parts();

@@ -3,6 +3,7 @@ import { Component, DestroyRef, ElementRef, computed, effect, inject, input, lin
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
+import { phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorEye, phosphorKeyboard, phosphorSealCheck, phosphorSignature, phosphorUser } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
@@ -22,11 +23,16 @@ import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { SessionService } from '../../core/session.service';
 import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
-import { paletteShortcut } from '../../ui/command-palette/commands';
+import { paletteShortcut } from '../../ui/command-palette/shortcut';
 import { DecisionState, FindingLabel } from '../../ui/finding';
+import { registerComponentTokens } from '../../theme/component-tokens';
+import { REVIEW_TOKENS } from './review-theme';
 import { REVIEW_FILTERS, ReviewFilter, ReviewWorkspace, SHORTCUT_HELP, ShortcutCommand, decisionBlocker, shortcutFor } from './review-workspace';
 
 const WIDE = '(min-width: 1024px)';
+
+/** The icons the Review workspace shows beyond SHELL_ICONS, provided by its route (review.routes.ts). */
+export const REVIEW_ICONS = { phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorEye, phosphorKeyboard, phosphorSealCheck, phosphorSignature, phosphorUser };
 
 @Component({
   selector: 'lx-review',
@@ -99,6 +105,7 @@ export class Review {
   });
 
   constructor() {
+    registerComponentTokens(REVIEW_TOKENS);
     effect(() => {
       const id = this.programId();
       untracked(() => this.context.ensure(id));

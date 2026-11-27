@@ -48,7 +48,7 @@ const DERIVED = {
   foundTint: over(TABLE.found, TABLE.surface, 0.1, 0.16),
   ambiguousTint: over(TABLE.ambiguous, TABLE.surface, 0.1, 0.16),
   missingTint: over(TABLE.missing, TABLE.surface, 0.1, 0.16),
-  accentFill: over(TABLE.accent, TABLE.surface, 0.26, 0.36),
+  accentFill: over(TABLE.accent, TABLE.surface, 0.26, 0.24),
 } satisfies Record<string, Pair>;
 
 export const PALETTE = { ...TABLE, ...DERIVED };

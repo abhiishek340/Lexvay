@@ -9,7 +9,7 @@ import { navLinks, screenOf } from '../core/navigation';
 import { ProgramContext } from '../core/program-context';
 import { SessionService } from '../core/session.service';
 import { CommandPalette } from '../ui/command-palette/command-palette';
-import { paletteShortcut } from '../ui/command-palette/commands';
+import { paletteShortcut } from '../ui/command-palette/shortcut';
 import { InfoTip } from '../ui/info-tip';
 import { Mark } from '../ui/mark';
 import { initials } from '../ui/seal';

@@ -76,13 +76,14 @@ describe('keyboard order between target tiles', () => {
     expect(nextTarget(targets, usTile('CA')!, 'End').code).toBe('TX');
   });
 
-  it('visits every target from the first with Right and Down alone', () => {
+  it('reaches every target from the first with the arrow keys', () => {
     const seen = new Set<string>();
-    let at = nextTarget(targets, usTile('TX')!, 'Home');
-    for (let i = 0; i < 10; i++) {
+    const queue = [nextTarget(targets, usTile('TX')!, 'Home')];
+    while (queue.length > 0) {
+      const at = queue.shift()!;
+      if (seen.has(at.code)) { continue; }
       seen.add(at.code);
-      const right = nextTarget(targets, at, 'ArrowRight');
-      at = right !== at ? right : nextTarget(targets, at, 'ArrowDown');
+      for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'] as const) { queue.push(nextTarget(targets, at, key)); }
     }
     expect([...seen].sort()).toEqual(['AZ', 'CA', 'CO', 'TX', 'UT']);
   });

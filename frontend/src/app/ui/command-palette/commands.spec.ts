@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Role } from '../../core/models';
-import { CommandSources, paletteCommands, paletteSections, paletteShortcut, pushRecent } from './commands';
+import { CommandSources, paletteCommands, paletteSections, pushRecent } from './commands';
+import { paletteShortcut } from './shortcut';
 
 const sources = (role: Role | null, programId: string | null = 'p1'): CommandSources => ({
   programId,

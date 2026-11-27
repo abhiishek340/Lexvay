@@ -1,7 +1,27 @@
 import { Component, computed, input } from '@angular/core';
-import { NgIcon } from '@ng-icons/core';
-import { DECISION_ICON, DECISION_LABEL, FINDING_ICON, FINDING_LABEL } from '../core/labels';
-import { Decision, Finding } from '../core/models';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { phosphorArrowsClockwise, phosphorCircleDashed, phosphorSealCheck, phosphorPaperPlaneTilt, phosphorSealWarning } from '@ng-icons/phosphor-icons/regular';
+import { phosphorCheckCircleBold, phosphorQuestionBold, phosphorXCircleBold } from '@ng-icons/phosphor-icons/bold';
+import { DECISION_LABEL, FINDING_LABEL } from '../core/labels';
+import { Decision, DecisionKind, Finding } from '../core/models';
+import type { IconName } from '../theme/icons';
+
+/** A distinct shape per finding (check, question mark, cross) so state never depends on colour alone. Bold weight at small sizes (docs/DESIGN.md). */
+export const FINDING_ICON: Record<Finding, IconName> = {
+  EVIDENCE_FOUND: 'phosphorCheckCircleBold',
+  AMBIGUOUS: 'phosphorQuestionBold',
+  EVIDENCE_MISSING: 'phosphorXCircleBold',
+};
+
+export const DECISION_ICON: Record<DecisionKind, IconName> = {
+  ACCEPTED: 'phosphorSealCheck',
+  EVIDENCE_REQUESTED: 'phosphorPaperPlaneTilt',
+  GAP_CONFIRMED: 'phosphorSealWarning',
+};
+
+/** Shared components provide their own icons (viewProviders), so a screen that shows them names nothing for them. */
+export const FINDING_LABEL_ICONS = { phosphorCheckCircleBold, phosphorQuestionBold, phosphorXCircleBold };
+export const DECISION_STATE_ICONS = { phosphorArrowsClockwise, phosphorCircleDashed, phosphorPaperPlaneTilt, phosphorSealCheck, phosphorSealWarning };
 
 const FINDING_CLASS: Record<Finding, string> = { EVIDENCE_FOUND: 'lx-found', AMBIGUOUS: 'lx-ambiguous', EVIDENCE_MISSING: 'lx-missing' };
 
@@ -9,6 +29,7 @@ const FINDING_CLASS: Record<Finding, string> = { EVIDENCE_FOUND: 'lx-found', AMB
 @Component({
   selector: 'lx-finding',
   imports: [NgIcon],
+  viewProviders: [provideIcons(FINDING_LABEL_ICONS)],
   template: `<ng-icon [name]="icon()" [size]="large() ? '18' : '14'" aria-hidden="true" /><span>{{ label() }}</span>`,
   host: { '[class]': 'cssClass()', '[class.lx-finding-large]': 'large()' },
   styles: `
@@ -29,6 +50,7 @@ export class FindingLabel {
 @Component({
   selector: 'lx-decision-state',
   imports: [NgIcon],
+  viewProviders: [provideIcons(DECISION_STATE_ICONS)],
   template: `<ng-icon [name]="icon()" size="14" aria-hidden="true" /><span>{{ label() }}</span>`,
   styles: `
     :host { display: inline-flex; align-items: center; gap: 6px; color: var(--p-lx-text-2); white-space: nowrap; }

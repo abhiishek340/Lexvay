@@ -1,12 +1,16 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import auraInputtext from '@primeuix/themes/aura/inputtext';
+import auraPassword from '@primeuix/themes/aura/password';
 import { Button } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
 import { Password } from 'primeng/password';
 import { MotionPreferences } from '../../core/motion';
 import { SessionService } from '../../core/session.service';
+import { registerComponentTokens } from '../../theme/component-tokens';
+import { lexvayMessage } from '../../theme/message-tokens';
 import { Mark } from '../../ui/mark';
 import { StateMap } from '../../ui/state-map/state-map';
 import { STORY_STEP_MS, STORY_STILL, storyAt } from './sign-in-story';
@@ -38,6 +42,7 @@ export class Login {
   private timer = 0;
 
   constructor() {
+    registerComponentTokens({ inputtext: auraInputtext, message: lexvayMessage, password: auraPassword });
     if (this.story() === 'playing') {
       const started = performance.now();
       this.timer = window.setInterval(() => this.elapsed.set(performance.now() - started), STORY_STEP_MS);

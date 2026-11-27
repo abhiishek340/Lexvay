@@ -43,9 +43,9 @@ export type MapKey = 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown' | 'Hom
 
 /**
  * Keyboard movement between the target tiles (roving tabindex). Home and End go to the first and last target in
- * reading order. An arrow goes to the nearest target in that direction: the smallest distance along the arrow's
- * axis plus twice the distance across it, so the same row or column wins over a closer diagonal. With no target
- * in that direction the focus stays.
+ * reading order. An arrow goes to the nearest target within 45 degrees of its direction: the smallest distance along
+ * the arrow's axis plus twice the distance across it, so the same row or column wins over a closer diagonal. With no
+ * target in that direction the focus stays.
  */
 export function nextTarget(targets: readonly UsTile[], from: UsTile, key: MapKey): UsTile {
   const ordered = [...targets].sort((a, b) => a.row - b.row || a.col - b.col);
@@ -57,8 +57,9 @@ export function nextTarget(targets: readonly UsTile[], from: UsTile, key: MapKey
   let bestScore = Infinity;
   for (const t of ordered) {
     const ahead = (t[along] - from[along]) * sign;
-    if (t === from || ahead <= 0) { continue; }
-    const score = ahead + 2 * Math.abs(t[across] - from[across]);
+    const aside = Math.abs(t[across] - from[across]);
+    if (t === from || ahead <= 0 || aside > ahead) { continue; }
+    const score = ahead + 2 * aside;
     if (score < bestScore) {
       best = t;
       bestScore = score;
