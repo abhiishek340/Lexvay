@@ -1,8 +1,10 @@
 package com.lexvay.assessment;
 
+import jakarta.validation.constraints.Pattern;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1")
+@Validated
 public class AssessmentController {
 
     private final AssessmentService service;
@@ -39,7 +42,7 @@ public class AssessmentController {
     }
 
     @GetMapping("/assessments/{id}/mappings")
-    AssessmentService.MappingsView mappings(@PathVariable UUID id, @RequestParam(required = false) String jurisdiction) {
+    AssessmentService.MappingsView mappings(@PathVariable UUID id, @RequestParam(required = false) @Pattern(regexp = "^[A-Z]{2}$") String jurisdiction) {
         return service.mappings(id, jurisdiction);
     }
 }

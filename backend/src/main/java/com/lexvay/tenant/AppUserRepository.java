@@ -45,6 +45,9 @@ public class AppUserRepository {
      */
     @Transactional
     public Optional<LexvayUser> findForLogin(String email) {
+        if (email.indexOf('\u0000') >= 0) {
+            return Optional.empty(); // PostgreSQL text cannot hold NUL, so no account has such an email
+        }
         jdbc.sql("SELECT set_config('lexvay.auth_lookup', 'on', true)").query().singleRow();
         return jdbc.sql("SELECT " + COLUMNS + " FROM app_user WHERE email = :email")
                 .param("email", email.toLowerCase())

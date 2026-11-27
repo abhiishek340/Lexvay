@@ -25,6 +25,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class DocumentService {
 
+    static final int MAX_FILENAME_LENGTH = 255;
+
     public record UploadResult(UUID documentId, UUID jobId) {
     }
 
@@ -72,7 +74,10 @@ public class DocumentService {
             throw new IllegalArgumentException("File is empty");
         }
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
-        FileType.detect(filename, bytes);
+        requireUsableFilename(filename);
+        if (FileType.detect(filename, bytes) == FileType.DOCX) {
+            ContentLimits.requireSafeDocx(bytes);
+        }
         if (courseVersionId != null) {
             var version = courses.findVersion(courseVersionId)
                     .orElseThrow(() -> new IllegalArgumentException("Course version not found"));
@@ -117,6 +122,13 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public DocumentRepository.PageWithContext page(UUID id, int pageNumber) {
         return documents.pageWithContext(id, pageNumber).orElseThrow(() -> new NotFoundException("Document page not found"));
+    }
+
+    private static void requireUsableFilename(String filename) {
+        if (filename.length() > MAX_FILENAME_LENGTH || filename.chars().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException("File name must be at most " + MAX_FILENAME_LENGTH
+                    + " characters and contain no control characters");
+        }
     }
 
     public static String sha256(byte[] bytes) {
