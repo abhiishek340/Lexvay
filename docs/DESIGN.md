@@ -51,7 +51,7 @@ Defined once in the preset as `light-dark()` pairs and published as `--p-lx-*` (
 | line | #E6E6E0 | #252B33 | hairlines inside tables and lists only |
 | text | #0D1014 | #EEF0F3 | primary text |
 | text-2 | #565D67 | #A4ACB7 | secondary text |
-| text-3 | #8B919B | #6F7783 | tertiary, placeholders (never for content under 18 px) |
+| text-3 | #8B919B | #6F7783 | decorative only (dividers, disabled glyphs); fails AA for text, so placeholders and map codes use text-2 (D-30x) |
 | accent | #2346E0 | #7D9BFF | primary action, focus, selection |
 | accent-tint | #EBEFFF | #1A2347 | selected rows, active nav, in-review tiles |
 | found | #0B7A52 | #45D19E | evidence found, determined to meet |
