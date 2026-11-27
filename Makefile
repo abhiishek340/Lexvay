@@ -10,7 +10,7 @@ DOCKER_HOST ?= $(shell docker context inspect -f '{{(index .Endpoints "docker").
 export DOCKER_HOST
 export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE ?= /var/run/docker.sock
 
-.PHONY: help db-up db-down dev dev-backend dev-frontend test backend-test frontend-test e2e seed-pdfs seed
+.PHONY: help db-up db-down dev dev-backend dev-frontend test backend-test frontend-test e2e seed-pdfs seed eval eval-live infra-validate
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -49,3 +49,15 @@ seed: db-up ## Load the fictional demo tenants (Northfield University, Westbrook
 
 e2e: ## End-to-end tests (Playwright + axe) against an isolated seeded stack on ports 5433/8081/4300
 	scripts/e2e.sh
+
+eval: ## Score the pipeline against eval/golden.yml with the scripted model (isolated database, slot ports, no network)
+	scripts/eval.sh
+
+eval-live: ## Same with the real model; runs only when ANTHROPIC_API_KEY is set, and reports tokens and cost
+	scripts/eval.sh --live
+
+infra-validate: ## Terraform format check, validate and offline tests in infra/ (never plans or applies)
+	terraform -chdir=infra fmt -check -recursive
+	terraform -chdir=infra init -backend=false -input=false
+	terraform -chdir=infra validate
+	terraform -chdir=infra test

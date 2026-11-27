@@ -1,5 +1,6 @@
 package com.lexvay.review;
 
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -22,5 +23,16 @@ public class ReviewRepository {
                 .param("id", id).param("tenantId", tenantId).param("mappingId", mappingId).param("kind", kind.name())
                 .param("note", note).param("userId", userId).update();
         return id;
+    }
+
+    /** The newest event of a mapping: what the mapping's current state derives from (D-003). */
+    public record LatestEvent(UUID id, ReviewKind kind) {
+    }
+
+    public Optional<LatestEvent> latest(UUID mappingId) {
+        return jdbc.sql("SELECT id, kind FROM review_event WHERE mapping_id = :m ORDER BY created_at DESC, id DESC LIMIT 1")
+                .param("m", mappingId)
+                .query((rs, i) -> new LatestEvent(rs.getObject("id", UUID.class), ReviewKind.valueOf(rs.getString("kind"))))
+                .optional();
     }
 }

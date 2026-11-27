@@ -24,3 +24,6 @@ infra/*.tfstate*
 .idea/
 .vscode/
 *.iml
+
+# local agent worktrees
+.claude/

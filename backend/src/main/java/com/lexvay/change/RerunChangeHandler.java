@@ -21,12 +21,12 @@ import com.lexvay.review.ReviewKind;
 import com.lexvay.review.ReviewRepository;
 import com.lexvay.rule.NumericField;
 import com.lexvay.rule.Requirement;
+import com.lexvay.rule.RequirementComparison;
 import com.lexvay.rule.RuleVersion;
 import com.lexvay.rule.RuleVersionRepository;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -107,7 +107,7 @@ public class RerunChangeHandler implements JobHandler {
                 }
                 Requirement previous = oldByRef.get(requirement.ref());
                 Optional<Mapping> oldMapping = previous == null ? Optional.empty() : mappings.findByAssessmentAndRequirement(assessmentId, previous.id());
-                if (previous != null && oldMapping.isPresent() && unchanged(previous, requirement)) {
+                if (previous != null && oldMapping.isPresent() && RequirementComparison.sameForEvaluation(previous, requirement)) {
                     Mapping old = oldMapping.get();
                     mappings.insertIfAbsent(tenantId, assessmentId, requirement.id(), newVersion.jurisdictionId(), old.finding(), old.method(),
                             old.rationale(), old.evidence() == null ? null : old.evidence().spanId(), actor);
@@ -128,14 +128,6 @@ public class RerunChangeHandler implements JobHandler {
             }
         }
         return Map.of("assessments", assessments, "carriedOver", carried, "reevaluated", reevaluated);
-    }
-
-    static boolean unchanged(Requirement a, Requirement b) {
-        return a.type() == b.type()
-                && QuoteVerifier.normalizeWhitespace(a.text()).equals(QuoteVerifier.normalizeWhitespace(b.text()))
-                && a.numericField() == b.numericField()
-                && Objects.equals(a.numericOperator(), b.numericOperator())
-                && (a.numericValue() == null ? b.numericValue() == null : b.numericValue() != null && a.numericValue().compareTo(b.numericValue()) == 0);
     }
 
     /** Re-verify each stale quote against the new course version's documents. */
