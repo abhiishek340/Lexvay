@@ -55,40 +55,6 @@ export function numericCheck(r: { numericField: NumericField | null; numericOper
   return r.numericField && r.numericOperator && r.numericValue !== null ? `${NUMERIC_FIELD_LABEL[r.numericField]} ${r.numericOperator} ${r.numericValue}` : null;
 }
 
-export const ACTION_LABEL: Record<string, string> = {
-  LOGIN_SUCCEEDED: 'Signed in',
-  LOGOUT: 'Signed out',
-  PROGRAM_CREATED: 'Program created',
-  COURSE_CREATED: 'Course created',
-  COURSE_VERSION_ADDED: 'Course version added',
-  DOCUMENT_UPLOADED: 'Document uploaded',
-  DOCUMENT_INGESTED: 'Document text extracted',
-  PROGRAM_FACT_RECORDED: 'Program fact recorded',
-  RULE_VERSION_CREATED: 'Rule version entered',
-  REQUIREMENTS_EXTRACTED: 'Requirements extracted',
-  REQUIREMENTS_REPLACED: 'Requirement list replaced',
-  REQUIREMENTS_APPROVED: 'Requirement list approved',
-  ASSESSMENT_STARTED: 'Assessment started',
-  ASSESSMENT_FINISHED: 'Assessment finished',
-  REVIEW_RECORDED: 'Review decision recorded',
-  EVIDENCE_PROVIDED: 'Evidence provided',
-  DETERMINATION_SIGNED: 'Determination signed',
-  DETERMINATION_REOPENED: 'Determination reopened',
-  REGISTER_EXPORTED: 'Determination register exported',
-  CHANGE_EVENT_CREATED: 'Change recorded',
-  CHANGE_RERUN_REQUESTED: 'Re-run requested',
-  CHANGE_RERUN: 'Change re-run finished',
-  REPORT_REQUESTED: 'Evidence report requested',
-  REPORT_GENERATED: 'Evidence report generated',
-  JOB_FAILED: 'Background job failed',
-  TENANT_CREATED: 'Tenant created',
-  USER_CREATED: 'User created',
-};
-
-export function actionLabel(action: string): string {
-  return ACTION_LABEL[action] ?? humanize(action);
-}
-
 /** "CLINICAL_MENTAL_HEALTH_COUNSELING" becomes "Clinical mental health counseling license". */
 export function licenseLabel(program: { licenseType: string }): string {
   const words = humanize(program.licenseType);

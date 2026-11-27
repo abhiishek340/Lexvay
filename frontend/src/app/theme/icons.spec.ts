@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DOCUMENT_VIEWER_ICONS } from '../shared/document-viewer/document-viewer';
+import { AUDIT_ICONS } from '../screens/audit/audit';
 import { CHANGES_ICONS } from '../screens/changes/changes';
 import { OVERVIEW_ICONS } from '../screens/overview/overview';
 import { REGISTER_ICONS } from '../screens/register/register';
@@ -42,7 +43,7 @@ const UNITS: Unit[] = [
   { name: 'rules', entries: ['screens/rules/rules.ts'], registered: RULES_ICONS },
   { name: 'report', entries: ['screens/report/report.ts'], registered: REPORT_ICONS },
   { name: 'register', entries: ['screens/register/register.ts'], registered: REGISTER_ICONS },
-  { name: 'audit', entries: ['screens/audit/audit.ts'], registered: {} },
+  { name: 'audit', entries: ['screens/audit/audit.ts'], registered: AUDIT_ICONS },
   { name: 'document viewer (shared)', entries: ['shared/document-viewer/document-viewer.ts'], registered: DOCUMENT_VIEWER_ICONS, shared: true },
   { name: 'finding labels (shared)', entries: ['ui/finding.ts'], registered: { ...FINDING_LABEL_ICONS, ...DECISION_STATE_ICONS }, shared: true },
   { name: 'account menu (shell, deferred)', entries: ['shell/account-menu.ts'], registered: ACCOUNT_MENU_ICONS, shared: true },

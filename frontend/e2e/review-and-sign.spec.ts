@@ -60,33 +60,35 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
   // Other screens render and pass the accessibility check.
   await nav(page, 'Changes').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Changes' })).toBeVisible();
-  await expect(page.getByRole('table', { name: 'Change events' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Change events' })).toBeVisible();
   await expectAccessible(page, 'Changes');
 
+  // The report opens on the first state, a draft; California now carries the seal of Dana's signature.
   await nav(page, 'Evidence report').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Evidence report' })).toBeVisible();
-  await expect(page.getByTestId('stamp')).toContainText('Draft. Not a determination.');
+  await expect(page.getByRole('note', { name: 'Draft. Not a determination.' })).toBeVisible();
   await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
   await page.getByRole('option', { name: 'California (CA)' }).click();
-  await expect(page.getByTestId('stamp')).toContainText('Signed determination');
-  await expect(page.getByTestId('stamp')).toContainText('Determined not to meet');
-  await expect(page.getByRole('table', { name: 'Requirements and evidence' })).toBeVisible();
+  await expect(page.getByRole('img', { name: /^Signed by Dana Whitfield on .+: determined not to meet$/ })).toBeVisible();
+  await expect(page.getByRole('list', { name: '8 requirements' }).getByRole('listitem')).toHaveCount(8);
   await expectAccessible(page, 'Evidence report');
 
-  // Audit trail names the people and words the details.
+  // Audit trail: one sentence per entry, naming the people.
   await nav(page, 'Audit trail').click();
-  const audit = page.getByRole('table', { name: 'Audit trail' });
-  await expect(audit).toContainText('Determination signed');
-  await expect(audit).toContainText('Review decision recorded');
-  await expect(audit).toContainText('Outcome: Determined not to meet');
-  await expect(audit).toContainText('Dana Whitfield');
+  const audit = page.getByRole('main');
+  await expect(audit).toContainText('Dana Whitfield signed California: determined not to meet');
+  await expect(audit).toContainText(/Dana Whitfield (accepted|confirmed a gap on|requested evidence for) CA-\d+/);
+  await expect(page.getByRole('link', { name: 'Download CSV' })).toHaveCount(0);
   await expectAccessible(page, 'Audit trail');
 
-  // Filtering by action narrows the table to that action.
+  // The Action chip asks the server for that action only; the entry's details open in place.
   await page.getByRole('combobox', { name: 'Action' }).click();
   await page.getByRole('option', { name: 'Determination signed' }).click();
-  await expect(audit.locator('tbody tr')).toHaveCount(1);
-  await expect(audit).not.toContainText('Review decision recorded');
+  const entries = audit.getByRole('listitem');
+  await expect(entries).toHaveCount(1);
+  await entries.getByRole('button').click();
+  await expect(entries).toContainText('Determined not to meet');
+  await expect(entries).toContainText('Versions hash');
 
   // The screens never use the forbidden phrases.
   const text = (await page.locator('body').innerText()).toLowerCase();
@@ -176,15 +178,29 @@ test('at 400 px the review screen fits without horizontal page scroll', async ({
   await expectAccessible(page, 'Review at 400 px');
 });
 
-test('the Changes screen lists the seeded changes and re-runs matching for the new course version', async ({ page }) => {
+test('the Changes timeline lists the seeded changes and re-runs matching from the course card', async ({ page }) => {
   await signIn(page, PRIYA);
   await nav(page, 'Changes').click();
-  const table = page.getByRole('table', { name: 'Change events' });
-  await expect(table).toContainText('New rule version');
-  await expect(table).toContainText('New course version');
-  await expect(table).toContainText('COUN 625');
+  const timeline = page.getByRole('list', { name: 'Change events' });
+  const rule = timeline.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Colorado rules, revision 2' }) });
+  const course = timeline.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'COUN 625, new catalog year' }) });
+  await expect(rule).toContainText('2026 revision 2');
+  await expect(course).toContainText('2026-27');
+  await expect(course).toContainText('2027-28');
+  await expect(course).toContainText('Open');
+  await course.getByRole('button', { name: 'Details' }).click();
+  await expect(course).toContainText('Replaced by');
   await expectAccessible(page, 'Changes with events');
-  await page.getByRole('button', { name: 'Re-run matching' }).click();
-  await expect(page.getByTestId('message')).toContainText('handled', { timeout: 60_000 });
-  await expect(table).toContainText('Handled');
+
+  // Job status answers are held back a little, so the card's progress is on screen long enough to see.
+  await page.route('**/api/v1/jobs/*', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await route.continue();
+  });
+  await course.getByRole('button', { name: 'Re-run matching' }).click();
+  await expect(course.getByTestId('rerun-progress')).toBeVisible();
+  await expect(course).toContainText('Handled', { timeout: 60_000 });
+  await expect(page.getByTestId('message')).toContainText('COUN 625, new catalog year handled');
+  await expect(page.locator('.p-toast')).toContainText('Re-run finished');
+  await expect(course.getByRole('button', { name: 'Re-run matching' })).toHaveCount(0);
 });
