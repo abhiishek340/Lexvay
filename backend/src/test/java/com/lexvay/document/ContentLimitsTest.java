@@ -98,6 +98,23 @@ class ContentLimitsTest {
     }
 
     @Test
+    void theUploadCheckCountsThePagesOfAPdfWithoutExtractingIt() {
+        byte[] atCap = TestDocuments.pdf(java.util.Collections.nCopies(500, List.of("Fictional. Prototype data.")));
+        byte[] overCap = TestDocuments.pdf(java.util.Collections.nCopies(501, List.of("Fictional. Prototype data.")));
+
+        assertThatCode(() -> ContentLimits.requirePdfPages(atCap)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> ContentLimits.requirePdfPages(overCap))
+                .isInstanceOf(ContentLimits.ContentLimitException.class)
+                .hasMessage("PDF has 501 pages; the limit is 500");
+    }
+
+    @Test
+    void aPdfTheUploadCheckCannotReadIsLeftToIngest() {
+        assertThatCode(() -> ContentLimits.requirePdfPages(TestDocuments.corruptPdf())).doesNotThrowAnyException();
+        assertThatCode(() -> ContentLimits.requirePdfPages("%PDF-1.7 not really a pdf".getBytes())).doesNotThrowAnyException();
+    }
+
+    @Test
     void theExtractorRejectsAPdfOverThePageCapWithItsOwnMessage() {
         byte[] pdf = TestDocuments.pdf(java.util.Collections.nCopies(501, List.of("Fictional. Prototype data.")));
         assertThatThrownBy(() -> extractor.extract(FileType.PDF, pdf))

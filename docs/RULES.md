@@ -47,7 +47,7 @@ Not product rules, but each has a test that fails when it breaks. Details in `DE
 | Single sign-on, roles from the Lexvay database, 403 without an account or with an unverified email | Profile `oidc`: `OidcLogin`, `LexvayOidcUserService` | `OidcLoginTest`, `AuthTest.singleSignOnIsOffUnlessProfileOidcIsActive` |
 | Rate limits: login 10/min per address, API 600/min and uploads 30/min per user, 429 with `Retry-After`, bounded bucket cache | `RateLimitFilter`, `lexvay.ratelimit.*` | `RateLimitFilterTest`, `RateLimitApiTest`, `ForwardedHeadersTest` |
 | Security headers on every response, HSTS on secure requests; session cookie HttpOnly, SameSite=Lax, Secure by configuration | `SecurityHeadersFilter`, `application.yml` | `SecurityHeadersTest`, `SessionSecurityTest`, `SecureCookieTest` |
-| Upload size (413), file type, DOCX zip bomb, PDF page cap, file name | Multipart limit, `FileType`, `ContentLimits`, `DocumentService` | `UploadSizeLimitTest`, `DocumentUploadTest`, `ContentLimitsTest` |
+| Upload size (413), file type, DOCX zip bomb, PDF page cap (refused at upload, and again at ingest), file name | Multipart limit, `FileType`, `ContentLimits`, `DocumentService` | `UploadSizeLimitTest`, `DocumentUploadTest`, `ContentLimitsTest` |
 | Malformed input is a 4xx problem detail, never a 500, on every endpoint | Bean validation, `ApiExceptionHandler` | `InputValidationTableTest` (fails when an endpoint has no row) |
 | The session id changes at login (form and OIDC), login CSRF stays on | `SecurityConfig` | `SessionSecurityTest`, `OidcLoginTest`, `AuthTest` |
 
@@ -59,6 +59,6 @@ A fetched rule text is a proposal like any other: it becomes an unapproved draft
 |---|---|---|
 | Nothing a check does can approve or alter a rule version; a changed page creates a new unapproved version that supersedes the approved one | `CheckRuleSourceHandler` creates versions only through `RuleVersionService`; `rule_version` triggers (V003) | `CheckRuleSourceTest` (`requirements_approved_at IS NULL` after every CHANGED run) |
 | The server never connects to loopback, private, link-local, unique-local, multicast or other internal addresses, on any redirect hop | `SsrfGuard`, `JdkHttpFetcher` | `SsrfGuardTest`, `JdkHttpFetcherTest`, `RuleSourceApiTest` |
-| Checks are append-only; a source changes only whether and when it is monitored | V011 triggers `forbid_change`, `restrict_update_to_columns` | `Rule5_RuleSourceImmutabilityTest` |
+| Checks are append-only; a source changes only whether and when it is monitored (active flag, last check, hash, next check, failure count) | V011 triggers `forbid_change`, `restrict_update_to_columns` (recreated by V016) | `Rule5_RuleSourceImmutabilityTest` |
 | Sources and checks are tenant-isolated; the scheduler's cross-tenant statement is the only use of the worker flag besides the poller | V011 policies | `Rule7_RuleSourceIsolationTest`, `RuleSourceEnqueueTest` |
 | Every write is audited, including the system's checks | `RuleSourceService`, `CheckRuleSourceHandler` | `Rule9_AuditCoverageTest`, `RuleSourceApiTest`, `CheckRuleSourceTest` |

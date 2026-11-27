@@ -22,7 +22,8 @@ public class RuleSourceRepository {
     private static final RowMapper<RuleSourceView> VIEW = (rs, i) -> new RuleSourceView(
             rs.getObject("id", UUID.class), rs.getString("jurisdiction_code"), rs.getString("license_type"),
             rs.getString("label"), rs.getString("url"), rs.getInt("check_interval_hours"), rs.getBoolean("active"),
-            rs.getObject("last_checked_at", OffsetDateTime.class), rs.getObject("created_at", OffsetDateTime.class),
+            rs.getObject("last_checked_at", OffsetDateTime.class), rs.getObject("next_check_at", OffsetDateTime.class),
+            rs.getInt("consecutive_failures"), rs.getObject("created_at", OffsetDateTime.class),
             rs.getString("latest_outcome") == null ? null : new RuleSourceView.LatestCheck(
                     rs.getObject("latest_checked_at", OffsetDateTime.class),
                     CheckOutcome.valueOf(rs.getString("latest_outcome")), rs.getObject("latest_http_status", Integer.class),
@@ -50,10 +51,14 @@ public class RuleSourceRepository {
                               AND j.entity_id = rs.id)
             RETURNING id""";
 
-    /** The predicate of {@link #ENQUEUE} for the scheduler: active sources never checked or past their interval. Public like it. */
-    public static final String DUE = """
-            rs.active AND (rs.last_checked_at IS NULL
-                           OR rs.last_checked_at < now() - rs.check_interval_hours * interval '1 hour')""";
+    /** The predicate of {@link #ENQUEUE} for the scheduler: active sources whose next check has come. Public like it. */
+    public static final String DUE = "rs.active AND rs.next_check_at <= now()";
+
+    /** The wait after a first failed check; it doubles with each further one until it reaches the source's interval (D-381). */
+    static final int RETRY_BASE_MINUTES = 15;
+
+    /** 2^12 times the base already exceeds the longest interval (720 hours), so a larger exponent changes nothing and could overflow. */
+    private static final int MAX_BACKOFF_EXPONENT = 12;
 
     private static final String SELECT_SOURCE = """
             SELECT rs.id, rs.jurisdiction_id, j.code AS jurisdiction_code, rs.license_type, rs.label, rs.url,
@@ -84,7 +89,7 @@ public class RuleSourceRepository {
     public List<RuleSourceView> list() {
         return jdbc.sql("""
                 SELECT rs.id, j.code AS jurisdiction_code, rs.license_type, rs.label, rs.url, rs.check_interval_hours,
-                       rs.active, rs.last_checked_at, rs.created_at,
+                       rs.active, rs.last_checked_at, rs.next_check_at, rs.consecutive_failures, rs.created_at,
                        c.checked_at AS latest_checked_at, c.outcome AS latest_outcome, c.http_status AS latest_http_status,
                        c.detail AS latest_detail, c.document_id AS latest_document_id, c.rule_version_id AS latest_rule_version_id
                 FROM rule_source rs
@@ -118,10 +123,24 @@ public class RuleSourceRepository {
         return id;
     }
 
-    /** Records that a check ran now. The hash is the one to compare against next time. */
-    public void markChecked(UUID id, String contentHash) {
-        jdbc.sql("UPDATE rule_source SET last_checked_at = now(), last_content_hash = :hash WHERE id = :id")
-                .param("hash", contentHash).param("id", id).update();
+    /**
+     * Records that a check ran now and schedules the next one. The hash is the one to compare against next time. A
+     * check that fetched the page waits the source's interval and clears the failures; a failed fetch waits
+     * {@link #RETRY_BASE_MINUTES} minutes doubled for every failure before it, but never longer than the interval.
+     * Both values are computed from the stored row, so two checks cannot corrupt the counter.
+     */
+    public void markChecked(UUID id, String contentHash, CheckOutcome outcome) {
+        jdbc.sql("""
+                UPDATE rule_source
+                SET last_checked_at = now(), last_content_hash = :hash,
+                    consecutive_failures = CASE WHEN :failed THEN consecutive_failures + 1 ELSE 0 END,
+                    next_check_at = now() + CASE WHEN :failed
+                        THEN least(check_interval_hours * interval '1 hour',
+                                   :baseMinutes * interval '1 minute' * power(2, least(consecutive_failures, :maxExponent)))
+                        ELSE check_interval_hours * interval '1 hour' END
+                WHERE id = :id""")
+                .param("hash", contentHash).param("failed", outcome == CheckOutcome.FETCH_FAILED)
+                .param("baseMinutes", RETRY_BASE_MINUTES).param("maxExponent", MAX_BACKOFF_EXPONENT).param("id", id).update();
     }
 
     public boolean setActive(UUID id, boolean active) {

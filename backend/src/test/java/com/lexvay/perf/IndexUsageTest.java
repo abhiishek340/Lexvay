@@ -36,7 +36,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Proves with {@code EXPLAIN}, as the application role under row-level security, that the planner chooses
- * each index added by V008 and V013 for the query it was added for, and ignores the candidates that were left out. The database holds 100 renamed copies of the seed
+ * each index added by V008, V013 and V016 for the query it was added for, and ignores the candidates that were left out. The database holds 100 renamed copies of the seed
  * (about 100 tenants), so tables are large enough for the planner to prefer an index over a sequential scan.
  * Run through {@code make perf}.
  */
@@ -147,6 +147,12 @@ class IndexUsageTest extends AbstractDatabaseTest {
         if (!schedulerUsesIndex) {
             keptButIgnored.add("job_claim_idx (scheduler)");
         }
+        boolean dueUsesIndex = scheduler.stream().anyMatch(line -> line.contains("rule_source_due_idx"));
+        report.add("| `rule_source_due_idx` | which active rule sources are due (scheduler, worker flag, all tenants; V016) | yes | "
+                + scans(scheduler) + " | " + (dueUsesIndex ? "yes" : "no") + " | |");
+        if (!dueUsesIndex) {
+            keptButIgnored.add("rule_source_due_idx (scheduler)");
+        }
         if (scheduler.stream().anyMatch(JOB_SEQUENTIAL_SCAN)) {
             jobSequentialScans.add("scheduler");
         }
@@ -188,7 +194,7 @@ class IndexUsageTest extends AbstractDatabaseTest {
         Path out = Path.of("target", "perf", "index-usage.md");
         Files.createDirectories(out.getParent());
         Files.writeString(out, table);
-        assertThat(keptButIgnored).as("indexes of V008 and V013 the planner did not choose: drop them").isEmpty();
+        assertThat(keptButIgnored).as("indexes of V008, V013 and V016 the planner did not choose: drop them").isEmpty();
         assertThat(rejectedButChosen).as("rejected candidates the planner now chooses: add them to V008").isEmpty();
         assertThat(lookupsOverBudget).as("job lookups touching more than " + JOB_LOOKUP_BUFFER_BUDGET
                 + " buffers: a lookup by one record must not walk the index of every tenant").isEmpty();

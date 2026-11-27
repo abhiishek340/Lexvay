@@ -14,7 +14,8 @@ import tools.jackson.databind.node.ObjectNode;
 public record Golden(boolean fictional, List<Entry> requirements) {
 
     public record Entry(String ref, String jurisdiction, String title, String text, RequirementType type, Numeric numeric,
-                        Finding finding, String document, String quoteContains, String reason) {
+                        Finding finding, String document, String quoteContains, List<String> searchTerms,
+                        String reason) {
 
         /** Requirements are identified by jurisdiction and ref, so two rule sets may reuse a ref. */
         public String key() {
@@ -38,6 +39,8 @@ public record Golden(boolean fictional, List<Entry> requirements) {
             }
             ObjectNode item = items.addObject();
             item.put("ref", e.ref()).put("title", e.title()).put("text", e.text()).put("type", e.type().name());
+            ArrayNode terms = item.putArray("search_terms");
+            e.searchTerms().forEach(terms::add);
             if (e.numeric() == null) {
                 item.putNull("numeric_field").putNull("numeric_operator").putNull("numeric_value");
             } else {
