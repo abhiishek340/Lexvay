@@ -58,7 +58,7 @@ public class WorkQueueRepository {
                 WHERE ce.status = 'OPEN'
             )
             """.formatted(MappingRepository.NEEDS_DECISION, MappingRepository.UNDECIDED, MappingRepository.LATEST_EVENT,
-            MappingRepository.CURRENT, ChangeEventRepository.AFFECTS_PROGRAM,
+            MappingRepository.current("IN (SELECT assessment_id FROM latest)"), ChangeEventRepository.AFFECTS_PROGRAM,
             DeterminationRepository.signedFor("m.assessment_id", "m.jurisdiction_id"));
 
     /**

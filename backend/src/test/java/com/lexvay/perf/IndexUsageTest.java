@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
+import com.lexvay.assessment.MappingRepository;
 import com.lexvay.auth.Role;
 import com.lexvay.llm.LlmClient;
 import com.lexvay.rule.source.RuleSourceRepository;
@@ -19,6 +20,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -71,15 +73,18 @@ class IndexUsageTest extends AbstractDatabaseTest {
         ScriptedFakeModel model = ScriptedFakeModel.load(SEED_DIR, llm, json);
         loader.load(SEED_DIR, PASSWORD, model);
         PerfSeed.loadCopies(loader, SEED_DIR, PASSWORD, model, COPIES);
+        UUID tenantId = users.findForLogin("dana.whitfield@northfield.example").orElseThrow().tenantId();
+        PerfSeed.LargeAssessments large;
         try (Connection admin = DriverManager.getConnection(jdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
              Statement statement = admin.createStatement()) {
             PerfSeed.addHistoryVolume(statement);
+            large = PerfSeed.addLargeAssessments(statement, tenantId);
             for (String ddl : REJECTED_DDL) {
                 statement.execute(ddl);
             }
+            awaitQuietJobQueue(statement);
             statement.execute("ANALYZE");
         }
-        UUID tenantId = users.findForLogin("dana.whitfield@northfield.example").orElseThrow().tenantId();
 
         List<String> report = new ArrayList<>();
         report.add("| Index | Query | Kept in V008 | Planner choice (application role, row-level security) | Chosen | Planner choice without row-level security |");
@@ -133,6 +138,21 @@ class IndexUsageTest extends AbstractDatabaseTest {
             workQueue.addAll(TenantContext.runAs(tenantId, () -> jdbc.sql(
                     "EXPLAIN (ANALYZE, BUFFERS) " + WorkQueueRepository.LIST.replace(":role", "'" + role + "'")).query(String.class).list()));
         }
+        List<String> mappingPlans = new ArrayList<>();
+        for (var assessment : Map.of("before re-run (500 mappings, successor rule version without mappings)", large.beforeRerun(),
+                "after re-run (500 hidden mappings of the superseded version, 500 current)", large.afterRerun()).entrySet()) {
+            String explain = "EXPLAIN (ANALYZE, BUFFERS) " + MappingRepository.BY_ASSESSMENT.replace(":a", "'" + assessment.getValue() + "'");
+            List<String> analyzed = null;
+            for (int run = 0; run < 3; run++) {
+                analyzed = TenantContext.runAs(tenantId, () -> jdbc.sql(explain).query(String.class).list());
+            }
+            mappingPlans.add("-- " + assessment.getKey());
+            mappingPlans.addAll(analyzed);
+        }
+        Path mappingPlan = Path.of("target", "perf", "mappings-plan.txt");
+        Files.createDirectories(mappingPlan.getParent());
+        Files.writeString(mappingPlan, String.join("\n", mappingPlans) + "\n");
+
         Path plan = Path.of("target", "perf", "work-queue-plan.txt");
         Files.createDirectories(plan.getParent());
         Files.writeString(plan, String.join("\n", workQueue) + "\n");
@@ -150,6 +170,23 @@ class IndexUsageTest extends AbstractDatabaseTest {
         assertThat(jobSequentialScans).as("statements that scan the job table sequentially: it only grows").isEmpty();
         assertThat(workQueue).as("the work queue statement scans no hot table sequentially (plan in target/perf/work-queue-plan.txt)")
                 .noneMatch(line -> line.matches(".*Seq Scan on (mapping|review_event|job)\\b.*") && !line.contains("never executed"));
+    }
+
+    /**
+     * The poller works in the background while the seed loads. Statistics taken with jobs still queued make the planner
+     * estimate that "only queued jobs" is not selective and choose another index, so the plans differ from run to run.
+     */
+    private static void awaitQuietJobQueue(Statement admin) throws SQLException, InterruptedException {
+        for (int attempt = 0; attempt < 300; attempt++) {
+            try (var open = admin.executeQuery("SELECT count(*) FROM job WHERE status IN ('QUEUED', 'RUNNING')")) {
+                open.next();
+                if (open.getLong(1) == 0) {
+                    return;
+                }
+            }
+            Thread.sleep(200);
+        }
+        throw new AssertionError("the job queue did not drain within a minute");
     }
 
     /** What the scheduler runs: across tenants, under the transaction-local worker flag and no tenant. */

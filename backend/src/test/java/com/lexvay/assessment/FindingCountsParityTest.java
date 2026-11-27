@@ -34,7 +34,7 @@ class FindingCountsParityTest extends AbstractDatabaseTest {
             LEFT JOIN LATERAL (SELECT re.kind FROM review_event re WHERE re.mapping_id = m.id
                                ORDER BY re.created_at DESC, re.id DESC LIMIT 1) le ON true
             WHERE m.assessment_id = :id
-            """ + MappingRepository.CURRENT + " GROUP BY j.code, m.finding ORDER BY j.code, m.finding";
+            """ + LegacyCurrentFilter.SQL + " GROUP BY j.code, m.finding ORDER BY j.code, m.finding";
 
     @Autowired SeedLoader loader;
     @Autowired AppUserRepository users;

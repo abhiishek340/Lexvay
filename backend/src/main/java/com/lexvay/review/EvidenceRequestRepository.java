@@ -73,7 +73,7 @@ public class EvidenceRequestRepository {
 
     /** Current mappings only (D-066), newest request first. */
     public List<EvidenceRequestView> findByAssessment(UUID assessmentId, EvidenceRequestStatus status) {
-        return jdbc.sql(SELECT + MappingRepository.CURRENT + FILTER)
+        return jdbc.sql(SELECT + MappingRepository.current("= :assessmentId") + FILTER)
                 .param("assessmentId", assessmentId).param("status", status.name()).query(ROW).list();
     }
 }

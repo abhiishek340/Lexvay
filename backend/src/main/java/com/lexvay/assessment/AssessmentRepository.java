@@ -69,7 +69,7 @@ public class AssessmentRepository {
                         + MappingRepository.UNDECIDED + ") AS decided "
                         + "FROM mapping m JOIN jurisdiction j ON j.id = m.jurisdiction_id JOIN requirement r ON r.id = m.requirement_id"
                         + MappingRepository.LATEST_EVENT
-                        + " WHERE m.assessment_id = :id" + MappingRepository.CURRENT
+                        + " WHERE m.assessment_id = :id" + MappingRepository.current("= :id")
                         + " GROUP BY j.code, m.finding ORDER BY j.code, m.finding")
                 .param("id", assessmentId).query().listOfRows();
     }
