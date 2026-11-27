@@ -86,9 +86,9 @@ describe('personActions', () => {
 });
 
 describe('the one-time link', () => {
-  it('carries the code in the query string of the setup page', () => {
-    expect(setupLink('https://lexvay.northfield.example', 'Ab_-9z')).toBe('https://lexvay.northfield.example/setup?code=Ab_-9z');
-    expect(setupLink('http://localhost:4302', 'a+b/c')).toBe('http://localhost:4302/setup?code=a%2Bb%2Fc');
+  it('carries the code in the fragment of the setup page, never in what is sent to the server', () => {
+    expect(setupLink('https://lexvay.northfield.example', 'Ab_-9z')).toBe('https://lexvay.northfield.example/setup#code=Ab_-9z');
+    expect(setupLink('http://localhost:4302', 'a+b/c')).toBe('http://localhost:4302/setup#code=a%2Bb%2Fc');
   });
 
   it('states how long it lasts and until when, in local time', () => {

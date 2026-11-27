@@ -6,7 +6,7 @@ import { Tooltip } from 'primeng/tooltip';
 import { filter, firstValueFrom } from 'rxjs';
 import { ApiService } from '../core/api.service';
 import { ROLE_LABEL } from '../core/labels';
-import { beforeSignIn, navLinks, screenOf } from '../core/navigation';
+import { beforeSignIn, inLink, navLinks, screenOf, tabBarOverflow, tabSlots } from '../core/navigation';
 import { ProgramContext } from '../core/program-context';
 import { SessionService } from '../core/session.service';
 import { CommandPalette } from '../ui/command-palette/command-palette';
@@ -15,6 +15,7 @@ import { InfoTip } from '../ui/info-tip';
 import { Mark } from '../ui/mark';
 import { initials } from '../ui/initials';
 import { AccountMenu } from './account-menu';
+import { MoreMenu } from './more-menu';
 import { ProgramSwitcher } from './program-switcher';
 import { ShellToast } from './shell-toast';
 import { WorkQueueMenu } from './work-queue-menu';
@@ -29,7 +30,7 @@ const RAIL_KEY = 'lexvay.rail.collapsed';
  */
 @Component({
   selector: 'lx-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIcon, Badge, Tooltip, InfoTip, Mark, AccountMenu, CommandPalette, ProgramSwitcher, ShellToast, WorkQueueMenu],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIcon, Badge, Tooltip, InfoTip, Mark, AccountMenu, CommandPalette, MoreMenu, ProgramSwitcher, ShellToast, WorkQueueMenu],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
   host: { '(document:keydown)': 'onKey($event)' },
@@ -55,10 +56,8 @@ export class Shell {
   /** The top bar and navigation appear once someone is signed in; sign-in and choosing a password stand alone. */
   readonly chrome = computed(() => this.session.authenticated() && this.url() !== null && !beforeSignIn(this.url()!));
   /** The rail is on every program screen and on the tenant-wide ones (the register, People), which need no program. */
-  readonly railVisible = computed(() => {
-    const path = (this.url() ?? '').split(/[?#]/)[0];
-    return this.chrome() && (this.programId() !== null || this.links().some((link) => link.tenant && link.path.join('/') === path));
-  });
+  readonly railVisible = computed(() =>
+    this.chrome() && (this.programId() !== null || this.links().some((link) => link.tenant && link.path.join('/') === this.path())));
   /** The screen segment kept when switching programs ("review" in /programs/p1/review?jurisdiction=CA). */
   readonly screen = computed(() => (this.url() ?? '').split(/[?#]/)[0].split('/')[3] ?? 'overview');
 
@@ -69,6 +68,15 @@ export class Shell {
     rulesWaiting: this.context.rulesWaiting(),
     openRequests: this.context.openRequests(),
   }, this.session.user()?.role ?? null));
+
+  /** How many tabs the bottom bar has room for (it is the rail under 640 px), and the screens that go into "More". */
+  private readonly slots = signal(tabSlots(window.innerWidth));
+  readonly overflow = computed(() => tabBarOverflow(this.links(), this.slots()));
+  readonly overflowIds = computed(() => new Set(this.overflow().map((link) => link.id)));
+  /** The URL path, for marking "More" when the screen shown is one of its own. */
+  readonly path = computed(() => (this.url() ?? '').split(/[?#]/)[0]);
+  readonly moreCurrent = computed(() => this.overflow().find((link) => inLink(this.path(), link)) ?? null);
+  readonly moreOpen = signal(false);
 
   readonly initials = computed(() => initials(this.session.user()?.displayName ?? ''));
   readonly collapsed = signal(readCollapsed());
@@ -82,6 +90,7 @@ export class Shell {
 
   readonly accountMenu = viewChild<AccountMenu>('accountMenu');
   readonly queueMenu = viewChild<WorkQueueMenu>('queueMenu');
+  readonly moreMenu = viewChild<MoreMenu>('moreMenu');
 
   constructor() {
     let previousScreen: string | null = null;
@@ -106,7 +115,7 @@ export class Shell {
       previousScreen = screen;
       requestAnimationFrame(() => this.placePill());
     });
-    const onResize = (): void => this.placePill();
+    const onResize = (): void => { this.slots.set(tabSlots(window.innerWidth)); this.placePill(); };
     window.addEventListener('resize', onResize);
     inject(DestroyRef).onDestroy(() => { resolved.unsubscribe(); sub.unsubscribe(); window.removeEventListener('resize', onResize); });
   }
@@ -132,6 +141,10 @@ export class Shell {
 
   openQueue(event: Event): void {
     this.queueMenu()?.toggle(event);
+  }
+
+  openMore(event: Event): void {
+    this.moreMenu()?.toggle(event);
   }
 
   openAccount(event: Event): void {

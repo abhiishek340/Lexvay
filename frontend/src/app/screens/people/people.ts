@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { NgIcon } from '@ng-icons/core';
 import { phosphorUsersDuotone } from '@ng-icons/phosphor-icons/duotone';
 import {
-  phosphorArrowCounterClockwise, phosphorCheck, phosphorCheckCircle, phosphorClock, phosphorCopy, phosphorDotsThree, phosphorHourglass, phosphorKey,
+  phosphorArrowCounterClockwise, phosphorCheck, phosphorCheckCircle, phosphorClock, phosphorCopy, phosphorHourglass, phosphorKey,
   phosphorProhibit, phosphorSignOut, phosphorUserGear, phosphorUserPlus,
 } from '@ng-icons/phosphor-icons/regular';
 import { ConfirmationService, MenuItem, MessageService } from 'primeng/api';
@@ -40,7 +40,7 @@ import { PersonDialog } from './person-dialog';
 
 /** The icons People shows beyond SHELL_ICONS, its dialogs included, provided by its route (people.routes.ts). */
 export const PEOPLE_ICONS = {
-  phosphorArrowCounterClockwise, phosphorCheck, phosphorCheckCircle, phosphorClock, phosphorCopy, phosphorDotsThree, phosphorHourglass, phosphorKey,
+  phosphorArrowCounterClockwise, phosphorCheck, phosphorCheckCircle, phosphorClock, phosphorCopy, phosphorHourglass, phosphorKey,
   phosphorProhibit, phosphorSignOut, phosphorUserGear, phosphorUserPlus, phosphorUsersDuotone,
 };
 

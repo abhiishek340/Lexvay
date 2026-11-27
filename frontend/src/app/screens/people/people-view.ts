@@ -65,9 +65,12 @@ export function personActions(account: Account, selfId: string | null): PersonAc
   return ['role', account.active ? 'deactivate' : 'reactivate', 'setup-code'];
 }
 
-/** The link the person opens to choose a password; the code travels in the query string the setup page clears. */
+/**
+ * The link the person opens to choose a password. The code travels in the fragment, which the browser never sends to a
+ * server, so no request or access log carries it; the setup page reads it and clears it (D-435).
+ */
 export function setupLink(origin: string, code: string): string {
-  return `${origin}/setup?code=${encodeURIComponent(code)}`;
+  return `${origin}/setup#code=${encodeURIComponent(code)}`;
 }
 
 /** "Valid for 72 hours, until 30 Nov 15:04", in the viewer's time zone. */

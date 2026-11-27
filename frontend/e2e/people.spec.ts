@@ -23,7 +23,7 @@ async function addPerson(page: Page, name: string, email: string): Promise<strin
   await expect(form.getByRole('combobox', { name: 'Role' })).toHaveText('Contributor');
   await form.getByRole('button', { name: 'Add person' }).click();
   const view = page.getByRole('dialog', { name: 'Setup link' });
-  await expect(view.getByTestId('setup-link')).toHaveText(/\/setup\?code=[A-Za-z0-9_-]{43}$/);
+  await expect(view.getByTestId('setup-link')).toHaveText(/\/setup#code=[A-Za-z0-9_-]{43}$/);
   return (await view.getByTestId('setup-link').textContent())!.trim();
 }
 
@@ -33,8 +33,16 @@ async function signOut(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/login$/);
 }
 
-/** Opens the link, which must leave the address bar at once, and chooses the password. */
+/**
+ * Opens the link and chooses the password. The code is in the fragment: no URL the browser sends carries it (only the
+ * POST body does), and the page clears it from the address bar at once.
+ */
 async function choosePassword(page: Page, link: string): Promise<void> {
+  const code = new URLSearchParams(new URL(link).hash.slice(1)).get('code')!;
+  const sent: string[] = [];
+  // What goes on the wire is the URL without its fragment (Playwright may report the fragment of a navigation).
+  const record = (request: { url(): string }): void => { sent.push(request.url().split('#')[0]); };
+  page.on('request', record);
   await page.goto(link);
   await expect(page.getByRole('heading', { name: 'Choose a password' })).toBeVisible();
   await expect(page).toHaveURL(/\/setup$/);
@@ -43,6 +51,9 @@ async function choosePassword(page: Page, link: string): Promise<void> {
   await page.getByRole('button', { name: 'Set password' }).click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.locator('.p-toast')).toContainText('Password set. Sign in.');
+  page.off('request', record);
+  expect(sent.some((url) => url.endsWith('/api/v1/auth/setup'))).toBe(true);
+  expect(sent.filter((url) => url.includes('code=') || url.includes(code))).toEqual([]);
 }
 
 async function signInAs(page: Page, email: string, password: string): Promise<void> {
@@ -69,7 +80,7 @@ test('an administrator adds a contributor, who chooses a password from the link 
   await expect(view.getByRole('button', { name: 'Copied' })).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link);
   // The code never lands in the browser's storage.
-  const code = new URL(link).searchParams.get('code')!;
+  const code = new URLSearchParams(new URL(link).hash.slice(1)).get('code')!;
   const stored = await page.evaluate(() => JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage)]));
   expect(stored).not.toContain(code);
   await view.getByRole('button', { name: 'Done' }).click();
@@ -144,7 +155,7 @@ test("a role change ends the person's session; deactivating and reactivating cha
   // A new setup code shows the same one-time view and replaces the earlier link.
   await (await personMenu(page, 'riley.chen@northfield.example', 'Riley Chen')).getByRole('menuitem', { name: 'New setup code' }).click();
   const view = page.getByRole('dialog', { name: 'Setup link' });
-  await expect(view.getByTestId('setup-link')).toHaveText(/\/setup\?code=[A-Za-z0-9_-]{43}$/);
+  await expect(view.getByTestId('setup-link')).toHaveText(/\/setup#code=[A-Za-z0-9_-]{43}$/);
   await expect(view).toContainText('Earlier links stop working.');
   await expect(view.getByTestId('setup-link')).not.toHaveText(link);
   await view.getByRole('button', { name: 'Done' }).click();

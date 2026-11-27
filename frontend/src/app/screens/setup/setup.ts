@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
 import { phosphorCheckCircle, phosphorCircle, phosphorEye, phosphorEyeSlash } from '@ng-icons/phosphor-icons/regular';
 import auraIconfield from '@primeuix/themes/aura/iconfield';
@@ -33,9 +33,10 @@ const STRENGTH_COLOUR: Record<StrengthLevel, string> = {
 
 /**
  * Choosing a password from a setup code (F5a): the sign-in frame without its story, two fields with show and hide,
- * the rules as a live checklist and a strength meter. The code is read once from the address and removed from it at
- * once (history.replaceState), lives only in this component, and leaves the page only in the POST. Nothing here is
- * stored or logged. The server signs nobody in, so success goes to sign-in.
+ * the rules as a live checklist and a strength meter. The code arrives in the fragment (`/setup#code=…`), which the
+ * browser never sends to a server; it is read once and removed from the address at once (history.replaceState), lives
+ * only in this component, and leaves the page only in the POST (D-435). Nothing here is stored or logged. The server
+ * signs nobody in, so success goes to sign-in.
  */
 @Component({
   selector: 'lx-setup',
@@ -69,7 +70,7 @@ export class Setup {
 
   constructor() {
     registerComponentTokens({ iconfield: auraIconfield, inputtext: auraInputtext, message: lexvayMessage, metergroup: auraMetergroup });
-    this.code = inject(ActivatedRoute).snapshot.queryParamMap.get('code') ?? '';
+    this.code = new URLSearchParams(location.hash.slice(1)).get('code') ?? '';
     history.replaceState(history.state, '', '/setup');
     this.invalid.set(this.code === '');
   }
