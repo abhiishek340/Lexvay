@@ -94,7 +94,7 @@
                                         (focus)="onFocus(r, c, cellEl)" (blur)="scheduleClose()" (mouseenter)="onEnter(r, c, cellEl)" (mouseleave)="onLeave()"
                                         (click)="onFocus(r, c, cellEl)">
                                   <span class="lx-mark" [attr.data-kind]="cell.kind" aria-hidden="true"></span>
-                                  @if (cell.outdated.length > 0) { <ng-icon class="lx-clock" name="phosphorClock" size="11" aria-hidden="true" /> }
+                                  @if (cell.outdated.length > 0) { <ng-icon class="lx-clock" name="phosphorClock" size="12" aria-hidden="true" /> }
                                 </button>
                               } @else {
                                 <span class="lx-blank" aria-hidden="true"></span>

@@ -72,6 +72,8 @@ export class Coverage {
   /** Escape in the card gives the focus back to its cell, which must not open the card again. */
   private returning = false;
   private showTimer = 0;
+  /** Bumped by every open and close, so a card scheduled for a later frame never opens after it was superseded. */
+  private showToken = 0;
   private hideTimer = 0;
 
   readonly program = computed(() => {
@@ -223,6 +225,7 @@ export class Coverage {
   scheduleClose(): void {
     clearTimeout(this.showTimer);
     clearTimeout(this.hideTimer);
+    this.showToken++;
     this.hideTimer = window.setTimeout(() => {
       if (!this.cardHasFocus()) { this.closeCard(); }
     }, 160);
@@ -235,6 +238,7 @@ export class Coverage {
   closeCard(): void {
     clearTimeout(this.showTimer);
     clearTimeout(this.hideTimer);
+    this.showToken++;
     this.card()?.hide();
   }
 
@@ -276,7 +280,10 @@ export class Coverage {
     this.hover.set(at);
     clearTimeout(this.hideTimer);
     clearTimeout(this.showTimer);
-    this.showTimer = window.setTimeout(() => {
+    const token = ++this.showToken;
+    // In the next frame: a focus that scrolled the frame fires its scroll event first, which closes an open Popover.
+    this.showTimer = window.setTimeout(() => requestAnimationFrame(() => {
+      if (token !== this.showToken) { return; }
       this.previewed.set({ row, cell });
       if (card.overlayVisible()) {
         card.target = el;
@@ -286,6 +293,6 @@ export class Coverage {
         this.focusCardOnShow = focusAction;
         card.show(null, el);
       }
-    }, delay);
+    }), delay);
   }
 }

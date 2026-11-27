@@ -136,9 +136,14 @@ for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await expectAccessible(page, `Coverage, Utah, ${width} px`);
     if (SCREENSHOTS) { await shoot(page, `f10b-utah-${width}`); }
 
+    // Focus brings the cell into view, clear of the sticky columns (the frame's scroll padding).
     const outdated = row(page, 'UT-7').getByRole('button', { name: /^COUN 625, / });
-    await outdated.scrollIntoViewIfNeeded();
     await outdated.focus();
+    await expect(outdated).toBeInViewport();
+    expect(await outdated.evaluate((b) => {
+      const box = b.getBoundingClientRect();
+      return b.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2));
+    }), 'the focused cell is not under a sticky column').toBe(true);
     await expect(card(page)).toContainText('2026-27 version');
     await expectAccessible(page, `Coverage, cell card, ${width} px`);
     if (SCREENSHOTS) { await shoot(page, `f10b-card-${width}`); }

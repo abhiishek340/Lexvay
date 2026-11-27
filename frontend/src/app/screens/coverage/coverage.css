@@ -35,8 +35,12 @@
 .lx-chip-body[data-tone='missing'] ng-icon { color: var(--p-lx-missing); }
 .lx-chip-body[data-tone='neutral'] ng-icon { color: var(--p-lx-text-2); }
 
-/* The matrix: the hero of the screen. It scrolls sideways inside its own frame; the page never does. */
-.lx-frame { overflow-x: auto; background: var(--p-lx-surface); border-radius: var(--lx-r-hero); box-shadow: var(--p-lx-e1); padding: 4px 0 8px; }
+/* The matrix: the hero of the screen. It scrolls sideways inside its own frame; the page never does. The scroll padding
+   keeps a focused cell clear of the sticky columns when the frame brings it into view. */
+.lx-frame {
+  overflow-x: auto; background: var(--p-lx-surface); border-radius: var(--lx-r-hero); box-shadow: var(--p-lx-e1); padding: 4px 0 8px;
+  scroll-padding-inline: 260px 220px;
+}
 .lx-matrix { width: 100%; border-collapse: separate; border-spacing: 0; }
 :where(.lx-matrix) :is(th, td) { padding: 0; background: var(--p-lx-surface); transition: background-color var(--lx-t-1) var(--lx-ease-out); }
 .lx-matrix thead th { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-text-2); vertical-align: bottom; }
@@ -80,7 +84,7 @@ thead .lx-req-col, thead .lx-flag-col { padding-bottom: 10px; }
 .lx-mark[data-kind='PERSON'] { box-shadow: inset 0 0 0 2px var(--p-lx-accent); }
 .lx-mark[data-kind='BOTH'] { background: var(--p-lx-accent); box-shadow: inset 0 0 0 2px var(--p-lx-accent), inset 0 0 0 calc(var(--size) * .25) var(--p-lx-surface); }
 .lx-mark[data-kind='OUTDATED'] { border: 2px dashed var(--p-lx-ambiguous); }
-.lx-clock { position: absolute; right: 1px; bottom: 1px; padding: 1px; border-radius: var(--lx-r-pill); background: var(--p-lx-surface); color: var(--p-lx-ambiguous); }
+.lx-clock { position: absolute; right: 2px; bottom: 2px; padding: 1px; border-radius: var(--lx-r-pill); background: var(--p-lx-surface); color: var(--p-lx-ambiguous); }
 
 /* Rows checked by the rules engine carry no cells, ever (D-393). */
 .lx-engine { padding-left: 12px; }
@@ -146,6 +150,9 @@ tr.lx-dim .lx-engine > span, tr.lx-dim .lx-flag { background: transparent; box-s
   .lx-toolbar { display: block; margin: 0 calc(-1 * var(--lx-gutter)) 12px; }
   :host ::ng-deep .lx-chips.p-selectbutton { flex-wrap: nowrap; overflow-x: auto; padding: 2px var(--lx-gutter) 6px; }
   :host ::ng-deep .lx-chips .p-togglebutton { flex: none; }
+  .lx-frame { scroll-padding-inline: 140px 56px; }
+  /* The rules-engine note stays beside the requirement column while the cells scroll under it. */
+  .lx-engine > span { position: sticky; left: 144px; }
   .lx-req-col { min-width: 0; width: 132px; max-width: 132px; padding: 0 8px 0 12px; }
   .lx-ref { display: block; width: auto; padding: 0; }
   .lx-req-title {
