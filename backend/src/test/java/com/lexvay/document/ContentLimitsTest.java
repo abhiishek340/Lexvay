@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test;
 
 class ContentLimitsTest {
 
+    final TextExtractor extractor = new TextExtractor(new NoOcrEngine(), 200);
+
     /** A DOCX-shaped archive whose entries have the given sizes: random bytes first, then zeros. */
     static byte[] archive(long randomBytes, long zeroBytes) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream(); ZipOutputStream zip = new ZipOutputStream(out)) {
@@ -83,7 +85,7 @@ class ContentLimitsTest {
     @Test
     void theExtractorAppliesTheDocxGuardToo() {
         byte[] bomb = archive(0, 30L << 20);
-        assertThatThrownBy(() -> TextExtractor.extract(FileType.DOCX, bomb))
+        assertThatThrownBy(() -> extractor.extract(FileType.DOCX, bomb))
                 .isInstanceOf(ContentLimits.ContentLimitException.class);
     }
 
@@ -98,7 +100,7 @@ class ContentLimitsTest {
     @Test
     void theExtractorRejectsAPdfOverThePageCapWithItsOwnMessage() {
         byte[] pdf = TestDocuments.pdf(java.util.Collections.nCopies(501, List.of("Fictional. Prototype data.")));
-        assertThatThrownBy(() -> TextExtractor.extract(FileType.PDF, pdf))
+        assertThatThrownBy(() -> extractor.extract(FileType.PDF, pdf))
                 .isInstanceOf(ContentLimits.ContentLimitException.class)
                 .hasMessage("PDF has 501 pages; the limit is 500");
     }
@@ -106,6 +108,6 @@ class ContentLimitsTest {
     @Test
     void theExtractorReadsAPdfOfExactlyTheCap() {
         byte[] pdf = TestDocuments.pdf(java.util.Collections.nCopies(500, List.of("Fictional. Prototype data.")));
-        assertThat(TextExtractor.extract(FileType.PDF, pdf)).hasSize(500);
+        assertThat(extractor.extract(FileType.PDF, pdf)).hasSize(500);
     }
 }

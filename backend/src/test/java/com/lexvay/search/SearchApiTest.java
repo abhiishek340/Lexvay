@@ -131,7 +131,7 @@ class SearchApiTest extends AbstractSearchTest {
         TenantContext.runAs(tenant.tenantId(), () -> {
             documents.insert(ruleDocument, tenant.tenantId(), null, null, "rule.txt", "a".repeat(64), "rules/rule.txt",
                     DocumentKind.RULE_TEXT, tenant.admin().id());
-            documents.insertPage(tenant.tenantId(), ruleDocument, new ExtractedPage(1, "Zymurgy certification of fermentation", 0, 37),
+            documents.insertPage(tenant.tenantId(), ruleDocument, ExtractedPage.textLayer(1, "Zymurgy certification of fermentation", 0, 37),
                     tenant.admin().id());
         });
         assertThat(search(programId, "zymurgy", "")).isEmpty();
@@ -145,7 +145,7 @@ class SearchApiTest extends AbstractSearchTest {
             documents.insert(manyPages, tenant.tenantId(), programId, null, "quokka.txt", "b".repeat(64), "documents/quokka.txt",
                     DocumentKind.HANDBOOK, tenant.admin().id());
             for (int page = 1; page <= 60; page++) {
-                documents.insertPage(tenant.tenantId(), manyPages, new ExtractedPage(page, "Quokka habitat notes, page " + page, 0, 30),
+                documents.insertPage(tenant.tenantId(), manyPages, ExtractedPage.textLayer(page, "Quokka habitat notes, page " + page, 0, 30),
                         tenant.admin().id());
             }
         });

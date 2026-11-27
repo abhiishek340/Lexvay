@@ -6,6 +6,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 import com.lexvay.assessment.AbstractAssessmentTest;
 import com.lexvay.document.FileType;
+import com.lexvay.document.NoOcrEngine;
 import com.lexvay.document.TextExtractor;
 import com.lexvay.review.ReviewFixtures;
 import java.util.UUID;
@@ -36,7 +37,7 @@ class ReportTest extends AbstractAssessmentTest {
         assertThat(ready.getResponse().getContentType()).isEqualTo("application/pdf");
         assertThat(ready.getResponse().getHeader("Content-Disposition")).contains("lexvay-evidence-report-");
         byte[] pdf = ready.getResponse().getContentAsByteArray();
-        String text = TextExtractor.extract(FileType.PDF, pdf).stream().map(p -> p.text()).collect(Collectors.joining("\n"));
+        String text = new TextExtractor(new NoOcrEngine(), 200).extract(FileType.PDF, pdf).stream().map(p -> p.text()).collect(Collectors.joining("\n"));
         assertThat(text).contains("Signed determination").contains("Determined not to meet").contains(t.signer().displayName())
                 .contains("CA-1").contains("CA-2").contains("CA-3").contains("Gap confirmed").contains("ACA Code of Ethics")
                 .contains("Versions hash").doesNotContainIgnoringCase("compliant");
