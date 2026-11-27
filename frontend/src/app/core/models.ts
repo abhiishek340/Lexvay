@@ -16,6 +16,30 @@ export interface NewUser { email: string; displayName: string; role: Role; }
 export interface SessionView { authenticated: boolean; user: UserView | null; csrfHeaderName: string | null; tenantName: string | null; demo: boolean; }
 
 export interface Program { id: string; name: string; licenseType: string; catalogYear: string; jurisdictions: string[]; createdAt: string; }
+/** POST /programs. Name, license type, catalog year and target states are fixed once the program exists. */
+export interface NewProgram { name: string; licenseType: string; catalogYear: string; jurisdictions: string[]; }
+/** One catalog-year version of a course; the current one is the version no other version supersedes. */
+export interface CourseVersion { id: string; courseId: string; programId: string; catalogYear: string; required: boolean; supersedesId: string | null; }
+/** GET /programs/{id}/courses: a course with its versions, oldest first. */
+export interface Course { id: string; programId: string; code: string; title: string; versions: CourseVersion[]; }
+/** POST /programs/{id}/courses creates the course and its first version for the program's catalog year (D-039). */
+export interface NewCourse { code: string; title: string; required: boolean; }
+export interface NewCourseVersion { catalogYear: string; required: boolean; supersedesId: string | null; }
+/** GET /programs/{id}/facts: every recorded fact, newest first; `current` marks the newest per key (D-036). */
+export interface ProgramFact {
+  id: string; programId: string; key: NumericField; value: number; evidenceSpanId: string; documentId: string; filename: string;
+  pageNumber: number; quote: string; createdAt: string; createdBy: string; current: boolean;
+}
+/** POST /programs/{id}/facts: the server verifies the quote against the stored page (product rule 2). */
+export interface NewProgramFact { key: NumericField; value: number; documentId: string; pageNumber: number; quote: string; }
+export type DocumentKind = 'SYLLABUS' | 'DEGREE_PLAN' | 'HANDBOOK' | 'ACCREDITATION';
+/** POST /programs/{id}/documents (202): the document is stored and read by an ingest job. */
+export interface UploadResult { documentId: string; jobId: string; }
+/** GET /documents/{id}: the document with its pages and the latest ingest job (null for a document stored with its pages). */
+export interface DocumentView {
+  id: string; programId: string | null; courseVersionId: string | null; filename: string; kind: string; createdAt: string;
+  pages: { pageNumber: number }[]; ingest: { jobId: string; status: JobStatus; error: string | null } | null;
+}
 export interface Jurisdiction { id: string; code: string; name: string; }
 
 export interface JurisdictionSummary { jurisdiction: string; total: number; evidenceFound: number; evidenceMissing: number; ambiguous: number; decided: number; }
@@ -91,14 +115,15 @@ export interface RequirementsView { ruleVersionId: string; approved: boolean; re
 export interface RequirementDraft {
   ref: string; title: string; text: string; type: RequirementType | null;
   numeric_field: NumericField | null; numeric_operator: NumericOperator | null; numeric_value: number | null;
-  /** Not edited on screen yet: every row sends back the terms it was loaded with, so a save never erases them. */
+  /** The vocabulary a syllabus would use for the requirement (F7c), at most 12 terms; absent means none. */
   search_terms: string[];
 }
 
 export type DiffOp = 'EQUAL' | 'DELETE' | 'INSERT';
 export interface DiffSegment { op: DiffOp; text: string; }
 export type DiffStatus = 'ADDED' | 'REMOVED' | 'CHANGED' | 'UNCHANGED';
-export type DiffAspect = 'TITLE' | 'TEXT' | 'TYPE' | 'NUMERIC';
+/** SEARCH_TERMS: the terms changed; it never makes a requirement a different one for evaluation (D-254). */
+export type DiffAspect = 'TITLE' | 'TEXT' | 'TYPE' | 'NUMERIC' | 'SEARCH_TERMS';
 export interface DiffRow { status: DiffStatus; refChanged: boolean; before: RequirementView | null; after: RequirementView | null; changes: DiffAspect[]; textDiff: DiffSegment[] | null; }
 export interface RuleVersionDiff {
   from: { id: string; label: string; effectiveFrom: string }; to: { id: string; label: string; effectiveFrom: string };
@@ -120,6 +145,8 @@ export interface EvidenceResponseSummary { id: string; providedBy: string; provi
 /** GET /programs/{id}/evidence-requests: one requirement for which a reviewer asked the program for evidence. */
 export interface EvidenceRequest {
   mappingId: string; jurisdiction: string; requirementRef: string; requirementTitle: string; status: EvidenceRequestStatus; stale: boolean;
+  /** FIX-3: the requirement's assessment and jurisdiction already have a signed determination, so the server refuses an answer. */
+  signed: boolean;
   requestNote: string | null; requestedBy: string; requestedByName: string | null; requestedAt: string;
   responseCount: number; latestResponse: EvidenceResponseSummary | null;
 }

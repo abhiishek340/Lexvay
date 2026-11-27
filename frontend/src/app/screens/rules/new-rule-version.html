@@ -3,8 +3,6 @@
   @let f = form();
   @let p = problems();
   <form id="new-rule-version-form" class="lx-form" (ngSubmit)="submit()" novalidate>
-    <p class="lx-help lx-form-intro">The rule text is stored as the version's document. The model then proposes its requirement list, which a reviewer
-      corrects and approves before any assessment uses it.</p>
     @if (general(); as g) { <p-message severity="error" data-testid="new-version-error">{{ g }}</p-message> }
 
     <div class="lx-field">
@@ -46,17 +44,23 @@
     </div>
 
     <div class="lx-field">
-      <span id="rv-supersedesId-label" class="lx-field-label">Supersedes <span class="lx-muted">(optional)</span></span>
+      <span class="lx-label-row">
+        <span id="rv-supersedesId-label" class="lx-field-label">Supersedes <span class="lx-muted">(optional)</span></span>
+        <lx-info-tip label="About superseding a version">Choose the version this one replaces; a change event opens when it is approved.</lx-info-tip>
+      </span>
       <p-select inputId="rv-supersedesId" ariaLabelledBy="rv-supersedesId-label" [options]="supersedable()" optionLabel="label" optionValue="id"
                 [showClear]="true" [placeholder]="f.jurisdiction ? (supersedable().length ? 'None' : 'No approved version to replace') : 'Choose a jurisdiction first'"
                 [ngModel]="f.supersedesId" [ngModelOptions]="{ standalone: true }" (ngModelChange)="set('supersedesId', $event ?? null)"
                 [disabled]="supersedable().length === 0" [invalid]="!!p.supersedesId" appendTo="body" [fluid]="true" />
-      <p class="lx-help">Choose the version this one replaces; a change event opens when it is approved.</p>
       @if (p.supersedesId; as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
     </div>
 
     <div class="lx-field">
-      <label for="rv-text" class="lx-field-label">Rule text</label>
+      <span class="lx-label-row">
+        <label for="rv-text" class="lx-field-label">Rule text</label>
+        <lx-info-tip label="How a new version is read">The rule text is stored as the version's document. The model then proposes its requirement list, which a
+          reviewer corrects and approves before any assessment uses it.</lx-info-tip>
+      </span>
       <textarea pTextarea id="rv-text" class="lx-mono lx-rule-input" rows="10" [ngModel]="f.text" [ngModelOptions]="{ standalone: true }"
                 (ngModelChange)="set('text', $event)" [invalid]="!!p.text" [attr.maxlength]="max" [fluid]="true"
                 [attr.aria-describedby]="p.text ? 'rv-text-count rv-text-error' : 'rv-text-count'"></textarea>

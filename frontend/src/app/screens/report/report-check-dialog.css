@@ -4,8 +4,13 @@
  */
 .lx-check { min-height: 12rem; display: flex; flex-direction: column; justify-content: center; }
 
-/* The drop zone is FileUpload's content area: a hairline frame that takes the accent rule while a file is over it. */
+/*
+ * The drop zone is FileUpload's content area: a hairline frame that takes the accent rule while a file is over it. The
+ * shared token set (program setup's) gives FileUpload an inset fill and padding; this dialog draws its own frame instead.
+ */
+:host ::ng-deep .lx-check-upload.p-fileupload { background: transparent; }
 :host ::ng-deep .lx-check-upload .p-fileupload-header { display: none; }
+:host ::ng-deep .lx-check-upload .p-fileupload-content { padding: 0; }
 .lx-drop {
   display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 24px;
   border: 1px dashed var(--p-lx-line-strong); border-radius: 6px;

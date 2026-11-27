@@ -12,7 +12,7 @@ import { ApiService } from '../../core/api.service';
 import { ProgramContext } from '../../core/program-context';
 import { registerComponentTokens } from '../../theme/component-tokens';
 import { lexvayDialog } from '../../theme/dialog-tokens';
-import { lexvayFileUpload } from '../../theme/fileupload-tokens';
+import { lexvayFileupload } from '../../theme/fileupload-tokens';
 import { lexvayMessage } from '../../theme/message-tokens';
 import { Seal } from '../../ui/seal';
 import { CheckView, checkProblem, checkView, fileProblem } from './report-check';
@@ -50,7 +50,7 @@ export class ReportCheckDialog {
   private readonly headline = viewChild<ElementRef<HTMLElement>>('headline');
 
   constructor() {
-    registerComponentTokens({ dialog: lexvayDialog, fileupload: lexvayFileUpload, message: lexvayMessage });
+    registerComponentTokens({ dialog: lexvayDialog, fileupload: lexvayFileupload, message: lexvayMessage });
     // Every opening starts at the drop zone; closing abandons a check still under way.
     effect(() => {
       if (!this.open()) { untracked(() => this.reset()); }

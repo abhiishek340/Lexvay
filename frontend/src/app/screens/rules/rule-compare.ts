@@ -13,8 +13,11 @@ import { REQUIREMENT_TYPE_LABEL, numericCheck } from '../../core/labels';
 import { DiffRow, DiffSegment, DiffStatus, RuleVersionDiff, RuleVersionView } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { comparableVersions } from '../../core/rules';
+import { CountUp } from '../../ui/count-up';
 import { DiffText } from '../../ui/diff-text';
+import { Enter } from '../../ui/enter';
 import { DIFF_STATUS } from './diff-status';
+import { TermsDiff, termsDiff } from './search-terms';
 
 const SUMMARY_ORDER: { status: DiffStatus; key: keyof RuleVersionDiff['summary'] }[] = [
   { status: 'CHANGED', key: 'changed' }, { status: 'ADDED', key: 'added' }, { status: 'REMOVED', key: 'removed' }, { status: 'UNCHANGED', key: 'unchanged' },
@@ -23,7 +26,7 @@ const SUMMARY_ORDER: { status: DiffStatus; key: keyof RuleVersionDiff['summary']
 /** The Compare tab: this version against the one it supersedes, or another approved version of the same rule. */
 @Component({
   selector: 'lx-rule-compare',
-  imports: [FormsModule, NgIcon, Accordion, AccordionContent, AccordionHeader, AccordionPanel, Message, Select, Skeleton, TableModule, Tag, DiffText],
+  imports: [FormsModule, NgIcon, Accordion, AccordionContent, AccordionHeader, AccordionPanel, Message, Select, Skeleton, TableModule, Tag, CountUp, DiffText, Enter],
   templateUrl: './rule-compare.html',
   styleUrl: './rule-compare.css',
 })
@@ -101,6 +104,11 @@ export class RuleCompare {
   check(row: DiffRow, side: 'before' | 'after'): string {
     const r = row[side];
     return (r && numericCheck(r)) ?? 'no number';
+  }
+
+  /** The search terms of both sides, with the removed and the added ones marked (a terms-only change is its own aspect, D-254). */
+  terms(row: DiffRow): TermsDiff {
+    return termsDiff(row.before?.searchTerms ?? [], row.after?.searchTerms ?? []);
   }
 
   typeOf(row: DiffRow, side: 'before' | 'after'): string {

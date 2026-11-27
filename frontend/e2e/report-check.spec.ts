@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Page } from '@playwright/test';
-import { DANA, SCREENSHOTS, expect, expectAccessible, nav, shoot, signIn, test } from './support';
+import { DANA, SCREENSHOTS, expect, expectAccessible, goTo, shoot, signIn, test } from './support';
 
 /**
  * F14, checking a report file. Runs after the suite (playwright.config.ts): the report it checks is the PDF of the
@@ -12,7 +12,7 @@ interface Pdf { name: string; mimeType: string; buffer: Buffer }
 
 /** Downloads the signed California report from the Evidence report screen, as a person would. */
 async function downloadCaliforniaReport(page: Page): Promise<Pdf> {
-  await nav(page, 'Evidence report').click();
+  await goTo(page, 'Evidence report');
   await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
   await page.getByRole('option', { name: 'California (CA)' }).click();
   await expect(page.getByRole('img', { name: /^Signed by Dana Whitfield on / })).toBeVisible();
@@ -93,7 +93,7 @@ test('a downloaded report matches with its facts, a changed copy does not, and b
   await expect(dialog(page)).toBeHidden();
   await expect(page).toHaveURL(/\/report\?jurisdiction=CA$/);
 
-  await nav(page, 'Audit trail').click();
+  await goTo(page, 'Audit trail');
   await page.getByRole('combobox', { name: 'Action' }).click();
   await page.getByRole('option', { name: 'Report file checked' }).click();
   const entries = page.getByRole('main').getByRole('listitem');
