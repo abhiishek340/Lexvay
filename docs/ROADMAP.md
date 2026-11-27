@@ -24,21 +24,22 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | merged (PR #16) |
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
-| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (final merge of main) |
-| FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
-| F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | PR #21 approved (CI running) |
+| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | merged (PR #18) |
+| FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | in progress |
+| F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | merged (PR #21) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
-| F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | PR #22 in review (layout, error text, dirty guard, viewer) |
-| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | specified (starts when F1 merges) |
+| F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
+| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | in progress |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
-| F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | PR #17 in review (merges after #14, #13, #16) |
+| F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
+| F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | in progress |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | queued (after F7, FIX-1) |
-| OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | in progress |
+| OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | in progress |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
-| F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | in progress |
+| F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
 ---
 
@@ -198,7 +199,7 @@ requirement, before approving the new list and re-running. Slot 5. No migration.
 Purpose: a reviewer must see a quote where it sits on the page, not only the quote. One reusable
 `DocumentViewer` serves the review screen now and the evidence-request and program-setup screens later. The
 quote is highlighted from the stored character offsets; the browser never searches text (the server verified
-the quote; the viewer only shows what was verified). Decisions D-220 to D-229 in `docs/decisions/F1.md`.
+the quote; the viewer only shows what was verified). Decisions D-220 to D-229 in `DECISIONS.md (F1)`.
 1. **Backend** (small, with tests): `GET /api/v1/documents/{id}/file` streams the original bytes from
    `FileStore` with `Content-Type` from the stored kind (`application/pdf`, DOCX media type, `text/plain`),
    `Content-Disposition: inline; filename="<stored filename, RFC 5987 encoded>"`, `Cache-Control: private,
@@ -244,14 +245,14 @@ the quote; the viewer only shows what was verified). Decisions D-220 to D-229 in
    the first screen that uses `selectable`), axe in both themes at 1280 and 400 px. Backend tests for the file
    endpoint (headers, 404 other tenant, 304 on If-None-Match).
 Done when: `LEXVAY_E2E_SLOT=1 make test` green; screenshots of the review screen with the viewer in both themes
-in `docs/screens/`; `docs/decisions/F1.md` and `docs/progress/F1.md` written.
+in `docs/screens/`; `DECISIONS.md (F1)` and `PROGRESS.md (F1)` written.
 
 ## F3 — Rule workspace screens (frontend; slot 10; Opus 5.5; uses F3a, WS-UI)
 Purpose: today a reviewer can approve a requirement list only through the API. The rule workspace is where a
 jurisdiction's rule versions are entered, the extracted list is corrected and approved, and a revision is
 compared with the version it supersedes. The product rules apply on screen exactly as in the API: the model
 proposes the list, a person approves it; nothing approved is ever edited. Decisions D-210 to D-219 in
-`docs/decisions/F3.md`. Everything is built from PrimeNG 22 components with the existing `LexvayPreset`, Phosphor
+`DECISIONS.md (F3)`. Everything is built from PrimeNG 22 components with the existing `LexvayPreset`, Phosphor
 icons, the tokens in `docs/DESIGN.md`, and the patterns WS-UI set (skeleton loading, inline `Message` for
 problem details, toast for completed operations, focus on the heading after navigation, `data-testid="message"`).
 1. **Route and navigation**: `programs/:programId/rules` ("Rules" in the rail, icon `phosphorScales`, placed
@@ -323,7 +324,7 @@ problem details, toast for completed operations, focus on the heading after navi
 8. No backend change is expected. If one is needed (for example a missing field in a view), add it with
    tests, a validation-table row if it is an endpoint, and call it out in the PR.
 Done when: `LEXVAY_E2E_SLOT=10 make test` green; screenshots of the list, the edit grid, the approve dialog and the
-compare tab in both themes under `docs/screens/`; `docs/decisions/F3.md` and `docs/progress/F3.md` written.
+compare tab in both themes under `docs/screens/`; `DECISIONS.md (F3)` and `PROGRESS.md (F3)` written.
 
 ## F4 — Evidence request screens (frontend; slot 4; Opus 5.5; after F1 merges; uses F4a)
 Purpose: "Request evidence from program director" in Review currently ends in a decision nobody can act on in
@@ -364,6 +365,10 @@ system's proposed finding is never changed by an answer. Decisions D-260 to D-26
    The system's proposed finding and its evidence stay first and unchanged. The decision note placeholder for
    an answered request reads "Note the evidence you relied on". The requirement list shows a small
    `phosphorChatCircleText` marker with text "evidence provided" on mappings with responses.
+   **Decided during F4 (orchestrator):** `GET /programs/{id}/documents` is added in F4 (one statement, `current`
+   flag from the course-version supersession, any role); the picker shows current documents by default with an
+   "Include earlier catalog years" switch and disables documents without pages; `Mapping` gains `responseCount`
+   (correlated count served by `evidence_response_mapping_idx`), measured with `make perf`.
 5. **Accessibility and keyboard**: drawer traps focus and returns it to the row action; the inbox table is
    keyboard navigable; axe clean in both themes at 1280 and 400 px.
 6. **Unit tests** (Vitest): inbox status derivation including blocked, the selection-to-request mapping, the
@@ -477,7 +482,7 @@ version share a timestamp, so the order is the text order of the ref ("CO-10" be
 3. Tests: a rule with twelve requirements lists CO-1 … CO-12 in order through the requirements endpoint,
    the mappings endpoint and the diff; replace keeps the submitted order; `Rule5` immutability unchanged.
 
-## FIX-2 — Job entity id column and index (after FIX-1; slot 5; migration `V013__job_entity_id.sql`)
+## FIX-2 — Job entity id column and index (slot 5; migration `V013__job_entity_id.sql`)
 Defect found in review of WS-PERF (D-115): `JobRepository.latest` filters by `payload->>:key`, which scans the
 whole `job` table under row-level security because `jsonb ->>` is not leakproof and jobs are never deleted.
 Every job payload today holds exactly one id (`documentId`, `ruleVersionId`, `assessmentId`, `changeEventId`,
@@ -586,7 +591,7 @@ dilutes the model's attention. Everything below is measured before and after wit
    against values computed by hand in the test); excerpter cases (short page, long page, fragment not
    found, merging); the prompt contains the excerpt and not the full long page; quote from an excerpt
    verifies; quote spanning `[...]` is rejected by the verifier because it is not in the page.
-Decisions in `docs/decisions/F7.md` (D-170 to D-179).
+Decisions in `DECISIONS.md (F7)` (D-170 to D-179).
 
 ## F12 — Rule source monitoring (backend only; slot 8; migration `V011__rule_source.sql`)
 Purpose: change tracking today starts only when a person uploads a new rule text. Real boards publish rule
@@ -656,7 +661,7 @@ approves anything and never alters an approved version (product rules 1, 5, 6). 
 ## F13 — Work queue API (backend only; slot 9; after WS-PERF merges; no schema change unless EXPLAIN demands, then `V014__work_queue_indexes.sql`)
 Purpose: a reviewer, signer, contributor or administrator should open the product and see what needs them,
 across programs and states, without visiting each overview. One read endpoint, one SQL statement, under the
-read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
+read budget. Decisions D-190 to D-199 in `DECISIONS.md (F13)`.
 1. `GET /api/v1/work-queue` → `{ generatedAt, counts: { <kind>: n }, items: [...] }`. Each item:
    `{ kind, programId, programName, jurisdictionCode, count, oldestAt, ids }` where `ids` holds the handful of
    record ids the UI needs to navigate (assessment id, rule version id, change event ids), never more than
@@ -752,7 +757,7 @@ print view in `docs/screens/`, `docs/decisions/F8.md` and `docs/progress/F8.md` 
 
 ## OPS-1 — Image build and smoke in CI (after F6 merges; no slot; Sonnet 5.5)
 Purpose: F6 ships a Dockerfile and `scripts/smoke.sh`; nothing runs them on every change. Decisions D-240 to D-244
-in `docs/decisions/OPS-1.md`.
+in `DECISIONS.md (OPS-1)`.
 1. A third job `image` in `.github/workflows/ci.yml`, after `test` succeeds: build the image with Buildx
    (`docker/setup-buildx-action`, pinned by major tag and recorded with its version in the decision file) using
    the GitHub Actions cache (`cache-from`/`cache-to: type=gha`), tag `lexvay:ci-<sha>`, never push. Then run
@@ -810,6 +815,21 @@ D-259 in `docs/decisions/F7c.md`.
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
 ## Follow-ups recorded from reviews
+- Merge round of 2026-11-26 (owner asked for every open PR to be merged): the orchestrator integrated #20, #18, #21,
+  #17, #22 and #23 on one tree, ran the full suite (788 backend, 70 frontend unit, 13 end-to-end) and merged them
+  in that order with the recorded conflict resolutions. Fixes made in that round: fetched HTML is served as plain
+  text (`FileType.HTML`), `Passage` carries F7's excerpt and rank and F11's OCR fields together, one
+  `documentPage` method in `ApiService`, `RetrievalFileTest` builds a `TextExtractor`, and the database
+  healthcheck runs over TCP (first-time role creation could finish after a socket check passed).
+- Bundle: the initial bundle is 703.7 kB raw after F3, over the 700 kB warning budget (error at 800 kB). Before the
+  next screen lands, defer the rule workspace's edit grid and dialogs (`@defer`) and check what the Listbox,
+  DatePicker and Accordion token sets add to the preset.
+- F13 decisions to settle: `ASSESSMENTS_FAILED` should list only failures newer than the program's latest finished
+  assessment; an open evidence request on a signed mapping stays in `EVIDENCE_REQUESTS_OPEN` although answering
+  it returns 409 (hide it, or show it as blocked like stale ones); `AssessmentRepository.findingCounts` should use
+  `MappingRepository.NEEDS_DECISION`; `MappingRepository.CURRENT` is quadratic in the mappings of one assessment.
+- Worktrees for integration work must live under the repository (Colima shares only the home directory with its
+  VM; a bind mount from `/private/tmp` is empty inside the container).
 - TEST-1: the end-to-end backend runs FakeLlmClient without the extraction and match scripts that only the seed
   process loads, so a rule version entered in the browser always ends in "Extraction failed". Load
   `seed/fake-llm.yml` into the e2e backend (profile `e2e`, same loader as `SeedLoader`) and extend F3's e2e test

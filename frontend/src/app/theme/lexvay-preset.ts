@@ -1,11 +1,15 @@
 import { definePreset } from '@primeuix/themes';
+import auraAccordion from '@primeuix/themes/aura/accordion';
 import auraBase from '@primeuix/themes/aura/base';
 import auraBadge from '@primeuix/themes/aura/badge';
 import auraButton from '@primeuix/themes/aura/button';
 import auraDatatable from '@primeuix/themes/aura/datatable';
+import auraDatepicker from '@primeuix/themes/aura/datepicker';
 import auraDialog from '@primeuix/themes/aura/dialog';
 import auraIconfield from '@primeuix/themes/aura/iconfield';
+import auraInputnumber from '@primeuix/themes/aura/inputnumber';
 import auraInputtext from '@primeuix/themes/aura/inputtext';
+import auraListbox from '@primeuix/themes/aura/listbox';
 import auraMenu from '@primeuix/themes/aura/menu';
 import auraMessage from '@primeuix/themes/aura/message';
 import auraPassword from '@primeuix/themes/aura/password';
@@ -87,7 +91,7 @@ const ink = {
  */
 const Aura = {
   ...auraBase,
-  components: { badge: auraBadge, button: auraButton, datatable: auraDatatable, dialog: auraDialog, iconfield: auraIconfield, inputtext: auraInputtext, menu: auraMenu, message: auraMessage, password: auraPassword, progressbar: auraProgressbar, progressspinner: auraProgressspinner, radiobutton: auraRadiobutton, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, splitter: auraSplitter, tabs: auraTabs, tag: auraTag, textarea: auraTextarea, toast: auraToast, togglebutton: auraTogglebutton, toggleswitch: auraToggleswitch, tooltip: auraTooltip },
+  components: { accordion: auraAccordion, badge: auraBadge, button: auraButton, datatable: auraDatatable, datepicker: auraDatepicker, dialog: auraDialog, iconfield: auraIconfield, inputnumber: auraInputnumber, inputtext: auraInputtext, listbox: auraListbox, menu: auraMenu, message: auraMessage, password: auraPassword, progressbar: auraProgressbar, progressspinner: auraProgressspinner, radiobutton: auraRadiobutton, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, splitter: auraSplitter, tabs: auraTabs, tag: auraTag, textarea: auraTextarea, toast: auraToast, togglebutton: auraTogglebutton, toggleswitch: auraToggleswitch, tooltip: auraTooltip },
 };
 
 export const LexvayPreset = definePreset(Aura, {

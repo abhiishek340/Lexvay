@@ -1,9 +1,10 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from './api.service';
-import { AssessmentView, ChangeEvent, Determination, Jurisdiction, Program, RuleVersionView } from './models';
+import { AssessmentView, ChangeEvent, Determination, Jurisdiction, Program, ProgramOverview, RuleVersionView } from './models';
 import { overviewCounts } from './overview';
 import { problemDetail } from './problem';
+import { versionsWaitingForApproval } from './rules';
 
 /**
  * The program every screen works on, loaded once per program and shared, so moving between screens
@@ -30,6 +31,7 @@ export class ProgramContext {
     return program ? overviewCounts(program, this.assessment(), this.determinations()) : null;
   });
   readonly openChanges = computed(() => this.changeEvents().filter((e) => e.status === 'OPEN').length);
+  readonly rulesWaiting = computed(() => versionsWaitingForApproval(this.ruleVersions()));
   private readonly names = computed(() => new Map(this.jurisdictions().map((j) => [j.code, j.name])));
 
   jurisdictionName(code: string): string {
@@ -51,24 +53,18 @@ export class ProgramContext {
     this.program.set(null);
     this.assessment.set(null);
     try {
-      const [programs, program, determinations, audit, changes, jurisdictions, ruleVersions] = await Promise.all([
+      const [programs, overview, changes, jurisdictions, ruleVersions] = await Promise.all([
         firstValueFrom(this.api.programs()),
-        firstValueFrom(this.api.program(programId)),
-        firstValueFrom(this.api.determinations(programId)),
-        firstValueFrom(this.api.audit(500)),
+        firstValueFrom(this.api.programOverview(programId)),
         firstValueFrom(this.api.changeEvents()),
         firstValueFrom(this.api.jurisdictions()),
         firstValueFrom(this.api.ruleVersions()),
       ]);
-      const assessmentId = this.api.latestAssessmentId(audit, programId);
-      const assessment = assessmentId ? await firstValueFrom(this.api.assessment(assessmentId)) : null;
       this.programs.set(programs);
-      this.program.set(program);
-      this.determinations.set(determinations);
+      this.applyOverview(overview);
       this.changeEvents.set(changes);
       this.jurisdictions.set(jurisdictions);
       this.ruleVersions.set(ruleVersions);
-      this.assessment.set(assessment);
       this.ready.set(true);
     } catch (e: unknown) {
       this.pending = null;
@@ -91,21 +87,30 @@ export class ProgramContext {
     }
   }
 
+  /** After a rule version is entered, corrected or approved, and while an extraction runs. */
+  async refreshRuleVersions(): Promise<void> {
+    this.ruleVersions.set(await firstValueFrom(this.api.ruleVersions()));
+  }
+
   /** After a re-run: change events, determinations and the latest assessment may all have moved. */
   async refreshAfterChange(): Promise<void> {
     const program = this.program();
     if (!program) {
       return;
     }
-    const [changes, determinations, audit] = await Promise.all([
+    const [changes, overview] = await Promise.all([
       firstValueFrom(this.api.changeEvents()),
-      firstValueFrom(this.api.determinations(program.id)),
-      firstValueFrom(this.api.audit(500)),
+      firstValueFrom(this.api.programOverview(program.id)),
     ]);
-    const assessmentId = this.api.latestAssessmentId(audit, program.id);
     this.changeEvents.set(changes);
-    this.determinations.set(determinations);
-    this.assessment.set(assessmentId ? await firstValueFrom(this.api.assessment(assessmentId)) : null);
+    this.applyOverview(overview);
+  }
+
+  /** The program, its latest finished assessment and its determinations, as one consistent read. */
+  private applyOverview(overview: ProgramOverview): void {
+    this.program.set(overview.program);
+    this.assessment.set(overview.assessment);
+    this.determinations.set(overview.determinations);
   }
 
   /** On sign-out, so the next user never sees the previous user's program. */
@@ -117,5 +122,6 @@ export class ProgramContext {
     this.assessment.set(null);
     this.determinations.set([]);
     this.changeEvents.set([]);
+    this.ruleVersions.set([]);
   }
 }

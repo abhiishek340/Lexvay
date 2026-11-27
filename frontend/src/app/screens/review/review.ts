@@ -1,5 +1,5 @@
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
-import { Component, DestroyRef, ElementRef, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, effect, inject, input, linkedSignal, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
@@ -21,6 +21,7 @@ import { DecisionKind, Mapping, Outcome } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { SessionService } from '../../core/session.service';
+import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
 import { DecisionState, FindingLabel } from '../../ui/finding';
 import { REVIEW_FILTERS, ReviewFilter, ReviewWorkspace, SHORTCUT_HELP, ShortcutCommand, decisionBlocker, shortcutFor } from './review-workspace';
 
@@ -29,7 +30,7 @@ const WIDE = '(min-width: 1024px)';
 @Component({
   selector: 'lx-review',
   imports: [DatePipe, NgTemplateOutlet, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, Message, ProgressBar, RadioButton, SelectButton, Skeleton,
-    Splitter, SplitterPanel, Tab, TabList, TabPanel, TabPanels, Tabs, Textarea, FindingLabel, DecisionState],
+    Splitter, SplitterPanel, Tab, TabList, TabPanel, TabPanels, Tabs, Textarea, FindingLabel, DecisionState, DocumentViewer],
   templateUrl: './review.html',
   styleUrl: './review.css',
   host: { '(document:keydown)': 'onKey($event)' },
@@ -69,6 +70,8 @@ export class Review {
   private readonly listPane = viewChild<ElementRef<HTMLElement>>('listPane');
 
   readonly selected = this.workspace.selected;
+  /** Under 1024 px the page is shown on request; each requirement starts with it collapsed again. */
+  readonly showOnPage = linkedSignal({ source: this.workspace.selectedId, computation: () => false });
   readonly signed = computed(() => this.context.determinations().find((d) => d.jurisdiction === this.jurisdiction() && d.status === 'SIGNED') ?? null);
   readonly reopened = computed(() => !this.signed() && this.context.determinations().some((d) => d.jurisdiction === this.jurisdiction() && d.status === 'REOPENED'));
   readonly canSign = computed(() => this.workspace.allDecided() && this.session.isSigner() && !this.signed());

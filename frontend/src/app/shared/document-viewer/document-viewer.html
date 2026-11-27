@@ -1,0 +1,93 @@
+<figure class="lx-document" [attr.aria-busy]="page.isLoading()">
+  <figcaption class="lx-document-head">
+    <p class="lx-document-name">
+      <ng-icon name="phosphorFileText" size="16" aria-hidden="true" />
+      @if (loaded(); as p) { <span>{{ p.filename }}</span> } @else { <p-skeleton width="12rem" height="1rem" /> }
+    </p>
+    @if (ocr(); as note) {
+      <p class="lx-document-ocr" data-testid="ocr-note"><ng-icon name="phosphorWarning" size="14" aria-hidden="true" />{{ note }}</p>
+    }
+    <div class="lx-document-bar">
+      <p class="lx-document-position" role="status" aria-live="polite" data-testid="page-position">
+        Page <span class="lx-mono">{{ current() }}</span>@if (pageCount(); as count) { of <span class="lx-mono">{{ count }}</span>}
+      </p>
+      <div class="lx-document-actions">
+        <button pButton type="button" #previousButton severity="secondary" [outlined]="true" size="small" [disabled]="!hasPrevious()" (click)="go(-1)">
+          <ng-icon name="phosphorCaretLeft" size="14" aria-hidden="true" /><span pButtonLabel>Previous page</span>
+        </button>
+        <button pButton type="button" #nextButton severity="secondary" [outlined]="true" size="small" [disabled]="!hasNext()" (click)="go(1)">
+          <span pButtonLabel>Next page</span><ng-icon name="phosphorCaretRight" size="14" aria-hidden="true" />
+        </button>
+        <a pButton [href]="fileUrl()" target="_blank" rel="noopener" severity="secondary" [text]="true" size="small">
+          <ng-icon name="phosphorArrowSquareOut" size="14" aria-hidden="true" /><span pButtonLabel>Open original</span><span class="lx-sr-only">(opens in a new tab)</span>
+        </a>
+        @if (selectable()) {
+          <button pButton type="button" severity="secondary" [text]="true" size="small" [disabled]="!loaded()" (click)="openRange()">
+            <ng-icon name="phosphorCursorText" size="14" aria-hidden="true" /><span pButtonLabel>Select passage by character range</span>
+          </button>
+        }
+      </div>
+    </div>
+  </figcaption>
+
+  @if (mismatch()) {
+    <p-message class="lx-document-note" severity="warn" size="small">The stored quote position does not match this page</p-message>
+  }
+  @if (loadError(); as e) {
+    <p-message class="lx-document-note" severity="error" size="small">{{ e }}</p-message>
+  } @else {
+    <!-- The page scrolls inside the frame, so the header stays in place; focusable so the keyboard can scroll it. -->
+    <div class="lx-document-body" #body tabindex="0" role="region" aria-label="Page text">
+      @if (loaded(); as p) {
+        <!-- Text nodes and one mark, never innerHTML; no whitespace of its own inside the pre. -->
+        <pre class="lx-document-text" #pageText [class.lx-selectable]="selectable()" (pointerup)="onSelectionEnd()" (keyup)="onSelectionEnd()">@if (parts(); as cut) {{{ cut.before }}<mark #mark tabindex="-1" data-testid="evidence-mark">{{ cut.quote }}</mark>{{ cut.after }}} @else {{{ p.text }}}</pre>
+      } @else {
+        <div class="lx-document-text" aria-hidden="true">
+          @for (width of ['92%', '100%', '86%', '97%', '64%']; track $index) { <p-skeleton [width]="width" height="0.875rem" /> }
+        </div>
+      }
+      @if (pending(); as p) {
+        <div class="lx-selection-toolbar" role="toolbar" aria-label="Selected passage" [style.top.px]="p.top" [style.left.px]="p.left">
+          <button pButton type="button" size="small" (mousedown)="$event.preventDefault()" (click)="usePending()">
+            <ng-icon name="phosphorQuotes" size="14" aria-hidden="true" /><span pButtonLabel>Use this passage</span>
+          </button>
+        </div>
+      }
+    </div>
+  }
+</figure>
+
+@if (selectable()) {
+  <p-dialog header="Select passage by character range" [visible]="rangeOpen()" (visibleChange)="rangeOpen.set($event)" [modal]="true" [draggable]="false"
+            [resizable]="false" [style]="{ width: '36rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Cancel selection">
+    @if (loaded(); as p) {
+      <p class="lx-range-help" id="range-help">
+        Offsets on page {{ p.pageNumber }}, counted in characters from 0 to {{ p.text.length }}. The end offset is not part of the passage.
+      </p>
+      <div class="lx-range-fields">
+        <div class="lx-range-field">
+          <label for="range-start">Start offset</label>
+          <p-inputnumber inputId="range-start" [ngModel]="rangeStart()" (ngModelChange)="rangeStart.set($event)" [useGrouping]="false"
+                         [min]="0" [max]="p.text.length" ariaDescribedBy="range-help" />
+        </div>
+        <div class="lx-range-field">
+          <label for="range-end">End offset</label>
+          <p-inputnumber inputId="range-end" [ngModel]="rangeEnd()" (ngModelChange)="rangeEnd.set($event)" [useGrouping]="false"
+                         [min]="0" [max]="p.text.length" ariaDescribedBy="range-help" />
+        </div>
+      </div>
+      <p class="lx-label">Passage</p>
+      <div class="lx-range-quote" aria-live="polite" data-testid="range-quote">
+        @if (rangeQuote(); as quote) {
+          <blockquote class="lx-serif">{{ quote }}</blockquote>
+        } @else {
+          <p class="lx-help">Enter a start offset and a larger end offset within the page.</p>
+        }
+      </div>
+    }
+    <ng-template #footer>
+      <button pButton type="button" severity="secondary" [outlined]="true" (click)="rangeOpen.set(false)"><span pButtonLabel>Cancel</span></button>
+      <button pButton type="button" [disabled]="rangeQuote() === null" (click)="useRange()"><span pButtonLabel>Use this passage</span></button>
+    </ng-template>
+  </p-dialog>
+}

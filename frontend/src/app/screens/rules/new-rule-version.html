@@ -1,0 +1,71 @@
+<p-dialog header="New rule version" [visible]="visible()" (visibleChange)="visible.set($event)" (onHide)="closed.emit()" [modal]="true" [draggable]="false"
+          [resizable]="false" [style]="{ width: '44rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Cancel new rule version">
+  @let f = form();
+  @let p = problems();
+  <form id="new-rule-version-form" class="lx-form" (ngSubmit)="submit()" novalidate>
+    <p class="lx-help lx-form-intro">The rule text is stored as the version's document. The model then proposes its requirement list, which a reviewer
+      corrects and approves before any assessment uses it.</p>
+    @if (general(); as g) { <p-message severity="error" data-testid="new-version-error">{{ g }}</p-message> }
+
+    <div class="lx-field">
+      <span id="rv-jurisdiction-label" class="lx-field-label">Jurisdiction</span>
+      <p-select inputId="rv-jurisdiction" ariaLabelledBy="rv-jurisdiction-label" [options]="jurisdictions()" optionLabel="label" optionValue="code"
+                [filter]="true" filterBy="label" placeholder="Choose a jurisdiction" [ngModel]="f.jurisdiction" [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="set('jurisdiction', $event)" [invalid]="!!p.jurisdiction" appendTo="body" [fluid]="true" />
+      @if (p.jurisdiction; as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
+    </div>
+
+    <div class="lx-field-row">
+      <div class="lx-field">
+        <label for="rv-licenseType" class="lx-field-label">License type</label>
+        <input pInputText id="rv-licenseType" class="lx-mono" [ngModel]="f.licenseType" [ngModelOptions]="{ standalone: true }"
+               (ngModelChange)="set('licenseType', $event)" [invalid]="!!p.licenseType" [attr.aria-describedby]="p.licenseType ? 'rv-licenseType-error' : null" [fluid]="true" />
+        @if (p.licenseType; as e) { <p-message id="rv-licenseType-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
+      </div>
+      <div class="lx-field">
+        <label for="rv-effectiveFrom" class="lx-field-label">Effective date</label>
+        <p-datepicker inputId="rv-effectiveFrom" [ngModel]="f.effectiveFrom" [ngModelOptions]="{ standalone: true }" (ngModelChange)="set('effectiveFrom', $event)"
+                      dataType="string" dateFormat="yy-mm-dd" placeholder="yyyy-mm-dd" [invalid]="!!p.effectiveFrom" appendTo="body" [fluid]="true"
+                      inputStyleClass="lx-mono" />
+        @if (p.effectiveFrom; as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
+      </div>
+    </div>
+
+    <div class="lx-field">
+      <label for="rv-label" class="lx-field-label">Label</label>
+      <input pInputText id="rv-label" [ngModel]="f.label" [ngModelOptions]="{ standalone: true }" (ngModelChange)="set('label', $event)"
+             [invalid]="!!p.label" [attr.aria-describedby]="p.label ? 'rv-label-error' : null" [fluid]="true" />
+      @if (p.label; as e) { <p-message id="rv-label-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
+    </div>
+
+    <div class="lx-field">
+      <label for="rv-sourceUrl" class="lx-field-label">Source URL</label>
+      <input pInputText id="rv-sourceUrl" type="url" [ngModel]="f.sourceUrl" [ngModelOptions]="{ standalone: true }" (ngModelChange)="set('sourceUrl', $event)"
+             [invalid]="!!p.sourceUrl" [attr.aria-describedby]="p.sourceUrl ? 'rv-sourceUrl-error' : null" [fluid]="true" />
+      @if (p.sourceUrl; as e) { <p-message id="rv-sourceUrl-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
+    </div>
+
+    <div class="lx-field">
+      <span id="rv-supersedesId-label" class="lx-field-label">Supersedes <span class="lx-muted">(optional)</span></span>
+      <p-select inputId="rv-supersedesId" ariaLabelledBy="rv-supersedesId-label" [options]="supersedable()" optionLabel="label" optionValue="id"
+                [showClear]="true" [placeholder]="f.jurisdiction ? (supersedable().length ? 'None' : 'No approved version to replace') : 'Choose a jurisdiction first'"
+                [ngModel]="f.supersedesId" [ngModelOptions]="{ standalone: true }" (ngModelChange)="set('supersedesId', $event ?? null)"
+                [disabled]="supersedable().length === 0" [invalid]="!!p.supersedesId" appendTo="body" [fluid]="true" />
+      <p class="lx-help">Choose the version this one replaces; a change event opens when it is approved.</p>
+      @if (p.supersedesId; as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
+    </div>
+
+    <div class="lx-field">
+      <label for="rv-text" class="lx-field-label">Rule text</label>
+      <textarea pTextarea id="rv-text" class="lx-mono lx-rule-input" rows="10" [ngModel]="f.text" [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="set('text', $event)" [invalid]="!!p.text" [attr.maxlength]="max" [fluid]="true"
+                [attr.aria-describedby]="p.text ? 'rv-text-count rv-text-error' : 'rv-text-count'"></textarea>
+      <p class="lx-help lx-mono" id="rv-text-count">{{ textCount() }} of 500 000 characters</p>
+      @if (p.text; as e) { <p-message id="rv-text-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
+    </div>
+  </form>
+  <ng-template #footer>
+    <button pButton type="button" severity="secondary" [outlined]="true" (click)="visible.set(false)"><span pButtonLabel>Cancel</span></button>
+    <button pButton type="submit" form="new-rule-version-form" [disabled]="busy()" [loading]="busy()"><span pButtonLabel>Enter rule version</span></button>
+  </ng-template>
+</p-dialog>

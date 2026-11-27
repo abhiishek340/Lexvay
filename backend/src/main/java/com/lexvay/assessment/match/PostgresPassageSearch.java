@@ -8,70 +8,161 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 /**
- * Full-text search over the program's non-rule pages. Both entry points run one query shape: the matching pages
+ * Full-text search over the program's non-rule pages. Every entry point runs one query shape: the matching pages
  * are ranked and cut to the top rows first, and only then does the outer select build its columns, so an
- * expensive headline is computed for at most {@code limit} pages. They differ only in how the query text becomes
- * a tsquery, how a page is ranked, and what the outer select returns ({@link Mode}).
+ * expensive headline is computed for at most {@code limit} pages. The entry points differ only in how the query
+ * text becomes a tsquery, how a page is ranked, and what the outer select returns ({@link Mode}).
  *
- * <p>A requirement's query is the OR of its words ranked by ts_rank (D-051); only words of letters and digits
- * reach to_tsquery, so no operator injection is possible. A reviewer's query goes to websearch_to_tsquery, which
- * accepts any text and never raises a syntax error (D-150). In both cases the text is a bound parameter.
+ * <p>A requirement is ranked by BM25 (D-170) or, as the baseline it is measured against, by ts_rank over the OR of
+ * its words (D-051). BM25 is computed by the statement itself: the query lexemes come from to_tsvector, N, df and
+ * the average page length from the program's own pages, and the only data read per page is the handful of
+ * lexemes asked for. A reviewer's query goes to websearch_to_tsquery, which accepts any text and never raises a
+ * syntax error (D-150). Whatever the path, the text is a bound parameter and no tsquery is built from it in Java
+ * except the baseline's, whose words are letters and digits only.
  */
 @Component
 public class PostgresPassageSearch implements PassageSearch {
+
+    /** Okapi BM25 constants (D-170). */
+    static final double K1 = 1.2;
+    static final double B = 0.75;
+
+    /** Weight of a lexeme of the requirement's title; one of its text takes 1.0, and a lexeme in both takes the larger. */
+    static final double TITLE_BOOST = 2.0;
+    static final double TEXT_BOOST = 1.0;
 
     private static final String HEADLINE_OPTIONS = "MaxFragments=2, MaxWords=40, MinWords=15, StartSel=" + MATCH_START
             + ", StopSel=" + MATCH_END;
 
     /**
-     * SQL fragments, each taking the tsquery expression as its one %s. They are constants of this class; user
-     * input only ever reaches the database as the bound :query.
+     * What differs between the entry points, as SQL fragments of one shared statement. They are constants of this
+     * class; user input only ever reaches the database as a bound parameter.
+     *
+     * @param prelude    common table expressions that come before the page query, each followed by a comma
+     * @param join       extra join of the page query
+     * @param match      condition a page must meet to be a candidate
+     * @param rank       the score, higher first
+     * @param projection the columns the outer select adds after the page columns
      */
-    private record Mode(String tsquery, String rank, String projection) {
-
-        String rankExpression() {
-            return rank.formatted(tsquery);
-        }
-
-        String projectionExpression() {
-            return projection.formatted(tsquery);
-        }
+    private record Mode(String prelude, String join, String match, String rank, String projection) {
     }
 
-    private static final Mode CANDIDATES = new Mode("to_tsquery('english', :query)", "ts_rank(dp.tsv, %s)", "h.text");
+    private static final String TS_RANK_QUERY = "to_tsquery('english', :query)";
 
-    private static final Mode SEARCH = new Mode("websearch_to_tsquery('english', :query)", "ts_rank_cd(dp.tsv, %s, 32)",
-            "ts_headline('english', translate(h.text, :delimiters, ''), %s, :headlineOptions) AS headline");
+    /** The OR of the requirement's lexemes, as a tsquery built from quoted lexemes: no stemming, no operators. */
+    private static final String BM25_QUERY = "(SELECT query FROM lexq)";
+
+    /** The excerpt source: only a page too long to be sent whole needs a headline. */
+    private static String candidateProjection(String tsquery) {
+        return "h.text, CASE WHEN length(h.text) > :wholePageChars THEN ts_headline('english', h.text, " + tsquery
+                + ", :excerptOptions) END AS headline";
+    }
+
+    private static final Mode TS_RANK = new Mode("", "", "dp.tsv @@ " + TS_RANK_QUERY, "ts_rank(dp.tsv, " + TS_RANK_QUERY + ")",
+            candidateProjection(TS_RANK_QUERY));
+
+    /**
+     * Score(p) = sum over the query lexemes t in p of boost(t) * idf(t) * tf(t,p) * (k1 + 1) / (tf + k1 * (1 - b + b * len(p) / avglen)),
+     * with idf(t) = ln(1 + (N - df(t) + 0.5) / (df(t) + 0.5)). N, df and avglen are over the program's non-rule pages
+     * and len(p) is length(tsv). setweight and ts_filter cut each page's tsvector down to the query lexemes before
+     * unnest, which is what keeps this fast on hundreds of pages.
+     */
+    private static final String BM25_PRELUDE = """
+            q AS (
+                SELECT lexeme, max(boost) AS boost
+                FROM (SELECT unnest(tsvector_to_array(to_tsvector('english', :requirementTitle))) AS lexeme, CAST(:titleBoost AS float8) AS boost
+                      UNION ALL
+                      SELECT unnest(tsvector_to_array(to_tsvector('english', :requirementText))), CAST(:textBoost AS float8)) AS t
+                GROUP BY lexeme
+            ), lexq AS (
+                SELECT string_agg('''' || replace(replace(lexeme, '\\', '\\\\'), '''', '''''') || '''', ' | ')::tsquery AS query FROM q
+            ), wanted AS (
+                SELECT array_agg(lexeme) AS lexemes FROM q
+            ), pages AS (
+                SELECT dp.id, dp.tsv, length(dp.tsv) AS len
+                FROM document_page dp
+                JOIN document d ON d.id = dp.document_id
+                WHERE d.program_id = :programId AND d.kind <> 'RULE_TEXT'
+            ), stats AS (
+                SELECT count(*)::float8 AS n, avg(len)::float8 AS avglen FROM pages
+            ), hits AS (
+                SELECT p.id, p.len, u.lexeme, cardinality(u.positions) AS tf
+                FROM pages p
+                CROSS JOIN wanted w
+                CROSS JOIN LATERAL unnest(ts_filter(setweight(p.tsv, 'A', w.lexemes), '{a}')) u
+            ), df AS (
+                SELECT lexeme, count(*)::float8 AS df FROM hits GROUP BY lexeme
+            ), bm25 AS (
+                SELECT h.id AS page_id,
+                       sum(q.boost * ln(1 + (s.n - df.df + 0.5) / (df.df + 0.5))
+                           * h.tf * (:bm25K1 + 1) / (h.tf + :bm25K1 * (1 - :bm25B + :bm25B * h.len / s.avglen))) AS score
+                FROM hits h
+                JOIN q ON q.lexeme = h.lexeme
+                JOIN df ON df.lexeme = h.lexeme
+                CROSS JOIN stats s
+                GROUP BY h.id
+            ),
+            """;
+
+    private static final Mode BM25 = new Mode(BM25_PRELUDE, "JOIN bm25 ON bm25.page_id = dp.id", "TRUE", "bm25.score",
+            candidateProjection(BM25_QUERY));
+
+    private static final String SEARCH_QUERY = "websearch_to_tsquery('english', :query)";
+
+    private static final Mode SEARCH = new Mode("", "", "dp.tsv @@ " + SEARCH_QUERY, "ts_rank_cd(dp.tsv, " + SEARCH_QUERY + ", 32)",
+            "ts_headline('english', translate(h.text, :delimiters, ''), " + SEARCH_QUERY + ", :headlineOptions) AS headline");
 
     private static final String ORDER = "rank DESC, created_at, page_number, document_id";
 
     private final JdbcClient jdbc;
+    private final Ranker ranker;
 
-    public PostgresPassageSearch(JdbcClient jdbc) {
+    public PostgresPassageSearch(JdbcClient jdbc, @Value("${lexvay.matching.ranker:bm25}") String ranker) {
         this.jdbc = jdbc;
+        this.ranker = Ranker.fromProperty(ranker);
     }
 
     @Override
-    public List<Passage> search(UUID programId, String query, int limit) {
-        String tsquery = toOrQuery(query);
-        if (tsquery.isEmpty()) {
-            return List.of();
+    public List<Passage> search(UUID programId, String title, String text, int limit) {
+        return search(programId, title, text, limit, ranker);
+    }
+
+    @Override
+    public List<Passage> search(UUID programId, String title, String text, int limit, Ranker ranker) {
+        JdbcClient.StatementSpec statement;
+        if (ranker == Ranker.BM25) {
+            statement = statement(BM25, programId, null, null, limit)
+                    .param("requirementTitle", title).param("requirementText", text)
+                    .param("titleBoost", TITLE_BOOST).param("textBoost", TEXT_BOOST).param("bm25K1", K1).param("bm25B", B);
+        } else {
+            String tsquery = toOrQuery(title + " " + text);
+            if (tsquery.isEmpty()) {
+                return List.of();
+            }
+            statement = statement(TS_RANK, programId, null, null, limit).param("query", tsquery);
         }
-        return statement(CANDIDATES, programId, tsquery, null, null, limit)
-                .query((rs, i) -> new Passage(rs.getObject("document_id", UUID.class), rs.getString("filename"), rs.getString("kind"),
-                        rs.getObject("course_version_id", UUID.class), rs.getString("course_code"),
-                        rs.getObject("course_required", Boolean.class), rs.getInt("page_number"), rs.getString("text"),
-                        TextSource.valueOf(rs.getString("text_source")), rs.getObject("ocr_confidence", Double.class)))
+        return statement
+                .param("wholePageChars", PassageExcerpter.WHOLE_PAGE_CHARS).param("excerptOptions", PassageExcerpter.HEADLINE_OPTIONS)
+                .query((rs, i) -> {
+                    String page = rs.getString("text");
+                    return new Passage(rs.getObject("document_id", UUID.class), rs.getString("filename"), rs.getString("kind"),
+                            rs.getObject("course_version_id", UUID.class), rs.getString("course_code"),
+                            rs.getObject("course_required", Boolean.class), rs.getInt("page_number"), page,
+                            PassageExcerpter.excerpt(page, rs.getString("headline")), rs.getDouble("rank"),
+                            TextSource.valueOf(rs.getString("text_source")), rs.getObject("ocr_confidence", Double.class));
+                })
                 .list();
     }
 
     @Override
     public List<PassageHit> searchWithHeadlines(UUID programId, String query, String kind, UUID courseVersionId, int limit) {
-        return statement(SEARCH, programId, query, kind, courseVersionId, limit)
+        return statement(SEARCH, programId, kind, courseVersionId, limit)
+                .param("query", query)
                 .param("delimiters", String.valueOf(MATCH_START) + MATCH_END)
                 .param("headlineOptions", HEADLINE_OPTIONS)
                 .query((rs, i) -> new PassageHit(rs.getObject("document_id", UUID.class), rs.getString("filename"),
@@ -80,36 +171,37 @@ public class PostgresPassageSearch implements PassageSearch {
                 .list();
     }
 
-    private JdbcClient.StatementSpec statement(Mode mode, UUID programId, String query, String kind, UUID courseVersionId,
-                                               int limit) {
+    private JdbcClient.StatementSpec statement(Mode mode, UUID programId, String kind, UUID courseVersionId, int limit) {
         return jdbc.sql(sql(mode))
-                .param("programId", programId).param("query", query).param("kind", kind)
+                .param("programId", programId).param("kind", kind)
                 .param("courseVersionId", courseVersionId).param("limit", limit);
     }
 
     private static String sql(Mode mode) {
         return """
-                WITH scored AS (
+                WITH %1$s
+                scored AS (
                     SELECT d.id AS document_id, d.filename, d.kind, d.course_version_id, c.code AS course_code,
                            cv.required AS course_required, d.created_at, dp.page_number, dp.text,
                            dp.text_source, CAST(dp.ocr_confidence AS double precision) AS ocr_confidence,
-                           %2$s AS rank
+                           %4$s AS rank
                     FROM document_page dp
                     JOIN document d ON d.id = dp.document_id
+                    %2$s
                     LEFT JOIN course_version cv ON cv.id = d.course_version_id
                     LEFT JOIN course c ON c.id = cv.course_id
                     WHERE d.program_id = :programId AND d.kind <> 'RULE_TEXT'
                       AND (CAST(:kind AS text) IS NULL OR d.kind = :kind)
                       AND (CAST(:courseVersionId AS uuid) IS NULL OR d.course_version_id = :courseVersionId)
-                      AND dp.tsv @@ %1$s
+                      AND %3$s
                 ), top AS (
-                    SELECT * FROM scored ORDER BY %4$s LIMIT :limit
+                    SELECT * FROM scored ORDER BY %6$s LIMIT :limit
                 )
                 SELECT h.document_id, h.filename, h.kind, h.course_version_id, h.course_code, h.course_required,
-                       h.page_number, h.rank, h.text_source, h.ocr_confidence, %3$s
+                       h.page_number, h.rank, h.text_source, h.ocr_confidence, %5$s
                 FROM top h
-                ORDER BY %4$s
-                """.formatted(mode.tsquery(), mode.rankExpression(), mode.projectionExpression(), ORDER);
+                ORDER BY %6$s
+                """.formatted(mode.prelude(), mode.join(), mode.match(), mode.rank(), mode.projection(), ORDER);
     }
 
     static String toOrQuery(String text) {

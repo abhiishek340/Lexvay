@@ -1143,3 +1143,265 @@ assertion in `SeedLoaderTest`.
 ### Open points
 
 See D-189: pagination wording of the spec, scheduler package, retry delay after a failed check, DNS rebinding, no screen yet.
+
+## F7 — Retrieval quality (PR #17)
+
+Branch `retrieval-quality`, slot 3, run 2026-11-26 on macOS arm64 (Colima), after merging `origin/main` (PR #12). Decisions: `DECISIONS.md (F7)`
+(D-170 to D-179). Full numbers per query: `docs/RETRIEVAL.md`, rewritten by `make eval`.
+
+### What was measured
+
+Corpus: 27 fictional documents (the 14 seed documents and 13 added syllabi of four pages each, every one ending in the same policy page).
+35 queries: 29 count toward the limits and 6 are lexical gaps, reported apart. Both rankers ran over the same queries through the production
+`PassageSearch`, excerpts included.
+
+| Metric (29 counted queries) | ts_rank baseline | BM25 | Limit |
+|---|---|---|---|
+| Recall@8 | 96.6 % (28 / 29) | 96.6 % (28 / 29) | >= 95 %, not below baseline |
+| Recall@3 | 86.2 % (25 / 29) | 89.7 % (26 / 29) | not below baseline |
+| Mean reciprocal rank | 0.796 | 0.766 | none |
+| Excerpt coverage | 100 % (28 / 28) | 100 % (28 / 28) | 100 % |
+
+| Lexical gaps (6 queries, never thresholded) | ts_rank baseline | BM25 |
+|---|---|---|
+| Recall@8 | 33.3 % (2 / 6) | 33.3 % (2 / 6) |
+| Recall@3 | 16.7 % (1 / 6) | 16.7 % (1 / 6) |
+
+Reading these numbers honestly: BM25 improves recall@3 by one query in 29 and loses 0.03 of mean reciprocal rank, so on this corpus it is not
+clearly better than the baseline, only not worse where the limits look. The corpus is small (about 100 pages) and a shortlist of eight covers a
+large part of it, so recall@8 cannot separate the rankers; the limit that matters in practice is that the shortlist holds the page, and both do.
+Neither ranker reaches a lexical gap (4 of 6 are not in the top eight), which is the case for a synonym-aware retriever later. The one counted
+query BM25 misses (R13, "a course in which counseling students learn to read and apply research") is also one the baseline misses.
+
+The existing pipeline metrics on the seed are unchanged: 0.0 % false EVIDENCE_FOUND (0 / 33), recall 33 / 33, quote verification 31 / 31,
+numeric accuracy 11 / 11, extraction agreement 42 / 42, evidence agreement 39 / 39.
+
+Latency (`PassageSearchLatencyTest`, synthetic 500-page program, one BM25 statement with headlines, 200 requests after a warm-up): p50 9 ms and
+p95 15 ms alone; on this shared machine (load average about 6) 12 to 17 ms p50 and 15 to 22 ms p95. With the tables not analyzed the planner chose
+nested loops and p95 was 37 ms; autovacuum analyzes real tables, so the test runs `ANALYZE` after loading (D-173).
+
+### Tests added
+
+`PassageRankingTest` (BM25 scores asserted to 1e-6 against hand computations on three tiny corpora, title boost, idf, ties, empty query, quotes
+in a requirement, baseline ranker, tenant isolation), `PassageExcerpterTest` (short page, long page, header budget, fragment not found, blank
+headline, merging, whitespace, out-of-order fragments), `ExcerptMatchingTest` (the prompt carries the excerpt and not the page; a quote from an
+excerpt verifies; a quote spanning `[...]` is discarded), `RetrievalScorerTest`, `RetrievalFileTest` (queries tied to the committed PDFs,
+corpus labelled fictional, shared policy page, PDFs not stale), `RetrievalServiceTest` (limits met; a broken expectation fails them),
+`PassageSearchLatencyTest` (tag `perf`), and `GoldenFileTest` now checks the retrieval limits.
+
+### Test tails
+
+See the pull request description for the output of `make backend-test`, `make eval` and `LEXVAY_E2E_SLOT=3 make e2e`.
+
+## F13 — Work queue API (PR #23)
+
+Branch `feat-work-queue`, backend only. Decisions D-190 to D-199 in `DECISIONS.md (F13)`.
+
+### Delivered
+
+- `GET /api/v1/work-queue` and `GET /api/v1/work-queue/count`, package `com.lexvay.workqueue`: one SQL statement per
+  endpoint (CTEs plus one `UNION ALL` branch per kind, role bound as `:role`), one read-only transaction.
+- `MappingRepository.LATEST_EVENT`, `NEEDS_DECISION`, `UNDECIDED` shared by `countUndecided` and the queue;
+  `ChangeEventRepository.AFFECTS_PROGRAM` shared by the program overview's open changes and the queue.
+- No migration: `EXPLAIN (ANALYZE, BUFFERS)` as the application role shows no sequential scan on `mapping`,
+  `review_event` or `job` (`IndexUsageTest` asserts it for every role).
+- Read-only endpoints: nothing added to `Rule9_AuditCoverageTest`.
+
+### Tests (all with the real stack, no network)
+
+- `WorkQueueApiTest` (8): kinds visible per role and their order (a contributor never sees READY_TO_SIGN); ids and
+  counts per kind; counts move with accept, request evidence, confirm gap, answer, change event open, re-run and
+  signature; READY_TO_SIGN parity with `POST /determinations` over every program and jurisdiction pair (201 exactly
+  for the listed ones, 409 for the rest, items gone after signing); another tenant sees nothing; oldest first and the
+  20-id cap; stale evidence requests counted as blocked; approval and extraction failure; 401.
+- `InputValidationTableTest`: 200 and 401 rows for both endpoints (its harness gained an anonymous actor).
+- `ReadPathConnectionsTest`: both endpoints use exactly one connection. `ForbiddenWordsTest` green.
+- `EndpointLatencyTest` and `IndexUsageTest` (perf tag): see `docs/PERF.md`, "Work queue (F13)".
+
+### Runs after merging origin/main (F11 and F6 included)
+
+- `make backend-test` (re-run after the final merge of main): `Tests run: 731, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`.
+- `make perf` (twice, both `BUILD SUCCESS`): work queue and count p95 3.05 and 2.73 ms (seed), 5.80 and 15.36 ms (62 tenants); second run 14.15 and 4.22 ms, 3.74 and 3.77 ms.
+- `LEXVAY_E2E_SLOT=9 make e2e`: 6 passed, 1 skipped (the screenshot spec), exit 0.
+
+## F3 — Rule workspace screens (PR #22)
+
+Branch `feat-rule-workspace`, end-to-end slot 10 (PostgreSQL 5443, backend 8091, web 4310). Decisions: `DECISIONS.md (F3)`
+(D-210 to D-219).
+
+### What was built
+- **Route and rail**: `programs/:programId/rules` and `.../rules/:ruleVersionId` (one route, lazy chunk `rules`); "Rules" after
+  Changes with `phosphorScales` and the badge "n rule versions waiting for approval" from `ruleVersionStatus`.
+- **Version list**: grouped PrimeNG Listbox (program jurisdictions first, then others), status Tag with icon and word for
+  Extracting (animated spinner), Extraction failed (error as helper text), Needs approval, Approved, Superseded; one
+  `GET /rule-versions`, polled every 5 s only while a version is extracting and the tab is visible.
+- **New rule version** dialog (contributors and administrators): jurisdiction, license type (program default), label,
+  source URL, effective date (DatePicker, ISO), supersedes (approved versions of the same jurisdiction and license type,
+  with the helper text), rule text with a character counter; inline field problems, server details mapped to fields;
+  202 closes the dialog, toasts "Extraction started" and opens the new version.
+- **Version detail**: label, jurisdiction, license type, effective date, source link, status, approval line; tabs
+  Requirements (table; in-place edit grid for reviewers, signers and administrators before approval; save, discard,
+  add, move, delete; server row errors under their row; approval dialog with focus return), Rule text (WS-PERF page
+  endpoint, page navigation), Compare (default against the superseded version, Select for any other approved version,
+  summary line with icons, status Tags and "ref changed", word diffs in `ins`/`del`, numeric before and after, rule
+  text diff in an Accordion; the first-version sentence).
+- **No backend change.** The rule text uses `GET /documents/{id}/pages/{n}`, which reached `main` (WS-PERF) during the work.
+
+### Tests
+- Vitest: `core/rules.spec.ts` (every status, precedence, badge count, polling predicate, grouping and order, comparable
+  versions), `screens/rules/requirement-list-editor.spec.ts` (add, move, delete, dirty, restore, PUT body, problem
+  detail to row mapping), `screens/rules/rule-version-form.spec.ts` (required fields, limits, problem detail to field),
+  `core/labels.spec.ts` (new labels free of the forbidden words, distinct registered icons).
+- Playwright `e2e/rules.spec.ts` (axe in light and dark on every state, at 1280 and 400 px; no request leaves localhost):
+  the seeded Colorado revision read-only with exactly one Changed row (CO-5, numeric and text, `ins`/`del`), keyboard
+  selection in the list, a contributor's new version through Extracting to Extraction failed, a reviewer's hand-entered
+  list with a server row error, save, title edit, reload, approval through the dialog and the audit entries.
+- Deviation from spec point 7 (D-219): the seed approves the Colorado revision and the e2e backend's FakeLlmClient has
+  no extraction scripts, so the reviewer flow runs on a version entered in the test and extraction ends in
+  Extraction failed rather than Needs approval.
+
+`make frontend-test`:
+```
+ Test Files  8 passed (8)
+      Tests  54 passed (54)
+```
+
+`LEXVAY_E2E_SLOT=10 make test` (backend, frontend unit, end-to-end):
+```
+[INFO] Tests run: 589, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  8 passed (8)
+      Tests  54 passed (54)
+e2e: starting backend on :8091
+  ✓   7 e2e/rules.spec.ts:26:1 › a reviewer reads the seeded Colorado revision: its list, its rule text and what it changed (4.0s)
+  ✓   8 e2e/rules.spec.ts:92:1 › a contributor enters a new rule version and watches its extraction (10.3s)
+  ✓   9 e2e/rules.spec.ts:143:1 › a reviewer enters the list by hand, corrects it, saves, reloads and approves it (9.3s)
+  ✓  10 e2e/rules.spec.ts:224:1 › at 400 px the rule workspace stacks without horizontal page scroll (3.1s)
+  -  11 e2e/screens.spec.ts:9:1 › screenshots of every screen in light and dark
+  1 skipped
+  10 passed (52.2s)
+```
+
+### Screenshots (`docs/screens/`, light and dark, 1440 x 900)
+`rules-list`, `rules-edit` (edit grid with a server row error corrected), `rules-approve` (approval dialog),
+`rules-compare` (the CO-5 change), `rules-new-version` (entry dialog). Taken with
+`LEXVAY_SCREENSHOTS=1 LEXVAY_E2E_SLOT=10 make e2e`, through the `shoot` helper now shared in `e2e/support.ts`.
+
+### Follow-ups
+- Orchestrator decision for the spec's original e2e scenario (D-219): leave the seeded revision unapproved, or script
+  FakeLlmClient at runtime from `seed/fake-llm.yml` for the e2e stack.
+- When F1's `DocumentViewer` merges, the Rule text tab should use it (read-only) instead of its own frame.
+- Choosing another version while the edit grid has unsaved changes discards them without asking.
+- The existing `docs/screens` images of other screens predate the Rules rail entry; regenerate them with the next
+  screenshot run.
+
+## F1 — Evidence viewer with in-context highlight (PR #21)
+
+Branch `feat-evidence-viewer`, merged with `origin/main` (including F11 #13 and F6 #16) on 2026-11-26. Decisions D-220
+to D-229 are in `DECISIONS.md (F1)`.
+
+### What was built
+
+| Spec point | Built | Tests |
+|---|---|---|
+| 1 Backend | `GET /api/v1/documents/{id}/file`: stored bytes, media type of the stored file type, `inline` with RFC 5987 file name, `private, max-age=31536000, immutable`, ETag = document sha256, 304 before the store is read, 404 for another tenant, any role, one statement | `DocumentFileApiTest` (8), 3 rows in `InputValidationTableTest`, `ReadPathConnectionsTest` (one connection); `Rule9_AuditCoverageTest` unchanged (GET) |
+| 2 `DocumentViewer` | `shared/document-viewer/`: serif page text, one `mark` from text nodes, scrolled to centre, focus on request (`focusHighlight`), page `n of N` as a polite status, previous and next (disabled at the ends, focus handed over), Open original (`rel="noopener"`), mismatch message; "Read by OCR, NN % confidence" for OCR pages (F11) | `page-text.spec.ts` (`splitForHighlight`, `ocrNote`), `viewer.spec.ts` |
+| 3 Page cache | `core/document-page-cache.ts`: LRU of 40, shared in-flight observable, failed requests forgotten | `document-page-cache.spec.ts` (eviction order, in-flight sharing, retry) |
+| 4 Selection | Mouse selection with "Use this passage" toolbar, Escape clears; keyboard Dialog with start and end InputNumber and live quote | `page-text.spec.ts` (`rangeOffsets`: one text node, across the mark, element boundaries, collapsed, outside), `viewer.spec.ts` on the development-only harness route |
+| 5 Review | Header kept as a list, "Quote only" disclosure, viewer with the quote marked; under 1024 px behind "Show on page" | `viewer.spec.ts`, `review-and-sign.spec.ts` |
+| 6 Overview | `ProgramContext` reads `GET /programs/{id}/overview`; `latestAssessmentId` deleted | `review-and-sign.spec.ts` (every screen loads through it) |
+| 7 Tests | as above; axe in both themes at 1280 and 400 px (collapsed and open viewer, range dialog) | |
+
+Backend addition beyond point 1: `PageView` carries `textSource` and `ocrConfidence` (D-228), asserted in
+`DocumentOcrIngestTest`.
+
+Screenshots: `docs/screens/review-viewer-{light,dark}.png` (1440 px) and `review-viewer-400px-{light,dark}.png`
+(after "Show on page"); the other screens were retaken in the same run.
+
+### Real output
+
+`LEXVAY_E2E_SLOT=1 LEXVAY_SCREENSHOTS=1 make test` from the repository root (backend `./mvnw verify`, frontend unit
+tests, end to end), after merging `origin/main`:
+
+```
+[INFO] Tests run: 600, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+ Test Files  7 passed (7)
+      Tests  43 passed (43)
+  ✓   1 e2e/review-and-sign.spec.ts:3:1 › Dana Whitfield reviews every California requirement, signs, and sees the audit entries (8.3s)
+  ✓   2 e2e/review-and-sign.spec.ts:95:1 › the review tabs are keyboard operable and the sign-in page is accessible (2.2s)
+  ✓   3 e2e/review-and-sign.spec.ts:118:1 › keyboard shortcuts move through the list and record a decision (2.8s)
+  ✓   4 e2e/review-and-sign.spec.ts:160:1 › the theme choice persists across a reload (1.5s)
+  ✓   5 e2e/review-and-sign.spec.ts:175:1 › at 400 px the review screen fits without horizontal page scroll (1.9s)
+  ✓   6 e2e/review-and-sign.spec.ts:191:1 › the Changes screen lists the seeded changes and re-runs matching for the new course version (2.9s)
+  ✓   7 e2e/screens.spec.ts:23:1 › screenshots of every screen in light and dark (17.7s)
+  ✓   8 e2e/viewer.spec.ts:3:1 › the review screen shows the cited page with the quote marked, pages through it, and opens the original (2.2s)
+  ✓   9 e2e/viewer.spec.ts:62:1 › under 1024 px the viewer waits behind "Show on page" and takes focus when opened (2.6s)
+  ✓  10 e2e/viewer.spec.ts:85:1 › a passage can be chosen by mouse selection and by character range from the keyboard (2.4s)
+  10 passed (48.2s)
+```
+
+Production build: initial bundle 677.5 kB raw, 163.4 kB estimated transfer; the harness route is absent from it.
+
+### Not done or open
+
+- The seed has no OCR documents, so the OCR note is covered by a unit test of `ocrNote` and the backend test, not
+  by an end-to-end test.
+- Whether Chrome's PDF viewer renders a PDF served with this CSP (`object-src 'none'`) was not checked in a headed
+  browser; the end-to-end test checks the response (200, `application/pdf`, `inline`).
+
+## FIX-1 — Requirement order column (PR #18)
+
+Branch `fix-requirement-ordinal`, migration `V012__requirement_ordinal.sql`, decisions D-230 to D-238 in
+`DECISIONS.md (FIX-1)`.
+
+### Done
+- `requirement.ordinal` (backfilled, `NOT NULL`, `UNIQUE (rule_version_id, ordinal)`); migration lifts and restores
+  `FORCE ROW LEVEL SECURITY` and the `requirement_locked` trigger around the backfill.
+- Extraction and the replace endpoint store list position from 1 (`RuleVersionRepository.insertRequirements`).
+- `Requirement.ordinal`; requirement and mapping listings order by `ordinal`; the diff follows it.
+- Tests: `RequirementOrderApiTest` (twelve requirements through requirements, mappings and diff; replace keeps
+  submitted order), `RequirementOrdinalBackfillTest` (the migration's own UPDATE on a temporary table).
+
+### Evidence
+`make backend-test` (2026-11-26, Docker via Colima):
+
+    Tests run: 492, Failures: 0, Errors: 0, Skipped: 0
+    BUILD SUCCESS
+
+`LEXVAY_E2E_SLOT=5 make e2e`:
+
+    1 skipped
+    6 passed (23.2s)
+
+(the skipped test is `screens.spec.ts`, the screenshot spec.)
+
+## OPS-1 — Image build and smoke in CI (PR #20)
+
+Branch `ops-ci-image`, PR #20, 2026-11-27. Decisions: `DECISIONS.md (OPS-1)` (D-240 to D-244).
+
+### What changed
+
+- `.github/workflows/ci.yml`: job `image` (`needs: test`, 30 minute timeout, same triggers and concurrency group).
+  Buildx build with the GitHub Actions cache, tag `lexvay:ci-<sha>`, `load: true`, `push: false`, empty license;
+  image size to `$GITHUB_STEP_SUMMARY`; then `scripts/smoke.sh lexvay:ci-<sha>` on slot 0.
+- `scripts/smoke.sh [image-tag]`: tests an existing image, or builds `lexvay:local` when given none. Slot, compose
+  project, cleanup and temporary directory come from `scripts/lib/stack.sh`. `docker-compose.yml` reads the image
+  name from `LEXVAY_IMAGE`.
+- `scripts/lib/stack.sh`: was not on `main`; copied from F7's branch (PR #17) with only the header comment changed.
+- `docs/OPERATIONS.md`: section "Continuous integration" names the job and the tag convention.
+
+### Evidence
+
+Local, Colima, slot 11 (`LEXVAY_E2E_SLOT=11`): `make smoke` (builds `lexvay:local`) and
+`scripts/smoke.sh lexvay:ci-local` (existing image) both ended `smoke: PASSED`, 31 checks each, image 216 MiB.
+
+CI, run 45946473005 on PR #20: `test` pass (3m58s), `infra` pass (21s), `image` pass (3m41s). In the `image` job log:
+`smoke: testing the existing image lexvay:ci-<sha>`, `smoke: image size 218 MiB`, 31 `smoke: ok` lines,
+`Started LexvayApplication in 4.869 seconds`, `smoke: ok: shutdown completed`, `smoke: PASSED`. The job summary
+line reads `Image lexvay:ci-<sha>: 218 MiB` (the same `docker image inspect` value the smoke script prints).
+
+### Not verified
+
+`actionlint` is not installed on this machine, so the workflow was validated only by its own run.

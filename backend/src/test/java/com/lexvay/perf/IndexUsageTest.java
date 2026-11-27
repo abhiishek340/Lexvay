@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
+import com.lexvay.auth.Role;
 import com.lexvay.llm.LlmClient;
 import com.lexvay.seed.ScriptedFakeModel;
 import com.lexvay.seed.SeedLoader;
 import com.lexvay.tenant.AppUserRepository;
+import com.lexvay.workqueue.WorkQueueRepository;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -92,6 +94,16 @@ class IndexUsageTest extends AbstractDatabaseTest {
                 }
             }
         }
+        List<String> workQueue = new ArrayList<>();
+        for (Role role : Role.values()) {
+            workQueue.add("-- role " + role);
+            workQueue.addAll(TenantContext.runAs(tenantId, () -> jdbc.sql(
+                    "EXPLAIN (ANALYZE, BUFFERS) " + WorkQueueRepository.LIST.replace(":role", "'" + role + "'")).query(String.class).list()));
+        }
+        Path plan = Path.of("target", "perf", "work-queue-plan.txt");
+        Files.createDirectories(plan.getParent());
+        Files.writeString(plan, String.join("\n", workQueue) + "\n");
+
         String table = String.join("\n", report) + "\n";
         System.out.println(table);
         Path out = Path.of("target", "perf", "index-usage.md");
@@ -99,6 +111,8 @@ class IndexUsageTest extends AbstractDatabaseTest {
         Files.writeString(out, table);
         assertThat(keptButIgnored).as("indexes of V008 the planner did not choose: drop them").isEmpty();
         assertThat(rejectedButChosen).as("rejected candidates the planner now chooses: add them to V008").isEmpty();
+        assertThat(workQueue).as("the work queue statement scans no hot table sequentially (plan in target/perf/work-queue-plan.txt)")
+                .noneMatch(line -> line.matches(".*Seq Scan on (mapping|review_event|job)\\b.*") && !line.contains("never executed"));
     }
 
     /** The access paths of a plan, without costs and conditions. */

@@ -1,7 +1,10 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, DeterminationLists, Jurisdiction, Mapping, MappingsView, Outcome, Program, RegisterFilter, RegisterRow, ReportStatusView, RuleVersionView, SessionView, UserSummary, UserView } from './models';
+import {
+  AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, DeterminationLists, DocumentPage, Jurisdiction, Mapping, MappingsView, NewRuleVersion, Outcome, Program, ProgramOverview,
+  RegisterFilter, RegisterRow, ReportStatusView, RequirementDraft, RequirementsView, RuleVersionDiff, RuleVersionView, SessionView, UserSummary, UserView,
+} from './models';
 import { REGISTER_PATH, registerQuery } from './register';
 
 /** Thin, typed wrapper over /api/v1. Holds no business rules. */
@@ -18,9 +21,26 @@ export class ApiService {
   logout(): Observable<void> { return this.http.post<void>(`${this.base}/auth/logout`, null); }
 
   programs(): Observable<Program[]> { return this.http.get<Program[]>(`${this.base}/programs`); }
-  program(id: string): Observable<Program> { return this.http.get<Program>(`${this.base}/programs/${id}`); }
+  programOverview(id: string): Observable<ProgramOverview> { return this.http.get<ProgramOverview>(`${this.base}/programs/${id}/overview`); }
   jurisdictions(): Observable<Jurisdiction[]> { return this.http.get<Jurisdiction[]>(`${this.base}/jurisdictions`); }
   ruleVersions(): Observable<RuleVersionView[]> { return this.http.get<RuleVersionView[]>(`${this.base}/rule-versions`); }
+  /** 202: the version is stored and its requirement extraction runs as a job. */
+  createRuleVersion(body: NewRuleVersion): Observable<{ ruleVersionId: string; jobId: string }> {
+    return this.http.post<{ ruleVersionId: string; jobId: string }>(`${this.base}/rule-versions`, body);
+  }
+  requirements(ruleVersionId: string): Observable<RequirementsView> {
+    return this.http.get<RequirementsView>(`${this.base}/rule-versions/${ruleVersionId}/requirements`);
+  }
+  replaceRequirements(ruleVersionId: string, requirements: RequirementDraft[]): Observable<RequirementsView> {
+    return this.http.put<RequirementsView>(`${this.base}/rule-versions/${ruleVersionId}/requirements`, { requirements });
+  }
+  approveRequirements(ruleVersionId: string): Observable<RuleVersionView> {
+    return this.http.post<RuleVersionView>(`${this.base}/rule-versions/${ruleVersionId}/requirements/approve`, null);
+  }
+  /** Without against, the server compares with the version this one supersedes. */
+  ruleVersionDiff(ruleVersionId: string, against: string | null): Observable<RuleVersionDiff> {
+    return this.http.get<RuleVersionDiff>(`${this.base}/rule-versions/${ruleVersionId}/diff`, { params: against ? { against } : {} });
+  }
 
   assessment(id: string): Observable<AssessmentView> { return this.http.get<AssessmentView>(`${this.base}/assessments/${id}`); }
   mappings(assessmentId: string, jurisdiction: string): Observable<MappingsView> {
@@ -58,10 +78,10 @@ export class ApiService {
   users(): Observable<UserSummary[]> { return this.http.get<UserSummary[]>(`${this.base}/users`); }
   audit(limit = 200): Observable<AuditEntry[]> { return this.http.get<AuditEntry[]>(`${this.base}/audit`, { params: { limit } }); }
 
-  /** The latest finished assessment is found through the audit trail's ASSESSMENT_FINISHED entries. */
-  latestAssessmentId(entries: AuditEntry[], programId: string): string | null {
-    const started = new Set(entries.filter((e) => e.action === 'ASSESSMENT_STARTED' && e.detail['programId'] === programId).map((e) => e.entityId));
-    const finished = entries.find((e) => e.action === 'ASSESSMENT_FINISHED' && e.entityId && started.has(e.entityId));
-    return finished?.entityId ?? null;
+  /** Immutable and cached by the browser for a year (D-112); read through DocumentPageCache. */
+  documentPage(documentId: string, pageNumber: number): Observable<DocumentPage> {
+    return this.http.get<DocumentPage>(`${this.base}/documents/${documentId}/pages/${pageNumber}`);
   }
+  /** The original uploaded file, opened by the browser in a new tab. */
+  documentFileUrl(documentId: string): string { return `${this.base}/documents/${documentId}/file`; }
 }

@@ -4,6 +4,7 @@ import { expect, Page, test as base } from '@playwright/test';
 export const PASSWORD = process.env['LEXVAY_DEMO_PASSWORD'] ?? 'lexvay-demo';
 export const DANA = 'dana.whitfield@northfield.example';
 export const PRIYA = 'priya.raman@northfield.example';
+export const JORDAN = 'jordan.ellis@northfield.example';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
@@ -53,6 +54,46 @@ export async function expectAccessible(page: Page, screen: string): Promise<void
   await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t ?? 'light'), original);
 }
 
+/** Screenshots for docs/screens are taken only on request: LEXVAY_SCREENSHOTS=1. */
+export const SCREENSHOTS = process.env['LEXVAY_SCREENSHOTS'] === '1';
+
+/** Saves docs/screens/<name>-light.png and -dark.png of the current page. */
+export async function shoot(page: Page, name: string): Promise<void> {
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+    await page.mouse.move(0, 0);
+    // Let PrimeNG's colour transitions finish before capturing.
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `../docs/screens/${name}-${theme}.png` });
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+}
+
 export function nav(page: Page, name: string) {
   return page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name, exact: true });
+}
+
+export interface Evidence { documentId: string; filename: string; pageNumber: number; charStart: number; charEnd: number; quote: string; }
+
+/**
+ * The signed-in user's program (from the URL) and, read from the API, the first requirement of a state whose
+ * evidence is quoted from a syllabus. The seed syllabi have two pages, so the viewer can page through them.
+ */
+export async function citedRequirement(page: Page, jurisdiction: string): Promise<{ programId: string; ref: string; evidence: Evidence }> {
+  await page.waitForURL(/\/programs\/[^/]+\//);
+  const programId = new URL(page.url()).pathname.split('/')[2];
+  const overview = await (await page.request.get(`/api/v1/programs/${programId}/overview`)).json();
+  const view = await (await page.request.get(`/api/v1/assessments/${overview.assessment.id}/mappings?jurisdiction=${jurisdiction}`)).json();
+  const mapping = (view.mappings as { requirement: { ref: string }; evidence: Evidence | null }[])
+    .find((m) => m.evidence?.filename.endsWith('-syllabus.pdf'))!;
+  return { programId, ref: mapping.requirement.ref, evidence: mapping.evidence! };
+}
+
+/** Opens Review on a state and selects one requirement by its ref. */
+export async function openRequirement(page: Page, jurisdiction: string, ref: string): Promise<void> {
+  await nav(page, 'Review').click();
+  await page.getByRole('tab', { name: jurisdiction, exact: true }).click();
+  await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', new RegExp(`^${jurisdiction}-`));
+  await page.getByRole('region', { name: 'Requirements' }).getByRole('button').filter({ hasText: new RegExp(`^${ref}(?!\\d)`) }).click();
+  await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', ref);
 }

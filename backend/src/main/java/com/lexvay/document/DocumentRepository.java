@@ -93,7 +93,7 @@ public class DocumentRepository {
     public Optional<PageWithContext> pageWithContext(UUID documentId, int pageNumber) {
         return jdbc.sql("""
                 SELECT d.id, d.filename, d.kind, d.sha256, c.code AS course_code, cv.required AS course_required,
-                       p.page_number, p.text,
+                       p.page_number, p.text, p.text_source, CAST(p.ocr_confidence AS double precision) AS ocr_confidence,
                        (SELECT count(*) FROM document_page pc WHERE pc.document_id = d.id) AS page_count
                 FROM document d
                 JOIN document_page p ON p.document_id = d.id AND p.page_number = :pageNumber
@@ -104,7 +104,8 @@ public class DocumentRepository {
                 .query((rs, i) -> new PageWithContext(rs.getString("sha256"), new DocumentService.PageView(
                         rs.getObject("id", UUID.class), rs.getString("filename"), DocumentKind.valueOf(rs.getString("kind")),
                         rs.getString("course_code"), rs.getObject("course_required", Boolean.class), rs.getInt("page_number"),
-                        rs.getInt("page_count"), rs.getString("text"))))
+                        rs.getInt("page_count"), rs.getString("text"), TextSource.valueOf(rs.getString("text_source")),
+                        rs.getObject("ocr_confidence", Double.class))))
                 .optional();
     }
 

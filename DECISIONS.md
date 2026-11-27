@@ -1415,3 +1415,453 @@ context, closed afterwards so no later test class has a scheduler running), `Rul
 **D-189 — Open points for the orchestrator.** (1) Pagination wording in the spec (D-183). (2) The scheduler's package (D-185).
 (3) A failed check delays the retry by a full interval (D-184); say so if a shorter retry is wanted, it is a one-line change in
 the due predicate plus a column. (4) DNS rebinding (D-182). (5) A frontend screen for sources is not part of this item.
+
+### F7 — Retrieval quality (D-170 to D-179)
+
+**D-170 — Requirement candidates are ranked by BM25 inside the one statement.** Query lexemes come from the database:
+`tsvector_to_array(to_tsvector('english', title))` with boost 2.0 and the same for the text with boost 1.0; a lexeme in both takes
+the larger boost (2.0), not the sum. `N`, `df(t)` and `avglen` are computed over the program's non-rule pages in common table
+expressions of the same statement (the row-level security policy scopes them to the tenant); `len(p)` is `length(tsv)` (the number
+of distinct lexemes, as the spec defines it); `tf(t,p)` is `cardinality(positions)` of `t` in the page's `tsv`. `k1 = 1.2`, `b = 0.75`,
+`idf = ln(1 + (N - df + 0.5) / (df + 0.5))`, which is never negative. Ties break by document creation time, page number, document id as
+before. To read positions without unnesting every lexeme of every page, the statement cuts each page's `tsvector` down to the query
+lexemes with `ts_filter(setweight(tsv, 'A', lexemes), '{a}')` and unnests only that: 500 pages cost 6 ms this way against 26 ms for a
+plain `unnest`. The candidates are the pages that contain at least one query lexeme, which is exactly the set the OR of the lexemes
+matches; the OR itself is still built, as a `tsquery` cast from single-quoted lexemes (`'lexeme'` with quote and backslash doubled, joined
+by ` | `, no stemming, no operators) in the same statement, and is what `ts_headline` gets (D-174). No tsquery is built from user text in
+Java on this path. Rejected: scoring in Java (every candidate's text would cross the wire and a second statement would be needed for
+`df`); the `pg_search` or ParadeDB extensions (a dependency the database image does not have); `ts_stat` (it takes its query as a
+string, so it would have to be built with string concatenation); a plain `unnest` of all pages (4 times slower); `ts_rank_cd` with
+normalization flags (no document frequency, which is the point).
+
+**D-171 — The search takes the requirement's title and text separately.** `PassageSearch.search(programId, title, text, limit)` replaces
+`search(programId, query, limit)` because a title lexeme counts double under BM25. The `ts_rank` baseline still searches
+`title + " " + text` as before, so its behaviour is unchanged. Rejected: boosting by position in a concatenated string (it would be a
+convention nobody could see in the type).
+
+**D-172 — The ranker is a property.** `lexvay.matching.ranker` (`LEXVAY_MATCHING_RANKER`) is `bm25` (default) or `ts_rank`, read in
+`PostgresPassageSearch` into `PassageSearch.Ranker`; any other value stops the application at start. A second overload takes the ranker
+explicitly so the evaluation can put the same queries to both in one run. The reviewer search keeps `ts_rank_cd` and its code path is
+unchanged apart from the shared statement. One SQL template serves all three: `Mode` now carries, besides the tsquery, the prelude (the BM25
+common table expressions), an extra join, the match condition, the rank and the projection. Rejected: a second statement for BM25 (it
+would have copied the filters, the ordering and the limit); choosing the ranker by a request parameter (a matching run must be reproducible
+from configuration).
+
+**D-173 — Latency budget and what it depends on.** One BM25 statement for a requirement on a synthetic 500-page program (pages of 2,000 to
+3,500 characters, policy sentences repeated on every page, so nearly every page is a candidate), headlines of the long pages among the top
+eight included: p50 9 ms and p95 15 ms against the 30 ms budget (`PassageSearchLatencyTest`, tag `perf`). The test runs `ANALYZE` as the
+schema owner after loading, because autovacuum would have done it for a real program and without statistics the planner chose nested loops
+that took p95 37 ms. No schema change was needed and none is planned: no per-page statistics column was added. Rejected: a stored
+`len` and `tf` table (a migration, and the generated `tsv` already holds both).
+
+**D-174 — Excerpts.** `PassageExcerpter` is pure. A page of at most 2,500 characters is sent whole. A longer page is sent as its header
+(the last whole line that ends within the first 300 characters; a first line longer than that is cut at 300) plus the fragments of
+`ts_headline` for the same lexeme query with `MaxFragments=3, MaxWords=120, MinWords=60, FragmentDelimiter=U+0003` and empty selectors.
+PostgreSQL rejects `StartSel=, StopSel=`; an empty selector must be written `StartSel="", StopSel=""`, which is what the constant holds.
+Each fragment is located in the stored page with `QuoteVerifier.find` (so differences in whitespace do not matter), widened to whole lines,
+merged with anything it overlaps or touches (including the header), emitted in page order and separated by a line holding only `[...]`. If a
+fragment cannot be located, or the headline is blank, the first 2,500 characters are sent instead; an excerpt that would not be shorter than
+the page is the page. The headline is computed only for the (at most eight) shortlisted pages longer than 2,500 characters, in the outer select,
+so it costs nothing for short pages. `Passage` gains `excerpt` (what the model sees) and `rank`; `text` stays the full page and the quote is
+verified against it (rule 2 is untouched). Because every part is a verbatim slice of the page, a quote taken from within one part verifies; one
+that spans `[...]` is not in the page and is discarded as "No verifiable passage found" (`ExcerptMatchingTest`). Rejected: cutting the header at
+a fixed length (it would split lines and words); a model-written summary of the page (the model must never see text that is not the page's).
+
+**D-175 — Prompt `match-v2`.** A new resource beside `match-v1`, which stays on disk. It says that a passage may be an excerpt, that `[...]` marks
+omitted text, that absence from an excerpt is not absence from the document, and that a quote must lie within one continuous part and never
+include or straddle the marker. Assessments record `match-v2`.
+
+**D-176 — The retrieval corpus.** `eval/retrieval/docs` holds 13 added syllabi (COUN 701 to 765), each of four pages: description and outcomes,
+a weekly schedule of 3,000 to 3,500 characters (so it is excerpted), assignments, and a policy page (academic integrity, accommodations,
+grading scale, attendance, professional dispositions, nondiscrimination) that is word for word the same on every one. With the 14 seed documents
+that makes 27. Their PDFs in `eval/retrieval/pdf` are made by `make seed-pdfs` (now generating both folders) and `RetrievalFileTest` fails when a
+PDF no longer says what its markdown says. Everything is labelled fictional like the seed. `eval/retrieval/queries.yml` holds 35 queries:
+15 in the words of a requirement against the added syllabi (four of them in the everyday words that the policy page also uses), 14 that the
+demo seed's requirements put to the matcher, and 6 marked `lexicalGap: true` (for example "marital" against "couples", "telehealth" against
+"secure videoconferencing"). Each names the expected PDF, page and a substring of the evidence; the test checks the substring is on that page of
+the committed PDF. Lexical gaps are reported separately and never count toward a limit. Rejected: copying the seed documents into the retrieval
+folder (they are read from `seed/pdf`, so there is one copy); a page-per-syllabus corpus (the excerpter would never run).
+
+**D-177 — Metrics and limits.** `RetrievalScorer` (pure): recall@8 and recall@3 (the expected page is within that many of the shortlist), mean
+reciprocal rank (`1/rank` within the first eight, 0 otherwise), and excerpt coverage (among the recalled queries, the share whose expected substring
+is inside the excerpt that would be shown to the model). Computed for the `ts_rank` baseline and for BM25 over the same queries, the counted queries and the
+lexical gaps apart. `eval/thresholds.yml` gains `retrieval: {minRecallAtDeep: 0.95, minExcerptCoverage: 1.0}`; `make eval` also fails when BM25's
+recall@8 or recall@3 is below the baseline's. Mean reciprocal rank is reported and has no limit. The baseline is measured with excerpts too, so
+that the two rankers differ in nothing but the ranking. The limits do not depend on the model, so they apply to `make eval` and `make eval-live` alike.
+
+**D-178 — How the evaluation reaches the corpus.** `SeedLoader.loadCorpus` creates a fresh, uniquely named tenant with the demo program and uploads
+the given PDFs through the same services as the seed (its private `upload` now takes a path instead of a seed directory and a file name).
+`RetrievalService` loads the corpus and puts every query to the production `PassageSearch` once per ranker. `EvalRunner` runs it after the pipeline
+evaluation, prints a second table, writes `docs/RETRIEVAL.md` (no date inside, so an unchanged result changes no line) and exits non-zero when either
+evaluation breaks a limit. The existing pipeline metrics on the seed are unchanged.
+
+**D-179 — One stack script.** `scripts/lib/stack.sh` holds what `scripts/e2e.sh` and `scripts/eval.sh` repeated: the slot arithmetic, the compose
+project, the isolated file store, the cleanup trap, starting the database and packaging the backend. The e2e script keeps its ports and the seed and
+Playwright steps; the evaluation script keeps its model switch. Both now also delete the temporary file store on exit.
+
+### F13 — Work queue API (D-190 to D-199)
+
+#### D-190 One statement per endpoint, role filtered in SQL
+
+`GET /api/v1/work-queue` and `GET /api/v1/work-queue/count` each run exactly one SQL statement in one read-only
+transaction (D-110; `ReadPathConnectionsTest` asserts one checkout). The statement is a shared CTE block
+(`latest`, `current_mappings`, `affected`) and one `UNION ALL` branch per kind. The caller's role is bound as
+`:role` and each branch carries its own visibility test (`CAST(:role AS text) IN (...)`), so a branch the caller may
+not see is a constant-false filter and is not executed. Java does not branch on the role. The `ids` field is built
+in SQL (`jsonb_build_object`, `array_agg(... ORDER BY ...)[1 : 20]`), never from a second query.
+
+Rejected: a visibility table (`VALUES (kind, role)`) joined at the end (every branch would run for every role);
+one query per kind (more connections or round trips); assembling `ids` in Java from extra queries (N+1).
+
+#### D-191 What `count`, `counts` and `total` mean
+
+`count` of an item is the number of records waiting: requirements, rule versions, change events, assessments, and 1
+for a jurisdiction ready to sign. `counts[kind]` is the sum of the item counts of that kind and `total` of
+`/work-queue/count` is the sum of all of them. Accepting one of three requirements therefore moves the badge.
+`counts` omits kinds with nothing waiting (absent means zero); adding zero entries would need role knowledge in Java.
+
+Rejected: `total` as the number of items (accepting one requirement of three would not move the badge); a `counts`
+map with every visible kind (needs the role matrix duplicated in Java).
+
+#### D-192 The shared predicate
+
+`MappingRepository` now holds three public SQL constants: `LATEST_EVENT` (the latest review event of mapping `m` as
+`le`, D-003), `NEEDS_DECISION` (never reviewed, or reopened) and `UNDECIDED` (`stale OR NEEDS_DECISION`, what blocks
+signing). `countUndecided` and the queue both use them; `CURRENT` (D-066) is reused as is.
+`REQUIREMENTS_TO_REVIEW` is `NOT stale AND NEEDS_DECISION` (stale mappings cannot be reviewed, the review endpoint
+answers 409, so they wait under `CHANGES_OPEN`); `READY_TO_SIGN` uses `UNDECIDED`.
+`ChangeEventRepository.AFFECTS_PROGRAM` is extracted the same way from `findOpenViewsForProgram` (behaviour
+unchanged) and gives `CHANGES_OPEN` its affected programs.
+Not touched: `AssessmentRepository.findingCounts` still has its own copy of the "decided" test; it can use
+`LATEST_EVENT` and `UNDECIDED` in a follow-up.
+
+#### D-193 READY_TO_SIGN follows the signing code, not the roadmap wording
+
+`DeterminationService.sign` refuses unless: the jurisdiction is a target of the program; the program has a latest
+FINISHED assessment (`latestFinished`, newest `finished_at`); that assessment has at least one current mapping for
+the jurisdiction; none is undecided; and no SIGNED determination exists for the program and jurisdiction
+(`hasSignedForProgram`, not `hasSigned(assessment, jurisdiction)` as the roadmap text says). The queue implements
+exactly that, so it also hides a jurisdiction that is signed for an older assessment, which the signing endpoint
+refuses too. An open evidence request counts as decided for the gate, and so for the queue. A test signs every
+program and jurisdiction pair of a tenant and asserts 201 for exactly the pairs the queue lists and 409 for every
+other, then asserts the items are gone.
+
+#### D-194 Kind details
+
+- `REQUIREMENTS_TO_REVIEW`: per program and jurisdiction; `oldestAt` is the earliest of the reopening time or the
+  mapping's creation; `ids` = `assessmentId`, `mappingIds`.
+- `EVIDENCE_REQUESTS_OPEN`: latest event is an evidence request, all roles. Stale ones are only counted in
+  `ids.blockedCount`; a group with nothing answerable is not listed. `ids` = `assessmentId`, `mappingIds`,
+  `blockedCount`. An answer reopens the mapping (D-003), so it moves from this kind to `REQUIREMENTS_TO_REVIEW`.
+- `RULE_VERSIONS_TO_APPROVE` (REVIEWER, SIGNER) and `EXTRACTION_FAILED` (ADMIN, REVIEWER): per jurisdiction, program
+  fields null, `ids.ruleVersionIds`. Extraction failure is "a FAILED `EXTRACT_REQUIREMENTS` job and no requirements".
+  A rule version has one extraction job (a retry requeues the same row), so that equals the latest-job reading of
+  `RuleVersionService`. The test uses the `(status, created_at)` index and filters the payload on the few failed jobs,
+  because the payload expression index is unusable under row-level security (D-115).
+- `CHANGES_OPEN` (REVIEWER, SIGNER, ADMIN): one item per change kind (the roadmap says "per kind"), program and
+  jurisdiction null; `ids` = `changeKind`, `changeEventIds`, `programIds` (the programs the open events touch).
+- `READY_TO_SIGN` (SIGNER): count 1; `oldestAt` is when the last decision made it ready; `ids.assessmentId`.
+- `ASSESSMENTS_FAILED` (ADMIN): per program, `ids.assessmentIds`. Literal to the roadmap: a failed assessment stays
+  listed after a later run succeeds (see the report: recommended refinement).
+Order: kind order, then `oldestAt` ascending, then program name and jurisdiction.
+
+#### D-195 Latest assessment
+
+All program-scoped kinds read each program's latest FINISHED assessment, found with a lateral `LIMIT 1` over
+`assessment_program_status_finished_idx`, the same row `latestFinished` returns.
+
+#### D-196 Performance and indexes
+
+Both endpoints are in `EndpointLatencyTest` (40 ms p95 budget) and `ReadPathConnectionsTest`. `IndexUsageTest` runs
+`EXPLAIN (ANALYZE, BUFFERS)` of the exact statement (`WorkQueueRepository.LIST`) as the application role for every
+role on about 200 tenants with synthetic review history (`PerfSeed.addHistoryVolume` now adds review events: without
+them `review_event` is empty and the planner scans it) and fails on a sequential scan of `mapping`, `review_event`
+or `job`. None occurs, so no migration: `V014__work_queue_indexes.sql` is not created. Numbers and plan in
+`docs/PERF.md`.
+
+#### D-197 Slice syntax
+
+The id cap is written `[1 : 20]` with spaces because Spring reads `:20` as a named parameter.
+
+#### D-198 Roles and audit
+
+Read-only and open to every signed-in user; the SQL decides what each role sees. Nothing is added to
+`Rule9_AuditCoverageTest` (no mutation). `InputValidationTableTest` has a 200 row (hostile query parameter ignored)
+and a 401 row (no session) for each endpoint; its harness gained an anonymous actor.
+
+#### D-199 Known cost of `CURRENT`
+
+`MappingRepository.CURRENT` joins every mapping of the assessment to every mapping again per mapping (the planner
+starts from `nm`), so it is quadratic in the mappings of one assessment. At the seeded size it costs well under
+1 ms; at several hundred mappings per assessment it is the first place to look. Not changed here because it is
+shared by every mapping query.
+
+### F3 — Rule workspace screens (D-210 to D-219)
+
+**D-210 — Route, rail entry and one screen instance.** `programs/:programId/rules` and
+`programs/:programId/rules/:ruleVersionId` are one route (`rulesMatcher` in `app.routes.ts`), so choosing a version
+keeps the same `Rules` instance and the keyboard focus in the list; the version id arrives as the `ruleVersionId`
+input. The screen is its own lazy chunk. The rail shows "Rules" after Changes with `phosphorScales` and a badge
+whose screen-reader text is "n rule versions waiting for approval". The shell now moves focus to the `h1` only
+when the screen changes (the path up to `programs/:id/<screen>`), not when a version id changes inside Rules.
+Rejected: two routes (Angular rebuilds the component between them and focus is lost on every selection); a
+`?version=` query parameter (the spec fixes the path).
+
+**D-211 — One status function.** `ruleVersionStatus(view, all)` in `core/rules.ts` is the only derivation, used by
+the list, the detail header and the shell badge (`versionsWaitingForApproval`, through `ProgramContext.rulesWaiting`).
+Precedence: Superseded (another version's `supersedesId` names it, approved or not, matching the moment the server
+opens the change event) → Approved → Needs approval (requirements exist, whatever the extraction job did, because a
+reviewer may enter the list by hand after a failed extraction) → Extracting (job QUEUED or RUNNING) → Extraction
+failed (job FAILED). An unapproved version with no requirements and no failed or running job (not produced by the
+current server) shows Needs approval so it can still be corrected. Each status has its own Phosphor icon and word;
+the Tag colour only repeats them. The badge counts Needs approval versions with at least one requirement.
+
+**D-212 — Grouping and ordering.** Groups follow the program's target jurisdictions in the program's order, then the
+other jurisdictions by code; inside a group the newest effective date first, then the newest entry. Groups with no
+version are not shown. The list is a PrimeNG Listbox with groups (`role="listbox"`, `aria-selected`, arrow keys,
+Enter or Space to open). `metaKeySelection` keeps a click on the selected version from clearing it; the option's
+accessible name carries code, label, effective date and status; the Listbox's hard-coded `aria-multiselectable="true"`
+is overridden to `false` through pass-through (D-087 style). Rejected: a plain `role="list"` with `aria-selected`
+(invalid ARIA; axe reports `aria-allowed-attr`); selecting on focus (every arrow key would fetch a version).
+
+**D-213 — Edit grid as a plain model.** `RequirementListEditor` (signals, no injection, Vitest tests) holds the rows
+with client keys, add, move, delete, update, `dirty` (content or order differs from the server list), restore and the
+PUT body (`toDrafts`, snake case, numeric fields sent only for numeric types and kept on the row otherwise). The
+table is the same PrimeNG Table with every cell a control in place (`rowTrackBy` on the key so a row keeps its DOM
+and focus while it changes); no `editMode="row"`. "Edit list" enters editing; "Save list" (the form's submit) and
+"Discard" leave it. "Approve requirements" is hidden while editing and while extracting. The grid has a
+`min-width` and scrolls horizontally inside its focusable table container at narrow widths (axe
+`scrollable-region-focusable`). Each control's `aria-label` names the ref (or "Row n" while the ref is empty) and
+the column.
+
+**D-214 — Server problems mapped to rows.** `requirementProblems(detail, rows)` splits the parser's
+"Requirement list is invalid: …; …" detail on "; ", places `requirements[i]` messages under the row that was at
+position i when sent (by key, so the message follows the row if it is moved), places a message that only quotes a
+ref under the row with that ref, and shows everything else above the table. No client-side copy of the parser's
+rules: the server's words are the single source. A 409 (approved meanwhile) is shown as a Message and the list and
+versions reload. The new-version dialog checks only required fields, the URL scheme and the 500 000 character limit
+before sending, and maps POST problem details onto a field by the words they contain (`problemField`).
+
+**D-215 — Word diffs.** `lx-diff-text` renders `TextDiff` segments as `ins` (underline, `found` tokens) and `del`
+(line-through, `missing` tokens), plus visually hidden "[inserted: … ]" and "[deleted: … ]" markers so a screen
+reader hears the change. Title, type and numeric-check changes are shown as a deleted old value and an inserted new
+value with a Phosphor arrow and the hidden word "becomes". Compare rows are ordered Changed, Added, Removed,
+Unchanged, keeping the server's order within each status. The rule text diff is in a PrimeNG Accordion panel.
+
+**D-216 — Polling.** While `anyExtracting(versions)` is true and the document is visible, `GET /rule-versions` is
+fetched every 5 s through `ProgramContext.refreshRuleVersions` (the same signal feeds the badge). The effect re-arms
+on every answer and is cleaned up when nothing extracts or the tab is hidden; there is no polling otherwise.
+
+**D-217 — Rule text from the WS-PERF page endpoint.** When this item started, `origin/main` had only
+`GET /documents/{id}`, whose page summaries carry no text, so the fallback named in the spec could not show the
+rule text. WS-PERF merged during the work; the tab uses `GET /documents/{documentId}/pages/{n}` (page text, page
+count) with previous and next page buttons. No backend change was needed. When F1's `DocumentViewer` merges, this
+tab should use it (read-only) instead of its own frame.
+
+**D-218 — Shared styles and PrimeNG additions.** The document frame (`.lx-document*`), the status line under a page
+header, the spinner animation and the three-line clamp (`lxClamp` directive, used for long requirement text with a
+"Show all" control) live in `styles.css`; Review and Changes now use the shared copies. The preset adds the Aura token
+sets of Listbox, DatePicker, InputNumber and Accordion (D-082); the initial bundle grows by about 14 kB raw to
+693.8 kB, still under the 700 kB warning.
+
+**D-219 — End-to-end scenario adapted to the seed and the fake model.** The spec's scenario assumes the seeded
+Colorado revision is unapproved and that FakeLlmClient extracts a version created in the browser. Neither holds on
+`main`: the seed approves the revision (`SeedLoader.createApprovedRuleVersion`), and the e2e backend's
+FakeLlmClient has no scripts (they are loaded only in the seed process), so an extraction started from the UI fails
+after its three attempts. `e2e/rules.spec.ts` therefore checks the approved revision read-only (no edit controls,
+the Compare tab's single CO-5 change with `ins`/`del` and the numeric change, the rule text), has a contributor
+enter a Nevada version and see Extracting then Extraction failed, and has a reviewer enter that list by hand, hit a
+server row error, save, edit a title, reload, and approve it through the dialog, then find the audit entries. Nevada
+is not a program jurisdiction, so no assessment or change event used by the other suites is touched. Making the
+spec's exact scenario possible needs an orchestrator decision: leave the seeded revision unapproved, or script
+FakeLlmClient at runtime from `seed/fake-llm.yml` in the e2e profile.
+
+### F1 — Evidence viewer with in-context highlight (D-220 to D-229)
+
+**D-220 — One `DocumentViewer`, its state in signals, its logic in plain functions.** The component lives in
+`frontend/src/app/shared/document-viewer/` (standalone, inputs `documentId`, `pageNumber`, `highlight`, `selectable`,
+output `selection`). The page on screen is a `linkedSignal` of the inputs, so previous and next move away from the cited
+page and any new input brings it back; the page is an `rxResource` over `DocumentPageCache`, so a newer page request
+cancels an older one. Everything that can be wrong without a browser is a plain function in `page-text.ts` with Vitest
+tests: `splitForHighlight(text, start, end)`, `rangeOffsets(container, range)` and `ocrNote(page)`. Rejected: a store
+service per viewer (state that dies with the component belongs in it); testing the offset logic through the component
+(slow and indirect).
+
+**D-221 — `GET /documents/{id}/file`.** One statement (`DocumentRepository.findById`, the existing row lookup,
+now also used by `GET /documents/{id}`) and one file store read. `Content-Type` comes from the stored file type, which is
+derived from the stored file name exactly as ingest does (`FileType.fromFilename`; `FileType` now carries its media
+type). The spec says "from the stored kind", but `DocumentKind` (SYLLABUS, HANDBOOK, ...) says nothing about the format;
+the file type is the stored fact that does. `Content-Disposition` is built by Spring's `ContentDisposition` with UTF-8,
+which writes the plain `filename="..."` and the RFC 5987 `filename*=UTF-8''...`. `Cache-Control` is the controller's
+existing `IMMUTABLE_PRIVATE` constant and the ETag is `"<document sha256>"`, both applied through one helper shared
+with the page endpoint. `If-None-Match` is checked with `WebRequest.checkNotModified` before the store is read, so a
+revalidation costs one statement and no file read; the 304 carries the same ETag and Cache-Control. Any authenticated
+role may read, another tenant gets 404 from row-level security, it is a GET so it is not audited
+(`Rule9_AuditCoverageTest` unchanged), it has three rows in `InputValidationTableTest` and a row in
+`ReadPathConnectionsTest` (one connection). The body is a `byte[]` (bounded by the 25 MB upload limit) rather than a
+stream because `FileStore` has only `get`; adding a streaming method to both stores was not worth it at that size.
+Rejected: letting `HttpEntityMethodProcessor` answer the 304 from the response entity (it would read the file first);
+`attachment` (the browser should show the PDF).
+
+**D-222 — The highlight.** One `mark` element between two text nodes, all produced by Angular interpolation inside the
+`pre` (never `innerHTML`, never a search in the browser: the server verified the quote, the viewer shows the stored
+offsets). The `pre` keeps the stored whitespace (`white-space: pre-wrap`), and the template puts no whitespace of its own
+inside it. The mark is styled with the warning tint (`--p-lx-ambiguous-bg`) and a 2 px underline in the warning colour
+(`--p-lx-ambiguous`), so it does not depend on colour alone; it has `tabindex="-1"` and a visible focus ring. When the
+offsets do not fit the page (`splitForHighlight` returns null) the page is shown unmarked with the warning
+"The stored quote position does not match this page".
+
+**D-223 — Scrolling and focus.** The page text scrolls inside the frame (`.lx-document-body`, focusable and named
+"Page text" so keyboard users can scroll it and axe's scrollable-region rule holds), so the Evidence header and the
+"Quote only" disclosure stay in place. After the cited page renders, and whenever the cited span changes, the mark is
+scrolled into view with `block: 'center'`. Focus moves to the mark only "when the viewer was opened for that quote":
+this needs a fifth input, `focusHighlight`, because a viewer cannot tell whether it was opened on request. Review sets
+it below 1024 px, where the viewer exists only after "Show on page"; in the three-pane layout the viewer is always on
+screen and taking focus would pull it out of the requirement list and the jurisdiction tabs on every change. When a
+page button becomes disabled at the first or last page while it has focus, focus moves to the other page button
+instead of falling to the document body. The page position ("Page n of N") is a polite status, so paging is announced.
+
+**D-224 — `DocumentPageCache`.** `frontend/src/app/core/document-page-cache.ts`, one per app. A `Map` keyed
+`documentId:pageNumber` in least-recently-used order (a hit is moved to the end, the first key is evicted past 40). The
+stored value is the observable itself with `shareReplay({ bufferSize: 1, refCount: false })`, so a request in flight is
+shared by returning the same observable. A failed request is removed so the next ask retries. Rejected: caching values
+and a separate in-flight map (two structures for one job); `refCount: true` (an unsubscribed viewer would cancel the
+request another viewer is waiting for).
+
+**D-225 — Passage selection.** With `selectable`, releasing the pointer or a key over the page text measures the
+selection (`rangeOffsets`: the length of `Range.toString()` from the start of the `pre` to each boundary, so crossing
+the mark, element boundary points and stored whitespace all count exactly) and takes the quote from the stored text by
+those offsets, not from the DOM. Read literally, the spec emits `selection` when the person selects and again when they
+click "Use this passage"; that is what is built (a repeat of the same offsets is not re-emitted). A selection that is
+collapsed or reaches outside the page text is ignored. The toolbar sits inside the scrolling page body so it moves
+with its text; Escape or a selection that leaves the page removes it. The keyboard alternative is a PrimeNG Dialog with
+two InputNumber fields (start and end offset, end exclusive, both limited to the page length) that shows the resulting
+quote live and emits the same event. Because no screen uses `selectable` yet, the end-to-end test drives it on a harness
+route, `programs/:programId/dev/document-viewer`, registered only when `ngDevMode` is set; production builds define
+`ngDevMode` as false, so the route and its chunk are removed (checked: the production bundle does not contain it).
+
+**D-226 — Review layout.** The Evidence pane keeps its header as a definition list (file, course with required or
+elective, page, characters), then the elective warning, then "Quote only" (collapsed), then the viewer. The disclosure
+is the native `details`/`summary` with a Phosphor caret: PrimeNG's toggleable Panel renders its title and its toggle
+button with the same id, which its content region references, and Accordion is a multi-section widget. Below 1024 px a
+PrimeNG Button "Show on page" (`aria-expanded`, `aria-controls` on a container that always exists) shows the viewer;
+the viewer collapses again when the selected requirement changes (`linkedSignal` on the selection). In the
+three-pane layout the viewer fills the rest of the pane (at least 16 rem). The document frame styles moved from
+`review.css` into the viewer; the review keeps only its header list and disclosure styles.
+
+**D-227 — Overview endpoint.** `ProgramContext` loads `GET /programs/{id}/overview` (program, latest finished
+assessment, determinations) beside programs, change events, jurisdictions and rule versions: five parallel requests
+instead of seven plus a dependent assessment request. `refreshAfterChange` uses it too. `ApiService.latestAssessmentId`
+and the program lookup it replaced are deleted; `audit()` remains for the Audit trail screen. The Changes badge still
+counts all open change events of the tenant, as before; scoping it to the program (the overview's `openChangeEvents`)
+is a behaviour change outside this item.
+
+**D-228 — OCR pages (F11 merged first).** The page view now carries `textSource` and `ocrConfidence` from the same
+statement, and the viewer header says "Read by OCR, NN % confidence" (rounded, warning colour with an icon) for a page
+whose text came from OCR. The spec said the WS-PERF `PageView` is used as is; the two fields were added because the
+coordinator asked for the OCR note in the viewer header and the viewer can page to pages the evidence does not
+describe.
+
+**D-229 — No new dependency; tokens and icons.** No npm package was added. The InputNumber token set was added to the
+preset (D-082) and five Phosphor icons were registered (caret left and right, cursor text, eye, quotes). The initial
+bundle is 677.5 kB raw (budget 700 kB warning).
+
+### FIX-1 — Requirement order column (D-230 to D-239)
+
+**D-230 — The order of a rule's requirements is stored, as `requirement.ordinal`.** The rows of one rule version
+are inserted in one transaction and share `created_at`, so the old order `created_at, ref` was the text order of
+the ref (`CO-10` before `CO-2`). `ordinal integer NOT NULL` is the position in the list the extraction or the
+reviewer produced, counted from 1, with `UNIQUE (rule_version_id, ordinal)`. That constraint's index also serves
+`ORDER BY ordinal` within a version, so no extra index is created. The existing `UNIQUE (rule_version_id, ref)`
+stays. Rejected: sorting refs naturally in SQL or Java (refs are free text from the rule, and the reviewer may
+order them as the rule does); `ORDER BY id` (random uuids).
+
+**D-231 — Migration `V012__requirement_ordinal.sql`.** In the migration: `NO FORCE ROW LEVEL SECURITY` and
+`DISABLE TRIGGER requirement_locked` on `requirement`, `ADD COLUMN ordinal integer`, backfill, `SET NOT NULL`,
+the unique constraint, then the trigger is enabled and `FORCE ROW LEVEL SECURITY` restored. All of it runs in
+Flyway's transaction for the migration, so a failure leaves neither the lock nor the policy weakened. The
+exemption is needed because the backfill must touch rows of every tenant and of approved rule versions: the
+owner role is otherwise bound by `FORCE`, and the trigger rejects any update of an approved list. Product rule 5
+is unaffected: no existing value changes, and the new column is derived from the existing order. V006 stays
+unused; V009 to V011 are reserved by branches that merge before this one (D-074).
+
+**D-232 — Backfill expression.** `row_number() OVER (PARTITION BY rule_version_id ORDER BY created_at,
+(substring(ref from '(\d+)$'))::int NULLS LAST, ref)`: creation time first, then the number at the end of the
+ref compared as a number, then the ref itself; refs with no trailing number sort last. For the rows that exist
+today (one transaction per version) this is the numeric order of the refs, which is the order the extraction
+returned them in.
+
+**D-233 — The backfill is proven by running the migration's own statement.** Flyway applies all migrations
+before the application starts, so a test cannot load rows and then migrate. `RequirementOrdinalBackfillTest`
+creates a temporary table named `requirement` (it shadows the real table for that connection only, and is
+dropped in a `finally` because the pool reuses connections), reads `V012__requirement_ordinal.sql` from the
+classpath, runs its `UPDATE` unchanged and asserts the result: shuffled `CO-1` to `CO-12` with a shared
+timestamp, refs without a number last (ordered by ref), an earlier `created_at` first, numbering restarting at 1
+per version. Rejected: copying the expression into the test (it would drift from the migration).
+
+**D-234 — Writing the order.** `RuleVersionRepository.insertRequirements(tenantId, ruleVersionId, drafts,
+createdBy)` replaces the single-row `insertRequirement`; it is the only writer and assigns `ordinal` = list
+position from 1. Both paths use it: `ExtractRequirementsHandler` (model output order) and
+`RuleVersionService.replaceRequirements` (submitted order, after the delete of the unapproved list).
+`RequirementDraft` stays a plain record: the list carries the order, not each draft.
+
+**D-235 — Reading the order.** `Requirement` gains `ordinal` (last component), so the requirements endpoint and
+the diff's `before`/`after` expose it. `RuleVersionRepository.requirements` orders by `ordinal`;
+`MappingRepository` orders by `r.ordinal` (`j.code, r.ordinal` for the all-jurisdictions list). Nothing else
+orders requirements. The mapping's own `RequirementView` is unchanged: mappings arrive in order and do not need
+the number.
+
+**D-236 — The diff follows the rule's own order.** `RequirementMatcher` already emits pairs in "the newer
+version's order, removed ones last in the older version's order" (D-122); that order is now the list order of
+each version because the repository returns it. No change to the matcher, `RuleVersionDiffService` or the
+response shape. The D-122 remark that the order is "effectively ref text order" no longer applies.
+
+**D-237 — Tests.** `RequirementOrderApiTest`: twelve requirements `CO-1` to `CO-12` through the requirements
+endpoint (with `ordinal` 1 to 12), the mappings endpoint and the diff (all UNCHANGED, newer order); replace
+keeps a submitted order that is neither numeric nor text order (`CO-3`, `CO-1`, `CO-10`), numbers it from 1, and
+approval does not reorder. `RequirementOrdinalBackfillTest` as D-233. `MigrationsApplyCleanlyTest` counts files
+and needed no change. The `Rule5_*` tests are unchanged; `SchemaFixtures` now supplies `ordinal` in its direct
+`INSERT INTO requirement`. `AssessmentFixtures` gains `ruleVersion` (create and extract, unapproved) and
+`approvedRuleVersion` calls it, so the creation request exists once. `InputValidationTableTest` is untouched: no
+endpoint was added.
+
+**D-238 — Compatibility.** The PUT body and the extraction schema are unchanged: clients send the list in the
+order they want and receive `ordinal` in addition. The frontend needs no change; F3 may use `ordinal` instead of
+a natural sort of the ref.
+
+### OPS-1 — Image build and smoke in CI (D-240 to D-244)
+
+**D-240 — A third job, `image`, after `test`.** `.github/workflows/ci.yml` gains `image` with `needs: test`, so an
+image is only built for a change whose suites already passed. It runs on the same triggers (pull requests and pushes
+to `main`), inherits the workflow's `concurrency` group (a newer commit cancels the older run, image job included),
+runs on `ubuntu-latest` and has `timeout-minutes: 30` like `test`. The smoke script fails the job on the first
+failed check (`set -e` and `fail`).
+
+**D-241 — Action pins.** `docker/setup-buildx-action@v4` and `docker/build-push-action@v7`, pinned by major tag like
+the other actions in the file. Latest releases verified from the GitHub API on 2026-11-26: setup-buildx-action
+v4.4.1 (published 2026-09-16), build-push-action v7.4.0 (published 2026-09-15). A major tag follows minor releases
+by design; to move to a new major, change the tag and re-read the action's release notes.
+
+**D-242 — One build, tagged by commit, never pushed.** `build-push-action` builds the root `Dockerfile` with
+`load: true` (the image lands in the runner's Docker daemon), `push: false`, tag `lexvay:ci-<full sha>`,
+`cache-from: type=gha` and `cache-to: type=gha,mode=max` (every stage is cached, including the Node and Maven
+stages that never reach the final image). `build-args: LEXVAY_PRIMEUI_LICENSE=` passes an empty license key: CI has
+no key and the app then shows its license notice (Dockerfile comment; D-140).
+
+**D-243 — `scripts/smoke.sh` tests an image it is given.** `scripts/smoke.sh <image-tag>` runs against an existing
+image and builds nothing, so CI tests exactly the cached build above and not a second, uncached one; without an
+argument it builds `lexvay:local` through compose as before (`make smoke`). `docker-compose.yml` reads the image name
+from `LEXVAY_IMAGE` (default `lexvay:local`). The script has no Colima dependency: it uses whatever daemon the
+`docker` CLI already points at (`DOCKER_HOST` when set, otherwise the default socket). The slot, the PostgreSQL port,
+the compose project (`lexvay-smoke-<slot>`), the cleanup trap and the temporary directory come from
+`scripts/lib/stack.sh`. That file did not exist on `main`; it is the same file F7 (PR #17) adds, copied unchanged
+except for the header comment, so F7 merges onto it without a conflict in the code. `scripts/e2e.sh` and
+`scripts/eval.sh` adopt it in F7. Slot 0 is free on a CI runner (ports 5433, 8081, 8091).
+
+**D-244 — Image size in the job summary.** A step after the build writes one line to `$GITHUB_STEP_SUMMARY`:
+`Image lexvay:ci-<sha>: <n> MiB`, taken from `docker image inspect --format '{{.Size}}'`. `docker image ls` has no
+content-size field on the runner's Docker (the field exists only with the containerd image store), and `inspect`
+reports the same number the smoke script already prints, so one definition is used everywhere. On the containerd
+store this is the compressed content size (227 MB locally, matching `docs/OPERATIONS.md`); on a classic store it is
+the unpacked size, so compare numbers from the same environment only. The first CI run's value is recorded in
+`PROGRESS.md (OPS-1)`.

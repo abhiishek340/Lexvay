@@ -52,6 +52,7 @@ class ReadPathConnectionsTest extends AbstractAssessmentTest {
         endpoints.put("search", program + "/search?q=ethics");
         endpoints.put("document", "/api/v1/documents/" + document);
         endpoints.put("document page", "/api/v1/documents/" + document + "/pages/1");
+        endpoints.put("document file", "/api/v1/documents/" + document + "/file");
         endpoints.put("rule versions", "/api/v1/rule-versions");
         endpoints.put("rule version diff", "/api/v1/rule-versions/" + s.ruleVersionId() + "/diff?against=" + s.ruleVersionId());
         endpoints.put("requirements", "/api/v1/rule-versions/" + s.ruleVersionId() + "/requirements");
@@ -60,6 +61,8 @@ class ReadPathConnectionsTest extends AbstractAssessmentTest {
         endpoints.put("determination register", "/api/v1/determinations/register?current=false");
         endpoints.put("determination register of a program", "/api/v1/determinations/register?programId=" + s.programId() + "&jurisdiction=CA&outcome=MEETS");
         endpoints.put("determination lists", program + "/determination-lists");
+        endpoints.put("work queue", "/api/v1/work-queue");
+        endpoints.put("work queue count", "/api/v1/work-queue/count");
         var source = mvc.post().uri("/api/v1/rule-sources").with(user(t.admin())).with(csrf()).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("jurisdictionCode", "CA", "licenseType", AssessmentFixtures.LICENSE,
                         "label", "Demo rule source", "url", "https://" + FakeHostResolver.PUBLIC_HOST + "/rules.pdf", "checkIntervalHours", 24)))

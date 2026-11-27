@@ -48,6 +48,25 @@ public class MappingRepository {
                 WHERE nv.supersedes_id = r.rule_version_id AND nm.assessment_id = m.assessment_id)
             """;
 
+    /**
+     * The latest review event of mapping {@code m} as {@code le}: its kind and time, or no row when nobody has
+     * reviewed it yet (D-003: the current decision is the latest event, whatever it is).
+     */
+    public static final String LATEST_EVENT = """
+             LEFT JOIN LATERAL (SELECT re.kind, re.created_at FROM review_event re WHERE re.mapping_id = m.id
+                                ORDER BY re.created_at DESC, re.id DESC LIMIT 1) le ON true
+            """;
+
+    /** Mapping {@code m} has no current decision: never reviewed, or reopened (D-003). Needs {@link #LATEST_EVENT}. */
+    public static final String NEEDS_DECISION = "(le.kind IS NULL OR le.kind = 'REOPENED')";
+
+    /**
+     * Mapping {@code m} blocks signing: it needs a decision or cites an outdated version. The single definition
+     * behind {@link #countUndecided} and the work queue, so the queue's "ready to sign" cannot drift from the
+     * signing gate. Needs {@link #LATEST_EVENT}.
+     */
+    public static final String UNDECIDED = "(m.stale OR " + NEEDS_DECISION + ")";
+
     private static final RowMapper<Mapping> ROW = (rs, i) -> {
         Mapping.Evidence evidence = null;
         if (rs.getObject("evidence_span_id", UUID.class) != null) {
@@ -105,19 +124,15 @@ public class MappingRepository {
     }
 
     public List<Mapping> findByAssessmentAndJurisdiction(UUID assessmentId, String jurisdictionCode) {
-        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a AND j.code = :code" + CURRENT + " ORDER BY r.created_at, r.ref")
+        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a AND j.code = :code" + CURRENT + " ORDER BY r.ordinal")
                 .param("a", assessmentId).param("code", jurisdictionCode).query(ROW).list();
     }
 
     /** Mappings of one jurisdiction that block signing: stale, or without a current decision. */
     public long countUndecided(UUID assessmentId, UUID jurisdictionId) {
-        return jdbc.sql("""
-                SELECT count(*) FROM mapping m JOIN requirement r ON r.id = m.requirement_id
-                LEFT JOIN LATERAL (SELECT re.kind FROM review_event re WHERE re.mapping_id = m.id
-                                   ORDER BY re.created_at DESC, re.id DESC LIMIT 1) le ON true
-                WHERE m.assessment_id = :a AND m.jurisdiction_id = :j
-                  AND (m.stale OR le.kind IS NULL OR le.kind = 'REOPENED')
-                """ + CURRENT).param("a", assessmentId).param("j", jurisdictionId).query(Long.class).single();
+        return jdbc.sql("SELECT count(*) FROM mapping m JOIN requirement r ON r.id = m.requirement_id" + LATEST_EVENT
+                        + " WHERE m.assessment_id = :a AND m.jurisdiction_id = :j AND " + UNDECIDED + CURRENT)
+                .param("a", assessmentId).param("j", jurisdictionId).query(Long.class).single();
     }
 
     public long countByJurisdiction(UUID assessmentId, UUID jurisdictionId) {
@@ -170,7 +185,7 @@ public class MappingRepository {
     }
 
     public List<Mapping> findByAssessment(UUID assessmentId) {
-        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a" + CURRENT + " ORDER BY j.code, r.created_at, r.ref")
+        return jdbc.sql(SELECT + " WHERE m.assessment_id = :a" + CURRENT + " ORDER BY j.code, r.ordinal")
                 .param("a", assessmentId).query(ROW).list();
     }
 }

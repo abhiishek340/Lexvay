@@ -47,8 +47,9 @@ backend-test: ## Backend tests (Testcontainers needs a running Docker daemon)
 frontend-test: ## Frontend unit tests
 	cd $(FRONTEND) && npm ci --no-audit --no-fund && npm test -- --watch=false
 
-seed-pdfs: ## Regenerate the fictional seed PDFs in seed/pdf from seed/docs
+seed-pdfs: ## Regenerate the fictional PDFs in seed/pdf and eval/retrieval/pdf from their docs folders
 	cd $(BACKEND) && ./mvnw -q compile org.codehaus.mojo:exec-maven-plugin:3.7.0:java -Dexec.mainClass=com.lexvay.seed.SeedPdfGenerator -Dexec.args="../seed/docs ../seed/pdf"
+	cd $(BACKEND) && ./mvnw -q compile org.codehaus.mojo:exec-maven-plugin:3.7.0:java -Dexec.mainClass=com.lexvay.seed.SeedPdfGenerator -Dexec.args="../eval/retrieval/docs ../eval/retrieval/pdf"
 
 seed: db-up ## Load the fictional demo tenants (Northfield University, Westbrook College) once
 	cd $(BACKEND) && ./mvnw -q spring-boot:run -Dspring-boot.run.profiles=seed
