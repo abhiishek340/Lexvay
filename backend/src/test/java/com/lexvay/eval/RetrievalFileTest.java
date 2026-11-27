@@ -6,6 +6,7 @@ import com.lexvay.assessment.match.PassageExcerpter;
 import com.lexvay.common.YamlFile;
 import com.lexvay.document.ExtractedPage;
 import com.lexvay.document.FileType;
+import com.lexvay.document.NoOcrEngine;
 import com.lexvay.document.QuoteVerifier;
 import com.lexvay.document.TextExtractor;
 import java.io.IOException;
@@ -30,8 +31,10 @@ class RetrievalFileTest {
         }
     }
 
+    private static final TextExtractor EXTRACTOR = new TextExtractor(new NoOcrEngine(), 200);
+
     private static List<ExtractedPage> pages(Path pdf) throws IOException {
-        return TextExtractor.extract(FileType.PDF, Files.readAllBytes(pdf));
+        return EXTRACTOR.extract(FileType.PDF, Files.readAllBytes(pdf));
     }
 
     private static Path pdf(String file) {
