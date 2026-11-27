@@ -5,7 +5,7 @@ Branch `fix-job-entity-index`, migration `V013__job_entity_id.sql`, decisions D-
 
 ## Done
 - `job.entity_id uuid NOT NULL`, backfilled from the single value of the payload object, `job_entity_idx
-  (tenant_id, type, entity_id, created_at DESC)`; `FORCE ROW LEVEL SECURITY` lifted for the backfill only, in the
+  (type, entity_id, created_at DESC)`; `FORCE ROW LEVEL SECURITY` lifted for the backfill only, in the
   migration's transaction.
 - `JobRepository.enqueue(type, entityId, payload)`, `latest(type, entityId)`, `latestByEntity(type, ids)`;
   `Job.entityId`. Six call sites pass the id they already put in the payload.
@@ -35,16 +35,16 @@ Branch `fix-job-entity-index`, migration `V013__job_entity_id.sql`, decisions D-
 `LEXVAY_E2E_SLOT=5 make e2e`:
 
     1 skipped
-    13 passed (56.5s)
+    13 passed (1.2m)
 
 `RuleSourceSchedulerLoopTest` run ten times in a row: 10 of 10 green.
 
 Before and after for `GET /documents/{id}` and `GET /rule-versions`: `docs/PERF.md`. At the seeded volume the rows
 do not move beyond noise; the plans change from sequential scans of `job` to index scans.
 
-## Disagreement
-The roadmap's index key leads with `tenant_id`. Under the job policies' OR branch that column is a filter, so the
-index is skip-scanned over all tenants: 636 buffers per lookup on the perf database against 21 to 25 for
-`(type, entity_id, created_at DESC)` and 1304 for the old sequential scan (D-202). Implemented as specified; the
-recommendation is to change the key before V013 is first deployed. The roadmap also expected the scheduler's dedupe to
-use `job_entity_idx`; the planner uses `job_claim_idx` (queued jobs are few) and never scans `job` (D-206).
+## Index key (orchestrator decision, D-202)
+The roadmap's key led with `tenant_id`. Measured on the perf database, one lookup touched 636 shared buffers with it
+(1304 for the old sequential scan) because the policies' OR branch makes `tenant_id` a filter and the index is
+skip-scanned over every tenant. V013 now creates `(type, entity_id, created_at DESC)`: 24 buffers for the ingest status
+and the extraction status, 28 for the rule version list. `IndexUsageTest` records these and fails above 100.
+The scheduler's dedupe is served by `job_claim_idx` (queued jobs are few), never a sequential scan of `job` (D-206).

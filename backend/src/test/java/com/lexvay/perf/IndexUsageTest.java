@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -41,6 +43,8 @@ class IndexUsageTest extends AbstractDatabaseTest {
     static final int COPIES = Integer.getInteger("lexvay.perf.indexCopies", 100);
     static final String PASSWORD = "perf-demo-password";
     static final Path SEED_DIR = Path.of("..", "seed");
+    /** A lookup by one record reads a handful of pages; the sequential scan it replaced read the whole table (over a thousand). */
+    static final int JOB_LOOKUP_BUFFER_BUDGET = 100;
     static final Predicate<String> JOB_SEQUENTIAL_SCAN = line -> line.matches(".*Seq Scan on job\\b.*");
 
     /** An index and the application query it was considered for; a rejected one is created here only to prove it is ignored. */
@@ -83,6 +87,8 @@ class IndexUsageTest extends AbstractDatabaseTest {
         List<String> keptButIgnored = new ArrayList<>();
         List<String> rejectedButChosen = new ArrayList<>();
         List<String> jobSequentialScans = new ArrayList<>();
+        List<String> lookupBuffers = new ArrayList<>();
+        List<String> lookupsOverBudget = new ArrayList<>();
         try (Connection admin = DriverManager.getConnection(jdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
             for (Candidate candidate : TenantContext.runAs(tenantId, this::candidates)) {
                 List<String> plan = TenantContext.runAs(tenantId,
@@ -92,6 +98,15 @@ class IndexUsageTest extends AbstractDatabaseTest {
                         + " | " + scans(explain(admin, candidate.sql())) + " |");
                 if (plan.stream().anyMatch(JOB_SEQUENTIAL_SCAN)) {
                     jobSequentialScans.add(candidate.query());
+                }
+                if (candidate.index().equals("job_entity_idx")) {
+                    List<String> analyzed = TenantContext.runAs(tenantId,
+                            () -> jdbc.sql("EXPLAIN (ANALYZE, BUFFERS) " + candidate.sql()).query(String.class).list());
+                    int touched = buffers(analyzed);
+                    lookupBuffers.add("| " + candidate.query() + " | " + touched + " |");
+                    if (touched > JOB_LOOKUP_BUFFER_BUDGET) {
+                        lookupsOverBudget.add(candidate.query() + ": " + touched);
+                    }
                 }
                 if (candidate.kept() && !chosen) {
                     keptButIgnored.add(candidate.index());
@@ -122,13 +137,16 @@ class IndexUsageTest extends AbstractDatabaseTest {
         Files.createDirectories(plan.getParent());
         Files.writeString(plan, String.join("\n", workQueue) + "\n");
 
-        String table = String.join("\n", report) + "\n";
+        String table = String.join("\n", report) + "\n\n| Job lookup (shared buffers touched, EXPLAIN ANALYZE) | Buffers |\n|---|---:|\n"
+                + String.join("\n", lookupBuffers) + "\n";
         System.out.println(table);
         Path out = Path.of("target", "perf", "index-usage.md");
         Files.createDirectories(out.getParent());
         Files.writeString(out, table);
         assertThat(keptButIgnored).as("indexes of V008 and V013 the planner did not choose: drop them").isEmpty();
         assertThat(rejectedButChosen).as("rejected candidates the planner now chooses: add them to V008").isEmpty();
+        assertThat(lookupsOverBudget).as("job lookups touching more than " + JOB_LOOKUP_BUFFER_BUDGET
+                + " buffers: a lookup by one record must not walk the index of every tenant").isEmpty();
         assertThat(jobSequentialScans).as("statements that scan the job table sequentially: it only grows").isEmpty();
         assertThat(workQueue).as("the work queue statement scans no hot table sequentially (plan in target/perf/work-queue-plan.txt)")
                 .noneMatch(line -> line.matches(".*Seq Scan on (mapping|review_event|job)\\b.*") && !line.contains("never executed"));
@@ -140,6 +158,14 @@ class IndexUsageTest extends AbstractDatabaseTest {
             jdbc.sql("SELECT set_config('lexvay.worker', 'on', true)").query().singleRow();
             return jdbc.sql(explain).query(String.class).list();
         });
+    }
+
+    /** Shared buffers (hit and read) the statement touched: the first {@code Buffers} line of the plan is the top node, children included. */
+    private static int buffers(List<String> analyzedPlan) {
+        return analyzedPlan.stream().map(l -> Pattern.compile("Buffers: shared (?:hit=(\\d+))?(?: ?read=(\\d+))?").matcher(l))
+                .filter(Matcher::find)
+                .mapToInt(m -> (m.group(1) == null ? 0 : Integer.parseInt(m.group(1))) + (m.group(2) == null ? 0 : Integer.parseInt(m.group(2))))
+                .findFirst().orElseThrow();
     }
 
     /** The access paths of a plan, without costs and conditions. */

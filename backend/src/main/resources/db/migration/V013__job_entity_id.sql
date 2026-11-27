@@ -18,6 +18,8 @@ ALTER TABLE job ALTER COLUMN entity_id SET NOT NULL;
 
 ALTER TABLE job FORCE ROW LEVEL SECURITY;
 
--- Newest job of a type for one record (ingest status of a document, extraction status of a rule version) and the
--- scheduler's "is one already queued for this source".
-CREATE INDEX job_entity_idx ON job (tenant_id, type, entity_id, created_at DESC);
+-- Newest job of a type for one record (ingest status of a document, extraction status of a rule version).
+-- No tenant_id in the key: under the worker-flag OR branch of the job policies it is only a filter, never an index
+-- condition, so a leading tenant_id makes the planner skip-scan every tenant; entity ids are random uuids, so it
+-- would add no selectivity anyway (D-202).
+CREATE INDEX job_entity_idx ON job (type, entity_id, created_at DESC);

@@ -157,7 +157,7 @@ The two job candidates that stood here (an expression index on `payload->>'docum
 ## Job lookups (FIX-2)
 
 `V013__job_entity_id.sql` adds `job.entity_id uuid NOT NULL` (the one record a job works on) and
-`job_entity_idx (tenant_id, type, entity_id, created_at DESC)`. `JobRepository.latest`, `latestByEntity`, the
+`job_entity_idx (type, entity_id, created_at DESC)` (D-202). `JobRepository.latest`, `latestByEntity`, the
 work queue's failed extraction test and the rule source scheduler's "already queued" test compare `entity_id = ...`,
 a leakproof comparison, instead of `payload->>'key'`. `IndexUsageTest` runs `EXPLAIN` as the application role under
 row-level security on about 200 tenants, with synthetic finished jobs (20 re-ingests per document, 20 extractions per
@@ -182,28 +182,28 @@ sequential scan costs nothing measurable there and none of these rows is expecte
 
 | Endpoint | Pass | p50 ms before | after | p95 ms before | after | p99 ms before | after | connections per call before | after |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| GET /documents/{id} | seed (2 tenants) | 1.87 | 1.83 | 2.65 | 2.66 | 3.37 | 3.10 | 1.0 | 1.0 |
-| GET /documents/{id} | 62 tenants | 3.75 | 6.02 | 6.84 | 11.18 | 13.15 | 17.68 | 1.0 | 1.0 |
-| GET /rule-versions | seed (2 tenants) | 1.81 | 3.05 | 3.78 | 6.01 | 4.37 | 8.48 | 1.0 | 1.0 |
-| GET /rule-versions | 62 tenants | 4.22 | 4.21 | 10.41 | 7.88 | 22.51 | 11.44 | 1.0 | 1.0 |
+| GET /documents/{id} | seed (2 tenants) | 1.87 | 1.53 | 2.65 | 2.41 | 3.37 | 3.72 | 1.0 | 1.0 |
+| GET /documents/{id} | 62 tenants | 3.75 | 1.38 | 6.84 | 2.01 | 13.15 | 2.77 | 1.0 | 1.0 |
+| GET /rule-versions | seed (2 tenants) | 1.81 | 1.30 | 3.78 | 1.49 | 4.37 | 1.59 | 1.0 | 1.0 |
+| GET /rule-versions | 62 tenants | 4.22 | 1.24 | 10.41 | 1.59 | 22.51 | 2.39 | 1.0 | 1.0 |
 
-Read the table with the noise in mind: the same code ran the 62-tenant document endpoint at p50 3.75 ms in one run and
-6.02 ms in the next. Every p95 is far inside the 40 ms budget before and after. What changed is the work per request
-as the table grows, measured on the database of `IndexUsageTest` (shared buffers touched by one `EXPLAIN (ANALYZE,
-BUFFERS)` of the ingest status lookup, application role, row-level security; three runs gave the same counts):
+Read the table with the noise in mind: the same code measured the 62-tenant document endpoint at p50 3.75 ms in one
+run and 6.02 ms in the next, so the improvement at 62 tenants is partly a quieter machine (the after run is the last
+of three; the earlier two, with the previous index key, gave p95 11.18 and 4.60 ms). Every p95 is far inside the
+40 ms budget before and after. What changed is the work per request as the table grows. `IndexUsageTest` records
+the shared buffers of `EXPLAIN (ANALYZE, BUFFERS)` of each job lookup, as the application role under row-level
+security on its database, and fails above 100:
 
-| Access path | Buffers |
-|---|---:|
-| sequential scan of `job` (the old payload statement) | 1304 |
-| `job_entity_idx (tenant_id, type, entity_id, created_at DESC)` (V013) | 636 |
-| `(type, entity_id, created_at DESC)` (tried in a scratch run, not created) | 21 to 25 |
+| Access path | Ingest status of a document | Extraction status of a rule version | Rule version list (`latestByEntity`) |
+|---|---:|---:|---:|
+| sequential scan of `job` (the old payload statement) | 1304 | not measured | not measured |
+| `(tenant_id, type, entity_id, created_at DESC)` (roadmap key, first implementation) | 636 | not measured | not measured |
+| `job_entity_idx (type, entity_id, created_at DESC)` (V013, final) | 24 | 24 | 28 |
 
-The V013 index is chosen and removes the sequential scan, but it is only about twice as cheap as the scan here. The
-policies of `job` have an OR branch for the worker flag, so `tenant_id = current_tenant()` is a filter, not an index
-condition: the leading column `tenant_id` is unconstrained, PostgreSQL 18 walks the index with a skip scan over every
-tenant, and the cost grows with the number of tenants. An index without the leading `tenant_id` is about thirty times
-cheaper. Recommendation for the orchestrator (D-202): change the key to `(type, entity_id, created_at DESC)` before
-the first deployment of V013.
+The first key was chosen by the planner and removed the sequential scan, but only halved the work: the policies of
+`job` have an OR branch for the worker flag, so `tenant_id = current_tenant()` is a filter, not an index condition,
+and PostgreSQL 18 walked the index with a skip scan over every tenant. Without `tenant_id` the lookup is one descent
+(D-202). The final key's plan is a Bitmap Heap Scan over `job_entity_idx` for each lookup, with no sequential scan.
 
 ## Work queue (F13)
 

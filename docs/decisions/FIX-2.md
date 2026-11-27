@@ -18,16 +18,17 @@ job whose payload is not an object of one uuid value is left NULL and `SET NOT N
 no such row can exist, because every enqueue path put one id in the payload object. The job triggers and policies
 of V002, V003 and V011 are unchanged.
 
-**D-202 — The index is `job_entity_idx (tenant_id, type, entity_id, created_at DESC)`, as the roadmap specifies,
-and the planner chooses it, but the leading column is a poor fit (disagreement, recommendation below).** Under the
-policy OR branch `tenant_id = current_tenant()` is a filter, not an index condition, so the index is walked with a
-skip scan over every tenant. On the `IndexUsageTest` database (about 200 tenants, 1304 pages of `job`) the ingest
-status lookup touches 636 shared buffers with this index, against 1304 for the sequential scan it replaces and 21 to
-25 for an index on `(type, entity_id, created_at DESC)` tried in a scratch run. The cost with the V013 index grows
-with the number of tenants; the cost without `tenant_id` does not. Entity ids are random uuids, so `tenant_id` adds
-no selectivity. Recommendation: key the index `(type, entity_id, created_at DESC)` before the first deployment of
-V013 (one line in the migration and in `IndexUsageTest`'s expectations, which stay unchanged). Implemented as
-specified because the roadmap fixes the key.
+**D-202 — The index is `job_entity_idx (type, entity_id, created_at DESC)`, without `tenant_id` (orchestrator
+decision, supersedes the key in the roadmap).** The roadmap specified `(tenant_id, type, entity_id, created_at
+DESC)`. The implementation of FIX-2 measured it and the orchestrator accepted the change. Under the policy OR
+branch (V002, V011) `tenant_id = current_tenant()` is a filter, not an index condition, so an index that leads with
+`tenant_id` is walked with a skip scan over every tenant, and its cost grows with the number of tenants. Entity ids
+are random uuids, so `tenant_id` adds no selectivity to the key. Measured on the `IndexUsageTest` database (about 200
+tenants, 1304 pages of `job`), shared buffers of one ingest status lookup as the application role under row-level
+security: 1304 for the sequential scan it replaces, 636 with the tenant-leading key, 21 to 25 with this key.
+`IndexUsageTest` now records the buffers of each job lookup and fails above 100, so a key that walks every tenant
+cannot return unnoticed. The tenant condition is still applied, by the policy, on the few heap rows the index
+returns.
 
 **D-203 — API.** `JobRepository.enqueue(JobType type, UUID entityId, Map<String, ?> payload)` writes both columns;
 `latest(JobType, UUID entityId)` replaces `latest(JobType, String key, UUID value)`; `latestByEntity(JobType,
