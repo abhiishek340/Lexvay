@@ -60,8 +60,10 @@ test('the command palette jumps to a requirement by its ref', async ({ page }) =
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^[A-Z]{2}-/);
   await page.keyboard.press('Control+k');
   const palette = page.getByRole('dialog', { name: 'Search or jump to' });
-  await palette.getByRole('combobox', { name: 'Search or jump to' }).fill('CO-3');
+  const search = palette.getByRole('combobox', { name: 'Search or jump to' });
+  await search.fill('CO-3');
   await expect(palette.getByRole('menuitem').first()).toContainText('CO-3');
+  await expect(search).toHaveAttribute('aria-activedescendant', 'req:CO-3');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', 'CO-3');
 });

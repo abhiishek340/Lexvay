@@ -103,3 +103,46 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await expect(page.getByTestId('evidence-mark')).toBeFocused();
   await shoot(page, 'review-viewer-400px');
 });
+
+/** UI2-0: sign-in, the shell over the overview, the command palette, the work queue and the avatar menu, at 1440 and 400 px. */
+test('screenshots of the v2 shell and sign-in at 1440 and 400 px', async ({ page }) => {
+  for (const [width, height] of [[1440, 900], [400, 860]] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto('/login');
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+    // The story at its fullest: most states signed, the last ones still in review.
+    await page.waitForTimeout(4400);
+    await shoot(page, `ui2-sign-in-${width}`);
+
+    await signIn(page, DANA);
+    await expect(page.getByRole('table', { name: 'Jurisdictions' })).toContainText('California');
+    await shoot(page, `ui2-overview-${width}`);
+
+    // The shared components at every size (development harness, dev/ui).
+    await page.goto('/dev/ui');
+    await expect(page.getByRole('group', { name: 'Illustrative states' })).toBeVisible();
+    await page.waitForTimeout(1400);
+    await shoot(page, `ui2-components-${width}`);
+    await page.goBack();
+    await expect(page.getByRole('table', { name: 'Jurisdictions' })).toBeVisible();
+
+    await page.keyboard.press('Control+k');
+    const palette = page.getByRole('dialog', { name: 'Search or jump to' });
+    await palette.getByRole('combobox').fill('rev');
+    await expect(palette.getByRole('menuitem').first()).toBeVisible();
+    await shoot(page, `ui2-command-palette-${width}`);
+    await page.keyboard.press('Escape');
+    await expect(palette).toBeHidden();
+
+    await page.getByRole('button', { name: /^Work queue/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Work queue' }).getByRole('link').first()).toBeVisible();
+    await shoot(page, `ui2-work-queue-${width}`);
+    await page.keyboard.press('Escape');
+
+    await page.getByRole('button', { name: /^Account, / }).click();
+    await expect(page.getByRole('group', { name: 'Theme' })).toBeVisible();
+    await shoot(page, `ui2-avatar-menu-${width}`);
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page).toHaveURL(/\/login$/);
+  }
+});

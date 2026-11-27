@@ -1,6 +1,6 @@
 <p-dialog header="Search or jump to" [visible]="visible()" (visibleChange)="visible.set($event)" [modal]="true" [draggable]="false" [resizable]="false"
           [dismissableMask]="true" position="top" [closable]="false" styleClass="lx-palette" (onShow)="onShow()">
-  <p-commandmenu [model]="model()" [(search)]="search" [filter]="filter" [pt]="pt()" placeholder="Search or jump to" ariaLabel="Search or jump to"
+  <p-commandmenu [model]="model()" [(search)]="search" [filter]="filter" [pt]="pt()" (keydown.escape)="visible.set(false)" placeholder="Search or jump to" ariaLabel="Search or jump to"
                  emptyMessage="Nothing matches.">
     <ng-template #header><ng-icon class="lx-palette-search" name="phosphorMagnifyingGlass" size="20" aria-hidden="true" /></ng-template>
     <ng-template #item let-item>

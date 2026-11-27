@@ -1,5 +1,5 @@
 <a class="lx-skip" href="#main">Skip to main content</a>
-<div class="lx-app" [class.lx-app--chrome]="chrome()" [class.lx-app--rail]="railVisible()" [class.lx-app--collapsed]="collapsed()">
+<div class="lx-app" [class.lx-app--pending]="pending()" [class.lx-app--chrome]="chrome()" [class.lx-app--rail]="railVisible()" [class.lx-app--collapsed]="collapsed()">
   @if (chrome()) {
     @if (session.demo()) {
       <!-- On paper the notice is spelled out; on screen it is the Demo data pill. -->

@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, model, signal, untracked, viewChild } from '@angular/core';
+import { Component, afterRenderEffect, computed, effect, inject, model, signal, untracked, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
@@ -9,6 +9,7 @@ import auraCommandmenu from '@primeuix/themes/aura/commandmenu';
 import auraMenu from '@primeuix/themes/aura/menu';
 import { MenuItem, MessageService } from 'primeng/api';
 import { CommandMenu } from 'primeng/commandmenu';
+import type { CommandMenuPassThrough } from 'primeng/types/commandmenu';
 import { Dialog } from 'primeng/dialog';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
@@ -109,12 +110,12 @@ export class CommandPalette {
         this.loadRequirements();
       });
     });
-    // The best match is always highlighted, so Enter opens it.
-    effect(() => {
+    // The best match is always highlighted, so Enter opens it: once the filtered list has rendered, its first item.
+    afterRenderEffect(() => {
       this.model();
-      const menu = this.menu();
-      if (this.visible() && menu) {
-        requestAnimationFrame(() => menu.menuViewChild()?.changeFocusedOptionIndex(0));
+      this.search();
+      if (this.visible()) {
+        this.menu()?.menuViewChild()?.changeFocusedOptionIndex(0);
       }
     });
   }
@@ -123,7 +124,11 @@ export class CommandPalette {
    * CommandMenu's input names its list (aria-controls) by an id the list element does not carry; the pass-through
    * gives the list that id (axe aria-valid-attr-value, the D-087 approach).
    */
-  readonly pt = computed(() => ({ list: { id: this.menu()?.listId() } }));
+  readonly pt = computed(() => {
+    const menu = this.menu();
+    // The template reads ptm('list'), but CommandMenuPassThrough's type has no `list` key.
+    return (menu ? { list: { id: menu.listId() } } : {}) as CommandMenuPassThrough;
+  });
 
   onShow(): void {
     this.menu()?.focusInput();

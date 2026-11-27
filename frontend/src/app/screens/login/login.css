@@ -4,8 +4,9 @@
 /* Left: the story map and the headline, nothing else. */
 .lx-story { display: grid; place-items: center; padding: 56px; background: var(--p-lx-ground); }
 .lx-story-inner { display: flex; flex-direction: column; gap: 40px; max-width: 460px; }
-.lx-story-headline { max-width: 12em; text-wrap: balance; animation: lx-rise var(--lx-t-hero) var(--lx-ease-out) 200ms backwards; }
-@keyframes lx-rise { from { opacity: 0; transform: translateY(12px); } }
+.lx-story-headline { max-width: 12em; text-wrap: balance; animation: lx-rise var(--lx-t-hero) var(--lx-ease-out) backwards; }
+/* Text rises without fading in: it is the largest paint, so it must be visible in the first frame (LCP). */
+@keyframes lx-rise { from { transform: translateY(12px); } }
 
 /* Right: the form. */
 .lx-form-side { display: grid; place-items: center; padding: 48px 24px; }

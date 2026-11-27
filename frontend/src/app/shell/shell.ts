@@ -1,5 +1,5 @@
 import { Component, DestroyRef, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
-import { ActivatedRouteSnapshot, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ActivatedRouteSnapshot, NavigationEnd, ResolveEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
 import { Badge } from 'primeng/badge';
 import { filter, firstValueFrom } from 'rxjs';
@@ -43,14 +43,20 @@ export class Shell {
   readonly roleLabel = ROLE_LABEL;
   readonly shortcut = paletteShortcut(typeof navigator === 'undefined' ? '' : navigator.platform);
 
-  private readonly url = signal(this.router.url);
+  /**
+   * The URL being shown, set when a navigation has resolved (just before its screen is created), so the bar, the rail
+   * and the screen appear in the same frame and nothing shifts; null before the first navigation.
+   */
+  private readonly url = signal<string | null>(null);
   readonly programId = signal<string | null>(null);
+  /** Until the first navigation resolves, the frame stays invisible, so the bar never pushes a painted frame down. */
+  readonly pending = computed(() => this.url() === null);
   /** The top bar and navigation appear once someone is signed in; the sign-in page stands alone. */
-  readonly chrome = computed(() => this.session.authenticated() && !this.url().startsWith('/login'));
+  readonly chrome = computed(() => this.session.authenticated() && this.url() !== null && !this.url()!.startsWith('/login'));
   /** The rail is on every program screen and on the tenant-wide register, which needs no program. */
-  readonly railVisible = computed(() => this.chrome() && (this.programId() !== null || this.url().split(/[?#]/)[0] === '/register'));
+  readonly railVisible = computed(() => this.chrome() && (this.programId() !== null || (this.url() ?? '').split(/[?#]/)[0] === '/register'));
   /** The screen segment kept when switching programs ("review" in /programs/p1/review?jurisdiction=CA). */
-  readonly screen = computed(() => this.url().split(/[?#]/)[0].split('/')[3] ?? 'overview');
+  readonly screen = computed(() => (this.url() ?? '').split(/[?#]/)[0].split('/')[3] ?? 'overview');
 
   /** The register first, then the screens of the program in the URL (on the register, of the program last worked on). */
   readonly links = computed(() => navLinks(this.programId() ?? this.context.program()?.id ?? null, {
@@ -75,14 +81,16 @@ export class Shell {
 
   constructor() {
     let previousScreen: string | null = null;
-    const sub = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {
+    const resolved = this.router.events.pipe(filter((e): e is ResolveEnd => e instanceof ResolveEnd)).subscribe((e) => {
       this.url.set(e.urlAfterRedirects);
-      const screen = screenOf(e.urlAfterRedirects);
-      const programId = findParam(this.router.routerState.snapshot.root, 'programId');
+      const programId = findParam(e.state.root, 'programId');
       this.programId.set(programId);
       if (programId) {
         this.context.ensure(programId);
       }
+    });
+    const sub = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {
+      const screen = screenOf(e.urlAfterRedirects);
       if (this.chrome()) {
         this.refreshQueueCount();
       }
@@ -96,7 +104,7 @@ export class Shell {
     });
     const onResize = (): void => this.placePill();
     window.addEventListener('resize', onResize);
-    inject(DestroyRef).onDestroy(() => { sub.unsubscribe(); window.removeEventListener('resize', onResize); });
+    inject(DestroyRef).onDestroy(() => { resolved.unsubscribe(); sub.unsubscribe(); window.removeEventListener('resize', onResize); });
   }
 
   /** Ctrl K or Cmd K opens the command palette from anywhere, including text fields. */
