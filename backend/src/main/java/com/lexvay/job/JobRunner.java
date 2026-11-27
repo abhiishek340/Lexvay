@@ -95,11 +95,11 @@ public class JobRunner {
             jobs.markDone(job.id());
             return JobOutcome.DONE;
         } catch (PermanentJobFailure e) {
-            fail(job, e);
+            fail(job, e.getMessage(), e);
             return JobOutcome.FAILED;
         } catch (RuntimeException e) {
             if (job.attempts() >= maxAttempts) {
-                fail(job, e);
+                fail(job, rootMessage(e), e);
                 return JobOutcome.FAILED;
             }
             // The message can carry model output or document text: it goes to the job row, not the log.
@@ -109,8 +109,7 @@ public class JobRunner {
         }
     }
 
-    private void fail(Job job, RuntimeException cause) {
-        String message = rootMessage(cause);
+    private void fail(Job job, String message, RuntimeException cause) {
         log.error("Job {} failed permanently with {}; the reason is stored on the job", job.type(), rootCause(cause).getClass().getName());
         jobs.markFailed(job.id(), message);
         audit.recordAs(null, "JOB_FAILED", "job", job.id(), Map.of("type", job.type().name(), "error", message));
