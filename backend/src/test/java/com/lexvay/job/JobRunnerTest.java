@@ -7,6 +7,7 @@ import com.lexvay.audit.AuditRepository;
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
 import com.lexvay.common.TestTenants;
+import com.lexvay.observability.LexvayMetrics;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -27,6 +28,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
     @Autowired AuditRepository audit;
     @Autowired MockMvcTester mvc;
     @Autowired ObjectMapper json;
+    @Autowired LexvayMetrics metrics;
 
     /** A handler that records the tenant it ran under and fails a configurable number of times. */
     static class ProbeHandler implements JobHandler {
@@ -57,7 +59,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
     }
 
     private JobRunner runnerWith(ProbeHandler probe) {
-        return new JobRunner(jobs, List.of(probe), transaction, json, auditService(), 3);
+        return new JobRunner(jobs, List.of(probe), transaction, json, auditService(), metrics, 3);
     }
 
     private com.lexvay.audit.AuditService auditService() {
@@ -124,7 +126,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
     void jobWithoutHandlerFailsCleanly() {
         var t = tenants.create("jobs");
         UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.RERUN_CHANGE, Map.of()));
-        new JobRunner(jobs, List.of(), transaction, json, auditService(), 3).runPending();
+        new JobRunner(jobs, List.of(), transaction, json, auditService(), metrics, 3).runPending();
         Job job = TenantContext.runAs(t.tenantId(), () -> jobs.findById(jobId)).orElseThrow();
         assertThat(job.status()).isEqualTo(JobStatus.FAILED);
         assertThat(job.error()).contains("No handler registered");
