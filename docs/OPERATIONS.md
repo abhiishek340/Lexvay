@@ -143,7 +143,7 @@ sealed and the chain stops matching. An entry written a moment ago is *pending* 
 reports how many.
 
 An administrator checks a tenant's trail with `GET /api/v1/audit/verify`. It recomputes every hash from what is stored
-(about 60 ms for 20 000 entries) and answers `intact`, how many entries are `sealed` and `pending`, and, when the chain
+(50 to 220 ms for 20 000 entries on a development laptop) and answers `intact`, how many entries are `sealed` and `pending`, and, when the chain
 is broken, `firstBrokenSeq` and `firstBrokenReason`. Each check is an `AUDIT_VERIFIED` audit entry carrying the outcome
 and `headHash`, the hash of the newest seal.
 

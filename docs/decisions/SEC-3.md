@@ -52,7 +52,7 @@ queue's length, `lastSealedAt` and `headHash` those of the newest seal. A seal r
 no gap and cannot be seen from the database alone; `docs/OPERATIONS.md` says to keep `headHash` and `sealed` outside
 the database administrator's reach, and every `AUDIT_VERIFIED` entry carries them. Deleting a sealed `audit_log` row is
 refused by the foreign key even with its trigger disabled; deleting a seal row with its trigger disabled reports the gap
-(tests as the container's superuser). Over 20 000 sealed entries the walk takes about 60 ms (D-537).
+(tests as the container's superuser). Over 20 000 sealed entries the walk took 52 to 75 ms on a quiet machine and 139 to 221 ms on a busy one (D-537, budget 2 s).
 
 **D-535 — The export gains four columns, not two.** The spec adds `seq` and `row_hash`. An exported trail cannot be
 recomputed from those alone: the hash covers the entry id and the actor's id, and the export shows the actor's display
