@@ -163,6 +163,7 @@ public class AssessmentFixtures {
             m.put("numeric_field", item.get("numeric_field"));
             m.put("numeric_operator", item.get("numeric_operator"));
             m.put("numeric_value", item.get("numeric_value"));
+            m.put("search_terms", item.getOrDefault("search_terms", List.of()));
             list.add(m);
         }
         return json.writeValueAsString(Map.of("requirements", list));
@@ -172,6 +173,13 @@ public class AssessmentFixtures {
         var m = new HashMap<String, Object>();
         m.put("title", title); m.put("text", text); m.put("type", "SUBJECT");
         m.put("numeric_field", null); m.put("numeric_operator", null); m.put("numeric_value", null);
+        return m;
+    }
+
+    /** The same requirement with search terms (F7c); the list a model would have proposed or a reviewer typed. */
+    public static Map<String, Object> withTerms(Map<String, Object> requirement, String... terms) {
+        var m = new HashMap<>(requirement);
+        m.put("search_terms", List.of(terms));
         return m;
     }
 

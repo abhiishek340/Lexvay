@@ -32,7 +32,7 @@ class PassageRankingTest extends AbstractAssessmentTest {
     }
 
     private List<Passage> rank(UUID programId, String title, String text, Ranker ranker) {
-        return TenantContext.runAs(t.tenantId(), () -> search.search(programId, title, text, 8, ranker));
+        return TenantContext.runAs(t.tenantId(), () -> search.search(programId, title, text, List.of(), 8, ranker));
     }
 
     /** f(tf, len) = tf * (k1 + 1) / (tf + k1 * (1 - b + b * len / avglen)), written out for the numbers of the corpus below. */
@@ -135,7 +135,7 @@ class PassageRankingTest extends AbstractAssessmentTest {
     @Test
     void theConfiguredRankerIsBm25() {
         UUID programId = programWith("zebra zebra quartz marble", "zebra marble marble", "granite granite");
-        List<Passage> configured = TenantContext.runAs(t.tenantId(), () -> search.search(programId, "zebra", "quartz", 8));
+        List<Passage> configured = TenantContext.runAs(t.tenantId(), () -> search.search(programId, "zebra", "quartz", List.of(), 8));
 
         assertThat(configured).extracting(Passage::rank).containsExactlyElementsOf(
                 rank(programId, "zebra", "quartz", Ranker.BM25).stream().map(Passage::rank).toList());

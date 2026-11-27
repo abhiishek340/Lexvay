@@ -36,6 +36,43 @@ class RuleVersionChangeTest extends AbstractAssessmentTest {
     }
 
     @Test
+    void aTermsOnlyEditCarriesTheDecisionsOverAndTheDiffReportsIt() throws Exception {
+        var rf = new ReviewFixtures(mvc, json, fx);
+        var s = rf.californiaScenario(t, "terms");
+        rf.decideAll(t, s);
+
+        // The same three requirements; a reviewer or the model gave ethics search terms in the revision.
+        String revised = fx.requirements("CA", List.of(
+                AssessmentFixtures.numeric("NUMERIC", "TOTAL_CREDITS", ">=", 60, "at least 60 semester hours"),
+                AssessmentFixtures.specific("Telehealth", "training in telehealth practice"),
+                AssessmentFixtures.withTerms(AssessmentFixtures.subject("Ethics", "coursework in professional ethics and legal standards"),
+                        "code of ethics", "confidentiality")));
+        UUID newVersion = UUID.fromString(fx.read(createVersion("Demo rule set California terms rev 2", "CA", s.ruleVersionId(), revised))
+                .get("ruleVersionId").asString());
+        runner.runPending();
+
+        var diff = fx.read(mvc.get().uri("/api/v1/rule-versions/" + newVersion + "/diff").with(user(t.reviewer())).exchange());
+        assertThat(diff.get("summary").get("changed").asInt()).isEqualTo(1);
+        assertThat(diff.get("summary").get("unchanged").asInt()).isEqualTo(2);
+        JsonNode ethicsRow = diff.get("requirements").get(2);
+        assertThat(ethicsRow.get("status").asString()).isEqualTo("CHANGED");
+        assertThat(ethicsRow.get("changes")).extracting(JsonNode::asString).containsExactly("SEARCH_TERMS");
+        assertThat(ethicsRow.get("before").get("searchTerms")).isEmpty();
+        assertThat(ethicsRow.get("after").get("searchTerms")).extracting(JsonNode::asString).containsExactly("code of ethics", "confidentiality");
+
+        var eventId = UUID.fromString(fx.read(mvc.get().uri("/api/v1/change-events").with(user(t.reviewer())).exchange()).get(0).get("id").asString());
+        assertThat(mvc.post().uri("/api/v1/rule-versions/" + newVersion + "/requirements/approve").with(user(t.reviewer())).with(csrf()).exchange()).hasStatus(200);
+        assertThat(mvc.post().uri("/api/v1/change-events/" + eventId + "/rerun").with(user(t.reviewer())).with(csrf()).exchange()).hasStatus(202);
+        runner.runPending();
+
+        var newList = fx.mappings(t, s.assessmentId(), "CA");
+        assertThat(newList).allSatisfy(m -> assertThat(m.get("ruleVersionId").asString()).isEqualTo(newVersion.toString()));
+        assertThat(newList).as("every decision carried over: a change of terms is not a change of the requirement")
+                .allSatisfy(m -> assertThat(m.get("decision").get("note").asString()).startsWith("Carried over from"));
+        assertThat(fake.callCount(com.lexvay.llm.LlmPurpose.MATCH_EVIDENCE)).as("no new model call").isEqualTo(2);
+    }
+
+    @Test
     void rerunCarriesOverUnchangedAndReevaluatesChanged() throws Exception {
         var rf = new ReviewFixtures(mvc, json, fx);
         var s = rf.californiaScenario(t, "change");

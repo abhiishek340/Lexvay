@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class RetrievalScorerTest {
 
     static RetrievalQueries.Query query(String id, String file, int page, String contains, boolean gap) {
-        return new RetrievalQueries.Query(id, "title " + id, "text " + id, file, page, contains, gap);
+        return new RetrievalQueries.Query(id, "title " + id, "text " + id, file, page, contains, List.of(), gap);
     }
 
     static RetrievalScorer.Page page(String file, int page, String excerpt) {
@@ -102,7 +102,7 @@ class RetrievalScorerTest {
 
     @Test
     void theLimitsAreBrokenByLowRecallByFallingBelowTheBaselineAndByAnUncoveredExcerpt() {
-        Thresholds.Retrieval limits = new Thresholds.Retrieval(0.95, 1.0);
+        Thresholds.Retrieval limits = new Thresholds.Retrieval(0.95, 1.0, 0.66);
         RetrievalScorer.Metrics good = new RetrievalScorer.Metrics(new Ratio(20, 20), new Ratio(18, 20), 0.9, new Ratio(20, 20));
         RetrievalScorer.Metrics baseline = new RetrievalScorer.Metrics(new Ratio(19, 20), new Ratio(18, 20), 0.8, new Ratio(20, 20));
 
@@ -114,5 +114,24 @@ class RetrievalScorerTest {
                 .anyMatch(b -> b.startsWith("recall@8 against the baseline"))
                 .anyMatch(b -> b.startsWith("recall@3 against the baseline"))
                 .anyMatch(b -> b.startsWith("excerpt coverage 94.4 % is below 100.0 %"));
+    }
+
+    @Test
+    void searchTermsMayNotFallBelowBm25AndMustRecoverFourOfSixLexicalGaps() {
+        Thresholds.Retrieval limits = new Thresholds.Retrieval(0.95, 1.0, 0.66);
+        RetrievalScorer.Metrics bm25 = new RetrievalScorer.Metrics(new Ratio(28, 29), new Ratio(26, 29), 0.77, new Ratio(28, 28));
+        RetrievalScorer.Metrics gapFour = new RetrievalScorer.Metrics(new Ratio(4, 6), new Ratio(2, 6), 0.4, new Ratio(4, 4));
+        RetrievalScorer.Metrics gapThree = new RetrievalScorer.Metrics(new Ratio(3, 6), new Ratio(2, 6), 0.3, new Ratio(3, 3));
+
+        assertThat(Thresholds.termsBreaches(limits, new RetrievalScorer.Score(bm25, gapFour, List.of()), bm25)).as("equal to BM25 and 4 of 6").isEmpty();
+        assertThat(Thresholds.termsBreaches(limits, new RetrievalScorer.Score(bm25, gapThree, List.of()), bm25)).singleElement().asString()
+                .isEqualTo("lexical-gap recall@8 with search terms 50.0 % is below 66.0 %");
+
+        RetrievalScorer.Metrics worse = new RetrievalScorer.Metrics(new Ratio(27, 29), new Ratio(25, 29), 0.7, new Ratio(26, 27));
+        assertThat(Thresholds.termsBreaches(limits, new RetrievalScorer.Score(worse, gapFour, List.of()), bm25)).hasSize(4)
+                .anyMatch(b -> b.startsWith("recall@8 with search terms 93.1 % is below 95.0 %"))
+                .anyMatch(b -> b.startsWith("recall@8 with search terms against BM25"))
+                .anyMatch(b -> b.startsWith("recall@3 with search terms against BM25"))
+                .anyMatch(b -> b.startsWith("excerpt coverage with search terms"));
     }
 }

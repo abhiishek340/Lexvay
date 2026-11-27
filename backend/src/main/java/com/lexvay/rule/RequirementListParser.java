@@ -13,7 +13,8 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Turns JSON (model output or a reviewer's PUT body) into requirement drafts. Schema validation first,
  * then the checks the schema cannot express: non-blank strings, unique refs, numeric fields exactly
- * when the type is numeric, a known operator and a positive value.
+ * when the type is numeric, a known operator and a positive value. Search terms are optional (absent means none) and
+ * are normalised by {@link SearchTerms}.
  */
 @Component
 public class RequirementListParser {
@@ -70,6 +71,7 @@ public class RequirementListParser {
             requireAtMost(errors, where + ".ref", ref, MAX_REF_LENGTH);
             requireAtMost(errors, where + ".title", title, MAX_TITLE_LENGTH);
             requireAtMost(errors, where + ".text", body, MAX_TEXT_LENGTH);
+            List<String> searchTerms = searchTerms(item.path("search_terms"), where + ".search_terms", errors, title, body);
             RequirementType type;
             try {
                 type = RequirementType.valueOf(item.path("type").asString(""));
@@ -106,12 +108,38 @@ public class RequirementListParser {
             } else if (anyNumeric) {
                 errors.add(where + " has type " + type + " and must not carry numeric fields");
             }
-            drafts.add(new RequirementDraft(ref, title, body, type, field, operator, value));
+            drafts.add(new RequirementDraft(ref, title, body, type, field, operator, value, searchTerms));
         }
         if (!errors.isEmpty()) {
             throw new InvalidRequirementListException(errors);
         }
         return drafts;
+    }
+
+    /** The normalised terms of one requirement; the problems of a malformed list are added to {@code errors}. */
+    private static List<String> searchTerms(JsonNode node, String where, List<String> errors, String title, String text) {
+        if (isNull(node)) {
+            return List.of();
+        }
+        if (!node.isArray()) {
+            errors.add(where + " must be an array of strings");
+            return List.of();
+        }
+        if (node.size() > SearchTerms.MAX_STORED) {
+            errors.add(where + " must contain at most " + SearchTerms.MAX_STORED + " terms");
+            return List.of();
+        }
+        List<String> proposed = new ArrayList<>();
+        for (int i = 0; i < node.size(); i++) {
+            if (!node.get(i).isString()) {
+                errors.add(where + " must be an array of strings");
+                return List.of();
+            }
+            String term = node.get(i).asString();
+            requireAtMost(errors, where + "[" + i + "]", term.trim(), SearchTerms.MAX_LENGTH);
+            proposed.add(term);
+        }
+        return SearchTerms.normalise(proposed, title, text);
     }
 
     private static void requireAtMost(List<String> errors, String field, String value, int max) {
