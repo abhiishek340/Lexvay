@@ -37,7 +37,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | in progress |
 | F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
-| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | in progress |
+| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | PR #19 approved (final merge of main after F6) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | in progress |
 
 ---
