@@ -26,6 +26,8 @@
     <json-schema-validator.version>3.0.9</json-schema-validator.version>
     <bucket4j.version>8.22.0</bucket4j.version>
     <java-diff-utils.version>4.18</java-diff-utils.version>
+    <!-- The latency benchmark (tag perf) runs only through `make perf`, which overrides this. -->
+    <excludedGroups>perf</excludedGroups>
   </properties>
 
   <dependencyManagement>

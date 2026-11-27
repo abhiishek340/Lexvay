@@ -985,7 +985,7 @@ New tests: `EvalScorerTest` (9), `GoldenFileTest` (3), `EvalServiceTest` (3), `E
 ## WS-SEC — OIDC and hardening (PR #12; spec milestone 8)
 
 Branch `sec-oidc-hardening`, merged with `origin/main` (including PRs 8 to 11) on 2026-11-26. Decisions D-090 to D-099
-are in `docs/decisions/WS-SEC.md`.
+are in `DECISIONS.md` (D-090 to D-099).
 
 ### What was built
 
@@ -1050,3 +1050,22 @@ Mutation check: setting `sessionFixation` to `none()` makes `SessionSecurityTest
 - Production behind a load balancer needs `LEXVAY_FORWARD_HEADERS=native` (D-093), otherwise the login budget is one
   shared bucket.
 - `scripts/e2e.sh` sets the login budget to 1000 (the browser tests sign in repeatedly from one address).
+
+## WS-UI — Design system and screen rebuild (PR #15)
+
+PrimeNG 22.1.5 with `LexvayPreset` (tokens once as light-dark pairs), Phosphor icons, IBM Plex self-hosted; shell,
+sign-in and the five screens rebuilt; three-pane review with J/K/A/R/G/? shortcuts; axe in both themes on every
+screen, dialogs and the 400 px view. `LEXVAY_E2E_SLOT=1 make test` after the WS-SEC merge: 449 backend tests,
+27 frontend unit tests, 6 end-to-end tests passed (one screenshot test skipped unless `LEXVAY_SCREENSHOTS=1`).
+Initial bundle 672.8 kB raw, 161.9 kB estimated transfer. Backend addition: `GET /api/v1/users`. Open owner
+action: the PrimeUI license key (D-080). Screenshots in `docs/screens/`.
+
+## WS-PERF — Read-path latency and read APIs (PR #14)
+
+One connection per read request (tenant bound on checkout only, `Rule7_PooledConnectionRebindsTest`), read
+services in one read-only transaction, N+1 removed from determinations, change events and the rule version list
+(13 → 1 connections), new read endpoints `GET /programs/{id}/overview`, `GET /programs/{id}/assessments`,
+`GET /documents/{id}/pages/{n}` (immutable private cache, ETag, 304) and `GET /mappings/{id}/reviews`, audit
+filters, gzip over 1 kB, nine planner-verified indexes in V008 (`IndexUsageTest`), `make perf` with
+`EndpointLatencyTest` (every p95 under 40 ms on the seeded and the 62-tenant database; tables and method in
+`docs/PERF.md`). Final run: 487 backend tests, 6 end-to-end tests passed. Decisions D-110 to D-119.

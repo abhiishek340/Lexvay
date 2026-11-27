@@ -1,21 +1,89 @@
-.skip-link { position: absolute; left: -999px; top: 0; background: var(--lx-bg); color: var(--lx-fg); padding: .5rem 1rem; z-index: 10; }
-.skip-link:focus { left: 1rem; }
-.banner { background: var(--lx-banner-bg); color: var(--lx-banner-fg); padding: .6rem 1rem; border-bottom: 2px solid var(--lx-banner-fg); font-size: .95rem; }
-.layout { min-height: 100vh; display: flex; flex-direction: column; }
-.topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .6rem 1rem; border-bottom: 1px solid var(--lx-border); flex-wrap: wrap; }
-.brand { font-weight: 700; font-size: 1.15rem; letter-spacing: .02em; }
-.topbar-right { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
-.theme { display: flex; gap: .4rem; align-items: center; font-size: .9rem; }
-.who { font-size: .9rem; color: var(--lx-muted); }
-.body { display: flex; flex: 1; min-height: 0; }
-.sidenav { width: 14rem; border-right: 1px solid var(--lx-border); padding: 1rem .5rem; flex-shrink: 0; }
-.sidenav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .25rem; }
-.sidenav a { display: block; padding: .5rem .75rem; border-radius: 6px; color: var(--lx-fg); text-decoration: none; border-left: 4px solid transparent; }
-.sidenav a.active { border-left-color: var(--lx-accent); background: var(--lx-surface); font-weight: 600; }
-.sidenav a:hover { background: var(--lx-surface); }
-main { flex: 1; padding: 1.25rem 1rem; min-width: 0; }
-@media (max-width: 720px) {
-  .body { flex-direction: column; }
-  .sidenav { width: auto; border-right: 0; border-bottom: 1px solid var(--lx-border); padding: .5rem; }
-  .sidenav ul { flex-direction: row; flex-wrap: wrap; }
+.lx-skip {
+  position: absolute; left: 8px; top: -64px; z-index: 1200;
+  padding: 8px 12px; background: var(--p-lx-primary); color: var(--p-lx-on-primary); border-radius: 4px; font-weight: 500;
+}
+.lx-skip:focus { top: 8px; }
+
+.lx-app { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+.lx-notice {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 16px; font-size: 13px; line-height: 18px;
+  background: var(--p-lx-notice-bg); color: var(--p-lx-notice-fg);
+  border-bottom: 1px solid var(--p-lx-hairline);
+}
+.lx-notice ng-icon { flex: none; margin-top: 1px; }
+
+.lx-topbar {
+  height: var(--lx-topbar); flex: none; box-sizing: border-box;
+  display: flex; align-items: center; gap: 12px; padding: 0 12px 0 16px;
+  background: var(--p-lx-card); border-bottom: 1px solid var(--p-lx-hairline);
+}
+.lx-wordmark { font-weight: 600; font-size: 17px; letter-spacing: -0.01em; color: var(--p-lx-text); text-decoration: none; }
+.lx-wordmark:hover { color: var(--p-lx-text); }
+.lx-topbar-divider { width: 1px; height: 20px; background: var(--p-lx-hairline); }
+.lx-tenant { font-size: 13px; color: var(--p-lx-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lx-topbar-spacer { flex: 1; }
+.lx-theme ng-icon { flex: none; }
+.lx-theme-text { font-size: 12px; }
+:host ::ng-deep .lx-theme .p-togglebutton-content { gap: 6px; }
+.lx-user-name { font-weight: 500; color: var(--p-lx-text); }
+.lx-user-role { color: var(--p-lx-text-secondary); font-weight: 400; }
+.lx-user { gap: 8px; }
+
+.lx-frame { flex: 1; display: flex; min-height: 0; }
+main { flex: 1; min-width: 0; min-height: 0; overflow: auto; outline: none; }
+
+.lx-rail {
+  flex: none; width: 220px; padding: 12px 0;
+  border-right: 1px solid var(--p-lx-hairline); background: var(--p-lx-ground);
+  overflow-y: auto; box-sizing: border-box;
+}
+.lx-rail ul { list-style: none; margin: 0; padding: 0; }
+.lx-rail a {
+  display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px 0 16px;
+  color: var(--p-lx-text-secondary); text-decoration: none; font-weight: 500; font-size: 13px;
+  position: relative;
+}
+.lx-rail a:hover { color: var(--p-lx-text); background: var(--p-lx-hover); }
+.lx-rail a:focus-visible { outline-offset: -2px; }
+.lx-rail a.lx-active { color: var(--p-lx-text); background: var(--p-lx-card); }
+.lx-rail a.lx-active::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px; background: var(--p-lx-primary); }
+.lx-rail a.lx-active ng-icon { color: var(--p-lx-primary); }
+.lx-nav-label { flex: 1; white-space: nowrap; }
+
+.lx-menu-who { display: flex; flex-direction: column; padding: 8px 12px; border-bottom: 1px solid var(--p-lx-hairline); margin-bottom: 4px; }
+.lx-menu-name { font-weight: 500; }
+.lx-menu-meta { font-size: 12px; color: var(--p-lx-text-secondary); }
+.lx-menu-link { display: flex; align-items: center; gap: 8px; color: var(--p-lx-text); text-decoration: none; padding: 6px 10px; }
+
+.lx-toast { display: flex; gap: 10px; align-items: flex-start; }
+.lx-toast ng-icon { flex: none; margin-top: 1px; }
+.lx-toast-summary { font-weight: 600; color: var(--p-lx-text); }
+.lx-toast-detail { color: var(--p-lx-text-secondary); font-size: 13px; line-height: 18px; margin-top: 2px; }
+
+/* Under 960 px the rail keeps only its icons; the labels stay as accessible names. */
+@media (max-width: 960px) {
+  .lx-rail { width: 60px; }
+  .lx-rail a { justify-content: center; padding: 0; height: 40px; }
+  .lx-nav-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .lx-nav-badge { position: absolute; top: 2px; right: 6px; }
+  .lx-user-role { display: none; }
+}
+
+/* Under 640 px the navigation becomes a tab strip under the top bar. */
+@media (max-width: 640px) {
+  .lx-frame { flex-direction: column; }
+  .lx-rail {
+    flex: none; width: auto; padding: 0;
+    border-right: 0; border-bottom: 1px solid var(--p-lx-hairline); background: var(--p-lx-card);
+    overflow-x: auto;
+  }
+  .lx-rail ul { display: flex; }
+  .lx-rail li { flex: 1 0 auto; }
+  .lx-rail a { height: 44px; padding: 0 12px; }
+  .lx-rail a.lx-active { background: transparent; }
+  .lx-rail a.lx-active::before { left: 8px; right: 8px; top: auto; bottom: 0; width: auto; height: 2px; }
+  .lx-tenant, .lx-topbar-divider, .lx-theme-text, .lx-user-name { display: none; }
+  .lx-topbar { gap: 8px; padding: 0 8px 0 12px; }
 }

@@ -42,6 +42,7 @@ public class ProgramFactService {
         return facts.findByProgram(programId).stream().filter(f -> f.id().equals(id)).findFirst().orElseThrow();
     }
 
+    @Transactional(readOnly = true)
     public List<ProgramFact> list(UUID programId) {
         programs.get(programId);
         return facts.findByProgram(programId);

@@ -14,7 +14,8 @@ public class RuleVersionRepository {
     private static final String SELECT = """
             SELECT rv.id, rv.jurisdiction_id, j.code AS jurisdiction_code, rv.license_type, rv.label, rv.source_url,
                    rv.effective_from, rv.supersedes_id, rv.document_id, rv.requirements_approved_by,
-                   rv.requirements_approved_at, rv.created_at, rv.created_by
+                   rv.requirements_approved_at, rv.created_at, rv.created_by,
+                   (SELECT count(*) FROM requirement r WHERE r.rule_version_id = rv.id) AS requirement_count
             FROM rule_version rv JOIN jurisdiction j ON j.id = rv.jurisdiction_id
             """;
 
@@ -24,7 +25,8 @@ public class RuleVersionRepository {
             rs.getObject("effective_from", LocalDate.class), rs.getObject("supersedes_id", UUID.class),
             rs.getObject("document_id", UUID.class), rs.getObject("requirements_approved_by", UUID.class),
             rs.getObject("requirements_approved_at", java.time.OffsetDateTime.class),
-            rs.getObject("created_at", java.time.OffsetDateTime.class), rs.getObject("created_by", UUID.class));
+            rs.getObject("created_at", java.time.OffsetDateTime.class), rs.getObject("created_by", UUID.class),
+            rs.getLong("requirement_count"));
 
     private static final RowMapper<Requirement> REQUIREMENT = (rs, i) -> new Requirement(
             rs.getObject("id", UUID.class), rs.getObject("rule_version_id", UUID.class), rs.getString("ref"),

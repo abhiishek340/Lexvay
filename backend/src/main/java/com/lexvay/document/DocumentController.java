@@ -1,6 +1,8 @@
 package com.lexvay.document;
 
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,6 +20,9 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/v1")
 public class DocumentController {
 
+    /** One year, the longest a cache may keep a response; written out because the header order is part of the contract. */
+    private static final String IMMUTABLE_PRIVATE = "private, max-age=31536000, immutable";
+
     private final DocumentService service;
 
     public DocumentController(DocumentService service) {
@@ -33,6 +38,20 @@ public class DocumentController {
                                         @RequestParam DocumentKind kind,
                                         @RequestParam(required = false) UUID courseVersionId) {
         return service.upload(programId, file, kind, courseVersionId);
+    }
+
+    /**
+     * Pages are immutable (the database rejects changes), so the response may be cached for a year by the
+     * browser that asked for it. {@code private} keeps shared caches out: the URL is only valid for the
+     * tenant that owns the document. The ETag is the document hash plus the page number.
+     */
+    @GetMapping("/documents/{id}/pages/{pageNumber}")
+    ResponseEntity<DocumentService.PageView> page(@PathVariable UUID id, @PathVariable int pageNumber) {
+        var page = service.page(id, pageNumber);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, IMMUTABLE_PRIVATE)
+                .eTag("\"" + page.documentSha256() + "-" + pageNumber + "\"")
+                .body(page.view());
     }
 
     @GetMapping("/documents/{id}")

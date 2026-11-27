@@ -195,6 +195,8 @@ class InputValidationTableTest extends AbstractDatabaseTest {
                 "/api/v1/auth/session?q=%00%ff", null, null, 200));
         rows.add(row("me: hostile query parameter is ignored", "GET /api/v1/auth/me", HttpMethod.GET,
                 "/api/v1/auth/me?q=%00%ff", null, null, 200));
+        rows.add(row("users: hostile query parameter is ignored", "GET /api/v1/users", HttpMethod.GET,
+                "/api/v1/users?q=%00%ff", null, null, 200));
 
         // --- jurisdictions, jobs, audit ---
         rows.add(row("jurisdictions: hostile query parameter is ignored", "GET /api/v1/jurisdictions", HttpMethod.GET,
@@ -205,6 +207,13 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(row("audit: limit above maximum", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?limit=501", null, null, 400));
         rows.add(row("audit: negative offset", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?offset=-1", null, null, 400));
         rows.add(row("audit: offset overflows an int", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?offset=99999999999", null, null, 400));
+
+        rows.add(row("audit: entity id is not a UUID", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?entityId=" + BAD_ID, null, null, 400));
+        rows.add(row("audit: user id is not a UUID", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?userId=" + BAD_ID, null, null, 400));
+        rows.add(row("audit: from is not a timestamp", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?from=yesterday", null, null, 400));
+        rows.add(row("audit: to is not a timestamp", "GET /api/v1/audit", HttpMethod.GET, "/api/v1/audit?to=%00", null, null, 400));
+        rows.add(row("audit: control character in action filter", "GET /api/v1/audit", HttpMethod.GET,
+                "/api/v1/audit?action=a%00b", null, null, 400));
 
         // --- programs ---
         Map<String, Object> program = Map.of("name", "P", "licenseType", "L", "catalogYear", "2026-27", "jurisdictions", List.of("CA"));
@@ -261,6 +270,18 @@ class InputValidationTableTest extends AbstractDatabaseTest {
 
         // --- documents ---
         rows.add(row("document: id is not a UUID", "GET /api/v1/documents/{id}", HttpMethod.GET, "/api/v1/documents/" + BAD_ID, null, null, 400));
+        String page = "GET /api/v1/documents/{id}/pages/{pageNumber}";
+        rows.add(row("document page: id is not a UUID", page, HttpMethod.GET, "/api/v1/documents/" + BAD_ID + "/pages/1", null, null, 400));
+        rows.add(row("document page: page number is not a number", page, HttpMethod.GET, "/api/v1/documents/" + DOCUMENT + "/pages/one", null, null, 400));
+        rows.add(row("document page: page number overflows an int", page, HttpMethod.GET,
+                "/api/v1/documents/" + DOCUMENT + "/pages/99999999999", null, null, 400));
+        rows.add(row("document page: page number zero does not exist", page, HttpMethod.GET, "/api/v1/documents/" + DOCUMENT + "/pages/0", null, null, 404));
+
+        // --- program overview and assessments of a program ---
+        rows.add(row("overview: program id is not a UUID", "GET /api/v1/programs/{programId}/overview", HttpMethod.GET,
+                "/api/v1/programs/" + BAD_ID + "/overview", null, null, 400));
+        rows.add(row("assessments of a program: program id is not a UUID", "GET /api/v1/programs/{programId}/assessments", HttpMethod.GET,
+                "/api/v1/programs/" + BAD_ID + "/assessments", null, null, 400));
 
         // --- assessments ---
         rows.add(row("assessment start: program id is not a UUID", "POST /api/v1/programs/{programId}/assessments", HttpMethod.POST,
@@ -313,6 +334,8 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         Map<String, Object> review = Map.of("kind", "ACCEPTED", "note", "Looks right");
         String reviews = "/api/v1/mappings/" + MAPPING + "/reviews";
         String postReview = "POST /api/v1/mappings/{id}/reviews";
+        rows.add(row("review history: mapping id is not a UUID", "GET /api/v1/mappings/{id}/reviews", HttpMethod.GET,
+                "/api/v1/mappings/" + BAD_ID + "/reviews", null, null, 400));
         rows.add(row("review: mapping id is not a UUID", postReview, HttpMethod.POST, "/api/v1/mappings/" + BAD_ID + "/reviews",
                 json(review), JSON, 400));
         bodies.post("review: kind missing", postReview, reviews, without(review, "kind"));

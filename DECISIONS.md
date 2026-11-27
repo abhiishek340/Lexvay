@@ -391,7 +391,7 @@ End-to-end stacks are slot-based (`LEXVAY_E2E_SLOT`) so several checkouts can te
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F12, V011 F13 if needed.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F13 if needed. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -529,6 +529,119 @@ group family `postgres18` follows RDS naming and could not be checked without cr
 defaults to the major version `18`. The CloudFront and ALB wiring has been validated for syntax and schema only, not
 deployed.
 
+### WS-UI — Design system and screen rebuild (D-080 to D-089)
+
+### Dependency pins (verified on the npm registry on 2026-11-26)
+
+| Package | Version |
+|---|---|
+| `primeng` | 22.1.5 |
+| `@primeuix/themes` | 3.1.1 |
+| `@ng-icons/core` | 36.1.0 |
+| `@ng-icons/phosphor-icons` | 36.1.0 |
+| `@fontsource/ibm-plex-sans` | 5.3.0 |
+| `@fontsource/ibm-plex-serif` | 5.3.0 |
+| `@fontsource/ibm-plex-mono` | 5.3.0 |
+
+Transitive packages PrimeNG 22.1.5 brings in (resolved by npm, recorded in `package-lock.json`):
+`@primeuix/styled`, `@primeuix/styles`, `@primeuix/utils`, `@primeuix/motion`, `@primeicons/angular`,
+`@primeui/license-manager`.
+
+### D-080 PrimeNG 22 requires a PrimeUI license key (needs an owner decision)
+PrimeNG 22 is distributed under the PrimeUI License (`node_modules/primeng/LICENSE.md`): a Community License
+(free for organisations under USD 1 M revenue, fewer than 5 developers and 10 employees; individuals and
+non-commercial open source qualify; renewed yearly) or a paid Commercial License. At start-up
+`providePrimeNG` verifies a key offline through `@primeui/license-manager`; without one it logs
+"PrimeUI license is not configured" and shows a fixed "Invalid PrimeUI License" notice in the corner of
+every page (it is visible in `docs/screens`). The license forbids removing that mechanism, so the notice is
+left in place. Every 21.x release has no license check but requires Angular 21, so it cannot be used with
+Angular 22.3.
+Implemented: the key is read from the build-time constant `LEXVAY_PRIMEUI_LICENSE`
+(`ng build --define "LEXVAY_PRIMEUI_LICENSE='<key>'"`, see `src/app/theme/license.ts`) and passed to
+`providePrimeNG({ license })`; no key is committed. Rejected: hiding the notice with CSS (breaches the
+license); switching libraries or downgrading (contradicts the design brief, and the brief is the CTO's call).
+**Action for the owner:** register for the Community License (if eligible) or buy a Commercial License, then
+supply the key at build time.
+
+### D-081 Design tokens live once, in the preset, as light-dark() pairs
+`@primeuix/themes` 3 expresses Aura's colour scheme with CSS `light-dark()`; PrimeNG emits
+`color-scheme: dark` for `[data-theme="dark"]`. `LexvayPreset` writes every DESIGN.md token as a
+`light-dark(light, dark)` pair, overrides the Aura semantic and component tokens with them, and publishes
+the same values under `extend.lx` so application CSS reads `--p-lx-*`. Rejected: a second copy of the
+palette as hand-written CSS variables in `styles.css` (two sources of truth); `colorScheme.light/dark`
+blocks (mixed with Aura's `light-dark()` values the precedence is unclear).
+`ThemeService` always writes a concrete `data-theme` (`light` or `dark`); "System" resolves it from
+`prefers-color-scheme` and follows changes, so one selector drives both PrimeNG and the application CSS.
+
+### D-082 Aura limited to the components Lexvay renders
+`definePreset` starts from Aura's base tokens plus the token sets of the 22 components in use (listed in
+`lexvay-preset.ts`). The full Aura object carries about 90 component token sets and cost 130 kB of the
+initial bundle. Rejected: the full Aura import. Consequence: a component added to a template must be added
+to that list, or it renders without its theme.
+
+### D-083 Bundle budget measured on raw size
+WS-UI asks for an initial bundle under 600 kB transferred. Angular budgets measure raw (uncompressed)
+size, so the budget is set on raw size at 700 kB warning / 800 kB error; the production build measures
+672.9 kB raw and 161.8 kB estimated transfer. The program switcher (Select), the account menu and the toast
+are `@defer` blocks. Rejected: a 600 kB raw budget (Angular core, router, forms and common alone are about
+400 kB raw; meeting it would mean dropping PrimeNG from the shell). The component style budget is raised to
+10 kB / 14 kB because the review workspace styles three panes and two dialogs in one component.
+
+Critical-CSS inlining is switched off in the production configuration (`optimization.styles.inlineCritical:
+false`): it adds an inline `<script>` that swaps the stylesheet's `media`, which the backend's
+Content-Security-Policy (`default-src 'self'`, no inline scripts) blocks, leaving the global styles unapplied.
+The built `index.html` now has one external module script and one stylesheet link; fonts load from `./media`.
+PrimeNG's runtime `<style>` elements rely on `style-src 'unsafe-inline'`, which the policy allows.
+
+### D-084 Fonts: latin and latin-ext subsets only
+The `@fontsource` packages ship cyrillic, greek and vietnamese subsets as well. Only `latin` and
+`latin-ext` are imported for Sans 400/500/600, Serif 400 and 400 italic, and Mono 400. Rejected: the
+all-subsets entry points (more files in the build for scripts the product does not show).
+
+### D-085 One program context shared by every screen
+`ProgramContext` loads the program, its latest finished assessment, determinations, change events,
+jurisdictions and rule versions once per program; screens and the navigation badges read it, and mutations
+call a targeted refresh. Rejected: each screen fetching its own copy (the previous code issued the same
+four requests on every screen change, and the badges would need a third copy).
+
+### D-086 Review view model as a plain signal class
+`ReviewWorkspace` (filters, selection, J/K movement, advancing after a decision, progress) and
+`shortcutFor`/`decisionBlocker` are plain TypeScript with Angular signals and no dependency injection, unit
+tested with Vitest. A decision counts only while it is current: a stale mapping needs review again
+(`isDecided`). After a decision the workspace moves to the next requirement in list order that still needs
+one and matches the filter, wrapping around. Rejected: an injectable store (needs TestBed to test) and
+keeping the logic in the component.
+
+### D-087 Accessibility workarounds for PrimeNG markup
+- Tables have no accessible-name input: names are set through pass-through (`[pt]="{ table: { 'aria-label' } }"`).
+- `p-progressbar` sets `aria-level` on a `progressbar` role and has no name input, which axe reports;
+  progress bars are `aria-hidden` and the progress is always stated in text next to them.
+- Splitter gutters get `aria-label="Resize panes"` through pass-through; dialogs get `closeAriaLabel`.
+- Navigation badges are `aria-hidden`; the count is a separate `aria-describedby` text so link names stay
+  "Review" and "Changes".
+- Tag labels use the `value` input so the icon precedes the word.
+Rejected: forking or wrapping the PrimeNG components.
+
+### D-088 Focus after navigation, and the live region
+Moving to another screen focuses that screen's `h1`; the first page load and query-only navigation (the
+jurisdiction tabs, the report's jurisdiction) do not move focus. Review results are announced in one
+polite `role="status"` region in the review header (`data-testid="message"`) and also shown as a PrimeNG
+Toast, as the brief asks. PrimeNG's toast is `role="alert"`, so a screen reader may hear a decision twice.
+Rejected: dropping the toast (the brief asks for both).
+
+### D-089 Evidence report jurisdiction and PDF
+The report opens on the jurisdiction in `?jurisdiction=` or the first one, chosen with a PrimeNG Select.
+"Generate PDF" is offered only for a signed determination because the existing endpoint renders a signed
+determination; a draft explains that the PDF follows signing. Rejected: a client-side PDF of the draft.
+
+### Screens and tests
+- Screenshots: `docs/screens/*-light.png` and `*-dark.png`, produced by `e2e/screens.spec.ts`
+  (`LEXVAY_SCREENSHOTS=1 LEXVAY_E2E_SLOT=1 make e2e`).
+- Every end-to-end test fails on any request to a host other than localhost (`e2e/support.ts`).
+- `expectAccessible` runs axe in the light and the dark theme with transitions disabled.
+- Backend: `GET /api/v1/users` (`tenant/UserController`, `UserApiTest`), tenant-scoped by row-level
+  security, readable by every role, not in the audited set because it is a GET.
+
 ### WS-SEC — OIDC and hardening (D-090 to D-099)
 
 **D-090 — OIDC through `spring-boot-starter-security-oauth2-client`, only in profile `oidc`.** The starter is managed
@@ -648,6 +761,130 @@ lookup, which is the part that matters); mocking `ClientRegistrationRepository`.
 `@TestPropertySource`; tests that need tight budgets, a Secure cookie, forwarded headers, a 1 MB upload limit or the
 `oidc` profile declare their own and get their own cached Spring context (five extra contexts, about 8 seconds each).
 `spring-security-test`'s `csrf()` is still not used; `TestCsrf.csrf()` stays.
+
+### WS-PERF — Read-path latency and read APIs (D-110 to D-119)
+
+### D-110 One connection per read request; the tenant is bound on checkout only
+
+Every service method that only reads is `@Transactional(readOnly = true)`, so a request checks out one
+connection, binds the tenant once, and runs all its statements and its commit on it. `TenantAwareDataSource`
+no longer wraps the connection in a proxy and no longer issues `RESET lexvay.tenant_id` on return: checkout
+always runs `set_config` (tenant present) or `RESET` (no tenant), so the value an idle pooled connection holds
+cannot be used before the next checkout replaces it. Tenant isolation stays fail closed (product rule 7).
+`Rule7_PooledConnectionRebindsTest` proves it on one physical connection (a pool of size one lends the same
+backend to tenant A, to no tenant and to tenant B). `ReadPathConnectionsTest` asserts exactly one checkout per
+read endpoint.
+
+Reads that run a single statement and have no service method (audit list, jurisdictions, jobs) stay in
+autocommit: one checkout and no extra COMMIT round trip.
+
+Rejected:
+- Remembering the last bound tenant per physical connection to skip `set_config` when it matches. It saves a
+  round trip but makes isolation depend on state the application tracks about the connection; anything that
+  changes the setting behind its back (a bug, `RESET ALL`, a future SQL function) would leak. Not worth it.
+- `connectionInitSql` or a pool-level hook for the tenant. The tenant changes per request; the pool cannot know it.
+- Keeping the close-time `RESET` as a second line of defence. It costs a statement on every return and defends
+  nothing, because the checkout rebind is the only protection that matters.
+
+### D-111 Program overview: contents and package
+
+`GET /programs/{id}/overview` returns `{ program, assessment, determinations, openChangeEvents, undecidedTotal }`
+in one read-only transaction. `assessment` is the latest FINISHED one (null before the first run).
+`undecidedTotal` is the sum over jurisdictions of `total - decided` from that assessment, which is exactly the
+set the signing gate counts (stale, undecided or reopened mappings), so it needs no extra query.
+`openChangeEvents` is a list of the same views as `GET /change-events`, limited to OPEN events that touch this
+program: a new version of one of its courses, or a new rule version for one of its target jurisdictions and its
+license type. The spec did not say whether the list is program-scoped; an unscoped list would show another
+program's course changes on this program's screen. Confirmed by the orchestrator on review.
+
+The service lives in a new package `overview` because it composes assessment, determination and change data and
+nothing depends on it; putting it in `program` would create a package cycle (assessment already depends on program).
+
+Rejected: a count instead of a list (the screen needs to link to the events); embedding mappings (too large).
+
+### D-112 Document page caching
+
+`GET /documents/{id}/pages/{n}` answers with `Cache-Control: private, max-age=31536000, immutable` and a strong
+ETag `"<document sha256>-<page number>"`. Pages never change (the database rejects updates), so a year is safe.
+`private` keeps shared caches and proxies out. `If-None-Match` is answered with 304 by Spring's
+`HttpEntityMethodProcessor` from the ETag on the response entity; the 304 keeps ETag and Cache-Control. The header
+is written as a literal string because the order of its directives is part of the specified contract. A 404 is
+never marked cacheable.
+
+Known edge: the browser cache is keyed by URL, not by user. A second user on the same browser profile who
+requests the same document id would be served the first user's cached copy without a request, but only for a
+document id the first user could read, and the second user cannot learn that id from the API unless they can read
+it. Accepted; `Vary: Cookie` would remove it at the cost of losing the cache across logins.
+
+Rejected: `public` (cross-tenant risk), `ShallowEtagHeaderFilter` (hashes the body, so it still reads and
+serialises the page), a weak ETag (the content is byte-identical for a given document and page), `must-revalidate`
+(defeats the point for an immutable resource).
+
+### D-113 Review history
+
+`GET /mappings/{id}/reviews` returns every review event of the mapping oldest first, including REOPENED events
+that the system recorded (user id and display name null). An unknown id, or another tenant's, is 404 (row-level
+security hides the mapping). No role restriction: like every GET it is open to any authenticated user of the tenant.
+
+### D-114 N+1 removal
+
+Done in SQL, not in Java: determinations aggregate course version ids with an `ARRAY(SELECT ...)` in the main
+query; change event views are one statement with LEFT JOINs and correlated subqueries for "has a document" and the
+reopened determination ids (it also serves the overview and the re-run precondition); the rule version list takes
+requirement counts from a subquery and the latest extraction jobs from one `DISTINCT ON` statement. The benchmark
+exposed the rule version list (13 connections per call before) beyond the two repositories the spec named.
+
+Rejected: an in-process cache (a stale-tenant risk and not needed once queries are set-based); batch loading with
+`IN` lists per child table (more round trips than one joined statement).
+
+### D-115 Indexes
+
+V008 creates nine indexes, each chosen by the planner for its query on a database of about 200 tenants
+(`IndexUsageTest`, evidence in docs/PERF.md). Four of the fourteen candidates in the spec are not created:
+- `document (program_id)`: covered by the unique index `(tenant_id, program_id, sha256)`, because every query
+  also carries the row-level security condition on `tenant_id`.
+- `requirement (rule_version_id)`: covered by the unique index `(rule_version_id, ref)`.
+- `change_event (status, created_at DESC)`: the planner prefers the tenant index; a tenant has few events.
+- `job ((payload->>'documentId'))` and `job ((payload->>'ruleVersionId'))`: usable without row-level security
+  but never chosen with it. The job table's policy has an OR branch for the worker flag, and `jsonb ->>` is not a
+  leakproof function, so the planner may not use it as an index condition below the policy.
+
+`IndexUsageTest` creates the rejected candidates inside its own database and asserts the planner still ignores
+them, so a future Postgres or policy change that makes one useful fails the test and says so.
+
+Finding for the orchestrator, not implemented because it is a schema change outside the spec: the ingest and
+extraction status lookups (`GET /documents/{id}`, rule version views) scan the whole job table under row-level
+security, and jobs are never deleted. A generated column `payload_ref uuid` (the payload id, compared with a
+leakproof `=`) with an index would make them index lookups.
+
+### D-116 Audit filters
+
+`GET /audit` takes optional `action`, `entityType`, `entityId`, `userId`, `from`, `to` (ISO-8601 instants, both
+ends inclusive). The SQL text contains only the predicates that were given, so each combination gets its own
+plan. The response shape is unchanged. Rejected: `(:x IS NULL OR col = :x)`, which forces a generic plan that
+cannot use an index on the filtered column.
+
+### D-117 Response compression
+
+`server.compression` is on for `application/json` and `application/problem+json` from 1 kB. `spring.jackson`
+settings are untouched. `CompressionTest` checks over real HTTP that a large response is gzipped and a small one
+is not. On loopback compression costs CPU and saves no time; it pays on a real network.
+
+### D-118 Benchmark method
+
+`EndpointLatencyTest` sends `Accept-Encoding: gzip` like a browser, so the "after" numbers include compression
+CPU on the 30 to 45 kB responses. It signs one jurisdiction through the API first so the determination, review and
+change views have data (the seed's course and rule changes leave the other jurisdictions stale, which blocks
+signing). It runs twice: on the two seeded tenants, then after loading 30 renamed copies of both (62 tenants).
+Connections per call are counted by wrapping the data source. Each result in docs/PERF.md is the median of three
+runs, chosen by the sum of its p95 values; other agents were building on the same machine, so absolute numbers
+vary and the comparison between before and after is what matters.
+
+### D-119 Job payload key inside the SQL text
+
+`JobRepository.latest` used a bind parameter for the payload key (`payload->>:key`), which the planner cannot
+match to an expression index. The key is now part of the SQL text, restricted to letters, and the same helper
+builds the set-based variant. Rejected: one method per key (more API for no benefit).
 
 ### F3a — Rule version diff API (D-120 to D-129)
 

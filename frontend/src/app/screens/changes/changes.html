@@ -1,40 +1,84 @@
-<header class="page-header">
-  <h1>Changes</h1>
-  <p class="muted">A new rule version or course version creates a change event, marks the mappings that cite the old version as outdated, and reopens the signed determinations that depend on it. Re-running keeps what still holds and sends the rest back to review.</p>
-</header>
-@if (error(); as e) { <p class="error" role="alert">{{ e }}</p> }
-@if (message(); as m) { <p class="status" role="status" data-testid="message">{{ m }}</p> }
-@if (events(); as list) {
-  @if (list.length === 0) {
-    <p>No changes recorded. Every signed determination still rests on the versions it was signed against.</p>
-  } @else {
-    <table class="table" aria-label="Change events">
-      <thead><tr><th scope="col">When</th><th scope="col">Change</th><th scope="col">What it affects</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
-      <tbody>
-        @for (e of list; track e.id) {
+<div class="lx-page">
+  <header class="lx-page-header">
+    <div>
+      <h1>Changes</h1>
+      <p>A new rule version or course version creates a change event. Findings that cite the old version become outdated and the signed
+        determinations that depend on it reopen. A re-run keeps what still holds and sends the rest back to review.</p>
+    </div>
+  </header>
+  @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
+  @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
+  <p class="lx-status-line" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
+
+  @if (context.ready()) {
+    @if (context.changeEvents().length === 0) {
+      <p class="lx-muted">No changes recorded. A change appears here when a new rule version or course version is added, and every signed
+        determination still rests on the versions it was signed against until then.</p>
+    } @else {
+      <p-table [value]="context.changeEvents()" dataKey="id" [pt]="{ table: { 'aria-label': 'Change events' } }" styleClass="lx-table">
+        <ng-template #header>
           <tr>
-            <td>{{ e.createdAt | slice:0:10 }}</td>
-            <td><strong>{{ kindLabel(e) }}</strong><br /><span class="muted">{{ what(e) }}</span></td>
+            <th scope="col">Date</th>
+            <th scope="col">Change</th>
+            <th scope="col">What changed</th>
+            <th scope="col">What it affects</th>
+            <th scope="col">Status</th>
+            <th scope="col">Action</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-e>
+          <tr>
+            <td class="lx-mono lx-nowrap"><time [attr.datetime]="e.createdAt">{{ e.createdAt | date: 'yyyy-MM-dd' }}</time></td>
+            <td>
+              <span class="lx-kind"><ng-icon [name]="kind(e).icon" size="16" aria-hidden="true" />{{ kind(e).label }}</span>
+              <span class="lx-help lx-subject">{{ subject(e) }}</span>
+            </td>
+            <td>
+              @let w = what(e);
+              <span class="lx-transition">
+                <span class="lx-old">{{ w.old }}</span>
+                <ng-icon name="phosphorArrowRight" size="14" aria-hidden="true" /><span class="lx-sr-only">is superseded by</span>
+                <span class="lx-new">{{ w.next }}</span>
+              </span>
+            </td>
             <td>
               @if (e.reopenedDeterminationIds.length > 0) {
                 {{ e.reopenedDeterminationIds.length }} signed determination{{ e.reopenedDeterminationIds.length === 1 ? '' : 's' }} reopened
               } @else {
-                <span class="muted">No signed determination depended on the old version</span>
+                <span class="lx-muted">No signed determination depended on the old version</span>
               }
             </td>
-            <td>{{ e.status === 'OPEN' ? 'Open' : 'Handled' }}</td>
             <td>
+              @if (e.status === 'OPEN') {
+                <p-tag severity="warn" value="Open"><ng-template #icon><ng-icon name="phosphorWarning" size="14" aria-hidden="true" /></ng-template></p-tag>
+              } @else {
+                <p-tag severity="success" value="Handled"><ng-template #icon><ng-icon name="phosphorCheckCircle" size="14" aria-hidden="true" /></ng-template></p-tag>
+              }
+            </td>
+            <td class="lx-action">
               @if (e.status === 'OPEN' && session.canReview()) {
-                @if (blocker(e); as why) {
-                  <span class="muted">{{ why }}</span>
+                @if (running() === e.id) {
+                  <span class="lx-running"><p-progress-spinner strokeWidth="6" ariaLabel="Re-run in progress" styleClass="lx-spinner" />Re-running</span>
                 } @else {
-                  <button type="button" class="primary" [disabled]="busy() !== null" (click)="rerun(e)">{{ actionLabel(e) }}</button>
+                  @let why = blocker(e);
+                  <button pButton type="button" size="small" [outlined]="true" [disabled]="!!why || running() !== null" (click)="rerun(e)"
+                          [attr.aria-describedby]="why ? 'blocker-' + e.id : null">
+                    <ng-icon name="phosphorArrowsClockwise" size="14" aria-hidden="true" />
+                    <span pButtonLabel>{{ kind(e).action }}</span>
+                  </button>
+                  @if (why) { <p class="lx-help" [id]="'blocker-' + e.id">{{ why }}</p> }
                 }
+              } @else if (e.status === 'OPEN') {
+                <span class="lx-help">A reviewer re-runs this change.</span>
               }
             </td>
           </tr>
-        }
-      </tbody>
-    </table>
+        </ng-template>
+      </p-table>
+    }
+  } @else if (!context.error()) {
+    <div class="lx-skeleton" aria-busy="true" aria-label="Loading changes">
+      @for (i of [1, 2, 3]; track i) { <p-skeleton height="3.5rem" /> }
+    </div>
   }
-}
+</div>

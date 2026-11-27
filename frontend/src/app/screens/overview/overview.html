@@ -1,55 +1,90 @@
-@if (program(); as p) {
-  <header class="page-header">
-    <h1>{{ p.name }}</h1>
-    <p class="muted">{{ p.licenseType.replaceAll('_', ' ').toLowerCase() }} · catalog year {{ p.catalogYear }}</p>
-  </header>
-  @if (counts(); as c) {
-    <dl class="counts">
-      <div><dt>Jurisdictions</dt><dd>{{ c.jurisdictions }}</dd></div>
-      <div><dt>Requirements</dt><dd>{{ c.requirements }}</dd></div>
-      <div><dt>Waiting for review</dt><dd>{{ c.waitingForReview }}</dd></div>
-      <div><dt>Determinations signed</dt><dd>{{ c.determinationsSigned }}</dd></div>
-    </dl>
+<div class="lx-page">
+  @if (context.error(); as e) {
+    <p-message severity="error">{{ e }}</p-message>
   }
-  @if (!assessment()) {
-    <p class="muted">No finished assessment yet. Findings appear here after an assessment runs.</p>
+  @if (context.program(); as p) {
+    <header class="lx-page-header">
+      <div>
+        <p class="lx-label">Program overview</p>
+        <h1>{{ p.name }}</h1>
+        <p>{{ license(p) }} · catalog year {{ p.catalogYear }}</p>
+      </div>
+    </header>
+
+    @if (context.counts(); as c) {
+      <dl class="lx-figures">
+        <div><dt class="lx-label">Jurisdictions</dt><dd>{{ c.jurisdictions }}</dd></div>
+        <div><dt class="lx-label">Requirements</dt><dd>{{ c.requirements }}</dd></div>
+        <div><dt class="lx-label">Waiting for review</dt><dd>{{ c.waitingForReview }}</dd></div>
+        <div><dt class="lx-label">Determinations signed</dt><dd>{{ c.determinationsSigned }} <span class="lx-of">of {{ c.jurisdictions }}</span></dd></div>
+      </dl>
+    }
+
+    @if (context.ready() && !context.assessment()) {
+      <p-message severity="secondary">No finished assessment yet. Findings for each jurisdiction appear here after an assessment runs.</p-message>
+    }
+
+    <section class="lx-section" aria-labelledby="jurisdictions-heading">
+      <h2 id="jurisdictions-heading" class="lx-section-title">Jurisdictions</h2>
+      <p-table [value]="rows()" dataKey="code" [rowHover]="true" [pt]="{ table: { 'aria-labelledby': 'jurisdictions-heading' } }" styleClass="lx-table">
+        <ng-template #header>
+          <tr>
+            <th scope="col">Jurisdiction</th>
+            <th scope="col">Findings</th>
+            <th scope="col">Review progress</th>
+            <th scope="col">Determination</th>
+            <th scope="col"><span class="lx-sr-only">Action</span></th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-row>
+          <tr class="lx-row-link" (click)="openReview(row)">
+            <td>
+              <span class="lx-state-name">{{ context.jurisdictionName(row.code) }}</span>
+              <span class="lx-mono lx-muted">{{ row.code }}</span>
+            </td>
+            <td class="lx-col-findings">
+              @if (row.summary; as s) {
+                <lx-findings-bar [summary]="s" />
+              } @else {
+                <span class="lx-muted">Not assessed</span>
+              }
+            </td>
+            <td class="lx-col-progress">
+              @if (row.summary; as s) {
+                <span class="lx-progress-text"><span class="lx-mono">{{ s.decided }}</span> of <span class="lx-mono">{{ s.total }}</span> reviewed</span>
+                <p-progressbar class="lx-progress" [value]="reviewProgress(row)" [showValue]="false" aria-hidden="true" />
+              } @else {
+                <span class="lx-muted">No requirements yet</span>
+              }
+            </td>
+            <td>
+              <p-tag [severity]="stateTag(row.state).severity" [value]="row.status">
+                <ng-template #icon><ng-icon [name]="stateTag(row.state).icon" size="14" aria-hidden="true" /></ng-template>
+              </p-tag>
+              @if (row.signed; as d) {
+                <p class="lx-help lx-signed-meta">{{ outcome(d) }} · {{ d.signedByName }} · {{ d.signedAt | date: 'd MMM y' }}</p>
+              }
+            </td>
+            <td class="lx-col-action">
+              <a pButton [text]="true" size="small" [routerLink]="['/programs', programId(), 'review']" [queryParams]="{ jurisdiction: row.code }"
+                 (click)="$event.stopPropagation()" [attr.aria-label]="'Open review for ' + context.jurisdictionName(row.code)">
+                <span pButtonLabel>Open review</span>
+                <ng-icon name="phosphorArrowRight" size="14" aria-hidden="true" />
+              </a>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </section>
+  } @else if (!context.error()) {
+    <div class="lx-skeleton" aria-busy="true" aria-label="Loading the program">
+      <p-skeleton width="9rem" height="0.75rem" />
+      <p-skeleton width="28rem" height="1.75rem" />
+      <p-skeleton width="16rem" height="1rem" />
+      <div class="lx-skeleton-figures">
+        @for (i of [1, 2, 3, 4]; track i) { <p-skeleton height="4rem" /> }
+      </div>
+      @for (i of [1, 2, 3, 4, 5]; track i) { <p-skeleton height="3rem" /> }
+    </div>
   }
-  <table class="table" aria-label="Jurisdictions">
-    <thead>
-      <tr><th scope="col">Jurisdiction</th><th scope="col">Findings</th><th scope="col">Status</th><th scope="col"></th></tr>
-    </thead>
-    <tbody>
-      @for (row of rows(); track row.code) {
-        <tr>
-          <th scope="row">{{ row.code }}</th>
-          <td>
-            @if (row.summary; as s) {
-              <div class="bar" role="img" [attr.aria-label]="s.evidenceFound + ' found, ' + s.ambiguous + ' ambiguous, ' + s.evidenceMissing + ' missing of ' + s.total">
-                @for (seg of segments(s); track seg.finding) {
-                  @if (seg.count > 0) {
-                    <span class="seg" [class]="'seg ' + seg.finding" [style.width.%]="seg.percent"></span>
-                  }
-                }
-              </div>
-              <ul class="legend">
-                @for (seg of segments(s); track seg.finding) {
-                  <li><span class="glyph" [class]="'glyph ' + seg.finding" aria-hidden="true">{{ glyph[seg.finding] }}</span> {{ seg.count }} {{ label[seg.finding].toLowerCase() }}</li>
-                }
-              </ul>
-            } @else {
-              <span class="muted">Not assessed</span>
-            }
-          </td>
-          <td>
-            {{ row.status }}
-            @if (row.signed; as d) {
-              <div class="muted">{{ outcomeLabel[d.outcome] }} · {{ d.signedByName }}</div>
-            }
-          </td>
-          <td><a [routerLink]="['/programs', programId, 'review']" [queryParams]="{ jurisdiction: row.code }">Open review</a></td>
-        </tr>
-      }
-    </tbody>
-  </table>
-}
-@if (error(); as e) { <p class="error" role="alert">{{ e }}</p> }
+</div>

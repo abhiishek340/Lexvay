@@ -80,6 +80,7 @@ public class DeterminationService {
         return determinations.findById(id).orElseThrow();
     }
 
+    @Transactional(readOnly = true)
     public List<Determination> list(UUID programId) {
         programs.get(programId);
         return determinations.findByProgram(programId);

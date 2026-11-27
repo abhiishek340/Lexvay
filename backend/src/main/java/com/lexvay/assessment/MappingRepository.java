@@ -96,6 +96,10 @@ public class MappingRepository {
                 .param("a", assessmentId).param("r", requirementId).query(Long.class).single() > 0;
     }
 
+    public boolean existsById(UUID id) {
+        return jdbc.sql("SELECT EXISTS (SELECT 1 FROM mapping WHERE id = :id)").param("id", id).query(Boolean.class).single();
+    }
+
     public Optional<Mapping> findById(UUID id) {
         return jdbc.sql(SELECT + " WHERE m.id = :id").param("id", id).query(ROW).optional();
     }
