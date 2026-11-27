@@ -173,6 +173,17 @@ kbd {
 .lx-ambiguous { color: var(--p-lx-ambiguous); }
 .lx-missing { color: var(--p-lx-missing); }
 
+/* A filter chip (audit trail, People): a Select drawn as a pill, accent-tint once it holds a value (lx-chip-on). */
+.lx-chip.p-select {
+  border-radius: var(--lx-r-pill); border-color: transparent; background: var(--p-lx-surface); box-shadow: var(--p-lx-e1);
+  max-width: calc(100vw - 32px); transition: background-color var(--lx-t-1) var(--lx-ease-out), box-shadow var(--lx-t-1) var(--lx-ease-out);
+}
+.lx-chip.p-select:not(.p-disabled):hover { border-color: transparent; box-shadow: var(--p-lx-e2); }
+.lx-chip .p-select-label { font-weight: 550; padding-left: 0.875rem; color: var(--p-lx-text); }
+.lx-chip .p-select-label.p-placeholder { color: var(--p-lx-text-2); }
+.lx-chip.lx-chip-on.p-select { background: var(--p-lx-accent-tint); box-shadow: none; }
+.lx-chip.lx-chip-on .p-select-label, .lx-chip.lx-chip-on .p-select-dropdown, .lx-chip.lx-chip-on .p-select-clear-icon { color: var(--p-lx-accent); }
+
 /* First view of a list or grid: items rise 6 px and fade in, 30 ms apart, at most ten staggered (lxEnter). */
 .lx-enter {
   animation: lx-enter var(--lx-t-3) var(--lx-ease-out) both;
@@ -185,6 +196,9 @@ kbd {
 ::view-transition-new(root) { animation: lx-vt-in var(--lx-t-3) var(--lx-ease-out) both; }
 @keyframes lx-vt-out { to { opacity: 0; } }
 @keyframes lx-vt-in { from { opacity: 0; transform: translateY(8px); } }
+/* Text that rises into place without fading in: the sign-in headline and form are the largest paint, so they must be
+   visible in the first frame (LCP, D-307). */
+@keyframes lx-rise { from { transform: translateY(12px); } }
 
 /* PrimeNG refinements that belong to the whole product, not one screen. */
 @layer lexvay {

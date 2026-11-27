@@ -1,4 +1,4 @@
-import { DANA, PRIYA, expect, expectAccessible, goTo, nav, signIn, stateTab, test } from './support';
+import { ADMIN, DANA, JORDAN, PRIYA, expect, expectAccessible, goTo, nav, signIn, stateTab, test } from './support';
 
 const story = (page: import('@playwright/test').Page) => page.locator('[data-story]');
 
@@ -139,8 +139,16 @@ test('the overview with the v2 shell is accessible in both themes at 1440 and 40
   expect(overflow).toBeLessThanOrEqual(0);
   await expectAccessible(page, 'Overview at 400 px');
 
-  // The bottom bar never scrolls sideways: five screens on the bar, the others behind More.
+  // The bottom bar never scrolls sideways: the least used screens wait behind More, Program setup keeps its tab.
   const bar = page.getByRole('navigation', { name: 'Screens' });
+  expect(await bar.evaluate((n) => n.scrollWidth - n.clientWidth)).toBeLessThanOrEqual(0);
+  await expect(nav(page, 'Program setup')).toBeVisible();
+  await expect(nav(page, 'Audit trail')).toBeHidden();
+  await bar.getByRole('button', { name: /^More screens/ }).click();
+  const menu = page.getByRole('menu', { name: 'More screens' });
+  await expect(menu.getByRole('menuitem')).toHaveText(['Evidence report', 'Audit trail']);
+  await page.keyboard.press('Escape');
+});
   expect(await bar.evaluate((n) => n.scrollWidth - n.clientWidth)).toBeLessThanOrEqual(0);
   await expect(nav(page, 'Audit trail')).toBeHidden();
   const more = bar.getByRole('button', { name: 'More screens' });
@@ -164,4 +172,16 @@ test('signing out from the avatar menu returns to the sign-in page', async ({ pa
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
+});
+
+test('at 400 px the bottom bar fits for a contributor and an administrator, with Program setup on it', async ({ page }) => {
+  await page.setViewportSize({ width: 400, height: 860 });
+  for (const email of [JORDAN, ADMIN]) {
+    await signIn(page, email);
+    const bar = page.getByRole('navigation', { name: 'Screens' });
+    await expect(nav(page, 'Program setup')).toBeVisible();
+    expect(await bar.evaluate((n) => n.scrollWidth - n.clientWidth), email).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), email).toBeLessThanOrEqual(0);
+    await page.context().clearCookies();
+  }
 });

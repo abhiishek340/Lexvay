@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { Page } from '@playwright/test';
-import { ADMIN, DANA, expect, expectAccessible, goTo, signIn, test } from './support';
+import { ADMIN, DANA, expect, expectAccessible, goTo, nav, signIn, test } from './support';
 
 /**
  * The record screens of UI2-3: the audit trail's filter chips and CSV export, and the evidence report's PDF. Runs after
@@ -58,7 +58,10 @@ test('the audit filter chips ask the server, details open in place, and the admi
 
 test('an empty filter result says so with one action that clears it', async ({ page }) => {
   await signIn(page, DANA);
-  await goTo(page, 'Audit trail');
+  await nav(page, 'Audit trail').click();
+  // People (people.spec.ts) deactivates someone, so "Access withdrawn" alone has entries; Dana never withdraws access.
+  await page.getByRole('combobox', { name: 'Person' }).click();
+  await page.getByRole('option', { name: 'Dana Whitfield', exact: true }).click();
   await page.getByRole('combobox', { name: 'Action' }).click();
   await page.getByRole('option', { name: 'Access withdrawn' }).click();
   await expect(page.getByText('No entries match these filters.')).toBeVisible();

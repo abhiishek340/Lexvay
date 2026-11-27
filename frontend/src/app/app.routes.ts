@@ -8,9 +8,11 @@ import { authGuard } from './core/auth.guard';
  */
 export const routes: Routes = [
   { path: 'login', loadComponent: () => import('./screens/login/login').then((m) => m.Login), title: 'Sign in · Lexvay' },
+  // Anonymous: the holder of a setup code chooses a password (F5a); the code is read and cleared from the address there.
+  { path: 'setup', loadChildren: () => import('./screens/setup/setup.routes') },
   { path: '', loadComponent: () => import('./screens/home').then((m) => m.Home), canActivate: [authGuard], pathMatch: 'full', title: 'Programs · Lexvay' },
   // Program setup: /programs/new and /programs/:programId/setup are one route, so creating a program keeps the screen.
-  { matcher: setupMatcher, canActivate: [authGuard], loadChildren: () => import('./screens/setup/setup.routes') },
+  { matcher: setupMatcher, canActivate: [authGuard], loadChildren: () => import('./screens/program-setup/program-setup.routes') },
   {
     path: 'programs/:programId',
     canActivate: [authGuard],
@@ -31,6 +33,7 @@ export const routes: Routes = [
     ],
   },
   { path: 'register', canActivate: [authGuard], loadChildren: () => import('./screens/register/register.routes') },
+  { path: 'people', canActivate: [authGuard], loadChildren: () => import('./screens/people/people.routes') },
   // The shared v2 components at every size, for screenshot review; development builds only, like the viewer harness.
   ...(ngDevMode
     ? [{ path: 'dev/ui', canActivate: [authGuard], loadComponent: () => import('./dev/ui-harness').then((m) => m.UiHarness), title: 'Components · Lexvay' }]

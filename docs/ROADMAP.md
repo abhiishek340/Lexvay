@@ -103,7 +103,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | merged (PR #28) |
 | F5a User administration and audit export API | `feat-admin-api` | 5 | Sonnet 5.5 | merged (PR #32) |
-| F5b Administration screens (v2) | `ui2-admin` | 2 | Opus 5.5 | in progress |
+| F5b Administration screens (v2) | `ui2-admin` | 2 | Opus 5.5 | merged (#44) |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
 | F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
 | TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | merged (PR #25) |
@@ -125,8 +125,10 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F10b Coverage matrix screen (v2) | `ui2-coverage` | 7 | Opus 5.5 | merged (#41) |
 | FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | merged (#42) |
 | F12b Rule sources in the Rules workspace (v2) | `ui2-rule-sources` | 1 | Opus 5.5 | queued (after UI2-4) |
-| FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | in progress |
-| F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | queued |
+| FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | merged (#45) |
+| F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | in progress |
+| INFRA-2 Remote state, WAF, flow logs, egress | `infra-hardening` | — | Sonnet 5.5 | in progress |
+| FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | in progress |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
@@ -772,13 +774,13 @@ D-435 in `docs/decisions/F5b.md`.
    Reactivate, New setup code. An administrator's own row has no role or deactivate action (the API refuses them; the
    screen does not offer them).
 2. **Add person** (Dialog): name, email, role (Select with one-line role descriptions in an InfoTip). On success the
-   dialog turns into a one-time code view: the setup link (`<origin>/setup?code=…`) in mono with a Copy button and
+   dialog turns into a one-time code view: the setup link (`<origin>/setup#code=…`, fragment so no server log sees it (D-435)) in mono with a Copy button and
    the expiry ("valid for 72 hours, until 30 Nov 15:04"), a clear sentence that the code is shown once, and Done. The
    code is never stored in the browser (no storage, no logs; cleared from component state on close). "New setup code"
    shows the same view.
 3. **Change role / deactivate** (ConfirmDialog with the consequence in one sentence: "Their current session ends.");
    the 409 messages from the API (last administrator, self) appear inline in the dialog.
-4. **Set password** (`/setup?code=…`, anonymous, uses the sign-in layout from UI2-0 without the map story): two
+4. **Set password** (`/setup#code=…`, anonymous, uses the sign-in layout from UI2-0 without the map story): two
    password fields with show/hide, live rules (12 to 128 characters, not the email) shown as a checklist with icons,
    a strength meter based on length and character variety only (no dictionary library), Submit to
    `POST /auth/setup`; the generic invalid-code message for 400s; on success go to sign-in with a toast "Password set.
@@ -1392,15 +1394,85 @@ is never stored.
    - Screenshots `f14-*` at 1440 and 400 px in both themes.
    - The initial bundle must not grow by more than 0.5 kB; the dialog is deferred.
 
+## INFRA-2 — Remote state, WAF, flow logs and private-range egress (Terraform only; no slot; Sonnet 5.5; D-463 to D-470)
+These are the WS-EVAL and F12 deployment follow-ups. Validated with `make infra-validate`, never planned against an account or applied.
+Pin the provider versions already in `versions.tf`. Any new provider feature must exist in `hashicorp/aws` 6.74.0;
+check the registry docs for that version, not memory.
+
+1. **Remote state:**
+   - Add `backend "s3" {}` (partial configuration) to `versions.tf`.
+   - Add `infra/backend.hcl.example` with `bucket`, `key`, `region`, `encrypt = true`, `kms_key_id` and
+     `use_lockfile = true` (native S3 locking, so no DynamoDB table). Leave every value a placeholder.
+   - Add `backend.hcl` to `.gitignore`.
+   - `make infra-validate` keeps `init -backend=false`.
+   - `docs/OPERATIONS.md`: how to create the state bucket (versioning, SSE-KMS, public access block, TLS-only
+     bucket policy) as a one-time bootstrap outside this stack, and run `init -backend-config=backend.hcl`.
+2. **WAF in front of CloudFront:**
+   - Add a provider alias `aws.us_east_1`, since CLOUDFRONT-scope web ACLs live there.
+   - New `waf.tf` with `aws_wafv2_web_acl` (`scope = "CLOUDFRONT"`, default allow) and these rules in order:
+     1. `AWSManagedRulesAmazonIpReputationList`.
+     2. `AWSManagedRulesKnownBadInputsRuleSet`.
+     3. `AWSManagedRulesCommonRuleSet`, with `SizeRestrictions_BODY` overridden to `count`. Uploads are up to
+        25 MB and the application enforces that limit.
+     4. A rate-based rule blocking an IP after `var.waf_login_rate_limit` (default 300) requests in 5 minutes to the
+        path `/api/v1/auth/` (starts-with match). It complements the application's Argon2 gate; it does not replace
+        it.
+   - Attach the ACL through `web_acl_id` on the distribution.
+   - Logging: `aws_wafv2_web_acl_logging_configuration` to a us-east-1 CloudWatch log group named
+     `aws-waf-logs-${local.name}`. Redact the `authorization` and `cookie` headers; retention
+     `var.log_retention_days`.
+3. **VPC flow logs:**
+   - `aws_flow_log` on the VPC, `traffic_type = "ALL"`, to a CloudWatch log group encrypted with
+     `aws_kms_key.data`, retention `var.log_retention_days`.
+   - A delivery IAM role whose trust is limited to `vpc-flow-logs.amazonaws.com` with `aws:SourceAccount`.
+   - Extend the KMS key policy so CloudWatch Logs may use the key for that log group only (encryption context
+     condition).
+4. **Egress from the private subnets** (the DNS-rebinding window left by F12's SSRF guard):
+   - Add an `aws_network_acl` on the private subnets.
+   - **Outbound rules:**
+     - 100: allow all to the VPC CIDR.
+     - 110–140: deny all to `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and `100.64.0.0/10`.
+     - 200: allow all to `0.0.0.0/0`.
+   - **Inbound rules:**
+     - 100: allow all from the VPC CIDR.
+     - 200: allow TCP 1024–65535 from `0.0.0.0/0`, for return traffic, since NACLs are stateless.
+   - In a comment and in OPERATIONS.md, state that link-local addresses (`169.254.0.0/16`, including the ECS
+     credentials endpoint the task needs) never pass a NACL. The application's `SsrfGuard` remains the control for
+     those.
+5. **Tests**, in `infra/tests/` with mocked providers and `command = plan` (the existing pattern):
+   - The distribution's `web_acl_id` is the ACL's.
+   - The ACL holds the four rules in that order, with the body-size override.
+   - The flow log targets an encrypted log group.
+   - The NACL has the VPC allow first, the four denies, then the default allow, and is associated with every
+     private subnet.
+   - Variable validation for `waf_login_rate_limit` (100 to 20000).
+6. **Docs:** remove the WS-EVAL Terraform line and the F12 deployment note from "Follow-ups recorded from
+   reviews". Decisions go in `docs/decisions/INFRA-2.md`, progress in `docs/progress/INFRA-2.md`.
+
+## FIX-8 — No console errors (frontend; slot 7; Sonnet 5.5; D-471 to D-474)
+Signing in logs `AbortError: Transition was skipped` twice in the browser console. `withViewTransitions` in
+`app.config.ts` calls `skipTransition()` for reduced motion and same-screen changes, and a quick redirect starts a
+new transition. The rejected `ready`/`finished` promises reach `provideBrowserGlobalErrorListeners`. The end-to-end
+suite did not notice, because it only guards against unknown icons.
+
+1. **`app.config.ts`:** in `onViewTransitionCreated`, attach handlers to `transition.ready`, `transition.finished`
+   and `transition.updateCallbackDone`. They ignore a `DOMException` named `AbortError` and rethrow anything else.
+   Put this in one small function (`ignoreSkippedTransition`) with a unit test covering both cases.
+2. **`consoleGuard`:** add an automatic fixture in `e2e/support.ts`, beside `iconGuard`. It collects every
+   `console` message of type `error` and every `pageerror`, and fails the test if any were recorded.
+   - Tests that deliberately produce an error (an expected 4xx or 5xx, which Chromium logs as "Failed to load
+     resource") declare it with `allowConsoleErrors(page, /pattern/)`. The pattern must be specific to that
+     response's URL or status. No global allowlist.
+3. **Run the whole e2e suite.** Fix every real error it finds in application code. If a fix belongs to another
+   item's screen, keep it minimal and list it in the PR.
+4. **Record it:** decisions in `docs/decisions/FIX-8.md`, progress in `docs/progress/FIX-8.md`. List every
+   `allowConsoleErrors` added, with the reason for each.
+
 ## Follow-ups recorded from reviews
-- FIX-5: `MappingRepository.latestAssessmentsUsing` still has its own correlated copy of the "latest finished"
-  ordering (alias `a2`); give `AssessmentRepository` a correlated form of `LATEST_FINISHED` and use it there.
 - FIX-5 (rule 9): `LOGOUT` is audited after the session is cleared, so its audit entry has no actor. Capture the
   user before the logout handler clears the context and record `LOGOUT` with that user as actor and `entity_id`;
   `Rule9_AuditCoverageTest` asserts the actor. UI2-3's `audit-sentence.spec.ts` now fails for any new audited action
   without a sentence and label, so backend items that add an audited action also touch that frontend file.
-- F10a: the work queue's `latest` CTE (F13) still has its own copy of the "latest finished assessment" ordering; switch it
-  to `AssessmentRepository.LATEST_FINISHED` with a parity test.
 - F5a security: any ADMIN can issue a setup code for any user, including a SIGNER, and so could sign in as them; the
   actions are audited (`USER_SETUP_CODE_ISSUED`, `PASSWORD_SET`). Without email delivery this is inherent to
   password accounts. Production deployments should use OIDC for SIGNER and ADMIN accounts; `docs/OPERATIONS.md`

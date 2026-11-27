@@ -1,48 +1,57 @@
-import { Component, computed, input, output, viewChild } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, computed, inject, input, output, viewChild } from '@angular/core';
+import { Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
 import auraMenu from '@primeuix/themes/aura/menu';
 import { MenuItem } from 'primeng/api';
 import { Menu } from 'primeng/menu';
-import { NavLink } from '../core/navigation';
+import { NavLink, inLink } from '../core/navigation';
 import { registerComponentTokens } from '../theme/component-tokens';
 
 /**
- * The phone tab bar's "More" menu: the screens that do not fit the bar (navigation.ts, onPhoneBar). The shell owns the
- * button and calls toggle(); this PrimeNG Menu loads in a deferred chunk with its token set. Its icons are the rail's,
- * which the shell registers.
+ * The bottom tab bar's "More" menu (under 640 px): the screens that did not fit, least used last (tabBarOverflow). A
+ * PrimeNG Menu, so arrow keys, Enter and Escape work and focus returns to the "More" tab. The shell owns the tab and
+ * calls toggle(); this loads in a deferred chunk. The screens' icons are the rail's (SHELL_ICONS).
  */
 @Component({
   selector: 'lx-more-menu',
-  imports: [RouterLink, RouterLinkActive, NgIcon, Menu],
+  imports: [NgIcon, Menu],
   template: `
-    <p-menu #menu [model]="items()" [popup]="true" appendTo="body" ariaLabel="More screens" styleClass="lx-more-menu"
+    <p-menu #menu [model]="items()" [popup]="true" appendTo="body" ariaLabel="More screens"
             (onShow)="opened.emit(true)" (onHide)="opened.emit(false)">
       <ng-template #item let-item>
-        <!-- data-pc-section lets the Menu activate this link from the keyboard (Enter), as it does its own links. -->
-        <a class="p-menu-item-link lx-more-link" data-pc-section="itemlink" tabindex="-1" [routerLink]="item.state.path" routerLinkActive="lx-more-active"
-           ariaCurrentWhenActive="page">
-          <ng-icon [name]="item.state.icon" size="20" aria-hidden="true" />
-          <span>{{ item.label }}</span>
-          @if (item.state.badge > 0) { <span class="lx-more-count" aria-hidden="true">{{ item.state.badge }}</span><span class="lx-sr-only">, {{ item.state.badgeText }}</span> }
-        </a>
+        <span class="p-menu-item-link lx-more-item" [class.lx-more-current]="item.state.current" [attr.aria-current]="item.state.current ? 'page' : null">
+          <ng-icon [name]="item.icon" size="20" aria-hidden="true" />
+          <span class="lx-more-label">{{ item.label }}</span>
+          @if (item.state.badge > 0) {
+            <span class="lx-more-count" aria-hidden="true">{{ item.state.badge }}</span><span class="lx-sr-only">, {{ item.state.badgeText }}</span>
+          }
+        </span>
       </ng-template>
     </p-menu>
   `,
   styles: `
-    /* The palette's chunk may have registered a transparent Menu root for its own list; this one is a raised popup. */
-    ::ng-deep .p-menu.lx-more-menu { background: var(--p-lx-raised); box-shadow: var(--p-lx-e3); border: 0; border-radius: 12px; }
-    .lx-more-link { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--p-lx-text); }
-    .lx-more-link ng-icon { color: var(--p-lx-text-2); }
-    .lx-more-active, .lx-more-active ng-icon { color: var(--p-lx-accent); }
-    .lx-more-count { margin-left: auto; min-width: 20px; padding: 0 6px; border-radius: 999px; text-align: center; font-size: 12px; font-weight: 600; background: var(--p-lx-surface-2); }
+    .lx-more-item { display: flex; align-items: center; gap: 12px; min-width: 12rem; }
+    .lx-more-label { flex: 1; }
+    .lx-more-current { color: var(--p-lx-accent); font-weight: 600; }
+    .lx-more-count {
+      min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 6px; border-radius: var(--lx-r-pill); display: inline-grid; place-items: center;
+      font-size: 11px; font-weight: 650; background: var(--p-lx-surface-2); color: var(--p-lx-text-2);
+    }
   `,
 })
 export class MoreMenu {
+  private readonly router = inject(Router);
+  /** The screens that did not fit, and the URL shown, to mark the current one. */
   readonly links = input.required<readonly NavLink[]>();
+  readonly url = input.required<string>();
   readonly opened = output<boolean>();
   private readonly menu = viewChild.required<Menu>('menu');
-  readonly items = computed<MenuItem[]>(() => this.links().map((link) => ({ label: link.label, state: link })));
+
+  readonly items = computed<MenuItem[]>(() => this.links().map((link) => ({
+    id: `more-${link.id}`, label: link.label, icon: link.icon,
+    state: { current: inLink(this.url(), link), badge: link.badge, badgeText: link.badgeText },
+    command: () => { void this.router.navigate(link.path); },
+  })));
 
   constructor() {
     registerComponentTokens({ menu: auraMenu });

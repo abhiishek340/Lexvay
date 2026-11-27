@@ -1,4 +1,4 @@
-import { ADMIN, DANA, JORDAN, SCREENSHOTS, apiPost, citedRequirement, expect, goTo, openRequirement, shoot, signIn, stateTab, test } from './support';
+import { ADMIN, DANA, JORDAN, SCREENSHOTS, apiPost, citedRequirement, expect, goTo, nav, openRequirement, shoot, signIn, stateTab, test } from './support';
 
 /**
  * Screenshots of every screen in both themes for docs/screens. Not part of the regular suite:

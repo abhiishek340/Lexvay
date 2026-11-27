@@ -35,7 +35,7 @@ export function paletteCommands(sources: CommandSources): Command[] {
   const { programId, role } = sources;
   const screens: Command[] = [
     { id: 'go:programs', group: 'Go to', label: 'Programs', hint: '', keywords: ['home'], icon: 'phosphorBuildings', run: { kind: 'navigate', commands: ['/'] } },
-    ...navLinks(programId, NO_COUNTS).map((link): Command =>
+    ...navLinks(programId, NO_COUNTS, role).map((link): Command =>
       ({ id: `go:${link.id}`, group: 'Go to', label: link.label, hint: '', keywords: [], icon: link.icon, run: { kind: 'navigate', commands: link.path } })),
   ];
   if (!programId) {

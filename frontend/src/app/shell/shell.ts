@@ -6,7 +6,7 @@ import { Tooltip } from 'primeng/tooltip';
 import { filter, firstValueFrom } from 'rxjs';
 import { ApiService } from '../core/api.service';
 import { ROLE_LABEL } from '../core/labels';
-import { NavLink, navLinks, onPhoneBar, screenOf } from '../core/navigation';
+import { beforeSignIn, inLink, navLinks, screenOf, tabBarOverflow, tabSlots } from '../core/navigation';
 import { ProgramContext } from '../core/program-context';
 import { SessionService } from '../core/session.service';
 import { CommandPalette } from '../ui/command-palette/command-palette';
@@ -15,9 +15,9 @@ import { InfoTip } from '../ui/info-tip';
 import { Mark } from '../ui/mark';
 import { initials } from '../ui/initials';
 import { AccountMenu } from './account-menu';
+import { MoreMenu } from './more-menu';
 import { ProgramSwitcher } from './program-switcher';
 import { ShellToast } from './shell-toast';
-import { MoreMenu } from './more-menu';
 import { WorkQueueMenu } from './work-queue-menu';
 
 const RAIL_KEY = 'lexvay.rail.collapsed';
@@ -53,20 +53,30 @@ export class Shell {
   readonly programId = signal<string | null>(null);
   /** Until the first navigation resolves, the frame stays invisible, so the bar never pushes a painted frame down. */
   readonly pending = computed(() => this.url() === null);
-  /** The top bar and navigation appear once someone is signed in; the sign-in page stands alone. */
-  readonly chrome = computed(() => this.session.authenticated() && this.url() !== null && !this.url()!.startsWith('/login'));
-  /** The rail is on every program screen and on the tenant-wide register, which needs no program. */
-  readonly railVisible = computed(() => this.chrome() && (this.programId() !== null || (this.url() ?? '').split(/[?#]/)[0] === '/register'));
+  /** The top bar and navigation appear once someone is signed in; sign-in and choosing a password stand alone. */
+  readonly chrome = computed(() => this.session.authenticated() && this.url() !== null && !beforeSignIn(this.url()!));
+  /** The rail is on every program screen and on the tenant-wide ones (the register, People), which need no program. */
+  readonly railVisible = computed(() =>
+    this.chrome() && (this.programId() !== null || this.links().some((link) => link.tenant && link.path.join('/') === this.path())));
   /** The screen segment kept when switching programs ("review" in /programs/p1/review?jurisdiction=CA). */
   readonly screen = computed(() => (this.url() ?? '').split(/[?#]/)[0].split('/')[3] ?? 'overview');
 
-  /** The register first, then the screens of the program in the URL (on the register, of the program last worked on). */
+  /** The tenant-wide screens first, then those of the program in the URL (elsewhere, of the program last worked on). */
   readonly links = computed(() => navLinks(this.programId() ?? this.context.program()?.id ?? null, {
     waitingForReview: this.context.counts()?.waitingForReview ?? 0,
     openChanges: this.context.openChanges(),
     rulesWaiting: this.context.rulesWaiting(),
     openRequests: this.context.openRequests(),
-  }));
+  }, this.session.user()?.role ?? null));
+
+  /** How many tabs the bottom bar has room for (it is the rail under 640 px), and the screens that go into "More". */
+  private readonly slots = signal(tabSlots(window.innerWidth));
+  readonly overflow = computed(() => tabBarOverflow(this.links(), this.slots()));
+  readonly overflowIds = computed(() => new Set(this.overflow().map((link) => link.id)));
+  /** The URL path, for marking "More" when the screen shown is one of its own. */
+  readonly path = computed(() => (this.url() ?? '').split(/[?#]/)[0]);
+  readonly moreCurrent = computed(() => this.overflow().find((link) => inLink(this.path(), link)) ?? null);
+  readonly moreOpen = signal(false);
 
   readonly initials = computed(() => initials(this.session.user()?.displayName ?? ''));
   readonly collapsed = signal(readCollapsed());
@@ -75,11 +85,6 @@ export class Shell {
   readonly queueCount = signal(0);
   readonly queueOpen = signal(false);
   readonly accountOpen = signal(false);
-  readonly moreOpen = signal(false);
-  /** The screens behind the phone bar's More menu; none while the register is the only screen. */
-  readonly moreLinks = computed(() => (this.links().length > 1 ? this.links().filter((l) => !onPhoneBar(l)) : []));
-  /** More is the active tab on a phone while one of its screens is shown. */
-  readonly moreActive = computed(() => this.moreLinks().some((l) => (this.url() ?? '').split(/[?#]/)[0].startsWith(l.path.join('/'))));
   /** The active rail item's offset, where the pill glides to (null while no item is active). */
   readonly pillTop = signal<number | null>(null);
 
@@ -110,7 +115,7 @@ export class Shell {
       previousScreen = screen;
       requestAnimationFrame(() => this.placePill());
     });
-    const onResize = (): void => this.placePill();
+    const onResize = (): void => { this.slots.set(tabSlots(window.innerWidth)); this.placePill(); };
     window.addEventListener('resize', onResize);
     inject(DestroyRef).onDestroy(() => { resolved.unsubscribe(); sub.unsubscribe(); window.removeEventListener('resize', onResize); });
   }
@@ -140,10 +145,6 @@ export class Shell {
 
   openMore(event: Event): void {
     this.moreMenu()?.toggle(event);
-  }
-
-  inMore(link: NavLink): boolean {
-    return this.moreLinks().includes(link);
   }
 
   openAccount(event: Event): void {
