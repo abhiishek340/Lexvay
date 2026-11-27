@@ -67,6 +67,25 @@ public class RuleVersionRepository {
                 .query(ROW).optional();
     }
 
+    /** The approved version a new draft would supersede: approved, and not itself superseded by an approved version. */
+    public Optional<RuleVersion> findCurrentApproved(UUID jurisdictionId, String licenseType) {
+        return jdbc.sql(SELECT + " WHERE rv.jurisdiction_id = :jurisdictionId AND rv.license_type = :licenseType "
+                        + "AND rv.requirements_approved_at IS NOT NULL "
+                        + "AND NOT EXISTS (SELECT 1 FROM rule_version s WHERE s.supersedes_id = rv.id AND s.requirements_approved_at IS NOT NULL) "
+                        + "ORDER BY rv.effective_from DESC, rv.created_at DESC LIMIT 1")
+                .param("jurisdictionId", jurisdictionId).param("licenseType", licenseType)
+                .query(ROW).optional();
+    }
+
+    /** An unapproved version that supersedes {@code supersedesId}, or, when that is null, one that supersedes nothing. */
+    public Optional<RuleVersion> findDraft(UUID jurisdictionId, String licenseType, UUID supersedesId) {
+        return jdbc.sql(SELECT + " WHERE rv.jurisdiction_id = :jurisdictionId AND rv.license_type = :licenseType "
+                        + "AND rv.requirements_approved_at IS NULL AND rv.supersedes_id IS NOT DISTINCT FROM :supersedesId "
+                        + "ORDER BY rv.created_at DESC LIMIT 1")
+                .param("jurisdictionId", jurisdictionId).param("licenseType", licenseType).param("supersedesId", supersedesId)
+                .query(ROW).optional();
+    }
+
     public int approve(UUID id, UUID approvedBy) {
         return jdbc.sql("UPDATE rule_version SET requirements_approved_by = :by, requirements_approved_at = now() "
                         + "WHERE id = :id AND requirements_approved_at IS NULL")

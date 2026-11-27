@@ -5,6 +5,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 import com.lexvay.auth.LexvayUser;
 import com.lexvay.common.AbstractDatabaseTest;
+import com.lexvay.common.TenantContext;
 import com.lexvay.job.JobRunner;
 import com.lexvay.llm.FakeLlmClient;
 import com.lexvay.llm.LlmClient;
@@ -16,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import tools.jackson.databind.JsonNode;
@@ -31,6 +33,7 @@ class SeedLoaderTest extends AbstractDatabaseTest {
     @Autowired ObjectMapper json;
     @Autowired LlmClient llm;
     @Autowired JobRunner runner;
+    @Autowired JdbcClient jdbc;
 
     @Test
     void seedLoadsBothTenantsWithTheExpectedFindingMixAndIsIdempotent() throws Exception {
@@ -44,6 +47,17 @@ class SeedLoaderTest extends AbstractDatabaseTest {
         assertThat(northfield.documents()).isEqualTo(14);
         assertThat(northfield.requirements()).isEqualTo(42);
         assertThat(northfield.assessmentId()).isNotNull();
+
+        var sources = TenantContext.runAs(northfield.tenantId(), () -> jdbc.sql("SELECT url, active, last_checked_at, "
+                + "(SELECT count(*) FROM rule_source_check) AS checks, (SELECT count(*) FROM job WHERE type = 'CHECK_RULE_SOURCE') AS jobs "
+                + "FROM rule_source").query().listOfRows());
+        assertThat(sources).as("one inert fictional source, never checked, nothing queued").singleElement().satisfies(row -> {
+            assertThat(row.get("url")).isEqualTo("https://example.invalid/rules/colorado-lpc.pdf");
+            assertThat(row.get("active")).isEqualTo(true);
+            assertThat(row.get("last_checked_at")).isNull();
+            assertThat(row.get("checks")).isEqualTo(0L);
+            assertThat(row.get("jobs")).isEqualTo(0L);
+        });
 
         LexvayUser dana = users.findForLogin("dana.whitfield@northfield.example").orElseThrow();
         assertThat(dana.role().name()).isEqualTo("SIGNER");

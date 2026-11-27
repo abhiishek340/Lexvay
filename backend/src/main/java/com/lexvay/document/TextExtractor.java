@@ -23,7 +23,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Text extraction per page with character offsets. PDFs keep their pages; DOCX and TXT become one page
- * (D-017). Pages are joined by a single newline when offsets are computed (D-041). A document that exceeds
+ * (D-017); HTML, which only rule sources fetch, becomes pages of about 4 000 characters split at paragraph
+ * boundaries ({@link HtmlText}). Pages are joined by a single newline when offsets are computed (D-041). A document that exceeds
  * {@link ContentLimits} (a DOCX that inflates too far, a PDF with too many pages) is rejected before any OCR.
  *
  * <p>A PDF page whose text layer has at least {@value #MIN_PAGE_CHARS} non-whitespace characters keeps it. Any
@@ -60,6 +61,7 @@ public class TextExtractor {
             case PDF -> pdfPages(bytes);
             case DOCX -> List.of(PageText.textLayer(docxText(bytes)));
             case TXT -> List.of(PageText.textLayer(normalize(new String(bytes, StandardCharsets.UTF_8))));
+            case HTML -> HtmlText.pages(bytes).stream().map(PageText::textLayer).toList();
         };
         if (pages.stream().allMatch(page -> page.text().isBlank())) {
             throw new EmptyDocumentException(type == FileType.PDF && !ocr.available());

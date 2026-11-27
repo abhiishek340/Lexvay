@@ -24,12 +24,12 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | merged (PR #16) |
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
-| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (merges after V011) |
+| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (final merge of main) |
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | in progress |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | in progress |
-| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | queued (after WS-UI, F4a) |
+| F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | specified (starts when F1 merges) |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | PR #17 in review (merges after #14, #13, #16) |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
@@ -37,7 +37,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | in progress |
 | F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
-| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | PR #19 approved (final merge of main after F6) |
+| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | in progress |
 
 ---
@@ -325,6 +325,58 @@ problem details, toast for completed operations, focus on the heading after navi
 Done when: `LEXVAY_E2E_SLOT=10 make test` green; screenshots of the list, the edit grid, the approve dialog and the
 compare tab in both themes under `docs/screens/`; `docs/decisions/F3.md` and `docs/progress/F3.md` written.
 
+## F4 — Evidence request screens (frontend; slot 4; Opus 5.5; after F1 merges; uses F4a)
+Purpose: "Request evidence from program director" in Review currently ends in a decision nobody can act on in
+the product. F4 closes the loop on screen: the contributor sees what was asked, opens the program's documents,
+selects the passage, and the requirement returns to the reviewer with that evidence shown next to what the
+system proposed. A person's evidence is held to the same rule as the model's: the quote must be on the stored
+page (product rule 2), which the selection in `DocumentViewer` guarantees and the server re-verifies. The
+system's proposed finding is never changed by an answer. Decisions D-260 to D-269 in `docs/decisions/F4.md`.
+1. **Route and navigation**: `programs/:programId/requests` ("Evidence requests" in the rail, icon
+   `phosphorTray`, after Review; badge = OPEN count, text "n open evidence requests"; visible to every role).
+   Data from `GET /programs/{id}/evidence-requests?status=OPEN|ANSWERED|ALL`.
+2. **Inbox**: a SelectButton for Open / Answered / All with counts; PrimeNG Table rows: jurisdiction code (mono),
+   requirement ref (mono) and title, the request note (truncated to two lines, full text in the row detail),
+   who asked and when ("Dana Whitfield, 26 Nov"), status Tag with icon (Open: `phosphorEnvelopeOpen`; Answered:
+   `phosphorCheckCircle` with "awaiting review"), responses count, and the latest response summary (who, when,
+   file, page). A stale request (follow-up from F4a: the mapping went stale after a change) is shown with a
+   *Blocked* Tag and helper text "This requirement is waiting for a re-run after a change; answer it after the
+   re-run" and no answer action; the inbox derives `blocked` from the mapping's `stale` flag, which the list
+   endpoint must expose (backend: add `stale` to `EvidenceRequestView`, one column in the existing statement,
+   with a test). Empty state: one sentence ("No open evidence requests. Reviewers create them from the Review
+   screen.").
+3. **Answer** (row action "Provide evidence", for CONTRIBUTOR, REVIEWER, SIGNER and ADMIN): opens a full-height
+   PrimeNG Drawer (right, 70 % width, full width under 1024 px) with three parts: the requirement (ref, title,
+   rule text in serif, the request note and who asked); a document picker (Select over the program's
+   documents excluding rule text, grouped by course code, showing file name and kind; data from
+   `GET /programs/{id}/documents` if it exists on main, otherwise the program's courses and their documents
+   through existing endpoints; say which in the PR); and `DocumentViewer` with `selectable` true on the chosen
+   document. Selecting text (or the keyboard range dialog) fills a "Selected passage" box in serif with the
+   page number and character range in mono; a comment Textarea (optional, 4000 characters); "Submit evidence"
+   posts `{ documentId, pageNumber, quote, comment }` to `POST /mappings/{id}/evidence-responses`. A 400 (quote
+   not on page) is shown inline under the selected passage with the server's detail; 409s (stale, signed, no
+   open request) are shown in a Message and the inbox reloads. On success: toast "Evidence sent to review",
+   the drawer closes, the row moves to Answered.
+4. **Review screen**: when a mapping has responses (`GET /mappings/{id}/evidence-responses`, fetched with the
+   selected mapping, cached per mapping in the screen's workspace), the Evidence pane shows a second block under
+   the system's evidence: "Evidence provided by <name>, <date>" (label with `phosphorUser` icon, never colour
+   alone) with the quote shown in `DocumentViewer` highlight exactly like the system's quote, plus the comment.
+   The system's proposed finding and its evidence stay first and unchanged. The decision note placeholder for
+   an answered request reads "Note the evidence you relied on". The requirement list shows a small
+   `phosphorChatCircleText` marker with text "evidence provided" on mappings with responses.
+5. **Accessibility and keyboard**: drawer traps focus and returns it to the row action; the inbox table is
+   keyboard navigable; axe clean in both themes at 1280 and 400 px.
+6. **Unit tests** (Vitest): inbox status derivation including blocked, the selection-to-request mapping, the
+   review workspace merge of responses into the evidence view.
+7. **End-to-end** (`frontend/e2e/evidence-requests.spec.ts`, slot 4, seeded data): a reviewer requests evidence
+   on a Missing requirement with a note; a contributor signs in, sees it in the inbox with the badge, opens it,
+   picks a syllabus, selects a real passage with the keyboard range dialog, submits; the reviewer sees the
+   requirement back in "Needs review" with "Evidence provided by ..." and the highlighted quote, accepts it;
+   the inbox shows nothing open. A tampered quote (submitted through the API in the test) is refused with the
+   server's message. Axe on every state in both themes; no request leaves localhost.
+Done when: `LEXVAY_E2E_SLOT=4 make test` green; screenshots of the inbox, the drawer with a selection and the review
+pane with provided evidence in both themes under `docs/screens/`; `docs/decisions/F4.md` and `docs/progress/F4.md`.
+
 ## F4a — Evidence requests API (backend only)
 Purpose: "Request evidence from program director" must start a real loop: the contributor sees the open
 request, supplies a passage from a program document, and the requirement returns to the reviewer with the
@@ -541,7 +593,7 @@ Purpose: change tracking today starts only when a person uploads a new rule text
 changes on a web page or PDF without notice; the product must notice them. The system fetches, detects a
 textual change, creates an **unapproved** draft rule version and opens the existing change flow. It never
 approves anything and never alters an approved version (product rules 1, 5, 6). Decisions D-180 to D-189 in
-`docs/decisions/F12.md`.
+`DECISIONS.md (D-180 to D-189)`.
 1. **Schema** (`V011__rule_source.sql`; RLS + FORCE + policy as in V002, so the schema tests pick it up):
    `rule_source` (`id`, `tenant_id`, `jurisdiction_id` → jurisdiction, `license_type`, `label`, `url`
    (http or https only, CHECK with a regex on the scheme), `check_interval_hours` int CHECK ≥ 1 AND ≤ 720,
@@ -698,6 +750,8 @@ D-259 in `docs/decisions/F7c.md`.
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
 ## Follow-ups recorded from reviews
+- F12: a failed check waits a full interval (up to 30 days) before the scheduler retries; a shorter backoff
+  needs a `next_check_at` column. No screen lists rule sources yet; add a Sources tab to the F3 rule workspace.
 - F12 deployment note: the SSRF guard resolves the host before connecting and the JDK client resolves it
   again, so a DNS-rebinding window remains; production egress must also block private ranges (Terraform).
 - WS-UI: the overview still finds the latest assessment through the audit log; switch it to the WS-PERF
