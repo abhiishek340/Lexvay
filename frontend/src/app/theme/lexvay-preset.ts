@@ -1,15 +1,12 @@
 import { definePreset } from '@primeuix/themes';
-import auraAccordion from '@primeuix/themes/aura/accordion';
 import auraBase from '@primeuix/themes/aura/base';
 import auraBadge from '@primeuix/themes/aura/badge';
 import auraButton from '@primeuix/themes/aura/button';
 import auraDatatable from '@primeuix/themes/aura/datatable';
-import auraDatepicker from '@primeuix/themes/aura/datepicker';
 import auraDialog from '@primeuix/themes/aura/dialog';
 import auraIconfield from '@primeuix/themes/aura/iconfield';
 import auraInputnumber from '@primeuix/themes/aura/inputnumber';
 import auraInputtext from '@primeuix/themes/aura/inputtext';
-import auraListbox from '@primeuix/themes/aura/listbox';
 import auraMenu from '@primeuix/themes/aura/menu';
 import auraMessage from '@primeuix/themes/aura/message';
 import auraPassword from '@primeuix/themes/aura/password';
@@ -25,7 +22,6 @@ import auraTag from '@primeuix/themes/aura/tag';
 import auraTextarea from '@primeuix/themes/aura/textarea';
 import auraToast from '@primeuix/themes/aura/toast';
 import auraTogglebutton from '@primeuix/themes/aura/togglebutton';
-import auraToggleswitch from '@primeuix/themes/aura/toggleswitch';
 import auraTooltip from '@primeuix/themes/aura/tooltip';
 
 /**
@@ -66,6 +62,9 @@ const t = {
   shadow: '0 8px 24px rgba(15, 17, 19, 0.14), 0 1px 3px rgba(15, 17, 19, 0.08)',
 };
 
+/** The design tokens, for lazy screens that register their own component token sets (screens/register/register-theme.ts). */
+export const lexvayTokens = t;
+
 const severity = (fg: string, bg: string, border: string) => ({
   background: bg,
   borderColor: border,
@@ -87,11 +86,12 @@ const ink = {
 /**
  * Aura limited to the components Lexvay renders. The full Aura preset carries token sets for about 90
  * components (130 kB of the initial bundle); PrimeNG needs tokens only for components on the page.
- * A component added to a template must be added here too, or it renders without its theme.
+ * A component added to a template must be added here too, or it renders without its theme. Components that only
+ * one lazy screen renders register their token sets from that screen's chunk instead (screens/rules/rules-theme.ts).
  */
 const Aura = {
   ...auraBase,
-  components: { accordion: auraAccordion, badge: auraBadge, button: auraButton, datatable: auraDatatable, datepicker: auraDatepicker, dialog: auraDialog, iconfield: auraIconfield, inputnumber: auraInputnumber, inputtext: auraInputtext, listbox: auraListbox, menu: auraMenu, message: auraMessage, password: auraPassword, progressbar: auraProgressbar, progressspinner: auraProgressspinner, radiobutton: auraRadiobutton, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, splitter: auraSplitter, tabs: auraTabs, tag: auraTag, textarea: auraTextarea, toast: auraToast, togglebutton: auraTogglebutton, toggleswitch: auraToggleswitch, tooltip: auraTooltip },
+  components: { badge: auraBadge, button: auraButton, datatable: auraDatatable, dialog: auraDialog, iconfield: auraIconfield, inputnumber: auraInputnumber, inputtext: auraInputtext, menu: auraMenu, message: auraMessage, password: auraPassword, progressbar: auraProgressbar, progressspinner: auraProgressspinner, radiobutton: auraRadiobutton, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, splitter: auraSplitter, tabs: auraTabs, tag: auraTag, textarea: auraTextarea, toast: auraToast, togglebutton: auraTogglebutton, tooltip: auraTooltip },
 };
 
 export const LexvayPreset = definePreset(Aura, {
@@ -232,11 +232,6 @@ export const LexvayPreset = definePreset(Aura, {
       },
       content: { checkedBackground: 'transparent', checkedShadow: 'none', padding: '0', borderRadius: '2px' },
       icon: { color: t.textSecondary, hoverColor: t.text, checkedColor: t.selectedText },
-    },
-    /** Track against the card and handle against the track both reach 3:1 (WCAG 1.4.11) in either theme. */
-    toggleswitch: {
-      root: { background: t.control, hoverBackground: t.textSecondary, checkedBackground: t.primary, checkedHoverBackground: t.primaryHover },
-      handle: { background: t.card, hoverBackground: t.card, checkedBackground: t.onPrimary, checkedHoverBackground: t.onPrimary },
     },
     progressbar: {
       root: { background: t.sunken, borderRadius: '2px', height: '4px' },

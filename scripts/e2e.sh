@@ -2,7 +2,7 @@
 # Runs the Playwright end-to-end tests against an isolated, freshly seeded stack.
 # Several checkouts can run at once: set LEXVAY_E2E_SLOT (0-9) to shift every port and the compose project.
 #   slot 0: PostgreSQL :5433, backend :8081, Angular dev server :4300   (slot n adds n to each)
-#   the backend's management port is :8091 plus the slot
+#   the backend's management port is :9091 plus the slot (8091+ would collide with slot 10+ backends)
 # The development database (:5432) and servers (:8080, :4200) are never touched.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -11,7 +11,7 @@ stack_init e2e
 BACKEND_PORT=$((8081 + SLOT))
 WEB_PORT=$((4300 + SLOT))
 export LEXVAY_PORT="$BACKEND_PORT"
-export LEXVAY_MANAGEMENT_PORT=$((8091 + SLOT))
+export LEXVAY_MANAGEMENT_PORT=$((9091 + SLOT))
 export LEXVAY_E2E_BACKEND_PORT="$BACKEND_PORT"
 export LEXVAY_E2E_WEB_PORT="$WEB_PORT"
 export LEXVAY_LLM_PROVIDER=fake

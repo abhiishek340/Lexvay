@@ -29,7 +29,6 @@
 .lx-version-code { color: var(--p-lx-text-secondary); padding-top: 1px; }
 .lx-version-label { font-weight: 500; }
 .lx-version-meta { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--p-lx-text-secondary); }
-.lx-version-error { grid-column: 2; overflow-wrap: anywhere; }
 
 .lx-rules-skeleton { display: grid; grid-template-columns: 320px 1fr; gap: 12px; }
 .lx-rules-skeleton > div { display: flex; flex-direction: column; gap: 8px; }

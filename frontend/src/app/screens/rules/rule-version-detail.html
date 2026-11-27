@@ -22,9 +22,15 @@
       }
     </p>
     @if (status() === 'EXTRACTION_FAILED') {
-      <p-message severity="warn" size="small">
-        Requirement extraction failed{{ v.extraction?.error ? ': ' + v.extraction?.error : '' }}. A reviewer can enter the list by hand with Edit list.
-      </p-message>
+      <div class="lx-extraction-failed" data-testid="extraction-failed">
+        <p-message severity="warn" size="small">Requirement extraction did not produce a list. A reviewer can enter the list by hand with Edit list.</p-message>
+        @if (v.extraction?.error; as technical) {
+          <details class="lx-technical">
+            <summary>Technical detail</summary>
+            <p class="lx-mono">{{ technical }}</p>
+          </details>
+        }
+      </div>
     }
   </header>
 
@@ -39,7 +45,9 @@
         <lx-requirements-panel [version]="v" [status]="status()" [jurisdictionName]="jurisdictionName()" (notice)="notice.emit($event)" (changed)="changed.emit()" />
       </p-tabpanel>
       <p-tabpanel value="text">
-        @if (tab() === 'text') { <lx-rule-text [documentId]="v.documentId" /> }
+        @if (tab() === 'text') {
+          <div class="lx-rule-text" data-testid="rule-text"><lx-document-viewer [documentId]="v.documentId" [pageNumber]="1" /></div>
+        }
       </p-tabpanel>
       <p-tabpanel value="compare">
         @if (tab() === 'compare') { <lx-rule-compare [version]="v" [all]="all()" [jurisdictionName]="jurisdictionName()" /> }
