@@ -18,6 +18,7 @@
 .lx-you { font-size: 11px; line-height: 16px; font-weight: 600; padding: 0 6px; border-radius: var(--lx-r-pill); background: var(--p-lx-accent-tint); color: var(--p-lx-accent); }
 :host ::ng-deep .lx-avatar-quiet.p-avatar { background: var(--p-lx-surface-2); color: var(--p-lx-text-2); }
 :host ::ng-deep .lx-table tbody td { vertical-align: middle; }
+:host ::ng-deep .lx-table tbody tr:last-child td { border-bottom: 0; }
 .lx-nowrap { white-space: nowrap; }
 .lx-actions { width: 1%; text-align: right; }
 .lx-row-menu { width: 32px; height: 32px; padding: 0; justify-content: center; }
