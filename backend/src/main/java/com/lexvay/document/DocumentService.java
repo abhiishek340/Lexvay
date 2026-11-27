@@ -109,7 +109,7 @@ public class DocumentService {
 
     @Transactional(readOnly = true)
     public DocumentView get(UUID id) {
-        Document document = documents.findById(id).orElseThrow(() -> new NotFoundException("Document not found"));
+        Document document = find(id);
         List<PageSummary> pages = documents.pages(id).stream()
                 .map(p -> new PageSummary(p.pageNumber(), p.charStart(), p.charEnd(), p.text().length()))
                 .toList();
@@ -117,6 +117,17 @@ public class DocumentService {
                 .map(j -> new IngestStatus(j.id(), j.status().name(), j.error()));
         return new DocumentView(document.id(), document.programId(), document.courseVersionId(), document.filename(),
                 document.sha256(), document.kind(), document.createdAt(), document.createdBy(), pages, ingest.orElse(null));
+    }
+
+    /** The document row, one statement; row-level security makes another tenant's document not found. */
+    @Transactional(readOnly = true)
+    public Document find(UUID id) {
+        return documents.findById(id).orElseThrow(() -> new NotFoundException("Document not found"));
+    }
+
+    /** The original uploaded bytes from the file store; no database work, so it runs outside any transaction. */
+    public byte[] content(Document document) {
+        return files.get(document.storageKey());
     }
 
     @Transactional(readOnly = true)

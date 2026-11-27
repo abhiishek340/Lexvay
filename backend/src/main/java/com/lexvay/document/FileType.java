@@ -5,10 +5,25 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import org.springframework.http.MediaType;
 
 /** The three accepted upload formats, detected from the file name and the leading bytes. */
 public enum FileType {
-    PDF, DOCX, TXT;
+    PDF(MediaType.APPLICATION_PDF),
+    DOCX(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document")),
+    /** Text uploads are accepted only as valid UTF-8, and rule text is stored as UTF-8. */
+    TXT(new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8));
+
+    private final MediaType mediaType;
+
+    FileType(MediaType mediaType) {
+        this.mediaType = mediaType;
+    }
+
+    /** The media type the original file is served with. */
+    public MediaType mediaType() {
+        return mediaType;
+    }
 
     public static FileType detect(String filename, byte[] bytes) {
         String name = filename == null ? "" : filename.toLowerCase(Locale.ROOT);

@@ -1,10 +1,12 @@
 package com.lexvay.document;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
@@ -48,14 +51,34 @@ public class DocumentController {
     @GetMapping("/documents/{id}/pages/{pageNumber}")
     ResponseEntity<DocumentService.PageView> page(@PathVariable UUID id, @PathVariable int pageNumber) {
         var page = service.page(id, pageNumber);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CACHE_CONTROL, IMMUTABLE_PRIVATE)
-                .eTag("\"" + page.documentSha256() + "-" + pageNumber + "\"")
-                .body(page.view());
+        return immutable(ResponseEntity.ok(), "\"" + page.documentSha256() + "-" + pageNumber + "\"").body(page.view());
+    }
+
+    /**
+     * The original uploaded file, shown inline by the browser ("Open original"). The bytes are addressed by
+     * their hash, so they are cached like the pages; the ETag is the document hash. A matching
+     * {@code If-None-Match} is answered with 304 before the file store is read.
+     */
+    @GetMapping("/documents/{id}/file")
+    ResponseEntity<byte[]> file(@PathVariable UUID id, WebRequest request) {
+        Document document = service.find(id);
+        String etag = "\"" + document.sha256() + "\"";
+        if (request.checkNotModified(etag)) {
+            return immutable(ResponseEntity.status(HttpStatus.NOT_MODIFIED), etag).build();
+        }
+        return immutable(ResponseEntity.ok(), etag)
+                .contentType(FileType.fromFilename(document.filename()).mediaType())
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline().filename(document.filename(), StandardCharsets.UTF_8).build().toString())
+                .body(service.content(document));
     }
 
     @GetMapping("/documents/{id}")
     DocumentService.DocumentView get(@PathVariable UUID id) {
         return service.get(id);
+    }
+
+    private static ResponseEntity.BodyBuilder immutable(ResponseEntity.BodyBuilder builder, String etag) {
+        return builder.header(HttpHeaders.CACHE_CONTROL, IMMUTABLE_PRIVATE).eTag(etag);
     }
 }
