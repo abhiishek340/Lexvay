@@ -1,4 +1,4 @@
-import { Component, ElementRef, computed, effect, inject, model, signal, untracked, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, model, signal, untracked, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
@@ -70,7 +70,6 @@ export class CommandPalette {
   private readonly toast = inject(MessageService);
   private readonly session = inject(SessionService);
   private readonly context = inject(ProgramContext);
-  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly menu = viewChild(CommandMenu);
 
   /** The latest assessment's requirements, fetched the first time the palette opens for that assessment. */
@@ -120,13 +119,14 @@ export class CommandPalette {
     });
   }
 
-  /** CommandMenu's input names a list id that its list element does not carry; give it that id (axe aria-valid-attr-value). */
+  /**
+   * CommandMenu's input names its list (aria-controls) by an id the list element does not carry; the pass-through
+   * gives the list that id (axe aria-valid-attr-value, the D-087 approach).
+   */
+  readonly pt = computed(() => ({ list: { id: this.menu()?.listId() } }));
+
   onShow(): void {
-    const input = this.host.ownerDocument.querySelector<HTMLInputElement>('.lx-palette .p-commandmenu-input');
-    const list = this.host.ownerDocument.querySelector<HTMLElement>('.lx-palette .p-commandmenu-list');
-    const controls = input?.getAttribute('aria-controls');
-    if (list && controls) { list.id = controls; }
-    input?.focus();
+    this.menu()?.focusInput();
   }
 
   private choose(command: Command): void {

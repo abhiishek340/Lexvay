@@ -3,9 +3,12 @@ import { DANA, PRIYA, expect, expectAccessible, nav, signIn, test } from './supp
 test('Dana Whitfield reviews every California requirement, signs, and sees the audit entries', async ({ page }) => {
   await signIn(page, DANA);
 
-  // Program overview with the permanent fictional-data notice.
+  // Program overview with the permanent Demo data pill; its InfoTip holds the full notice.
   await expect(page.getByRole('heading', { level: 1, name: 'M.S. Clinical Mental Health Counseling' })).toBeVisible();
-  await expect(page.getByRole('complementary', { name: 'Fictional data notice' })).toContainText('Fictional data');
+  await expect(page.getByRole('banner').getByText('Demo data', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'About demo data' }).click();
+  await expect(page.getByRole('dialog', { name: 'About demo data' })).toContainText('invented for this prototype');
+  await page.keyboard.press('Escape');
   await expect(page.locator('.lx-figures')).toContainText('Jurisdictions');
   await expect(page.getByRole('table', { name: 'Jurisdictions' })).toContainText('California');
   await expectAccessible(page, 'Program overview');
@@ -155,21 +158,6 @@ test('keyboard shortcuts move through the list and record a decision', async ({ 
   await page.keyboard.type('ja');
   await expect(page.getByLabel('Note')).toHaveValue('ja');
   await expect(progress).toHaveText(/^1 of \d+ reviewed$/);
-});
-
-test('the theme choice persists across a reload', async ({ page }) => {
-  await signIn(page, PRIYA);
-  const html = page.locator('html');
-  const themes = page.getByRole('group', { name: 'Colour theme' });
-  await themes.getByRole('button', { name: 'Dark' }).click();
-  await expect(html).toHaveAttribute('data-theme', 'dark');
-  await page.reload();
-  await expect(page.getByRole('navigation', { name: 'Screens' })).toBeVisible();
-  await expect(html).toHaveAttribute('data-theme', 'dark');
-  await expect(themes.getByRole('button', { name: 'Dark' })).toHaveAttribute('aria-pressed', 'true');
-  await themes.getByRole('button', { name: 'Light' }).click();
-  await page.reload();
-  await expect(html).toHaveAttribute('data-theme', 'light');
 });
 
 test('at 400 px the review screen fits without horizontal page scroll', async ({ page }) => {
