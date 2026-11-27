@@ -90,9 +90,7 @@ public class ExtractRequirementsHandler implements JobHandler {
             throw new PermanentJobFailure("Requirement extraction produced invalid output twice: " + lastErrors);
         }
         UUID tenantId = TenantContext.require();
-        for (RequirementDraft draft : drafts) {
-            repository.insertRequirement(tenantId, ruleVersionId, draft, version.createdBy());
-        }
+        repository.insertRequirements(tenantId, ruleVersionId, drafts, version.createdBy());
         audit.recordAs(null, "REQUIREMENTS_EXTRACTED", "rule_version", ruleVersionId, Map.of(
                 "jobId", job.id().toString(), "model", llm.modelId(), "promptVersion", PROMPT_VERSION,
                 "requirementCount", drafts.size()));
