@@ -1496,8 +1496,6 @@ check the registry docs for that version, not memory.
   only by unit tests until the seed has a scanned document (add one to `seed/` with F7c or later).
 - F12: a failed check waits a full interval (up to 30 days) before the scheduler retries; a shorter backoff
   needs a `next_check_at` column. The Sources tab is scheduled as F12b.
-- F12 deployment note: the SSRF guard resolves the host before connecting and the JDK client resolves it
-  again, so a DNS-rebinding window remains; production egress must also block private ranges (Terraform).
 - WS-UI: the overview still finds the latest assessment through the audit log; switch it to the WS-PERF
   `GET /programs/{id}/overview` endpoint (do this in F1). Audit filtering is client-side over the newest 500
   entries; switch to the WS-PERF server filters (F5). Add a build check that the production `index.html` has no
@@ -1516,8 +1514,7 @@ check the registry docs for that version, not memory.
   profile; an SSO-only switch is a follow-up. Behind a load balancer set `LEXVAY_FORWARD_HEADERS=native`.
 - WS-EVAL: the live thresholds in `eval/thresholds.yml` (recall 0.80, extraction 0.90, evidence agreement
   0.80) are unmeasured first values; set them from the first `make eval-live` run once a model key exists.
-  Terraform still needs a remote state backend, WAF and flow logs before any real deployment, and the
-  database roles must be bootstrapped with `db/initdb/01-roles.sh` after RDS is created.
+  After RDS is created, the database roles must be bootstrapped with `db/initdb/01-roles.sh`.
 - `scripts/eval.sh` repeats the slot and cleanup lines of `scripts/e2e.sh`; extract `scripts/lib/stack.sh`
   and source it from both (do this inside F7, which already touches the evaluation scripts).
 - The old Review screen logs `TypeError ... reading 'id'` at `review.ts:82`; verify it is gone after WS-UI.

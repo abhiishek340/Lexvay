@@ -209,6 +209,70 @@ set (`2.00` and `10.00` here), for the seeded Northfield assessment:
 `estimatedCostUsd` is tokens times the configured prices and is `null` when no price is configured. Requirement
 extraction calls belong to a rule version, not an assessment, and are not included.
 
+## Deploy on AWS (Terraform)
+
+`infra/` holds the whole stack. `make infra-validate` formats, validates and tests it offline; nothing in the
+repository plans or applies it, and the applying credentials never live here.
+
+### Terraform state
+
+State holds the generated database passwords and the origin-verify secret, so it lives in an S3 bucket that this
+stack does not manage (the stack cannot create the place that stores its own state). Create it once per account, before
+the first `init`, with the AWS CLI (placeholders in angle brackets):
+
+```
+aws kms create-key --description "lexvay terraform state"          # note the KeyId, then:
+aws kms enable-key-rotation --key-id <state-key-id>
+aws s3api create-bucket --bucket <state-bucket> --region <region> \
+  --create-bucket-configuration LocationConstraint=<region>        # omit the last line in us-east-1
+aws s3api put-bucket-versioning --bucket <state-bucket> --versioning-configuration Status=Enabled
+aws s3api put-bucket-encryption --bucket <state-bucket> --server-side-encryption-configuration \
+  '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"aws:kms","KMSMasterKeyID":"<state-key-arn>"},"BucketKeyEnabled":true}]}'
+aws s3api put-public-access-block --bucket <state-bucket> --public-access-block-configuration \
+  BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+aws s3api put-bucket-policy --bucket <state-bucket> --policy file://state-bucket-policy.json
+```
+
+`state-bucket-policy.json` denies every request that does not use TLS:
+
+```
+{"Version":"2012-10-17","Statement":[{"Sid":"TlsOnly","Effect":"Deny","Principal":"*","Action":"s3:*",
+ "Resource":["arn:aws:s3:::<state-bucket>","arn:aws:s3:::<state-bucket>/*"],
+ "Condition":{"Bool":{"aws:SecureTransport":"false"}}}]}
+```
+
+Then give the people and the pipeline that run Terraform read and write on the bucket's `*.tfstate` and `*.tflock`
+objects and use of the key, and nothing else. Locking is the backend's own lock file (`use_lockfile = true`, an object
+next to the state), so there is no DynamoDB table. Copy `infra/backend.hcl.example` to `infra/backend.hcl` (ignored by
+git), replace every value, and run `terraform -chdir=infra init -backend-config=backend.hcl`. `make infra-validate`
+keeps `init -backend=false`, so it needs no bucket.
+
+### Web ACL
+
+CloudFront is protected by a web ACL (`infra/waf.tf`) that exists in us-east-1, whatever region the rest of the stack
+uses, so the stack declares a second AWS provider for it. Rules run in this order: the AWS IP reputation list, the
+known-bad-inputs set, the common rule set (its body-size rule only counts, because uploads are up to 25 MB and the
+application enforces that limit), and a rate limit that blocks an address after `waf_login_rate_limit` (default 300)
+requests in 5 minutes to `/api/v1/auth/`. The limit complements the password-hashing gate in the application and does
+not replace it. Blocked and counted requests are in the CloudWatch metrics of the ACL; every request is logged to the
+us-east-1 log group `aws-waf-logs-<project>-<environment>` for `log_retention_days`, with the `authorization` and
+`cookie` headers redacted. That log group uses CloudWatch's default encryption, because a key in another region cannot
+protect it.
+
+### Network logs and egress
+
+Every connection in the VPC is recorded by a flow log (accepted and rejected, `ALL`) into a log group encrypted with the
+data key; the key policy lets CloudWatch Logs use the key for that log group only.
+
+The private subnets, which hold the backend and the database, have a network ACL. Outbound: the VPC's own range is
+allowed first, then `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and `100.64.0.0/10` are denied, then everything
+else is allowed. Inbound: the VPC range, and TCP 1024 to 65535 from anywhere for replies to the model API and registry
+calls (a network ACL is stateless). This closes the DNS-rebinding window left by the SSRF guard on source fetches:
+the guard resolves a host before connecting and the HTTP client resolves it again, so a short-lived answer could point
+a fetch at an internal address, and the network now refuses it. Link-local addresses (`169.254.0.0/16`, including the
+metadata service and the ECS credentials endpoint at `169.254.170.2` that the task needs) never pass through a network
+ACL, so this control cannot block them; the application's `SsrfGuard` remains the control for those.
+
 ## Stop
 
 `docker stop` (SIGTERM) starts a graceful shutdown: the server stops accepting connections and lets open requests
