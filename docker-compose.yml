@@ -15,7 +15,9 @@ services:
       - lexvay-db-data:/var/lib/postgresql
       - ./db/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      # Over TCP: during first-time initialisation PostgreSQL runs a temporary server that listens only on its Unix
+      # socket while docker-entrypoint-initdb.d creates the roles, so a socket check can report ready too early.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
       interval: 5s
       timeout: 3s
       retries: 20
