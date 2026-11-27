@@ -6,7 +6,7 @@ import { MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 import { routes } from './app.routes';
 import { ThemeService } from './core/theme.service';
-import { LEXVAY_ICONS } from './theme/icons';
+import { SHELL_ICONS } from './theme/icons';
 import { LexvayPreset } from './theme/lexvay-preset';
 import { PRIMEUI_LICENSE } from './theme/license';
 
@@ -24,7 +24,7 @@ export const appConfig: ApplicationConfig = {
       ripple: false,
       ...(PRIMEUI_LICENSE ? { license: PRIMEUI_LICENSE } : {}),
     }),
-    provideIcons(LEXVAY_ICONS),
+    provideIcons(SHELL_ICONS),
     MessageService,
     // The theme attribute must be on <html> before the first screen renders.
     provideAppInitializer(() => { inject(ThemeService); }),

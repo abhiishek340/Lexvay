@@ -19,7 +19,6 @@ import { ProgramContext } from '../../core/program-context';
 import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
 import { PassageSelection } from '../../shared/document-viewer/page-text';
 import { COMMENT_MAX, NO_TEXT_YET, documentGroups, hasEarlierDocuments, responseBody } from './answer';
-import { registerEvidenceDrawerTheme } from './evidence-drawer-theme';
 
 /**
  * Answering one evidence request: the requirement and what was asked, a program document chosen in a grouped
@@ -80,10 +79,6 @@ export class EvidenceDrawer {
   readonly documentsError = computed(() => (this.documents.error() ? problemDetail(this.documents.error(), 'The program documents could not be loaded.') : null));
 
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
-
-  constructor() {
-    registerEvidenceDrawerTheme();
-  }
 
   /** The drawer has no initial focus of its own; its heading takes it, so the trap starts inside. */
   shown(): void {
