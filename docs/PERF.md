@@ -309,7 +309,7 @@ sources that are not due yet (`PerfSeed.addHistoryVolume`), and requires the ind
 Index Scan using rule_source_due_idx on rule_source rs; Index Scan using job_claim_idx on job j
 ```
 
-Read endpoints are unchanged: `GET /rule-sources` p95 3.8 ms and `GET /rule-sources/{id}/checks` p95 4.1 ms in the same run
+Read endpoints are unchanged: `GET /rule-sources` p95 1.4 ms and `GET /rule-sources/{id}/checks` p95 3.5 ms in the same run
 (two more columns in the existing statement).
 
 ## Current-mapping filter (FIX-3)

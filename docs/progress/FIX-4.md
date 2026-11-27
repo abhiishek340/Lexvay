@@ -30,7 +30,7 @@ All four run on the tree after merging `origin/main` (FIX-3 included).
 [INFO] BUILD SUCCESS
 | `rule_source_due_idx` | which active rule sources are due (scheduler, worker flag, all tenants; V016) | yes | Index Scan using rule_source_due_idx on rule_source rs; Index Scan using job_claim_idx on job j | yes | |
 ```
-`GET /rule-sources` p95 3.83 ms, `GET /rule-sources/{id}/checks` p95 4.10 ms.
+`GET /rule-sources` p95 1.41 ms (first table; 2.96 ms with more tenants), `GET /rule-sources/{id}/checks` p95 3.51 ms (2.80 ms).
 
 `LEXVAY_E2E_SLOT=7 make eval` (exit 0):
 ```
