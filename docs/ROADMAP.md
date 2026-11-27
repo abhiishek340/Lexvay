@@ -8,7 +8,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | Item | Branch | E2E slot | Model | Status |
 |---|---|---|---|---|
 | WS-UI Design system and screen rebuild | `ui-foundation` | 1 | Opus 5.5 | in progress |
-| WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | in progress |
+| WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | merged (PR #12) |
 | WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | merged (PR #11) |
 | WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
 | F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | merged (PR #9) |
@@ -26,6 +26,8 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
+| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | in progress |
+| F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | queued (after WS-PERF) |
 
 ---
 
@@ -263,7 +265,7 @@ Reviewers must be able to look for a passage themselves instead of trusting the 
 4. Tests: phrase and negation queries on the seed, ordering by rank, segments reconstruct the headline,
    filters, limit cap, 400 for blank, tenant isolation, and a latency check (p95 ≤ 40 ms over 200 requests
    on the seeded tenant) following the pattern of `EndpointLatencyTest` if it exists on `main`.
-Decisions in `docs/decisions/F9.md` (D-150 to D-159).
+Decisions D-150 to D-159 (folded into `DECISIONS.md`).
 
 ## FIX-1 — Requirement order column (after WS-PERF merges; slot 5)
 Defect found in review of F3a: `RuleVersionRepository.requirements` orders by `created_at, ref`; rows of one
@@ -371,7 +373,113 @@ dilutes the model's attention. Everything below is measured before and after wit
    verifies; quote spanning `[...]` is rejected by the verifier because it is not in the page.
 Decisions in `docs/decisions/F7.md` (D-170 to D-179).
 
+## F12 — Rule source monitoring (backend only; slot 8; migration `V010__rule_source.sql`)
+Purpose: change tracking today starts only when a person uploads a new rule text. Real boards publish rule
+changes on a web page or PDF without notice; the product must notice them. The system fetches, detects a
+textual change, creates an **unapproved** draft rule version and opens the existing change flow. It never
+approves anything and never alters an approved version (product rules 1, 5, 6). Decisions D-180 to D-189 in
+`docs/decisions/F12.md`.
+1. **Schema** (`V010__rule_source.sql`; RLS + FORCE + policy as in V002, so the schema tests pick it up):
+   `rule_source` (`id`, `tenant_id`, `jurisdiction_id` → jurisdiction, `license_type`, `label`, `url`
+   (http or https only, CHECK with a regex on the scheme), `check_interval_hours` int CHECK ≥ 1 AND ≤ 720,
+   `active` boolean default true, `last_checked_at` timestamptz, `last_content_hash` text, `created_at`,
+   `created_by`); updates restricted with `restrict_update_to_columns` to `active`, `last_checked_at`,
+   `last_content_hash`. `rule_source_check` (append-only, `forbid_change()`): `id`, `tenant_id`,
+   `rule_source_id`, `checked_at`, `outcome` CHECK IN ('UNCHANGED', 'CHANGED', 'DRAFT_EXISTS',
+   'FETCH_FAILED'), `http_status` int, `content_hash` text, `detail` text, `document_id` → document (null
+   unless CHANGED), `rule_version_id` → rule_version (null unless CHANGED). Index
+   `(rule_source_id, checked_at DESC)`. The job payload carries `ruleSourceId`.
+2. **Fetching seam** `com.lexvay.rule.source.HttpFetcher` with `Fetched fetch(URI url)` returning status,
+   content type and bytes. `JdkHttpFetcher` (java.net.http, connect 10 s, read 30 s, follows at most 3
+   redirects re-checking every hop, body cap 20 MB → `FetchRejected`), and an SSRF guard: before connecting,
+   resolve the host and refuse loopback, link-local, private (RFC 1918), unique-local and multicast
+   addresses, and any non-http(s) scheme, with a 400 at creation time and a `FETCH_FAILED` check at run
+   time. `FakeHttpFetcher` in tests is scripted by URL. No test touches the network.
+3. **Text and hash**: PDF, DOCX and TXT go through the existing `TextExtractor`. Add `FileType.HTML`
+   (detected by content type `text/html` or a leading `<!doctype html`/`<html`) extracted with jsoup
+   (pin the current release from Maven Central metadata; record it in D-002): drop `script`, `style`,
+   `nav`, `header`, `footer`, keep block structure as line breaks, pages = one page per 4 000 characters
+   split at paragraph boundaries, exactly like the TXT path does today. The content hash is SHA-256 of
+   `QuoteVerifier.normalizeWhitespace` over the concatenated page text, so whitespace-only and markup-only
+   edits are `UNCHANGED`.
+4. **Job** `CHECK_RULE_SOURCE` (new `JobType`, handler in `rule.source`): fetch; on failure write a
+   `FETCH_FAILED` check with the status and message and finish normally (the schedule retries later; this is
+   not a `PermanentJobFailure`). Otherwise compute the hash; equal to `last_content_hash` → `UNCHANGED` and
+   update `last_checked_at`. Different → store the bytes as a `document` of kind `RULE_TEXT` through
+   `DocumentService` (the normal ingest path, so pages, text and audit are identical to an upload), then find
+   the current approved version for the same jurisdiction and license type that nothing supersedes; if an
+   unapproved version already supersedes it → `DRAFT_EXISTS` (detail names it), no new version. Otherwise
+   create the version through `RuleVersionService.create` (label `<source label> fetched <yyyy-mm-dd>`,
+   `sourceUrl` = the source url, `effectiveFrom` = the check date, `supersedesId` = the approved version or
+   null when none exists) so extraction and the change event follow the existing path; write the `CHANGED`
+   check with both ids and set `last_content_hash`. The first check of a new source is always `CHANGED`.
+   `created_by` of the system's rows is null, exactly like other job-created rows.
+5. **Scheduler** `RuleSourceScheduler` next to `JobPoller`, `@Scheduled(fixedDelayString =
+   "${lexvay.rule-sources.poll-interval-ms:300000}")`, enabled only when `lexvay.rule-sources.enabled`
+   is true (default false; `.env.example` documents `LEXVAY_RULE_SOURCES_ENABLED`). It runs under the
+   worker flag like the poller and enqueues one `CHECK_RULE_SOURCE` job per due source in a single
+   `INSERT ... SELECT` statement: active, `last_checked_at IS NULL OR last_checked_at < now() -
+   check_interval_hours * interval '1 hour'`, and no QUEUED or RUNNING job for the same source.
+6. **API** (`/api/v1`): `POST /rule-sources` (ADMIN, REVIEWER) body `{ jurisdictionCode, licenseType, label,
+   url, checkIntervalHours }` → 201 and an enqueued first check; `GET /rule-sources` (any role) one statement
+   with a lateral join to the latest check; `GET /rule-sources/{id}/checks?limit=` (any role);
+   `POST /rule-sources/{id}/check` (ADMIN, REVIEWER) → 202 `{ jobId }` (409 when a check is already queued or
+   running); `PUT /rule-sources/{id}/active` (ADMIN) body `{ active }`. Every mutating endpoint audited and
+   added to `Rule9_AuditCoverageTest`.
+7. **Seed**: `seed/manifest.yml` gains one fictional source per demo tenant pointing at a `file` URL? No:
+   `JdkHttpFetcher` refuses non-http schemes. The seed registers one source per tenant with
+   `https://example.invalid/rules/colorado-lpc.pdf` and no check (sources are inert until the scheduler is
+   enabled); the demo stays offline.
+8. **Tests**: fake-fetched UNCHANGED → no document, no version, `last_checked_at` moved; CHANGED → document,
+   unapproved version superseding the approved one, EXTRACT job queued, change event OPEN; DRAFT_EXISTS when
+   a draft already supersedes; FETCH_FAILED on 500 and on a body over the cap, job DONE not FAILED; whitespace
+   and markup-only changes are UNCHANGED (HTML fixture); SSRF guard refuses `127.0.0.1`, `10.0.0.1`,
+   `169.254.1.1`, `[::1]`, `ftp://`; scheduler enqueues due sources once (no duplicate while QUEUED); RLS
+   isolation on both tables; audit coverage. Nothing in this item can approve a version (assert
+   `requirements_approved_at IS NULL` after a CHANGED run).
+
+## F13 — Work queue API (backend only; slot 9; after WS-PERF merges; no schema change unless EXPLAIN demands)
+Purpose: a reviewer, signer, contributor or administrator should open the product and see what needs them,
+across programs and states, without visiting each overview. One read endpoint, one SQL statement, under the
+read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
+1. `GET /api/v1/work-queue` → `{ generatedAt, counts: { <kind>: n }, items: [...] }`. Each item:
+   `{ kind, programId, programName, jurisdictionCode, count, oldestAt, ids }` where `ids` holds the handful of
+   record ids the UI needs to navigate (assessment id, rule version id, change event ids), never more than
+   20 per item. Kinds, visible per role:
+   - `REQUIREMENTS_TO_REVIEW` (REVIEWER, SIGNER): per program × jurisdiction, current (D-066) mappings of the
+     latest FINISHED assessment with no decision or a last event of `REOPENED`, excluding stale ones. The
+     predicate is the one in `MappingRepository.countUndecided`; move it into a shared SQL constant in
+     `MappingRepository` and use it from both places (no second copy).
+   - `EVIDENCE_REQUESTS_OPEN` (CONTRIBUTOR, REVIEWER, SIGNER, ADMIN): mappings whose latest review event is
+     `EVIDENCE_REQUESTED`, per program × jurisdiction; stale ones are counted separately in `ids.blockedCount`
+     (follow-up from F4: they cannot be answered until the change is re-run).
+   - `RULE_VERSIONS_TO_APPROVE` (REVIEWER, SIGNER): unapproved rule versions with at least one requirement,
+     per jurisdiction (program fields null). `EXTRACTION_FAILED` (ADMIN, REVIEWER): rule versions whose
+     EXTRACT_REQUIREMENTS job is FAILED and which have no requirements.
+   - `CHANGES_OPEN` (REVIEWER, SIGNER, ADMIN): OPEN change events, per kind, with the affected programs.
+   - `READY_TO_SIGN` (SIGNER): program × jurisdiction where the latest assessment is FINISHED, the undecided
+     count is zero, and no SIGNED determination exists for that assessment and jurisdiction. This must agree
+     exactly with what `POST /determinations` accepts; the test proves it by signing every READY_TO_SIGN item
+     and asserting no 409, then asserting the item disappears.
+   - `ASSESSMENTS_FAILED` (ADMIN): assessments in FAILED status, per program.
+   Order: kinds in the order listed above, then `oldestAt` ascending.
+2. One statement: CTEs per kind joined with `UNION ALL`, filtered by the caller's role in SQL (bind the role,
+   do not branch in Java). Measure with the WS-PERF harness; budget p95 ≤ 40 ms on the seeded tenant. Add an
+   index only if `EXPLAIN (ANALYZE, BUFFERS)` shows a sequential scan on `mapping`, `review_event` or `job`
+   for this statement; if so, the migration is `V011__work_queue_indexes.sql` and the plan goes in
+   `docs/PERF.md`.
+3. Also `GET /api/v1/work-queue/count` → `{ total }` for the shell badge, same CTEs, `count(*)` only.
+4. Tests: visibility per role (a CONTRIBUTOR never sees `READY_TO_SIGN`); counts move when a reviewer
+   accepts, requests evidence, confirms a gap, when a contributor answers, when a change event opens and is
+   re-run, when a determination is signed; `READY_TO_SIGN` parity with the signing endpoint as above; RLS
+   (another tenant's items never appear); the perf-tagged latency test; `ForbiddenWordsTest` stays green (the
+   kinds above contain no forbidden words). Read-only endpoint, so nothing to add to the audit coverage set.
+
 ## Follow-ups recorded from reviews
+- WS-SEC: every new endpoint must add a row to `InputValidationTableTest` (its `everyEndpointHasARow` guard fails
+  otherwise). The PDF page cap (500) is enforced at ingest, so an oversized PDF fails its job rather than the
+  upload; a synchronous page count at upload is a possible follow-up. Form login stays enabled in the `oidc`
+  profile; an SSO-only switch is a follow-up. Behind a load balancer set `LEXVAY_FORWARD_HEADERS=native`.
 - WS-EVAL: the live thresholds in `eval/thresholds.yml` (recall 0.80, extraction 0.90, evidence agreement
   0.80) are unmeasured first values; set them from the first `make eval-live` run once a model key exists.
   Terraform still needs a remote state backend, WAF and flow logs before any real deployment, and the

@@ -24,6 +24,7 @@ class AuthTest extends AbstractDatabaseTest {
     @Autowired TestTenants tenants;
     @Autowired ObjectMapper json;
     @Autowired AuditRepository audit;
+    @Autowired org.springframework.context.ApplicationContext context;
     @LocalServerPort int port;
 
     TestTenants.TenantWithUsers t;
@@ -64,6 +65,22 @@ class AuthTest extends AbstractDatabaseTest {
                 .param("username", "nobody@nowhere.test").param("password", "x")
                 .exchange();
         assertThat(result).hasStatus(401);
+    }
+
+    @Test
+    void singleSignOnIsOffUnlessProfileOidcIsActive() {
+        assertThat(context.getBeanNamesForType(OidcLogin.class)).isEmpty();
+        assertThat(context.getBeanNamesForType(org.springframework.security.oauth2.client.registration.ClientRegistrationRepository.class)).isEmpty();
+        assertThat(mvc.get().uri("/oauth2/authorization/lexvay").exchange()).hasStatus(401);
+    }
+
+    @Test
+    void loginIsAuditedWithItsMethod() {
+        mvc.post().uri("/api/v1/auth/login").with(csrf())
+                .param("username", t.admin().email()).param("password", TestTenants.PASSWORD).exchange();
+        var entries = TenantContext.runAs(t.tenantId(), () -> audit.forEntity(t.admin().id()));
+        var login = entries.stream().filter(e -> e.action().equals("LOGIN_SUCCEEDED")).findFirst().orElseThrow();
+        assertThat(login.detail()).containsEntry("method", "password");
     }
 
     @Test

@@ -14,7 +14,8 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 /**
  * Text extraction per page with character offsets. PDFs keep their pages; DOCX and TXT become one page
  * (D-017). Pages are joined by a single newline when offsets are computed (D-041). A document whose
- * pages are all blank (for example a scanned PDF with no text layer) is rejected.
+ * pages are all blank (for example a scanned PDF with no text layer) is rejected, and so is one that
+ * exceeds {@link ContentLimits} (a DOCX that inflates too far, a PDF with too many pages).
  */
 public final class TextExtractor {
 
@@ -45,6 +46,7 @@ public final class TextExtractor {
 
     private static List<String> pdfPages(byte[] bytes) {
         try (PDDocument document = Loader.loadPDF(bytes)) {
+            ContentLimits.requirePdfPages(document.getNumberOfPages());
             PDFTextStripper stripper = new PDFTextStripper();
             List<String> pages = new ArrayList<>();
             for (int page = 1; page <= document.getNumberOfPages(); page++) {
@@ -53,12 +55,15 @@ public final class TextExtractor {
                 pages.add(normalize(stripper.getText(document)));
             }
             return pages;
+        } catch (ContentLimits.ContentLimitException e) {
+            throw e;
         } catch (IOException | RuntimeException e) {
             throw new UnparsableDocumentException("File could not be parsed as a PDF", e);
         }
     }
 
     private static String docxText(byte[] bytes) {
+        ContentLimits.requireSafeDocx(bytes);
         try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(bytes));
              XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
             return normalize(extractor.getText());
