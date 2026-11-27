@@ -124,6 +124,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F10a Coverage matrix API | `feat-coverage-api` | 8 | Sonnet 5.5 | merged (PR #35) |
 | F10b Coverage matrix screen (v2) | `ui2-coverage` | 7 | Opus 5.5 | in progress |
 | FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | in progress |
+| F12b Rule sources in the Rules workspace (v2) | `ui2-rule-sources` | 1 | Opus 5.5 | queued (after UI2-4) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
@@ -1242,6 +1243,64 @@ committed transaction, and a retry reuses those checkpoints. No job-per-page, no
    `docs/OPERATIONS.md` (one sentence: checkpoints make OCR retries resume). Do not edit DECISIONS.md, PROGRESS.md
    or the ROADMAP board; the orchestrator folds them.
 
+## F12b — Rule sources in the Rules workspace (frontend, v2; slot 1; Opus 5.5; after UI2-4 merges; D-442 to D-449)
+F12 built `/api/v1/rule-sources`: list, create, checks history, check now, pause and resume. No screen shows any of
+it yet, so the only way to see why a draft rule version appeared is the audit trail. Build it as a **Sources** tab
+of the Rules workspace, after UI2-4 has restyled that workspace. No backend change; if one turns out to be needed,
+stop and report.
+
+1. **List** (`GET /rule-sources`): one row per source, grouped by state code in the same order as the target-state
+   pills, with inactive sources at the end of their group.
+   - Each row shows:
+     - the label;
+     - the host of the URL in IBM Plex Mono (the full URL in a tooltip and as a link that opens a new tab with
+       `rel="noopener noreferrer"`);
+     - the latest outcome as StatusIcon plus text;
+     - "Checked 3 h ago" (relative time with an absolute tooltip);
+     - "Next in 21 h", or "Paused" when inactive.
+   - Outcome words:
+     - `UNCHANGED`: "No change".
+     - `CHANGED`: "Changed, draft created", with a link to that rule version in the workspace.
+     - `DRAFT_EXISTS`: "Changed, a draft already waits", with a link to the waiting draft.
+     - `FETCH_FAILED`: "Could not fetch", plus "N in a row" when `consecutiveFailures > 1`. The InfoTip holds the
+       HTTP status and `detail`.
+     - No check yet: "Not checked yet".
+   - The words "compliant", "meets" or "verified" never appear; the ForbiddenWords test covers the new templates.
+2. **History:** expanding a row (PrimeNG Accordion, or a disclosure button with `aria-expanded`) loads
+   `GET /rule-sources/{id}/checks?limit=20` once per expansion and shows a vertical timeline. Reuse UI2-3's
+   changes timeline markup. If it is screen-local, extract it to `ui/` first and keep Changes unchanged
+   (screenshots identical). Show `contentHash` shortened to 12 characters in Plex Mono with a copy button.
+3. **Actions:**
+   - **Check now** (ADMIN and REVIEWER): `POST /rule-sources/{id}/check`. The row shows a running state, and the
+     screen polls `GET /rule-sources` every 2 s until that source's `lastCheckedAt` changes, for up to 60 s. On
+     timeout the row says "Still checking" and offers to refresh. One poller for the whole screen, cancelled on
+     destroy. No N+1: the list endpoint already returns everything.
+   - **Pause / Resume** (ADMIN only): PrimeNG ToggleSwitch, optimistic, reverted with an inline error on failure.
+   - Roles without permission do not see the controls; they are not merely disabled.
+4. **Add source** (ADMIN and REVIEWER): a PrimeNG Dialog with these fields:
+   - state, a Select of the program's target states;
+   - license type;
+   - label;
+   - URL, validated `^https?://\S+$` on the client as on the server;
+   - interval, a SelectButton with Daily (24), Weekly (168) and Monthly (720).
+   A 400 maps field errors inline. On success, the new row enters with `animate.enter` and the dialog closes,
+   returning focus to the Add button.
+5. **Empty state:** a Phosphor duotone `globe` at 32 px, one line ("No sources monitored for this state") and the
+   Add button. Word budget as in DESIGN.md: everything explanatory goes behind an InfoTip.
+6. **Bundle:** the tab is its own lazy chunk with its own icons and token sets (PERF-FE-1 pattern). The initial
+   bundle must not grow by more than 0.5 kB.
+7. **Tests:**
+   - Unit tests for outcome words, grouping and order, poll stop conditions and role gating.
+   - End-to-end, on the seeded stack:
+     - Add a source with an unreachable URL (`https://example.invalid/rules`). Check now. The row ends at
+       "Could not fetch". The SSRF guard or the fetch failing are both acceptable; assert only on the visible
+       outcome.
+     - Pause it.
+     - Open its history.
+     - The audit trail shows the three sentences.
+   - axe on every state, both themes, and 400 px.
+   - Screenshots `f12b-*` in both themes at 1440 and 400 px.
+
 ## Follow-ups recorded from reviews
 - FIX-5: `MappingRepository.latestAssessmentsUsing` still has its own correlated copy of the "latest finished"
   ordering (alias `a2`); give `AssessmentRepository` a correlated form of `LATEST_FINISHED` and use it there.
@@ -1289,7 +1348,7 @@ committed transaction, and a retry reuses those checkpoints. No job-per-page, no
   CSP (`default-src 'none'; frame-ancestors 'none'`) in `SecurityHeadersFilter`. The OCR note in the viewer is covered
   only by unit tests until the seed has a scanned document (add one to `seed/` with F7c or later).
 - F12: a failed check waits a full interval (up to 30 days) before the scheduler retries; a shorter backoff
-  needs a `next_check_at` column. No screen lists rule sources yet; add a Sources tab to the F3 rule workspace.
+  needs a `next_check_at` column. The Sources tab is scheduled as F12b.
 - F12 deployment note: the SSRF guard resolves the host before connecting and the JDK client resolves it
   again, so a DNS-rebinding window remains; production egress must also block private ranges (Terraform).
 - WS-UI: the overview still finds the latest assessment through the audit log; switch it to the WS-PERF
