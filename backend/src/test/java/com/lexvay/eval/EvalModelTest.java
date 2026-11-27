@@ -48,17 +48,22 @@ class EvalModelTest extends AbstractDatabaseTest {
         Golden golden = YamlFile.read(Path.of("..", "eval", "golden.yml"), Golden.class);
         List<Golden.Entry> renamed = golden.requirements().stream()
                 .map(e -> e.key().equals("UT/UT-1") ? new Golden.Entry(e.ref(), e.jurisdiction(), "Golden credit hours", e.text(), e.type(),
-                        e.numeric(), e.finding(), e.document(), e.quoteContains(), e.reason()) : e).toList();
+                        e.numeric(), e.finding(), e.document(), e.quoteContains(), e.searchTerms(), e.reason()) : e).toList();
         EvalModel model = new EvalModel(ScriptedFakeModel.load(SEED, llm, json), ruleVersions, json, new Golden(true, renamed));
         SeedManifest.Tenant tenant = loader.manifest(SEED).tenants().get(0).isolated(UUID.randomUUID().toString().substring(0, 8));
 
         SeedLoader.Result result = loader.loadTenant(tenant, SEED, "password", model);
 
         assertThat(model.extracted()).hasSize(42).containsEntry("UT/UT-1", RequirementType.NUMERIC).containsEntry("TX/TX-7", RequirementType.JURISDICTION_SPECIFIC);
+        assertThat(model.proposedTerms()).as("the model's own terms, remembered before the golden list replaced them").hasSize(42)
+                .containsEntry("UT/UT-2", List.of("code of ethics", "confidentiality", "informed consent", "professional conduct", "liability"));
         TenantContext.runAs(result.tenantId(), () -> {
             var utah = ruleVersions.list().stream().filter(v -> v.jurisdiction().equals("UT")).findFirst().orElseThrow();
             assertThat(utah.approval()).isNotNull();
             assertThat(ruleVersions.requirements(utah.id()).requirements()).extracting(r -> r.title()).contains("Golden credit hours");
+            assertThat(ruleVersions.requirements(utah.id()).requirements()).as("the golden terms are stored with the golden list")
+                    .filteredOn(r -> r.ref().equals("UT-2")).singleElement()
+                    .satisfies(r -> assertThat(r.searchTerms()).isEqualTo(golden.requirements().get(1).searchTerms()));
             assertThat(assessments.mappings(result.assessmentId(), null).mappings()).hasSize(42);
         });
     }
