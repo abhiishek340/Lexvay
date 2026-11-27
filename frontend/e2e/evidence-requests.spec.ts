@@ -202,10 +202,10 @@ test('at 400 px: the inbox, the drawer, a blocked request and the provided evide
     const rows = (await response.json()) as { mappingId: string; stale: boolean }[];
     await route.fulfill({ response, json: rows.map((r) => (r.mappingId === ambiguous.id ? { ...r, stale: true } : r)) });
   });
-  // Leave the inbox and come back, so it reads the rows again. Wait for Review to be on screen first: a click during
-  // the route's view transition supersedes the first navigation, the inbox never leaves and never reads again.
+  // Leave the screen and come back, so it fetches the list again; Review must have opened first, or the second click
+  // is a navigation to the screen already shown, which the router ignores.
   await nav(page, 'Review').click();
-  await expect(page.getByTestId('requirement-heading')).toBeVisible();
+  await expect(nav(page, 'Review')).toHaveAttribute('aria-current', 'page');
   await nav(page, 'Evidence requests').click();
   await expect(row).toContainText('Blocked');
   await expect(row).toContainText('This requirement is waiting for a re-run after a change; answer it after the re-run');

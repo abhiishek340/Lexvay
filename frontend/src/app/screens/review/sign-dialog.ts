@@ -9,7 +9,8 @@ import { OUTCOME_LABEL } from '../../core/labels';
 import { Determination, Outcome } from '../../core/models';
 import type { IconName } from '../../theme/icons';
 import { InfoTip } from '../../ui/info-tip';
-import { Seal, initials } from '../../ui/seal';
+import { initials } from '../../ui/initials';
+import { Seal } from '../../ui/seal';
 
 const OUTCOMES: { value: Outcome; icon: IconName; tone: 'found' | 'missing' | 'seal' }[] = [
   { value: 'MEETS', icon: 'phosphorCheckCircle', tone: 'found' },

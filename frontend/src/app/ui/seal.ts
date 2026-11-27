@@ -2,17 +2,9 @@ import { formatDate } from '@angular/common';
 import { Component, computed, input } from '@angular/core';
 import { OUTCOME_LABEL } from '../core/labels';
 import { Outcome } from '../core/models';
+import { initials } from './initials';
 
 let nextId = 0;
-
-/** "Dana Whitfield" is "DW", "Dr. Priya Raman" is "PR": the first letters of the first and last names. */
-export function initials(name: string): string {
-  const words = name.replace(/^(dr|mr|mrs|ms|prof)\.?\s+/i, '').split(/\s+/).filter(Boolean);
-  if (words.length === 0) { return ''; }
-  const first = words[0].charAt(0);
-  const last = words.length > 1 ? words[words.length - 1].charAt(0) : '';
-  return `${first}${last}`.toUpperCase();
-}
 
 /**
  * The mark of a signed determination (DESIGN.md "Seal"): a ring in the seal colour with the outcome and the

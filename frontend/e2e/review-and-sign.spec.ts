@@ -9,8 +9,8 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
   await page.getByRole('button', { name: 'About demo data' }).click();
   await expect(page.getByRole('dialog', { name: 'About demo data' })).toContainText('invented for this prototype');
   await page.keyboard.press('Escape');
-  await expect(page.locator('.lx-figures')).toContainText('Jurisdictions');
-  await expect(page.getByRole('table', { name: 'Jurisdictions' })).toContainText('California');
+  await expect(page.getByRole('group', { name: 'Target states' })).toBeVisible();
+  await expect(page.getByTestId('state-card-CA')).toContainText('California');
   await expectAccessible(page, 'Program overview');
 
   // Review, California, under reduced motion: every step below asserts at once, never waiting for an animation.

@@ -109,20 +109,20 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | merged (PR #25) |
 | PERF-FE-1 Icons and theme tokens per chunk | `perf-frontend-chunks` | 6 | Sonnet 5.5 | merged (PR #29); remaining cuts in UI2-0 |
 | UI2-0 Design v2 foundation, shell and sign-in | `ui2-foundation` | 1 | Opus 5.5 | merged (PR #34) |
-| UI2-1 Overview and register in v2 | `ui2-overview-register` | 2 | Opus 5.5 | in progress |
+| UI2-1 Overview and register in v2 | `ui2-overview-register` | 2 | Opus 5.5 | merged (PR #39) |
 | UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | in progress |
 | UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | merged (PR #38) |
 | UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | in progress |
 | FIX-3 Work queue and evidence request follow-ups | `fix-queue-followups` | 9 | Sonnet 5.5 | merged (PR #31) |
 | FIX-4 Rule source backoff, live search terms, PDF page cap at upload | `fix-backoff-terms-pages` | 7 | Sonnet 5.5 | merged (PR #33) |
 | SEC-2 Argon2id passwords and audit list index | `sec-argon2-audit-index` | 5 | Sonnet 5.5 | merged (PR #36) |
-| FIX-5 Logout audit actor, work queue predicate | `fix-logout-actor` | 11 | Sonnet 5.5 | in progress |
+| FIX-5 Logout audit actor, work queue predicate | `fix-logout-actor` | 11 | Sonnet 5.5 | merged (PR #40) |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | merged (PR #30); screen cell in UI2-4 |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10a Coverage matrix API | `feat-coverage-api` | 8 | Sonnet 5.5 | merged (PR #35) |
-| F10b Coverage matrix screen (v2) | `ui2-coverage` | — | Opus 5.5 | queued (after F10a, UI2-0) |
+| F10b Coverage matrix screen (v2) | `ui2-coverage` | 7 | Opus 5.5 | in progress |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
@@ -721,6 +721,42 @@ Decisions D-390 to D-399 in `docs/decisions/F10a.md`.
    (change-tracking fixture), tenant isolation 404, and `ForbiddenWordsTest` green.
 Done when `make backend-test`, `make perf` and `LEXVAY_E2E_SLOT=8 make e2e` are green.
 
+## F10b — Coverage matrix screen (frontend, v2; slot 7; Opus 5.5; uses F10a)
+Purpose: show a program director, for one state, which course carries the evidence for each requirement and where a
+requirement rests on an elective, on one course, on outdated evidence or on nothing, at a glance and without words.
+Decisions D-416 to D-425 in `docs/decisions/F10b.md`.
+1. **Route and navigation**: `programs/:programId/coverage` ("Coverage" in the rail, icon `phosphorGridFour`, after
+   Review); state pills like Review's (full names, mini rings of the share of requirements with risk `NONE`); the
+   selected state in the URL (`?jurisdiction=CA`); one request per state to `GET /programs/{id}/coverage`.
+2. **Matrix**: rows are requirements in `ordinal` order (ref mono, title), columns are the program's current courses
+   (code mono, rotated 0°, with a small "required" or "elective" marker under the code), plus a last column "Program"
+   for program-level documents. A cell is a 20 px dot: filled accent for `SYSTEM` evidence, ringed accent for
+   `PERSON` evidence, both shown as a dot with a ring; an outdated cell from `outdatedCells` sits under its
+   `supersededBy` column as a dashed ring with a small clock icon. Hovering or focusing a cell opens a popover: course
+   code and title, source, quote count, and an action "Open in Review" that deep-links to the requirement
+   (`review?jurisdiction=XX&ref=REF`, UI2-0's query parameters). Rules-engine requirements show "Checked by the rules
+   engine" in the row instead of cells.
+3. **Risk column** (sticky right): one chip per row with icon and text: "Rests on an elective" (ambiguous colour),
+   "Rests on one course" (neutral with outline), "Outdated evidence" (ambiguous with clock), "No evidence cited"
+   (missing colour), nothing for `NONE`. Above the matrix, filter chips by risk with counts; clicking one dims rows that
+   do not match (opacity .35, 200 ms) rather than hiding them, so the matrix keeps its shape.
+4. **Motion**: the matrix enters column by column (stagger 20 ms, at most 12) under the motion table; dots scale in
+   from .6; reduced motion shows everything at once.
+5. **Accessibility**: the matrix is a real `table` with row and column headers; each cell has an accessible name
+   ("COUN 605, evidence from the system, 1 quote") and is reachable with the keyboard (roving tabindex across cells,
+   arrow keys); the popover opens on Enter or focus and closes on Escape; colour is never the only carrier (dot vs ring
+   vs dashed ring, chip icons and text). Under 900 px the matrix scrolls horizontally inside its own container with the
+   requirement column sticky left and the risk column sticky right; the page never scrolls sideways.
+6. **Word budget**: no paragraph; one InfoTip next to the title explains the dots and the risk chips.
+7. **Bundle**: lazy route chunk; icons and tokens per chunk (PERF-FE-1 pattern); the initial bundle stays under the
+   680 kB warning.
+8. **Tests**: Vitest for the view model (column order, cell lookup including outdated cells, risk filter counts);
+   e2e (`frontend/e2e/coverage.spec.ts`): California shows CA-2's COUN 605 dot, CA-6 is "Rests on an elective",
+   Utah's UT-7 is "Outdated evidence" with a dashed cell under COUN 625, keyboard navigation across cells, the
+   popover's "Open in Review" lands on the requirement, the risk filter dims rows, axe in both themes at 1440 and 400 px.
+Done when `make frontend-test` and `LEXVAY_E2E_SLOT=7 make test` are green with screenshots `f10b-*` in both themes at 1440
+and 400 px.
+
 ## FIX-4 — Rule source backoff, live search terms, PDF page cap at upload (backend; slot 7; migration `V016__rule_source_schedule.sql`)
 Three follow-ups from the F12, F7c and WS-SEC reviews. Decisions D-380 to D-389 in `docs/decisions/FIX-4.md`.
 1. **Rule source schedule.** `rule_source` gains `next_check_at timestamptz` and `consecutive_failures integer NOT
@@ -1122,6 +1158,8 @@ D-259 in `docs/decisions/F7c.md`.
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
 ## Follow-ups recorded from reviews
+- FIX-5: `MappingRepository.latestAssessmentsUsing` still has its own correlated copy of the "latest finished"
+  ordering (alias `a2`); give `AssessmentRepository` a correlated form of `LATEST_FINISHED` and use it there.
 - FIX-5 (rule 9): `LOGOUT` is audited after the session is cleared, so its audit entry has no actor. Capture the
   user before the logout handler clears the context and record `LOGOUT` with that user as actor and `entity_id`;
   `Rule9_AuditCoverageTest` asserts the actor. UI2-3's `audit-sentence.spec.ts` now fails for any new audited action

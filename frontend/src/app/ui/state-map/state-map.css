@@ -56,6 +56,9 @@ button.lx-tile:focus-visible { outline: 2px solid var(--p-lx-accent); outline-of
 }
 :host([data-size='mini']) .lx-tile[data-tile='NOT_DETERMINED'] .lx-tile-outcome { box-shadow: inset 0 0 0 1.5px var(--p-lx-seal); }
 .lx-tile[data-tile='NOT_DETERMINED'] { color: var(--p-lx-seal); }
+/* Signed with different outcomes in different programs (the register): a dashed ring, no outcome colour. */
+.lx-tile[data-tile='MIXED'] .lx-tile-outcome { opacity: 1; background: var(--p-lx-surface); border: 2px dashed var(--p-lx-text-2); }
+.lx-tile[data-tile='MIXED'] { color: var(--p-lx-text); }
 
 /* First view: tiles wave in from west to east (about 1100 ms in all), then each in-review fill rises. */
 :host(.lx-map-wave) .lx-tile { animation: lx-tile-in 420ms var(--lx-ease-out) calc(var(--lx-col) * 62ms) backwards; }
@@ -71,4 +74,20 @@ button.lx-tile:focus-visible { outline: 2px solid var(--p-lx-accent); outline-of
 .lx-map-card-status[data-tile='DOES_NOT_MEET'] ng-icon { color: var(--p-lx-missing); }
 .lx-map-card-status[data-tile='NOT_DETERMINED'] ng-icon { color: var(--p-lx-seal); }
 .lx-map-card-status[data-tile='IN_REVIEW'] ng-icon { color: var(--p-lx-accent); }
+.lx-map-card-status[data-tile='MIXED'] ng-icon { color: var(--p-lx-text); }
+.lx-map-card-text:only-child { grid-column: 1 / -1; }
 .lx-map-card-action { grid-column: 1 / -1; justify-content: center; }
+
+/* The one legend below the map: a small swatch drawn like the tile it stands for, and its words. */
+.lx-map-legend {
+  list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px;
+  font-size: 13px; line-height: 20px; color: var(--p-lx-text-2);
+}
+.lx-map-legend li { display: inline-flex; align-items: center; gap: 8px; }
+.lx-map-swatch { width: 12px; height: 12px; border-radius: 3px; box-sizing: border-box; flex: none; background: var(--p-lx-surface-2); }
+.lx-map-swatch[data-tile='MEETS'] { background: var(--p-lx-found); }
+.lx-map-swatch[data-tile='DOES_NOT_MEET'] { background: var(--p-lx-missing); }
+.lx-map-swatch[data-tile='NOT_DETERMINED'] { background: var(--p-lx-surface); box-shadow: inset 0 0 0 2px var(--p-lx-seal); }
+.lx-map-swatch[data-tile='MIXED'] { background: var(--p-lx-surface); border: 1.5px dashed var(--p-lx-text-2); }
+.lx-map-swatch[data-tile='IN_REVIEW'] { background: linear-gradient(to top, var(--p-lx-accent-fill) 50%, var(--p-lx-accent-tint) 50%); }
+.lx-map-swatch[data-tile='NONE'] { box-shadow: inset 0 0 0 1px var(--p-lx-line); }

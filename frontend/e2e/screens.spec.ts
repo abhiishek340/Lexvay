@@ -13,7 +13,7 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await shoot(page, 'sign-in');
 
   await signIn(page, DANA);
-  await expect(page.getByRole('table', { name: 'Jurisdictions' })).toContainText('California');
+  await expect(page.getByTestId('state-card-CA')).toContainText('California');
   await shoot(page, 'program-overview');
 
   await nav(page, 'Review').click();
@@ -117,7 +117,7 @@ test('screenshots of the v2 shell and sign-in at 1440 and 400 px', async ({ page
     await page.emulateMedia({ reducedMotion: 'no-preference' });
 
     await signIn(page, DANA);
-    await expect(page.getByRole('table', { name: 'Jurisdictions' })).toContainText('California');
+    await expect(page.getByTestId('state-card-CA')).toContainText('California');
     await shoot(page, `ui2-overview-${width}`);
 
     // The shared components at every size (development harness, dev/ui).
@@ -126,7 +126,7 @@ test('screenshots of the v2 shell and sign-in at 1440 and 400 px', async ({ page
     await page.waitForTimeout(1400);
     await shoot(page, `ui2-components-${width}`);
     await page.goBack();
-    await expect(page.getByRole('table', { name: 'Jurisdictions' })).toBeVisible();
+    await expect(page.getByTestId('state-card-CA')).toBeVisible();
 
     await page.keyboard.press('Control+k');
     const palette = page.getByRole('dialog', { name: 'Search or jump to' });
@@ -202,6 +202,34 @@ test('UI2-2: Review, a decided requirement, the gap note and the signing dialog 
     await shoot(page, `ui2-2-signing-${width}`);
     await dialog.getByRole('button', { name: 'Cancel' }).click();
     await expect(dialog).toBeHidden();
+  }
+});
+
+/** UI2-1: the overview (with a map card open) and the register, both tabs, at 1440 and 400 px. California is signed by then. */
+test('screenshots of the v2 overview and register at 1440 and 400 px', async ({ page }) => {
+  for (const [width, height] of [[1440, 900], [400, 860]] as const) {
+    await page.setViewportSize({ width, height });
+    await signIn(page, DANA);
+    await expect(page.getByTestId('state-card-CA')).toContainText('Determined not to meet');
+    // Let the wave, the count-ups and the rings finish.
+    await page.waitForTimeout(1600);
+    await shoot(page, `ui2-1-overview-${width}`);
+    await page.getByRole('group', { name: 'Target states' }).getByRole('button', { name: /^Utah, / }).focus();
+    await expect(page.getByRole('dialog', { name: 'Utah' })).toBeVisible();
+    await shoot(page, `ui2-1-overview-map-card-${width}`);
+    await page.keyboard.press('Escape');
+    await page.locator('main').evaluate((main) => main.scrollTo(0, main.scrollHeight));
+    await shoot(page, `ui2-1-overview-cards-${width}`);
+
+    await nav(page, 'Determination register').click();
+    await expect(page.getByRole('table', { name: 'Determination register' }).locator('tbody tr')).toHaveCount(1);
+    await page.waitForTimeout(1600);
+    await shoot(page, `ui2-1-register-${width}`);
+    await page.getByRole('tab', { name: 'By program' }).click();
+    await expect(page.getByRole('region', { name: 'No determination made', exact: true })).toBeVisible();
+    await page.waitForTimeout(600);
+    await shoot(page, `ui2-1-register-lists-${width}`);
+    await page.context().clearCookies();
   }
 });
 

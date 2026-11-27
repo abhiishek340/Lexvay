@@ -44,8 +44,8 @@ public abstract class AbstractAssessmentTest extends AbstractDatabaseTest {
     @BeforeEach
     void baseSetUp() {
         fake = (FakeLlmClient) llmClient;
-        fake.reset();
         runner.runPending();
+        fake.reset();
         fx = new AssessmentFixtures(mvc, json, runner, fake);
         t = tenants.create("assess");
     }
