@@ -29,12 +29,12 @@ chose the same export plan as without it.
 
 ## Results
 
-`make backend-test` (after merging origin/main with FIX-4): `Tests run: 1035, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`.
+`make backend-test` (after merging origin/main with FIX-4): `Tests run: 1047, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS` (with the hash gate of D-407; 1035 before it).
 
 `make perf`: `EndpointLatencyTest` and `IndexUsageTest` both `Tests run: 1, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`;
 the slowest p95 is 6.63 ms (program overview), budget 40 ms.
 
-`LEXVAY_E2E_SLOT=5 make e2e`: `1 skipped`, `18 passed (1.4m)`.
+`LEXVAY_E2E_SLOT=5 make e2e`: `1 skipped`, `18 passed (1.3m)`.
 
 ## Deviations and follow-ups (see D-400, D-403)
 
