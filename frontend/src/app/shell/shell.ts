@@ -16,7 +16,7 @@ import { SessionService } from '../core/session.service';
 import { Theme, ThemeService } from '../core/theme.service';
 import { IconName } from '../theme/icons';
 
-interface NavLink { id: string; programId: string; label: string; icon: IconName; badge: number; badgeText: string }
+interface NavLink { id: string; path: string[]; label: string; icon: IconName; badge: number; badgeText: string }
 
 @Component({
   selector: 'lx-shell',
@@ -45,22 +45,29 @@ export class Shell {
   /** The rail is on every program screen and on the tenant-wide register, which needs no program. */
   readonly railVisible = computed(() => this.chrome() && (this.programId() !== null || this.url().split(/[?#]/)[0] === '/register'));
 
-  /** The program screens of the program in the URL, or on the register those of the program last worked on. */
+  /**
+   * The tenant-wide register first, then the screens of the program in the URL (on the register, of the program
+   * last worked on; none before a program was opened).
+   */
   readonly links = computed<NavLink[]>(() => {
+    const register: NavLink = { id: 'register', path: ['/register'], label: 'Determination register', icon: 'phosphorBookBookmark', badge: 0, badgeText: '' };
     const programId = this.programId() ?? this.context.program()?.id;
     if (!programId) {
-      return [];
+      return [register];
     }
     const waiting = this.context.counts()?.waitingForReview ?? 0;
     const open = this.context.openChanges();
     const rules = this.context.rulesWaiting();
+    const screen = (id: string, label: string, icon: IconName, badge = 0, badgeText = ''): NavLink =>
+      ({ id, path: ['/programs', programId, id], label, icon, badge, badgeText });
     return [
-      { id: 'overview', programId, label: 'Program overview', icon: 'phosphorSquaresFour', badge: 0, badgeText: '' },
-      { id: 'review', programId, label: 'Review', icon: 'phosphorListChecks', badge: waiting, badgeText: `${waiting} requirement${waiting === 1 ? '' : 's'} waiting for review` },
-      { id: 'changes', programId, label: 'Changes', icon: 'phosphorGitDiff', badge: open, badgeText: `${open} open change${open === 1 ? '' : 's'}` },
-      { id: 'rules', programId, label: 'Rules', icon: 'phosphorScales', badge: rules, badgeText: `${rules} rule version${rules === 1 ? '' : 's'} waiting for approval` },
-      { id: 'report', programId, label: 'Evidence report', icon: 'phosphorFileText', badge: 0, badgeText: '' },
-      { id: 'audit', programId, label: 'Audit trail', icon: 'phosphorClockCounterClockwise', badge: 0, badgeText: '' },
+      register,
+      screen('overview', 'Program overview', 'phosphorSquaresFour'),
+      screen('review', 'Review', 'phosphorListChecks', waiting, `${waiting} requirement${waiting === 1 ? '' : 's'} waiting for review`),
+      screen('changes', 'Changes', 'phosphorGitDiff', open, `${open} open change${open === 1 ? '' : 's'}`),
+      screen('rules', 'Rules', 'phosphorScales', rules, `${rules} rule version${rules === 1 ? '' : 's'} waiting for approval`),
+      screen('report', 'Evidence report', 'phosphorFileText'),
+      screen('audit', 'Audit trail', 'phosphorClockCounterClockwise'),
     ];
   });
 
