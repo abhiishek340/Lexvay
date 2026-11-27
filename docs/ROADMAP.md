@@ -4,12 +4,77 @@ Owned by the orchestrator (CTO). Agents implement one work item each, exactly as
 branch, and open a pull request. Status values: `queued`, `in progress`, `in review`, `merged`.
 
 ## Owner decisions needed
-- **PrimeUI license key (D-080).** PrimeNG 22 is distributed under the PrimeUI License and verifies a key offline.
+- **PrimeUI license key (D-080) — now the single biggest visual defect.** The design v2 work cannot hide it.
+  **PrimeUI license key (D-080).** PrimeNG 22 is distributed under the PrimeUI License and verifies a key offline.
   Without one every page shows an "Invalid PrimeUI License" badge. The Community License is free for individuals
   and organisations under USD 1 M revenue with fewer than 5 developers (renewed yearly); register at
   https://primeui.dev, claim the key, and pass it at build time: `ng build --define
   "LEXVAY_PRIMEUI_LICENSE='<key>'"` (never commit it). Alternative if declined: Angular 21 with PrimeNG 21 (MIT),
   a framework downgrade the orchestrator does not recommend.
+
+## Design system v2 (owner directive 2026-11-26: "world best UI", clean, few words, animation)
+The contract is `docs/DESIGN.md` v2. Built in five items. UI2-0 lands first; UI2-1 to UI2-4 run in parallel on top of
+it. Every item is Opus 5.5, every item's PR carries screenshots of every state it touches in both themes at 1440 and
+400 px, and the orchestrator reviews those screenshots before merge. Word budget, motion rules and the forbidden list
+in DESIGN.md are part of every spec below.
+
+### UI2-0 — Foundation, shell and sign-in (slot 1; decisions D-301 to D-319)
+1. **Fonts**: replace IBM Plex Sans and Serif with `@fontsource-variable/inter` and `@fontsource-variable/source-serif-4`
+   (exact versions from the registry, at least 14 days old, recorded in D-002); keep IBM Plex Mono. Font-face with
+   `font-display: swap` and metric-matched fallbacks (`size-adjust`, `ascent-override`) so swapping causes no layout
+   shift. Remove the Plex Sans and Serif packages.
+2. **Preset v2**: rewrite `lexvay-preset.ts` to the token table, elevation, radius and type scale of DESIGN.md v2,
+   keeping the `light-dark()` mechanism and `--p-lx-*` names (rename tokens in one pass across all screens; no old name
+   survives). PrimeNG components restyled through the preset and pass-through so Button, Select, Table, Tabs, Dialog,
+   Drawer, Popover, Tag, Message, Toast, InputText, Password, Textarea, Listbox, Stepper and FileUpload look like
+   Lexvay, not Aura. A Vitest contrast test computes WCAG ratios for every text/background pair in the token table in
+   both themes and fails under 4.5 (3.0 for large text and icons).
+3. **Motion**: `styles.css` motion tokens; utilities `lxEnter` (applies `animate.enter` with a stagger index),
+   `lxCountUp` directive (Web Animations, final value under reduced motion), and the router configured with
+   `withViewTransitions()` plus the route transition of DESIGN.md (skip the transition when reduced motion is set or the
+   browser lacks the API). One `MotionPreferences` service that every component reads.
+4. **Shared components** in `frontend/src/app/ui/`: `StateMap` (with the 51-tile layout constant, roving tabindex,
+   popover, three sizes, wave entrance; unit tests for layout completeness and keyboard order), `ProgressRing`, `Stat`,
+   `InfoTip`, `StatusIcon` (mapping table from finding and decision, unit-tested), `Seal`, `CommandPalette` (pure
+   fuzzy matcher with tests; sources: routes, states of the current program, requirements of the latest assessment,
+   role-allowed actions; Ctrl+K / Cmd+K; recent items in `localStorage` per user).
+5. **Shell v2**: top bar, rail and avatar menu exactly as DESIGN.md "Shell"; the fictional-data strip becomes the "Demo
+   data" pill; the work queue button uses `GET /work-queue/count` (badge) and `GET /work-queue` (popover, at most 8
+   items, each linking to its screen). Keyboard shortcuts dialog lists Ctrl+K.
+6. **Sign in v2** as DESIGN.md "Screens"; the demo account chips appear only when `/session` reports `demo: true`.
+7. Every existing screen must still work and pass axe after the token rename; screen layouts are not redesigned in
+   this item (UI2-1 to UI2-4 do that), only made to use the new tokens and components where a v1 element is removed
+   (the theme control, the notice strip).
+8. Tests: unit tests above; e2e: sign-in story stops on typing and is absent under reduced motion (emulate media),
+   command palette opens with the shortcut and jumps to Review for a state, work queue popover lists items, theme from
+   the avatar menu persists, axe in both themes at 1440 and 400 px on sign-in and overview.
+Done when `LEXVAY_E2E_SLOT=1 make test` is green, the initial bundle stays under the warning budget (fonts are not in
+the JS bundle), and the PR has screenshots of sign-in, the shell, the command palette and the work queue popover.
+
+### UI2-1 — Program overview and determination register (slot 2; after UI2-0; D-320 to D-329)
+Overview exactly as DESIGN.md: Display title with pills, hero panel with StateMap `hero` and three Stats, "Needs you"
+from the work queue (program-scoped), state cards with segmented rings and one stage-dependent action; the shared
+element from a tile to Review's state header (`view-transition-name`). Register: StateMap `compact` coloured by
+current outcome above the table, table restyled, By program view as three clean lists with Seals; print view
+unchanged in content. Remove every explanatory paragraph into InfoTips. Tests: e2e for the map's keyboard navigation
+and popover action, the shared-element navigation (assert URL and heading; the transition itself is visual), axe.
+
+### UI2-2 — Review and signing (slot 1 after UI2-0 merges; D-330 to D-339)
+Review exactly as DESIGN.md: state pills with mini rings, header progress ring, list rail with StatusIcon, requirement
+hero card, DocumentViewer on the right, DecisionBar with in-place gap note, decision motion sequence, "Sign <state>"
+header action, signing dialog with outcome cards and the Seal stamp moment. Keep every keyboard shortcut and the live
+region. Tests: existing review e2e updated to the new accessible names only where they change, decision sequence under
+reduced motion (no waiting on animation), axe.
+
+### UI2-3 — Changes, audit trail and evidence report (slot 7; after UI2-0; D-340 to D-349)
+Changes as a timeline of cards; audit as a day-grouped timeline with avatar initials and one-sentence entries (the
+sentence built by one pure, tested function per action); evidence report as a sheet with the Seal or Draft stamp and a
+floating "Download PDF" pill. Tests: e2e for re-run from a timeline card, audit filter chips, report download; axe.
+
+### UI2-4 — Rules, evidence requests and program setup in v2 (slot 4; after UI2-0 and F4; D-350 to D-359)
+Restyle the Rules workspace and F4's evidence request screens to v2 (word budget, InfoTips, cards, motion), and build
+F2 (program setup) directly in v2 as specified in the F2 section with the v2 components (Stepper restyled, StateMap
+`mini` for choosing target states). Tests as in F2 plus axe on every Rules and Requests state.
 
 ## Status board
 
@@ -27,7 +92,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | merged (PR #18) |
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | in progress |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | merged (PR #21) |
-| F2 Program setup workspace | `feat-setup-workspace` | 3 | Opus 5.5 | specified (starts when F4 merges) |
+| F2 Program setup workspace | `feat-setup-workspace` | 3 | Opus 5.5 | folded into UI2-4 (built directly in v2) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | in progress |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
@@ -35,10 +100,15 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
 | TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | merged (PR #25) |
 | PERF-FE-1 Icons and theme tokens per chunk | `perf-frontend-chunks` | 6 | Sonnet 5.5 | in progress |
+| UI2-0 Design v2 foundation, shell and sign-in | `ui2-foundation` | 1 | Opus 5.5 | in progress |
+| UI2-1 Overview and register in v2 | `ui2-overview-register` | 2 | Opus 5.5 | queued (after UI2-0) |
+| UI2-2 Review and signing in v2 | `ui2-review` | 1 | Opus 5.5 | queued (after UI2-0) |
+| UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | queued (after UI2-0) |
+| UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI2-0, F4) |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | queued (after F7, FIX-1) |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
-| F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | in progress |
+| F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
