@@ -3,11 +3,15 @@ package com.lexvay.document;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.zip.ZipInputStream;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.io.IOUtils;
+import org.apache.pdfbox.pdmodel.PDDocument;
 
 /**
  * Limits on what an uploaded file may expand to (D-095). The multipart size limit bounds the bytes that are
  * sent; these bound the work done on them. A DOCX is a ZIP archive, so it is inflated here, counting the bytes
- * that actually come out rather than trusting the sizes the archive declares.
+ * that actually come out rather than trusting the sizes the archive declares. A PDF's page count is checked twice, at
+ * upload (no work is queued for a file the pipeline would refuse) and again when its text is extracted.
  */
 public final class ContentLimits {
 
@@ -60,5 +64,20 @@ public final class ContentLimits {
         if (pages > MAX_PDF_PAGES) {
             throw new ContentLimitException("PDF has " + pages + " pages; the limit is " + MAX_PDF_PAGES);
         }
+    }
+
+    /**
+     * Rejects, at upload, a PDF with more than {@link #MAX_PDF_PAGES} pages. Only the document structure is read, and
+     * the stream cache lives in temporary files, so the bytes already held by the caller are not copied into the heap
+     * a second time. A file that cannot be read as a PDF is left to ingest, which reports it as unparsable.
+     */
+    public static void requirePdfPages(byte[] pdf) {
+        int pages;
+        try (PDDocument document = Loader.loadPDF(pdf, "", null, null, IOUtils.createTempFileOnlyStreamCache())) {
+            pages = document.getNumberOfPages();
+        } catch (IOException | RuntimeException unreadable) {
+            return;
+        }
+        requirePdfPages(pages);
     }
 }

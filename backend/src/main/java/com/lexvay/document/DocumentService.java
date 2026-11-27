@@ -85,8 +85,11 @@ public class DocumentService {
         }
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
         requireUsableFilename(filename);
-        if (FileType.detect(filename, bytes) == FileType.DOCX) {
+        FileType type = FileType.detect(filename, bytes);
+        if (type == FileType.DOCX) {
             ContentLimits.requireSafeDocx(bytes);
+        } else if (type == FileType.PDF) {
+            ContentLimits.requirePdfPages(bytes);
         }
         if (courseVersionId != null) {
             var version = courses.findVersion(courseVersionId)
