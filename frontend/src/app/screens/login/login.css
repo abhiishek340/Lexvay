@@ -1,8 +1,24 @@
-:host { display: flex; justify-content: center; padding: 12vh 16px 48px; }
-.lx-login { width: 100%; max-width: 360px; }
-.lx-login-wordmark { font-weight: 600; font-size: 22px; letter-spacing: -0.01em; margin-bottom: 32px; }
-h1 { margin-bottom: 8px; }
-.lx-login-lede { color: var(--p-lx-text-secondary); margin-bottom: 24px; }
-form { display: flex; flex-direction: column; gap: 16px; padding-top: 24px; border-top: 1px solid var(--p-lx-hairline); }
+:host { display: block; min-height: 100dvh; background: var(--p-lx-surface); }
+.lx-signin { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); min-height: 100dvh; }
+
+/* Left: the story map and the headline, nothing else. */
+.lx-story { display: grid; place-items: center; padding: 56px; background: var(--p-lx-ground); }
+.lx-story-inner { display: flex; flex-direction: column; gap: 40px; max-width: 460px; }
+.lx-story-headline { max-width: 12em; text-wrap: balance; animation: lx-rise var(--lx-t-hero) var(--lx-ease-out) 200ms backwards; }
+@keyframes lx-rise { from { opacity: 0; transform: translateY(12px); } }
+
+/* Right: the form. */
+.lx-form-side { display: grid; place-items: center; padding: 48px 24px; }
+.lx-form-card { width: 100%; max-width: 360px; animation: lx-rise var(--lx-t-3) var(--lx-ease-out) backwards; }
+.lx-form-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 40px; }
+.lx-form-wordmark { font-size: 19px; font-weight: 650; letter-spacing: -0.02em; }
+h1 { margin-bottom: 24px; }
+form { display: flex; flex-direction: column; gap: 20px; }
 .lx-field { display: flex; flex-direction: column; gap: 6px; }
-label { font-weight: 500; font-size: 13px; }
+label { font-weight: 550; font-size: 13px; line-height: 20px; }
+form p-button { margin-top: 4px; }
+
+@media (max-width: 899px) {
+  .lx-signin { grid-template-columns: minmax(0, 1fr); }
+  .lx-story { display: none; }
+}
