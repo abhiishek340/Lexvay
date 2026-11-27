@@ -38,8 +38,8 @@ import { problemDetail } from '../core/problem';
     </div>
   `,
   styles: `
-    .lx-programs { list-style: none; padding: 0; margin: 0; max-width: 720px; border-top: 1px solid var(--p-lx-hairline); }
-    .lx-programs li { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--p-lx-hairline); }
+    .lx-programs { list-style: none; padding: 0; margin: 0; max-width: 720px; border-top: 1px solid var(--p-lx-line); }
+    .lx-programs li { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--p-lx-line); }
     .lx-programs a { font-weight: 500; }
     .lx-programs span { flex: 1; }
     .lx-skeleton { display: flex; flex-direction: column; gap: 8px; }

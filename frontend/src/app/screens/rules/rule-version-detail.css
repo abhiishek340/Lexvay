@@ -3,15 +3,15 @@
 .lx-detail-head .lx-label .lx-mono { margin-left: 4px; }
 .lx-detail-title { font-size: 17px; line-height: 24px; }
 .lx-detail-title:focus { outline: none; }
-.lx-detail-title:focus-visible { outline: 2px solid var(--p-lx-primary); outline-offset: 4px; }
+.lx-detail-title:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: 4px; }
 .lx-facts { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 13px; line-height: 18px; }
 .lx-facts div { display: flex; gap: 6px; min-width: 0; }
-.lx-facts dt { color: var(--p-lx-text-secondary); }
+.lx-facts dt { color: var(--p-lx-text-2); }
 .lx-facts dd { min-width: 0; overflow-wrap: anywhere; }
 .lx-state { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .lx-extraction-failed { display: flex; flex-direction: column; gap: 6px; align-self: stretch; }
-.lx-technical summary { cursor: pointer; font-size: 12px; line-height: 16px; color: var(--p-lx-text-secondary); width: max-content; }
-.lx-technical p { margin-top: 4px; padding: 8px 10px; background: var(--p-lx-sunken); border: 1px solid var(--p-lx-hairline); border-radius: 4px; overflow-wrap: anywhere; }
+.lx-technical summary { cursor: pointer; font-size: 12px; line-height: 16px; color: var(--p-lx-text-2); width: max-content; }
+.lx-technical p { margin-top: 4px; padding: 8px 10px; background: var(--p-lx-surface-2); border: 1px solid var(--p-lx-line); border-radius: 4px; overflow-wrap: anywhere; }
 :host ::ng-deep .lx-detail-tabs .p-tablist { padding: 0 12px; }
 .lx-rule-text { padding: 16px 24px 24px; }
 

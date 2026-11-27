@@ -13,8 +13,8 @@ import { DiffSegment } from '../core/models';
   styles: `
     :host { white-space: pre-wrap; overflow-wrap: anywhere; }
     ins, del { text-decoration-thickness: 1px; text-underline-offset: 3px; border-radius: 2px; padding: 0 1px; }
-    ins { text-decoration-line: underline; color: var(--p-lx-found); background: var(--p-lx-found-bg); }
-    del { text-decoration-line: line-through; color: var(--p-lx-missing); background: var(--p-lx-missing-bg); }
+    ins { text-decoration-line: underline; color: var(--p-lx-found); background: var(--p-lx-found-tint); }
+    del { text-decoration-line: line-through; color: var(--p-lx-missing); background: var(--p-lx-missing-tint); }
     ins::before, ins::after, del::before, del::after {
       position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
     }

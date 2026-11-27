@@ -2,17 +2,17 @@
 .lx-kind { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
 .lx-subject { display: block; margin-top: 2px; font-family: var(--lx-font-mono); }
 .lx-transition { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
-.lx-old { color: var(--p-lx-text-secondary); text-decoration: line-through; text-decoration-thickness: 1px; }
+.lx-old { color: var(--p-lx-text-2); text-decoration: line-through; text-decoration-thickness: 1px; }
 .lx-new { font-weight: 500; }
 .lx-action { min-width: 180px; }
 .lx-action .lx-help { margin-top: 6px; max-width: 26ch; }
 .lx-action button { gap: 6px; }
-.lx-running { display: inline-flex; align-items: center; gap: 8px; color: var(--p-lx-text-secondary); }
+.lx-running { display: inline-flex; align-items: center; gap: 8px; color: var(--p-lx-text-2); }
 :host ::ng-deep .lx-spinner { width: 18px; height: 18px; }
 .lx-skeleton { display: flex; flex-direction: column; gap: 8px; }
 
 @media (max-width: 720px) {
   :host ::ng-deep .lx-table thead { display: none; }
-  :host ::ng-deep .lx-table tbody tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--p-lx-hairline); }
+  :host ::ng-deep .lx-table tbody tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--p-lx-line); }
   :host ::ng-deep .lx-table tbody td { display: block; border: 0; padding: 4px 0; }
 }
