@@ -106,7 +106,7 @@ class CoverageApiTest extends AbstractAssessmentTest {
         assertThat(credits.get("programLevel")).isEmpty();
         assertThat(credits.get("risk").asString()).isEqualTo("NONE");
         assertThat(credits.get("decision").isNull()).isTrue();
-        assertThat(credits.get("stale").asBoolean()).isFalse();
+        assertThat(credits.get("outdatedCells")).isEmpty();
 
         JsonNode telehealth = row(m, "CA-2");
         assertThat(telehealth.get("mappingId").asString()).isEqualTo(s.missingMapping().toString());
@@ -205,7 +205,10 @@ class CoverageApiTest extends AbstractAssessmentTest {
         JsonNode waiting = matrix();
         assertThat(waiting.get("ruleVersion").get("id").asString()).as("the old list stays until the revision is approved and re-run")
                 .isEqualTo(s.ruleVersionId().toString());
-        assertThat(waiting.get("requirements")).hasSize(3).allSatisfy(r -> assertThat(r.get("stale").asBoolean()).isTrue());
+        assertThat(waiting.get("requirements")).hasSize(3);
+        assertThat(row(waiting, "CA-1").get("risk").asString()).as("a number checked by the rules engine is never described").isEqualTo("NONE");
+        assertThat(row(waiting, "CA-2").get("risk").asString()).as("a stale mapping is outdated, whatever it cites").isEqualTo("OUTDATED_EVIDENCE");
+        assertThat(row(waiting, "CA-3").get("risk").asString()).isEqualTo("OUTDATED_EVIDENCE");
 
         var events = fx.read(mvc.get().uri("/api/v1/change-events").with(user(t.reviewer())).exchange());
         UUID eventId = UUID.fromString(events.get(0).get("id").asString());
@@ -217,7 +220,7 @@ class CoverageApiTest extends AbstractAssessmentTest {
         assertThat(after.get("ruleVersion").get("id").asString()).isEqualTo(revision.toString());
         assertThat(after.get("ruleVersion").get("label").asString()).isEqualTo(label);
         assertThat(after.get("assessmentId")).isEqualTo(before.get("assessmentId"));
-        assertThat(after.get("requirements")).hasSize(3).allSatisfy(r -> assertThat(r.get("stale").asBoolean()).isFalse());
+        assertThat(after.get("requirements")).hasSize(3).noneMatch(r -> r.get("risk").asString().equals("OUTDATED_EVIDENCE"));
         List<String> oldMappings = before.get("requirements").valueStream().map(r -> r.get("mappingId").asString()).toList();
         assertThat(after.get("requirements")).extracting(r -> r.get("mappingId").asString()).doesNotContainAnyElementsOf(oldMappings);
         assertThat(row(after, "CA-1").get("finding").asString()).isEqualTo("EVIDENCE_MISSING");
@@ -241,9 +244,18 @@ class CoverageApiTest extends AbstractAssessmentTest {
         assertThat(m.get("courses")).extracting(c -> c.get("courseVersionId").asString())
                 .as("only the current version of each course is a column").containsExactly(newVersion, s.course650Version().toString());
         JsonNode ethics = row(m, "CA-3");
-        assertThat(ethics.get("stale").asBoolean()).isTrue();
         assertThat(ethics.get("cells")).isEmpty();
-        assertThat(ethics.get("risk").asString()).isEqualTo("NO_EVIDENCE");
+        assertThat(ethics.get("outdatedCells")).hasSize(1);
+        JsonNode outdated = ethics.get("outdatedCells").get(0);
+        assertThat(outdated.get("courseVersionId").asString()).isEqualTo(s.course605Version().toString());
+        assertThat(outdated.get("code").asString()).isEqualTo("COUN 605");
+        assertThat(outdated.get("catalogYear").asString()).isEqualTo("2026-27");
+        assertThat(outdated.get("supersededBy").asString()).isEqualTo(newVersion);
+        assertThat(outdated.get("source").asString()).isEqualTo("SYSTEM");
+        assertThat(outdated.get("quoteCount").asInt()).isEqualTo(1);
+        assertThat(ethics.get("risk").asString()).as("evidence exists, on an outdated version").isEqualTo("OUTDATED_EVIDENCE");
+        assertThat(row(m, "CA-2").get("risk").asString()).as("a mapping that cites nothing is not outdated by the course change")
+                .isEqualTo("NO_EVIDENCE");
     }
 
     @Test

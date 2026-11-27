@@ -29,9 +29,9 @@ public class CoverageRepository {
      * mappings: its current (D-066) mappings for the jurisdiction with the latest review decision (D-003).
      * courses: the program's current course versions. evidence: the mapping's own verified span (SYSTEM) and every
      * evidence response (PERSON); numeric requirements checked by the rules engine have none, their span is a
-     * program fact. cited: the documents of that evidence, without those of a superseded course version.
-     * cell_rows, program_rows and reach: the cited evidence per mapping, as cells, as program-level documents, and
-     * counted for the risk flag. Public so the index-usage check can run {@code EXPLAIN} on exactly this text.
+     * program fact. cited: the documents of that evidence with their course version and the current version of that
+     * course. cell_rows, outdated_rows, program_rows and reach: the cited evidence per mapping, as cells of current
+     * course versions, as cells of superseded ones (D-394), as program-level documents, and counted for the risk flag. Public so the index-usage check can run {@code EXPLAIN} on exactly this text.
      */
     public static final String MATRIX = """
             WITH target AS (
@@ -67,19 +67,29 @@ public class CoverageRepository {
                 FROM evidence_response er JOIN mappings m ON m.id = er.mapping_id WHERE m.method = 'MATCH'
             ), cited AS (
                 SELECT e.mapping_id, e.source, es.id AS span_id, d.id AS document_id, d.filename, d.kind,
-                       c.course_version_id, c.code, c.required
+                       cv.id AS course_version_id, c.code, cv.catalog_year, cv.required, cur.course_version_id AS current_version_id
                 FROM evidence e
                 JOIN evidence_span es ON es.id = e.span_id
                 JOIN document d ON d.id = es.document_id
-                LEFT JOIN courses c ON c.course_version_id = d.course_version_id
-                WHERE d.course_version_id IS NULL OR c.course_version_id IS NOT NULL
+                LEFT JOIN course_version cv ON cv.id = d.course_version_id
+                LEFT JOIN course c ON c.id = cv.course_id
+                LEFT JOIN courses cur ON cur.course_id = cv.course_id
             ), cell_rows AS (
                 SELECT x.mapping_id,
                        jsonb_agg(jsonb_build_object('courseVersionId', x.course_version_id, 'source', x.source, 'quoteCount', x.quote_count)
                                  ORDER BY NOT x.required, x.code, x.source = 'PERSON') AS cells
                 FROM (SELECT mapping_id, course_version_id, code, required, source, count(DISTINCT span_id) AS quote_count
-                      FROM cited WHERE course_version_id IS NOT NULL
+                      FROM cited WHERE course_version_id = current_version_id
                       GROUP BY mapping_id, course_version_id, code, required, source) x
+                GROUP BY x.mapping_id
+            ), outdated_rows AS (
+                SELECT x.mapping_id,
+                       jsonb_agg(jsonb_build_object('courseVersionId', x.course_version_id, 'code', x.code, 'catalogYear', x.catalog_year,
+                                                    'supersededBy', x.current_version_id, 'source', x.source, 'quoteCount', x.quote_count)
+                                 ORDER BY x.code, x.catalog_year, x.source = 'PERSON') AS cells
+                FROM (SELECT mapping_id, course_version_id, code, catalog_year, current_version_id, source, count(DISTINCT span_id) AS quote_count
+                      FROM cited WHERE course_version_id <> current_version_id
+                      GROUP BY mapping_id, course_version_id, code, catalog_year, current_version_id, source) x
                 GROUP BY x.mapping_id
             ), program_rows AS (
                 SELECT x.mapping_id,
@@ -88,9 +98,10 @@ public class CoverageRepository {
                 FROM (SELECT DISTINCT mapping_id, document_id, filename, kind, source FROM cited WHERE course_version_id IS NULL) x
                 GROUP BY x.mapping_id
             ), reach AS (
-                SELECT mapping_id, count(DISTINCT course_version_id) AS course_count,
-                       count(DISTINCT course_version_id) FILTER (WHERE required) AS required_count,
-                       count(*) FILTER (WHERE course_version_id IS NULL) AS program_count
+                SELECT mapping_id, count(DISTINCT course_version_id) FILTER (WHERE course_version_id = current_version_id) AS course_count,
+                       count(DISTINCT course_version_id) FILTER (WHERE course_version_id = current_version_id AND required) AS required_count,
+                       count(*) FILTER (WHERE course_version_id IS NULL) AS program_count,
+                       count(*) FILTER (WHERE course_version_id <> current_version_id) AS outdated_count
                 FROM cited GROUP BY mapping_id
             )
             SELECT t.program_id, t.program_name, t.jurisdiction_code, t.jurisdiction_name, t.is_target,
@@ -103,9 +114,10 @@ public class CoverageRepository {
                              FROM courses c), '[]') AS courses,
                    coalesce((SELECT jsonb_agg(jsonb_build_object(
                                  'mappingId', m.id, 'ref', m.ref, 'title', m.title, 'type', m.type, 'finding', m.finding,
-                                 'decision', m.decision, 'stale', m.stale,
-                                 'cells', coalesce(cr.cells, '[]'), 'programLevel', coalesce(pr.documents, '[]'),
+                                 'decision', m.decision,
+                                 'cells', coalesce(cr.cells, '[]'), 'outdatedCells', coalesce(orr.cells, '[]'), 'programLevel', coalesce(pr.documents, '[]'),
                                  'risk', CASE WHEN m.method = 'RULES_ENGINE' THEN 'NONE'
+                                              WHEN m.stale OR rc.outdated_count > 0 THEN 'OUTDATED_EVIDENCE'
                                               WHEN rc.mapping_id IS NULL THEN 'NO_EVIDENCE'
                                               WHEN rc.program_count > 0 THEN 'NONE'
                                               WHEN rc.required_count = 0 THEN 'ELECTIVE_ONLY'
@@ -113,6 +125,7 @@ public class CoverageRepository {
                                               ELSE 'NONE' END) ORDER BY m.ordinal)
                              FROM mappings m
                              LEFT JOIN cell_rows cr ON cr.mapping_id = m.id
+                             LEFT JOIN outdated_rows orr ON orr.mapping_id = m.id
                              LEFT JOIN program_rows pr ON pr.mapping_id = m.id
                              LEFT JOIN reach rc ON rc.mapping_id = m.id), '[]') AS requirements
             FROM target t

@@ -15,6 +15,7 @@ import com.lexvay.tenant.AppUserRepository;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -139,7 +140,7 @@ class CoverageSeedTest extends AbstractDatabaseTest {
     }
 
     @Test
-    void accreditationEvidenceIsProgramLevelAndEvidenceOfASupersededCourseVersionIsNotACell() throws Exception {
+    void accreditationEvidenceIsProgramLevelAndEvidenceOfASupersededCourseVersionIsOutdated() throws Exception {
         JsonNode utah = matrix("UT");
 
         JsonNode accreditation = row(utah, "UT-6");
@@ -150,9 +151,21 @@ class CoverageSeedTest extends AbstractDatabaseTest {
         assertThat(accreditation.get("programLevel").get(0).get("source").asString()).isEqualTo("SYSTEM");
         assertThat(accreditation.get("risk").asString()).isEqualTo("NONE");
 
-        JsonNode group = row(utah, "UT-7");
-        assertThat(group.get("stale").asBoolean()).as("COUN 625 has a newer catalog year").isTrue();
-        assertThat(group.get("cells")).as("the cited syllabus belongs to a superseded course version").isEmpty();
+        for (String jurisdiction : List.of("UT", "AZ", "TX")) {
+            JsonNode matrix = matrix(jurisdiction);
+            String ref = Map.of("UT", "UT-7", "AZ", "AZ-4", "TX", "TX-8").get(jurisdiction);
+            JsonNode group = row(matrix, ref);
+            assertThat(group.get("cells")).as(ref + ": the cited syllabus belongs to a superseded course version").isEmpty();
+            assertThat(group.get("outdatedCells")).as(ref).hasSize(1);
+            JsonNode outdated = group.get("outdatedCells").get(0);
+            assertThat(outdated.get("code").asString()).isEqualTo("COUN 625");
+            assertThat(outdated.get("catalogYear").asString()).isEqualTo("2026-27");
+            assertThat(outdated.get("supersededBy").asString()).isEqualTo(course(matrix, "COUN 625").get("courseVersionId").asString());
+            assertThat(outdated.get("courseVersionId").asString()).isNotEqualTo(outdated.get("supersededBy").asString());
+            assertThat(outdated.get("source").asString()).isEqualTo("SYSTEM");
+            assertThat(outdated.get("quoteCount").asInt()).isEqualTo(1);
+            assertThat(group.get("risk").asString()).as(ref).isEqualTo("OUTDATED_EVIDENCE");
+        }
         assertThat(utah.get("courses").valueStream().filter(c -> c.get("code").asString().equals("COUN 625"))).hasSize(1);
     }
 
@@ -161,6 +174,8 @@ class CoverageSeedTest extends AbstractDatabaseTest {
         JsonNode m = matrix("CO");
 
         assertThat(m.get("ruleVersion").get("label").asString()).isEqualTo("Demo rule set - Colorado (fictional) 2026");
-        assertThat(m.get("requirements")).hasSize(9).allSatisfy(r -> assertThat(r.get("stale").asBoolean()).isTrue());
+        assertThat(m.get("requirements")).hasSize(9);
+        assertThat(m.get("requirements")).filteredOn(r -> !r.get("type").asString().equals("NUMERIC") && !r.get("type").asString().equals("SUPERVISED_HOURS"))
+                .isNotEmpty().allSatisfy(r -> assertThat(r.get("risk").asString()).isEqualTo("OUTDATED_EVIDENCE"));
     }
 }

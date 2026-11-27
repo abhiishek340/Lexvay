@@ -30,12 +30,15 @@ public record CoverageMatrix(ProgramRef program, JurisdictionRef jurisdiction, U
 
     /**
      * One row. {@code decision} is the latest review decision, null when nobody decided or the mapping was reopened.
-     * {@code stale} is true when a rule or course change has outdated the mapping; evidence in documents of a course
-     * version that has a successor is not shown in {@code cells}. {@code cells} are the current course versions whose
-     * documents the evidence cites; {@code programLevel} the cited documents that belong to no course.
+     * {@code cells} are the current course versions whose documents the evidence cites; {@code outdatedCells} the
+     * superseded course versions it cites (D-394); {@code programLevel} the cited documents that belong to no course.
      */
     public record Requirement(UUID mappingId, String ref, String title, RequirementType type, Finding finding, ReviewKind decision,
-                              boolean stale, List<Cell> cells, List<ProgramDocument> programLevel, Risk risk) {
+                              List<Cell> cells, List<OutdatedCell> outdatedCells, List<ProgramDocument> programLevel, Risk risk) {
+    }
+
+    /** Evidence in a document of a superseded course version; {@code supersededBy} is the course's current version, a column of {@code courses}. */
+    public record OutdatedCell(UUID courseVersionId, String code, String catalogYear, UUID supersededBy, Source source, int quoteCount) {
     }
 
     /** {@code quoteCount} is the number of distinct verified quotes of that source in documents of the course version. */
@@ -52,6 +55,6 @@ public record CoverageMatrix(ProgramRef program, JurisdictionRef jurisdiction, U
 
     /** Descriptive flags with fixed names; they say where the evidence sits and never judge it (D-392). */
     public enum Risk {
-        NONE, NO_EVIDENCE, ELECTIVE_ONLY, SINGLE_COURSE
+        NONE, OUTDATED_EVIDENCE, NO_EVIDENCE, ELECTIVE_ONLY, SINGLE_COURSE
     }
 }
