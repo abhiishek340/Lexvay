@@ -1,5 +1,6 @@
 package com.lexvay.workqueue;
 
+import com.lexvay.assessment.AssessmentRepository;
 import com.lexvay.assessment.MappingRepository;
 import com.lexvay.auth.Role;
 import com.lexvay.change.ChangeEventRepository;
@@ -25,7 +26,8 @@ public class WorkQueueRepository {
     private static final int MAX_IDS = 20;
 
     /**
-     * latest: each program's latest finished assessment (with its creation time), the one the signing gate reads.
+     * latest: each program's latest finished assessment (with its creation time), the one the signing gate reads, by
+     * {@link AssessmentRepository#LATEST_FINISHED} so the ordering lives in one place (D-411).
      * current_mappings: its current (D-066) mappings with their latest review event (D-003); request_blocked: the
      * latest event is an evidence request that cannot be answered, because the mapping is stale or a signed
      * determination covers its assessment and jurisdiction (D-361). The signed test runs only for requests.
@@ -35,8 +37,7 @@ public class WorkQueueRepository {
             WITH latest AS (
                 SELECT p.id AS program_id, p.name AS program_name, a.id AS assessment_id, a.created_at
                 FROM program p
-                JOIN LATERAL (SELECT a.id, a.created_at FROM assessment a WHERE a.program_id = p.id AND a.status = 'FINISHED'
-                              ORDER BY a.finished_at DESC, a.created_at DESC LIMIT 1) a ON true
+                JOIN LATERAL (SELECT a.id, a.created_at FROM assessment a WHERE a.program_id = p.id AND %7$s) a ON true
             ), current_mappings AS (
                 SELECT l.program_id, l.program_name, l.assessment_id, m.jurisdiction_id, j.code AS jurisdiction_code,
                        m.id AS mapping_id, m.stale, m.created_at, le.kind AS last_kind, le.created_at AS last_at,
@@ -59,7 +60,7 @@ public class WorkQueueRepository {
             )
             """.formatted(MappingRepository.NEEDS_DECISION, MappingRepository.UNDECIDED, MappingRepository.LATEST_EVENT,
             MappingRepository.current("IN (SELECT assessment_id FROM latest)"), ChangeEventRepository.AFFECTS_PROGRAM,
-            DeterminationRepository.signedFor("m.assessment_id", "m.jurisdiction_id"));
+            DeterminationRepository.signedFor("m.assessment_id", "m.jurisdiction_id"), AssessmentRepository.LATEST_FINISHED);
 
     /**
      * Current mappings without a decision, or reopened. Stale ones cannot be reviewed (the review endpoint
