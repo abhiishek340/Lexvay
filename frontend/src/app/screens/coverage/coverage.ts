@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterRenderEffect, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
@@ -28,6 +28,8 @@ export const COVERAGE_ICONS = { phosphorBook, phosphorCalculator, phosphorCircle
 const MOVES: Record<string, MoveKey> = { ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', Home: 'Home', End: 'End' };
 /** The matrix enters column by column, 20 ms apart, at most twelve staggered (DESIGN.md motion, F10b point 4). */
 const STAGGER_CAP = 11;
+/** Space left between a revealed cell and the sticky column it was hidden under. */
+const REVEAL_MARGIN = 8;
 
 /**
  * Coverage (F10b): for one target state, which course carries the evidence of each requirement, and where a
@@ -63,6 +65,8 @@ export class Coverage {
   readonly stop = signal<Position | null>(null);
   /** The cell whose card is open. */
   readonly previewed = signal<{ row: Row; cell: Cell } | null>(null);
+  /** Refs whose title the two-line clamp cuts (narrow windows): only those show the full title as a tooltip. */
+  readonly clipped = signal<ReadonlySet<string>>(new Set());
 
   private loadedFor = '';
   private readonly requested = new Set<string>();
@@ -142,7 +146,23 @@ export class Coverage {
         this.closeCard();
       });
     });
-    inject(DestroyRef).onDestroy(() => { clearTimeout(this.showTimer); clearTimeout(this.hideTimer); });
+    // Whether a title is cut depends on the rendered rows and the window width: measure after each render and resize.
+    afterRenderEffect(() => {
+      this.view();
+      this.measureTitles();
+    });
+    const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.measureTitles()) : null;
+    resize?.observe(this.host);
+    inject(DestroyRef).onDestroy(() => { clearTimeout(this.showTimer); clearTimeout(this.hideTimer); resize?.disconnect(); });
+  }
+
+  private measureTitles(): void {
+    const cut = new Set<string>();
+    this.host.querySelectorAll<HTMLElement>('.lx-req-title').forEach((title) => {
+      if (title.scrollHeight > title.clientHeight + 1 && title.dataset['ref']) { cut.add(title.dataset['ref']); }
+    });
+    const now = untracked(this.clipped);
+    if (cut.size !== now.size || [...cut].some((ref) => !now.has(ref))) { this.clipped.set(cut); }
   }
 
   select(code: string | number | undefined): void {
@@ -209,6 +229,7 @@ export class Coverage {
 
   onFocus(row: number, col: number, el: HTMLElement): void {
     this.stop.set({ row, col });
+    this.reveal(el);
     if (this.returning) {
       this.returning = false;
       return;
@@ -267,6 +288,21 @@ export class Coverage {
   private cardHasFocus(): boolean {
     const container = this.card()?.container as HTMLElement | null | undefined;
     return !!container && container.contains(document.activeElement);
+  }
+
+  /** Scrolls the frame so a focused cell sits clear of the sticky requirement and flag columns, never under them. */
+  private reveal(cell: HTMLElement): void {
+    const frame = cell.closest<HTMLElement>('.lx-frame');
+    const row = cell.closest('tr');
+    const left = row?.querySelector('.lx-req-col')?.getBoundingClientRect().right;
+    const right = row?.querySelector('.lx-flag-col')?.getBoundingClientRect().left;
+    if (!frame || left === undefined || right === undefined) { return; }
+    const box = cell.getBoundingClientRect();
+    if (box.left < left) {
+      frame.scrollLeft -= left - box.left + REVEAL_MARGIN;
+    } else if (box.right > right) {
+      frame.scrollLeft += box.right - right + REVEAL_MARGIN;
+    }
   }
 
   private positionOf(target: EventTarget | null): Position | null {

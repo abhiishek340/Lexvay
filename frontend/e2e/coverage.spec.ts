@@ -129,6 +129,13 @@ for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await expectAccessible(page, `Coverage, California, ${width} px`);
     const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(sideways, 'horizontal page scroll').toBeLessThanOrEqual(0);
+    if (width === 400) {
+      // Titles wrap to two lines at most (a long word breaks rather than being cut) and every row keeps one height.
+      const heights = await matrix(page).locator('tbody tr').evaluateAll((rows) => rows.map((r) => Math.round(r.getBoundingClientRect().height)));
+      expect(new Set(heights).size, `row heights ${heights.join(', ')}`).toBe(1);
+      const title = row(page, 'CA-6').locator('.lx-req-title');
+      expect(await title.evaluate((t) => t.scrollWidth <= t.clientWidth + 1 && t.scrollHeight <= t.clientHeight + 1), 'CA-6 title fits').toBe(true);
+    }
     if (SCREENSHOTS) { await shoot(page, `f10b-california-${width}`); }
 
     await state(page, 'Utah').click();

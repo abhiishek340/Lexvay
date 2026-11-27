@@ -79,7 +79,8 @@
                       <tr [class.lx-dim]="dimmed(row)" [class.lx-row-on]="hover()?.row === r" [attr.data-ref]="row.requirement.ref">
                         <th scope="row" class="lx-req-col lx-enter-col" style="--lx-c: 0">
                           <span class="lx-ref">{{ row.requirement.ref }}</span>
-                          <span class="lx-req-title">{{ row.requirement.title }}</span>
+                          <span class="lx-req-title" [attr.data-ref]="row.requirement.ref" [pTooltip]="row.requirement.title"
+                                [tooltipDisabled]="!clipped().has(row.requirement.ref)" tooltipPosition="top">{{ row.requirement.title }}</span>
                         </th>
                         @if (row.rulesEngine) {
                           <td class="lx-engine lx-enter-col" [attr.colspan]="v.columns.length" style="--lx-c: 1">

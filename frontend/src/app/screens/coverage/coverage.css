@@ -35,12 +35,8 @@
 .lx-chip-body[data-tone='missing'] ng-icon { color: var(--p-lx-missing); }
 .lx-chip-body[data-tone='neutral'] ng-icon { color: var(--p-lx-text-2); }
 
-/* The matrix: the hero of the screen. It scrolls sideways inside its own frame; the page never does. The scroll padding
-   keeps a focused cell clear of the sticky columns when the frame brings it into view. */
-.lx-frame {
-  overflow-x: auto; background: var(--p-lx-surface); border-radius: var(--lx-r-hero); box-shadow: var(--p-lx-e1); padding: 4px 0 8px;
-  scroll-padding-inline: 260px 220px;
-}
+/* The matrix: the hero of the screen. It scrolls sideways inside its own frame; the page never does. */
+.lx-frame { overflow-x: auto; background: var(--p-lx-surface); border-radius: var(--lx-r-hero); box-shadow: var(--p-lx-e1); padding: 4px 0 8px; }
 .lx-matrix { width: 100%; border-collapse: separate; border-spacing: 0; }
 :where(.lx-matrix) :is(th, td) { padding: 0; background: var(--p-lx-surface); transition: background-color var(--lx-t-1) var(--lx-ease-out); }
 .lx-matrix thead th { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-text-2); vertical-align: bottom; }
@@ -150,14 +146,17 @@ tr.lx-dim .lx-engine > span, tr.lx-dim .lx-flag { background: transparent; box-s
   .lx-toolbar { display: block; margin: 0 calc(-1 * var(--lx-gutter)) 12px; }
   :host ::ng-deep .lx-chips.p-selectbutton { flex-wrap: nowrap; overflow-x: auto; padding: 2px var(--lx-gutter) 6px; }
   :host ::ng-deep .lx-chips .p-togglebutton { flex: none; }
-  .lx-frame { scroll-padding-inline: 140px 56px; }
   /* The rules-engine note stays beside the requirement column while the cells scroll under it. */
-  .lx-engine > span { position: sticky; left: 144px; }
-  .lx-req-col { min-width: 0; width: 132px; max-width: 132px; padding: 0 8px 0 12px; }
+  .lx-engine > span { position: sticky; left: 172px; }
+  /* 144 px of text: a word as long as "Psychopharmacology" fits on one line; a longer one breaks (with a hyphen where
+     the browser can hyphenate) rather than being cut. */
+  .lx-req-col { min-width: 164px; width: 164px; max-width: 164px; padding: 0 8px 0 12px; }
   .lx-ref { display: block; width: auto; padding: 0; }
+  /* Every row is as tall as a two-line title, so rows keep one height; a longer title ends in an ellipsis. */
+  .lx-matrix tbody th, .lx-matrix tbody td { height: 60px; }
   .lx-req-title {
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; max-width: none;
-    font-size: 13px; line-height: 18px;
+    font-size: 13px; line-height: 18px; hyphens: auto; overflow-wrap: break-word;
   }
   .lx-flag-col { padding: 0 10px 0 8px; }
   .lx-flag { width: 28px; height: 28px; padding: 0; justify-content: center; }
