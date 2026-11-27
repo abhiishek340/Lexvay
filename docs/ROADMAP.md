@@ -1088,6 +1088,13 @@ D-259 in `docs/decisions/F7c.md`.
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
 ## Follow-ups recorded from reviews
+- F5a security: any ADMIN can issue a setup code for any user, including a SIGNER, and so could sign in as them; the
+  actions are audited (`USER_SETUP_CODE_ISSUED`, `PASSWORD_SET`). Without email delivery this is inherent to
+  password accounts. Production deployments should use OIDC for SIGNER and ADMIN accounts; `docs/OPERATIONS.md`
+  must say so in its "Users and sessions" section. SEC-2 (next): move the password encoder to Argon2id behind the
+  delegating encoder (existing bcrypt hashes keep verifying and are upgraded on the next successful login), lift
+  the 72-byte limit to 128 characters, and add `audit_log (tenant_id, created_at DESC)` if `IndexUsageTest` shows the
+  audit list and export sorting without it.
 - F7c: `make eval-live` replaces the model's requirement list with the golden list through the replace path, which
   carries no search terms, so live retrieval is measured without them. Add hand-written terms to `eval/golden.yml`
   (fictional, labelled) so the live run measures BM25 + terms, and report the model's own proposed terms against them.
