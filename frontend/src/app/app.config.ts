@@ -1,10 +1,12 @@
 import { provideHttpClient } from '@angular/common/http';
 import { ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter, withComponentInputBinding, withRouterConfig } from '@angular/router';
+import { Router, provideRouter, withComponentInputBinding, withRouterConfig, withViewTransitions } from '@angular/router';
 import { provideIcons } from '@ng-icons/core';
 import { MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 import { routes } from './app.routes';
+import { MotionPreferences } from './core/motion';
+import { sameScreen } from './core/navigation';
 import { ThemeService } from './core/theme.service';
 import { LEXVAY_ICONS } from './theme/icons';
 import { LexvayPreset } from './theme/lexvay-preset';
@@ -14,7 +16,18 @@ import { PRIMEUI_LICENSE } from './theme/license';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes, withComponentInputBinding(), withRouterConfig({ paramsInheritanceStrategy: 'always' })),
+    provideRouter(routes, withComponentInputBinding(), withRouterConfig({ paramsInheritanceStrategy: 'always' }),
+      // Route changes cross-fade (styles.css); a change within one screen (a tab, a filter) and reduced motion do not.
+      withViewTransitions({
+        skipInitialTransition: true,
+        onViewTransitionCreated: ({ transition }) => {
+          const router = inject(Router);
+          const to = router.getCurrentNavigation()?.finalUrl;
+          if (inject(MotionPreferences).reduced() || (to && sameScreen(router.url, router.serializeUrl(to)))) {
+            transition.skipTransition();
+          }
+        },
+      })),
     provideHttpClient(),
     providePrimeNG({
       theme: {
