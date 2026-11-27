@@ -342,12 +342,12 @@ and `exportSql` as the application role under row-level security, warm (third ex
 
 | Statement | Execution | Buffers | Plan |
 |---|---:|---:|---|
-| list, 100 newest, no filter | 0.08 ms | 10 | Index Scan `audit_log_newest_idx`, Incremental Sort on `id` |
-| list, one action | 0.11 ms | 47 | same, with a filter on the action |
-| list, last 30 days | 0.09 ms | 10 | same, range in the index condition |
-| export, no filter (20 372 rows) | 12.4 ms | 1 684 | Bitmap Heap Scan on `audit_log_tenant_idx`, hash join to `app_user`, in-memory Sort (3 MB) |
-| export, one action (4 060 rows) | 4.2 ms | 1 684 | same |
-| export, last 30 days (3 496 rows) | 2.1 ms | 327 | Bitmap Heap Scan on `audit_log_newest_idx`, Sort (0.5 MB) |
+| list, 100 newest, no filter | 0.06 ms | 11 | Index Scan `audit_log_newest_idx`, Incremental Sort on `id` |
+| list, one action | 0.09 ms | 56 | same, with a filter on the action |
+| list, last 30 days | 0.06 ms | 11 | same, range in the index condition |
+| export, no filter (20 372 rows) | 8.6 ms | 1 690 | Bitmap Heap Scan on `audit_log_tenant_idx`, hash join to `app_user`, in-memory Sort (3 MB) |
+| export, one action (4 060 rows) | 3.2 ms | 1 690 | same |
+| export, last 30 days (3 526 rows) | 1.6 ms | 327 | Bitmap Heap Scan on `audit_log_newest_idx`, Sort (0.5 MB) |
 
 The export reads every matching row and sorts them before the first one is sent, because it reads a quarter of the table;
 a `(tenant_id, created_at DESC, id DESC)` index tried on a throwaway PostgreSQL 18.7 with the same data did not change the

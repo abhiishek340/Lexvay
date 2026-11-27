@@ -103,12 +103,12 @@ public for this) as the application role under row-level security. Plans are wri
 and summarised in `docs/PERF.md`:
 
 - **List** (limit 100) with no filter, with one action and with a 30-day range: `Index Scan using audit_log_newest_idx` and
-  an `Incremental Sort` on `id` over the already ordered rows; 10 to 47 buffers, 0.08 to 0.11 ms. The test fails if a list
+  an `Incremental Sort` on `id` over the already ordered rows; 11 to 56 buffers, 0.06 to 0.09 ms. The test fails if a list
   statement scans `audit_log` sequentially or sorts every matching row, and `audit_log_newest_idx` is a candidate in the
   kept-index table.
 - **Export** of the 20 000 rows of the tenant (25 percent of the table): `Bitmap Heap Scan` and a full in-memory `Sort`
-  (3 MB, 12 ms in all); with a 30-day range the planner uses `audit_log_newest_idx` for the bitmap and sorts 3 500
-  rows (2 ms). The sort is the planner's choice for reading a quarter of the table, not a missing index. A throwaway
+  (3 MB, 8.6 ms in all); with a 30-day range the planner uses `audit_log_newest_idx` for the bitmap and sorts 3 500
+  rows (1.6 ms). The sort is the planner's choice for reading a quarter of the table, not a missing index. A throwaway
   PostgreSQL 18.7 with the same shape of data and an extra `(tenant_id, created_at DESC, id DESC)` index chose the same
   plan, so that index would add write cost to the busiest append-only table for no change in the plan. The export reads
   every matching row by design and the sort costs memory in PostgreSQL (about 150 bytes a row, spilling to disk beyond
