@@ -25,7 +25,7 @@
             list for a reviewer to correct and approve.</p>
         } @else {
           <p-listbox class="lx-version-list" [options]="groups()" [group]="true" optionGroupLabel="label" optionGroupChildren="items" optionLabel="name"
-                     optionValue="id" [ngModel]="ruleVersionId() ?? null" (onChange)="open($event.value)" [metaKeySelection]="true"
+                     optionValue="id" [ngModel]="listValue()" (onChange)="open($event.value)" [metaKeySelection]="true"
                      ariaLabel="Rule versions" scrollHeight="none" [fluid]="true" [pt]="{ list: { 'aria-multiselectable': 'false' } }">
             <ng-template #group let-group>
               <span class="lx-group">{{ group.label }}</span>
@@ -65,6 +65,9 @@
     </div>
   }
 </div>
+
+<!-- ConfirmDialog does not pass closeAriaLabel to its dialog; the close button is named through pass-through. -->
+<p-confirmdialog [style]="{ width: '30rem', maxWidth: 'calc(100vw - 32px)' }" [pt]="{ pcCloseButton: { root: { 'aria-label': 'Close and keep editing' } } }" />
 
 @if (session.canEnterRules()) {
   <lx-new-rule-version [(visible)]="newOpen" (created)="onCreated($event)" (closed)="onNewClosed()" />
