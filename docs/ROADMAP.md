@@ -8,7 +8,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | Item | Branch | E2E slot | Model | Status |
 |---|---|---|---|---|
 | WS-UI Design system and screen rebuild | `ui-foundation` | 1 | Opus 5.5 | in progress |
-| WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | in progress |
+| WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | merged (PR #12) |
 | WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | merged (PR #11) |
 | WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
 | F3a Rule version diff API | `feat-rule-diff-api` | 5 | Sonnet 5.5 | merged (PR #9) |
@@ -26,7 +26,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
-| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | ready to start (next free agent) |
+| F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | in progress |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | queued (after WS-PERF) |
 
 ---
@@ -476,6 +476,10 @@ read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
    kinds above contain no forbidden words). Read-only endpoint, so nothing to add to the audit coverage set.
 
 ## Follow-ups recorded from reviews
+- WS-SEC: every new endpoint must add a row to `InputValidationTableTest` (its `everyEndpointHasARow` guard fails
+  otherwise). The PDF page cap (500) is enforced at ingest, so an oversized PDF fails its job rather than the
+  upload; a synchronous page count at upload is a possible follow-up. Form login stays enabled in the `oidc`
+  profile; an SSO-only switch is a follow-up. Behind a load balancer set `LEXVAY_FORWARD_HEADERS=native`.
 - WS-EVAL: the live thresholds in `eval/thresholds.yml` (recall 0.80, extraction 0.90, evidence agreement
   0.80) are unmeasured first values; set them from the first `make eval-live` run once a model key exists.
   Terraform still needs a remote state backend, WAF and flow logs before any real deployment, and the
