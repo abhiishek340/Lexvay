@@ -5,7 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
 import com.lexvay.assessment.MappingRepository;
+import com.lexvay.audit.AuditFilter;
+import com.lexvay.audit.AuditRepository;
 import com.lexvay.auth.Role;
+import com.lexvay.coverage.CoverageRepository;
 import com.lexvay.llm.LlmClient;
 import com.lexvay.rule.source.RuleSourceRepository;
 import com.lexvay.seed.ScriptedFakeModel;
@@ -18,7 +21,9 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -53,6 +58,12 @@ class IndexUsageTest extends AbstractDatabaseTest {
      */
     static final int MAPPINGS_BUFFER_BUDGET = 4000;
     static final Predicate<String> JOB_SEQUENTIAL_SCAN = line -> line.matches(".*Seq Scan on job\\b.*");
+    /** Audit entries added to every tenant, and to the tenant the statements run as: about 60 000 and 20 000 rows in all. */
+    static final int AUDIT_ROWS_PER_TENANT = 300;
+    static final int AUDIT_ROWS_OF_MEASURED_TENANT = 20_000;
+    /** A plain Sort holds every matching row before the first leaves; an Incremental Sort only the rows of one timestamp. */
+    static final Predicate<String> FULL_SORT = line -> line.matches("^\\s*(->\\s*)?Sort\\s+\\(cost=.*");
+    static final Predicate<String> AUDIT_SEQUENTIAL_SCAN = line -> line.matches(".*Seq Scan on audit_log\\b.*");
 
     /** An index and the application query it was considered for; a rejected one is created here only to prove it is ignored. */
     record Candidate(String index, String query, String sql, boolean kept, String alternative) {
@@ -97,6 +108,7 @@ class IndexUsageTest extends AbstractDatabaseTest {
              Statement statement = admin.createStatement()) {
             PerfSeed.addHistoryVolume(statement);
             large = PerfSeed.addLargeAssessments(statement, tenantId);
+            PerfSeed.addAuditVolume(statement, tenantId, AUDIT_ROWS_PER_TENANT, AUDIT_ROWS_OF_MEASURED_TENANT);
             for (String ddl : REJECTED_DDL) {
                 statement.execute(ddl);
             }
@@ -161,6 +173,9 @@ class IndexUsageTest extends AbstractDatabaseTest {
             workQueue.addAll(TenantContext.runAs(tenantId, () -> jdbc.sql(
                     "EXPLAIN (ANALYZE, BUFFERS) " + WorkQueueRepository.LIST.replace(":role", "'" + role + "'")).query(String.class).list()));
         }
+        UUID northfieldProgram = TenantContext.runAs(tenantId, () -> jdbc.sql("SELECT id FROM program ORDER BY created_at LIMIT 1").query(UUID.class).single());
+        List<String> coverage = TenantContext.runAs(tenantId, () -> jdbc.sql("EXPLAIN (ANALYZE, BUFFERS) " + CoverageRepository.MATRIX
+                .replace(":program", "'" + northfieldProgram + "'").replace(":jurisdiction", "'CA'")).query(String.class).list());
         List<String> mappingPlans = new ArrayList<>();
         List<String> mappingsOverBudget = new ArrayList<>();
         for (var assessment : Map.of("before re-run (500 mappings, successor rule version without mappings)", large.beforeRerun(),
@@ -180,6 +195,25 @@ class IndexUsageTest extends AbstractDatabaseTest {
         Files.createDirectories(mappingPlan.getParent());
         Files.writeString(mappingPlan, String.join("\n", mappingPlans) + "\n");
 
+        List<String> auditPlans = new ArrayList<>();
+        List<String> auditSorts = new ArrayList<>();
+        for (var statement : auditStatements().entrySet()) {
+            List<String> analyzed = null;
+            for (int run = 0; run < 3; run++) {
+                analyzed = TenantContext.runAs(tenantId,
+                        () -> jdbc.sql("EXPLAIN (ANALYZE, BUFFERS) " + statement.getValue()).query(String.class).list());
+            }
+            auditPlans.add("-- " + statement.getKey());
+            auditPlans.addAll(analyzed);
+            if (analyzed.stream().anyMatch(AUDIT_SEQUENTIAL_SCAN)
+                    || statement.getKey().startsWith("list") && analyzed.stream().anyMatch(FULL_SORT)) {
+                auditSorts.add(statement.getKey());
+            }
+        }
+        Path auditPlan = Path.of("target", "perf", "audit-plans.txt");
+        Files.createDirectories(auditPlan.getParent());
+        Files.writeString(auditPlan, String.join("\n", auditPlans) + "\n");
+
         Path plan = Path.of("target", "perf", "work-queue-plan.txt");
         Files.createDirectories(plan.getParent());
         Files.writeString(plan, String.join("\n", workQueue) + "\n");
@@ -196,9 +230,34 @@ class IndexUsageTest extends AbstractDatabaseTest {
                 + " buffers: a lookup by one record must not walk the index of every tenant").isEmpty();
         assertThat(mappingsOverBudget).as("mappings of a large assessment reading more than " + MAPPINGS_BUFFER_BUDGET
                 + " buffers: the current-mapping filter must not grow with mappings squared").isEmpty();
+        assertThat(auditSorts).as("audit statements that scan the table, or lists that sort all matching rows (plans in target/perf/audit-plans.txt)")
+                .isEmpty();
         assertThat(jobSequentialScans).as("statements that scan the job table sequentially: it only grows").isEmpty();
+        Path coveragePlan = Path.of("target", "perf", "coverage-plan.txt");
+        Files.writeString(coveragePlan, String.join("\n", coverage) + "\n");
+        assertThat(coverage).as("the coverage statement scans no hot table sequentially (plan in target/perf/coverage-plan.txt)")
+                .noneMatch(line -> line.matches(".*Seq Scan on (mapping|evidence_span|evidence_response|document)\\b.*") && !line.contains("never executed"));
         assertThat(workQueue).as("the work queue statement scans no hot table sequentially (plan in target/perf/work-queue-plan.txt)")
                 .noneMatch(line -> line.matches(".*Seq Scan on (mapping|review_event|job)\\b.*") && !line.contains("never executed"));
+    }
+
+    /** The audit list and export with real filters, as the application runs them; the tenant's entries come from row-level security. */
+    private static Map<String, String> auditStatements() {
+        OffsetDateTime to = OffsetDateTime.now();
+        OffsetDateTime from = to.minusDays(30);
+        var byAction = new AuditFilter("DETERMINATION_SIGNED", null, null, null, null, null).where();
+        var byRange = new AuditFilter(null, null, null, null, from, to).where();
+        var statements = new LinkedHashMap<String, String>();
+        statements.put("list, no filter", AuditRepository.listSql(AuditFilter.NONE.where()));
+        statements.put("list, one action", AuditRepository.listSql(byAction));
+        statements.put("list, last 30 days", AuditRepository.listSql(byRange));
+        statements.put("export, no filter", AuditRepository.exportSql(AuditFilter.NONE.where()));
+        statements.put("export, one action", AuditRepository.exportSql(byAction));
+        statements.put("export, last 30 days", AuditRepository.exportSql(byRange));
+        statements.replaceAll((name, sql) -> sql.replace(":limit", "100").replace(":offset", "0")
+                .replace(":action", "'DETERMINATION_SIGNED'").replace(":from", "'" + from + "'::timestamptz")
+                .replace(":to", "'" + to + "'::timestamptz"));
+        return statements;
     }
 
     /** What the scheduler runs: across tenants, under the transaction-local worker flag and no tenant. */
@@ -269,6 +328,8 @@ class IndexUsageTest extends AbstractDatabaseTest {
                                 + "WHERE d.course_version_id = '" + courseVersion + "'"),
                 new Candidate("audit_log_entity_idx", "audit history of one record",
                         "SELECT id FROM audit_log WHERE entity_id = '" + program + "' ORDER BY created_at DESC"),
+                new Candidate("audit_log_newest_idx", "audit list, newest first (V001; D-403)",
+                        AuditRepository.listSql(AuditFilter.NONE.where()).replace(":limit", "100").replace(":offset", "0")),
                 new Candidate("assessment_program_status_finished_idx", "latest finished assessment of a program",
                         "SELECT id FROM assessment WHERE program_id = '" + program
                                 + "' AND status = 'FINISHED' ORDER BY finished_at DESC, created_at DESC LIMIT 1"),

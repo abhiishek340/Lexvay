@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 SEC-2 if the audit index is needed. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, no V017 (SEC-2 found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -2985,3 +2985,277 @@ queue popover, the avatar menu's theme across a reload, sign out, the rail colla
 400 px on sign-in and overview (plus the palette, work queue and avatar menu). `review-and-sign.spec.ts` checks the
 Demo data pill and its InfoTip instead of the notice strip; its theme test moved to the shell spec (the theme control
 left the top bar).
+
+### F10a — Coverage matrix API (D-390 to D-397)
+
+#### D-390 One statement, one row, the parts built as JSON
+
+`GET /api/v1/programs/{id}/coverage?jurisdiction=XX` (any signed-in role) runs `CoverageRepository.MATRIX` in one
+read-only transaction (`CoverageService`, D-110) and gets one row back: program, jurisdiction, whether the jurisdiction is
+a target, the assessment id, the rule version, and `courses` and `requirements` as `jsonb` that Jackson reads into the
+view records of `CoverageMatrix`. A matrix is a nested document (requirement, then cells, then program-level documents),
+so the nesting is done where the data is, by `jsonb_agg` over CTEs, instead of by one query per level or by a result set
+the Java code regroups. The CTEs are `target`, `latest`, `mappings`, `courses`, `evidence`, `cited`, `cell_rows`,
+`program_rows` and `reach`.
+- No row means the program does not exist for this tenant (row-level security, rule 7): 404. A row with `is_target =
+  false` means the jurisdiction code is unknown or is not a target of the program: 400 (`IllegalArgumentException`). The
+  statement then reads nothing else (`latest` is empty).
+- The jurisdiction parameter is required and `^[A-Z]{2}$`, like the other jurisdiction filters (400 otherwise).
+- Reused, not copied: `MappingRepository.current("= (SELECT id FROM latest)")` (D-364), `MappingRepository.LATEST_EVENT`
+  (D-003). Two predicates the statement needed existed only as text inside other statements, so they were extracted
+  (D-396).
+
+#### D-391 What a cell is
+
+A cell says that the verified evidence of a requirement cites a document of a course version. The evidence of a mapping is
+its own span (`source = SYSTEM`, only for `method = MATCH`) and every evidence response of that mapping (`source =
+PERSON`), whichever request it answered. There is one cell per (course version, source), so a course version that carries
+both a system quote and a person's quote has two cells; `quoteCount` is the number of distinct evidence spans behind
+the cell. Documents without a course version (degree plan, handbook, accreditation letter) are listed once per
+(document, source) in `programLevel`. Cells follow the order of `courses` (required first, then code), `SYSTEM` before
+`PERSON`; `programLevel` follows file name.
+
+#### D-392 Risk is a description, with a fixed order of tests
+
+`risk` is one of five fixed names, computed in the statement from the cited evidence of each mapping:
+1. `NONE` when the mapping was checked by the rules engine (D-393);
+2. `OUTDATED_EVIDENCE` when the mapping is stale or cites a superseded course version (D-394);
+3. `NO_EVIDENCE` when nothing is cited;
+4. `NONE` when any program-level document is cited (the evidence does not rest on a course);
+5. `ELECTIVE_ONLY` when every cited course version is an elective (`required = false`);
+6. `SINGLE_COURSE` when exactly one course version, a required one, is cited;
+7. `NONE` otherwise.
+An elective that is the only course is `ELECTIVE_ONLY`, not `SINGLE_COURSE` (test 5 runs first). The names are fixed and
+neutral; a screen words them as "rests on an elective", "rests on one course", "evidence is on an outdated course version" and "no evidence cited". The response
+never says that anything is sufficient, met or missing for a licence (rule 1); `finding` is the system's proposal as
+stored and `decision` the latest review decision, `null` when nobody decided or the requirement was reopened (the
+response of an evidence request reopens it).
+
+#### D-393 Numbers checked by the rules engine have no cells, of any source
+
+A mapping with `method = RULES_ENGINE` cites a program fact (a quote of the degree plan or handbook) as its span. That
+span is the input of an arithmetic check, not curriculum evidence, so the matrix leaves it out: no cells, no program-level
+documents, `risk = NONE`. An evidence response on such a mapping (possible when the credits are missing from the program)
+is not shown either, so that the row never has cells (spec point 2). Rejected: showing the fact's document as
+program-level evidence (a number row would then look like a document row).
+
+#### D-394 Evidence on a superseded course version is outdated evidence, never "no evidence"
+
+`courses` are the program's current course versions (no successor, `CourseRepository.SUPERSEDED`). Evidence (system or
+person) that cites a document of a superseded course version is not a current-version cell; it is listed in the
+requirement's `outdatedCells`: `{ courseVersionId, code, catalogYear, supersededBy, source, quoteCount }`, where
+`courseVersionId` and `catalogYear` are the outdated version's and `supersededBy` is the course's current version, a
+column of `courses` (not the next version of a chain), so a screen draws the cell under that column with an "outdated"
+marker. `cells` keep only current versions.
+`risk` gains `OUTDATED_EVIDENCE`, tested right after the rules-engine test and before every other value: it applies when
+the mapping is stale (a rule or course change outdated it) or any of its evidence cites a superseded version. It outranks
+`NO_EVIDENCE`, `ELECTIVE_ONLY` and `SINGLE_COURSE`, so "no evidence cited" never describes a requirement whose evidence
+exists. A stale mapping is `OUTDATED_EVIDENCE` whatever it cites, including a proposal of `EVIDENCE_MISSING` that a rule
+change outdated; a mapping that cites nothing and is not stale stays `NO_EVIDENCE` after a course change.
+There is no `stale` field: the fact has one representation, the risk value, with the cells behind it. The seeded tenant
+shows it: UT-7, AZ-4 and TX-8 cite the COUN 625 syllabus of 2026-27, which the change-tracking demo supersedes; each is
+`OUTDATED_EVIDENCE` with one outdated COUN 625 cell.
+Rejected: an extra column per old version (the matrix would stop being the current curriculum and grow with every catalog
+year); moving the cells to the successor version (invents evidence the successor's documents have not been shown to
+contain, rule 2).
+
+#### D-395 Before the first assessment, and a rule change in flight
+
+With no finished assessment the response is 200 with `assessmentId` and `ruleVersion` null, no requirements, and the
+courses (a screen shows an empty state, as the overview does). `ruleVersion` is the rule version of the first
+requirement of the current mappings. After a rule change the old list stays until the successor's mappings exist (D-066),
+and every row except the rules-engine numbers is `OUTDATED_EVIDENCE`; afterwards only the successor's rows appear, with new mapping ids, in its `ordinal` order (FIX-1).
+
+#### D-396 Two predicates extracted, nothing else touched
+
+- `AssessmentRepository.LATEST_FINISHED` (`a.status = 'FINISHED' ORDER BY a.finished_at DESC, a.created_at DESC LIMIT 1`):
+  used by `latestFinished` and by the matrix. The work queue's `latest` CTE (a lateral join with the same ordering) was not
+  rewritten in this item; the texts agree and a follow-up may take it.
+- `CourseRepository.SUPERSEDED` (`EXISTS (SELECT 1 FROM course_version n WHERE n.supersedes_id = cv.id)`): the document
+  list's `current` flag (`DocumentRepository.viewsByProgram`, behaviour unchanged) and the matrix's `courses` use it.
+
+#### D-397 Latency, plan and indexes (no migration)
+
+`GET /programs/{id}/coverage?jurisdiction=CA` on the seeded program: p50 3.15 ms, p95 4.91 ms, p99 5.88 ms in the seed-only pass and p50 2.64, p95 4.15, p99 5.28 ms with 62 tenants (budget 40 ms), 1.0 connection per call, 1 666 bytes on the
+wire (4 921 uncompressed). `IndexUsageTest` runs `EXPLAIN (ANALYZE, BUFFERS)` of `CoverageRepository.MATRIX` as the
+application role on the roughly 200-tenant database and fails on a sequential scan of `mapping`, `evidence_span`,
+`evidence_response` or `document` that is actually executed (plan in `backend/target/perf/coverage-plan.txt`): 0.31 ms
+execution. The mappings use `mapping_assessment_jurisdiction_idx`, review events
+`review_event_mapping_idx`, the latest assessment `assessment_program_status_finished_idx`, the superseded-version test
+`course_version_supersedes_id_key`. The plan contains a `Seq Scan on evidence_response` that is "never executed": the
+perf database holds no evidence responses, so the planner estimates one row and the join has nothing to probe. With rows
+it can use `evidence_response_mapping_idx (mapping_id, created_at)`, which already serves this join; no index was added
+because none can be shown to be needed. `ReadPathConnectionsTest` (one connection) and `EndpointLatencyTest` list the
+endpoint; `InputValidationTableTest` has eight rows for it.
+
+### SEC-2 — Argon2id passwords and audit list plans (D-400 to D-407)
+
+#### D-400 The application encoder is Argon2id behind the delegating encoder, at 32 MiB, 4 passes, one lane
+
+`PasswordEncoders.application()` (replacing `PasswordEncoderFactories.createDelegatingPasswordEncoder()` in
+`SecurityConfig`) is a `DelegatingPasswordEncoder` whose encoding id is `argon2` and whose map holds exactly two
+encoders, `argon2` and `bcrypt`. New hashes look like `{argon2}$argon2id$v=19$m=32768,t=4,p=1$...`. The default for
+matching a value without a prefix is bcrypt, so a hash written before F5a added the prefix keeps verifying.
+
+**Parameters, measured on this machine** (Apple silicon laptop, JDK 21.0.8, Spring Security 7.1.3 with Bouncy Castle
+1.87, mean of 15 verifications after warm-up, other work running):
+
+| Encoder | Verify |
+|---|---:|
+| bcrypt, cost 10 (what `{bcrypt}` hashes cost today) | 58 to 62 ms |
+| `Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8()` (16 MiB, 2 passes) | 14 to 17 ms |
+| OWASP minimum, 19 MiB, 2 passes | 17 to 20 ms |
+| OWASP alternative, 46 MiB, 1 pass | 29 to 44 ms |
+| 46 MiB, 3 passes | 83 ms |
+| 19 MiB, 7 passes | 70 ms |
+| **32 MiB, 4 passes, 1 lane (chosen)** | **73 ms** |
+| 64 MiB, 3 passes | 116 to 123 ms |
+
+The Spring defaults are below the 50 ms floor the roadmap sets for this item, so they are not used. 32 MiB with 4 passes
+has more memory and more passes than every combination OWASP's Password Storage Cheat Sheet lists (46 MiB with 1 pass,
+19 MiB with 2, 12 MiB with 3, 9 MiB with 4, 7 MiB with 5; all with one lane), takes 73 ms, which is about what bcrypt
+took, so sign-in latency and the test suite do not change, and needs 32 MiB of heap while it runs. The salt is 16 bytes
+and the hash 32. The parameters are written inside every hash, so changing them later makes `upgradeEncoding` true for
+older hashes and D-401 replaces them at the next sign-in; no migration is needed.
+
+Only `argon2` and `bcrypt` verify. Spring's `createDelegatingPasswordEncoder()` also accepts `{noop}`, `{sha256}`,
+`{MD4}`, `{ldap}` and others, which would make a value such as `{noop}secret` in `app_user.password_hash` a working
+password for anyone able to write that column. `PasswordEncodersTest` proves that those, a plain-text value, an empty
+value and null do not verify.
+
+**Dependency (D-002 addendum).** `Argon2PasswordEncoder` needs Bouncy Castle's low-level API at run time and Spring Security
+declares it optional. `org.bouncycastle:bcprov-jdk18on` is pinned to **1.87** (the newest release on repo1.maven.org,
+published 2026-11-11, sixteen days before this work; `maven-metadata.xml` lists 1.81.1 to 1.87), as the property
+`bouncycastle.version` in `backend/pom.xml`. No Bouncy Castle artifact was on the classpath before.
+
+**Memory.** Each hash holds 32 MiB of heap while it runs, where bcrypt used 4 KiB; D-407 bounds how many run at once.
+
+Rejected: Spring's defaults (14 to 17 ms, below the floor); 64 MiB with 3 passes (116 to 123 ms, twice the heap per
+sign-in for a cost this application does not need); PBKDF2 (no memory hardness); scrypt (Spring's encoder is slower to
+tune and OWASP ranks Argon2id first); keeping `createDelegatingPasswordEncoder()` and only changing its default (it
+would keep every legacy verifier accepted).
+
+#### D-401 A hash that is not the current one is replaced at the next successful sign-in, by Spring's own hook
+
+`LexvayUserDetailsService` implements `UserDetailsPasswordService` as well as `UserDetailsService`. Spring Security's
+`DaoAuthenticationProvider` calls `updatePassword(user, newEncodedPassword)` only after the password matched and only
+when `PasswordEncoder.upgradeEncoding(storedHash)` is true: for a `{bcrypt}` hash, a hash with no prefix, and an `{argon2}`
+hash made with other parameters. A hash of the current kind is left alone, so a second sign-in writes nothing.
+
+The hook runs before the authentication filter's success handler and before any tenant is known, so `updatePassword`
+sets the user's tenant, then in one transaction runs one statement and one audit entry:
+
+- `UPDATE app_user SET password_hash = :new WHERE id = :id AND password_hash = :old`. The condition on the old hash is the
+  guard against a password set between loading the account and now (a setup code used in that moment): the update then
+  changes nothing, nothing is audited, and the sign-in carries on with the account as loaded. `security_stamp` does not
+  move, because the person has not changed their password and other sessions of theirs should not end.
+- `PASSWORD_REHASHED` on `app_user`, actor the user (`recordAs`, as `PASSWORD_SET` does), detail
+  `{"from": "bcrypt", "to": "argon2"}`: algorithm names read from the hash prefix (`PasswordEncoders.algorithmOf`, which
+  names an unprefixed hash bcrypt), never a hash or a password. `PasswordRehashTest` searches the whole audit log of the
+  tenant for the new hash and the password.
+
+A failure of this write fails the sign-in with the generic 401 and does not leave a half-written state; the database being
+unavailable would have failed the audit entry of the success handler anyway. Not done: replacing the hash in a background
+job (needs the password, which exists only during the sign-in); replacing it in the success handler (a second place that
+knows about hashes, and after the session exists).
+
+`PasswordRehashTest` covers: a prefixed bcrypt hash replaced and audited once, an unprefixed one replaced, a wrong
+password changing nothing, the stamp not moving, a second sign-in writing nothing, and the concurrent change not being
+overwritten.
+
+#### D-402 Passwords are 12 to 128 characters; the 72-byte rule of D-373 is gone
+
+Argon2id has no 72-byte limit, which was the reason D-373 departed from the roadmap. `PasswordSetupService` now requires
+at least 12 and at most 128 characters, counted as code points (an emoji is one character, as for the minimum), and the
+400 says "Password must have at most 128 characters". The cap is not a technical limit of the encoder: it bounds what one
+request can ask the server to hash and keeps the message the same for the person whatever the script they type in.
+Tests: 128 characters accepted, 129 refused (ASCII, two-byte and four-byte characters), a 128-character password of 2-,
+3- and 4-byte characters (381 bytes) accepted and then signing in only with all of it, and the last character mattering.
+
+The request size limit (`@Size(max = 1000)` UTF-16 units on the setup endpoint) is unchanged: 128 four-byte characters
+are 256 units.
+
+#### D-403 No audit index is added: the index the roadmap names has existed since V001
+
+The roadmap asks for `audit_log (tenant_id, created_at DESC)` if the audit list or export sort without it. V001 already
+creates `audit_log_newest_idx ON audit_log (tenant_id, created_at DESC)`, the same columns in the same order, so
+`audit_log_tenant_created_idx` would be a second copy of it and V017 is not created (the number stays free).
+
+`IndexUsageTest` now adds audit volume to the perf database through `PerfSeed.addAuditVolume` (300 entries for each of
+about 200 tenants and 20 000 more for the tenant the statements run as: about 80 000 rows, inserted oldest first as a log
+grows) and runs `EXPLAIN (ANALYZE, BUFFERS)` of the real statements (`AuditRepository.listSql` and `exportSql`, made
+public for this) as the application role under row-level security. Plans are written to `backend/target/perf/audit-plans.txt`
+and summarised in `docs/PERF.md`:
+
+- **List** (limit 100) with no filter, with one action and with a 30-day range: `Index Scan using audit_log_newest_idx` and
+  an `Incremental Sort` on `id` over the already ordered rows; 11 to 56 buffers, 0.06 to 0.09 ms. The test fails if a list
+  statement scans `audit_log` sequentially or sorts every matching row, and `audit_log_newest_idx` is a candidate in the
+  kept-index table.
+- **Export** of the 20 000 rows of the tenant (25 percent of the table): `Bitmap Heap Scan` and a full in-memory `Sort`
+  (3 MB, 8.6 ms in all); with a 30-day range the planner uses `audit_log_newest_idx` for the bitmap and sorts 3 500
+  rows (1.6 ms). The sort is the planner's choice for reading a quarter of the table, not a missing index. A throwaway
+  PostgreSQL 18.7 with the same shape of data and an extra `(tenant_id, created_at DESC, id DESC)` index chose the same
+  plan, so that index would add write cost to the busiest append-only table for no change in the plan. The export reads
+  every matching row by design and the sort costs memory in PostgreSQL (about 150 bytes a row, spilling to disk beyond
+  `work_mem`), not in the application; D-377's known cost stands, now with numbers. The test fails if an export scans
+  `audit_log` sequentially.
+
+#### D-404 What is documented about administrators
+
+`docs/OPERATIONS.md`, "Users and sessions", says that any administrator can issue a setup code for any user, a signer
+included, and could therefore sign in as that person; that both actions are audited; and that production deployments should
+use OIDC for SIGNER and ADMIN accounts. Nothing in the code changes: D-375 already records the power and its audit trail.
+
+#### D-405 Where things live
+
+`PasswordEncoders` (`auth`) builds the encoder and names the algorithm of a hash; `LexvayUserDetailsService` (`auth`) holds
+the upgrade; `AppUserRepository.rehashPassword` is its statement; `LexvayUser.withPasswordHash` returns the principal the
+session keeps. `AuditRepository.listSql` and `exportSql` and `AuditFilter.where` are public so that `IndexUsageTest` runs the
+text the application runs. `PerfSeed.addAuditVolume` is test code.
+
+#### D-406 What the tests prove, and what they cannot
+
+`PasswordEncodersTest` (parameters in the hash, every legacy form, no other verifier, long and multi-byte passwords),
+`PasswordRehashTest` (D-401), `PasswordSetupApiTest` (D-402 and `{argon2}` after setting a password), `SeedLoaderTest` (the
+seed's users have `{argon2}` hashes and the demo password signs in), `IndexUsageTest` (D-403). The hash time is not
+asserted: a timing assertion would fail on a loaded machine and say nothing about the cost parameters, which
+`PasswordEncodersTest` pins by reading them out of the hash. The measurement in D-400 is a one-off.
+
+#### D-407 At most N password hashes at once, behind one gate; a refused caller gets 503 and nothing is hashed
+
+Each Argon2id hash holds 32 MiB (D-400). Without a bound, Tomcat's 200 request threads could ask for 6.4 GiB against a default
+heap of about 1.5 GiB (2 GiB task, `MaxRAMPercentage=75`), and the JVM exits on out-of-memory (`ExitOnOutOfMemoryError`): a
+few hundred distinct client addresses, each inside the per-address login budget (D-092), would take the instance down.
+
+`PasswordHashGate` is a fair `Semaphore` with `lexvay.security.password-hash-concurrency` permits (environment variable
+`LEXVAY_PASSWORD_HASH_CONCURRENCY`; unset means `max(2, availableProcessors())`; `@Positive` validated, so `0` or a negative
+value stops the start). `GatedPasswordEncoder` wraps the whole delegating encoder, so every `encode` and every `matches` takes a
+permit, Argon2 and legacy bcrypt alike (bcrypt is cheap, but one rule is simpler than two). `upgradeEncoding` only reads the
+parameters inside a hash and takes none. The permit is acquired with `tryAcquire(2, SECONDS)` and always released. A caller that
+waits two seconds gets `PasswordHashBusyException` before anything is hashed or compared:
+
+- Sign-in: the exception is an `AuthenticationServiceException`, so it reaches the form login's failure handler, which answers 503
+  with the problem detail "Sign-in is busy. Try again in a moment." and `Retry-After: 2` instead of the 401. An unknown email is
+  refused the same way, because Spring hashes a dummy password for it (timing protection) through the same gate.
+- Choosing a password (`POST /auth/setup`): `ApiExceptionHandler` answers the same 503 and header. The refusal comes at the hash,
+  before the code is claimed, so the code is not used up.
+- Sign-in with an old hash does two operations in turn (the comparison, then the new hash); each takes a permit in its turn and
+  never both at once, so a caller cannot deadlock against itself. Under pressure the second may be refused after the password
+  matched: the person sees 503 and signs in again, which upgrades the hash then.
+
+**Sizing.** Heap needed is permits x 32 MiB on top of the application's normal use. The default (processors, at least 2) is 2 x 32 =
+64 MiB on a one-processor task and 256 MiB on eight; both are small against the default 1.5 GiB heap, and CPU, not memory, is the
+limit at that point (one hash is about 73 ms of one core). `docs/OPERATIONS.md` documents the figure next to the JVM options.
+Fairness means callers are served in arrival order, so a burst delays everyone a little instead of starving the early callers.
+
+Tests: `PasswordHashGateTest` (six callers on two permits finish and the encoder never sees more than two at once; a caller refused
+after its wait hashes nothing and the permit comes back; a failing hash returns its permit; `upgradeEncoding` needs none; zero
+permits and non-positive properties are refused; the default), `PasswordHashBusyApiTest` (real filter chain with two permits: a
+single sign-in succeeds, a sign-in and an unknown-email sign-in with both permits held answer 503 with `Retry-After: 2` and compare
+nothing, choosing a password shares the gate and keeps its code, six concurrent real sign-ins answer 200 or 503 and the gate
+never holds more than two).
+
+Rejected: sizing by Tomcat threads (`server.tomcat.threads.max`; it also limits requests that hash nothing); a queue without a wait
+limit (threads pile up and every request times out at the proxy); a separate pool of hashing threads (a handoff for no gain, since
+the request thread must wait for the result anyway); refusing immediately when no permit is free (a burst of a few more callers
+than permits would be refused although they would be served in milliseconds).
