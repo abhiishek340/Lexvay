@@ -57,6 +57,17 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await expect(page.getByRole('table', { name: 'Audit trail' })).toBeVisible();
   await shoot(page, 'audit-trail');
 
+  await nav(page, 'Determination register').click();
+  await expect(page.getByRole('table', { name: 'Determination register' }).locator('tbody tr')).toHaveCount(1);
+  await shoot(page, 'register');
+  await page.getByRole('tab', { name: 'By program' }).click();
+  await expect(page.getByRole('region', { name: 'No determination made', exact: true })).toBeVisible();
+  await shoot(page, 'register-by-program');
+  // On paper the theme makes no difference: both captures are black on white.
+  await page.emulateMedia({ media: 'print' });
+  await shoot(page, 'register-print');
+  await page.emulateMedia({ media: 'screen' });
+
   await page.setViewportSize({ width: 400, height: 860 });
   await nav(page, 'Review').click();
   await page.getByRole('tab', { name: 'TX', exact: true }).click();
