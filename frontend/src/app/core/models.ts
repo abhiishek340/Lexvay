@@ -30,3 +30,7 @@ export interface ChangeEvent {
 export interface ReportStatusView { id: string; determinationId: string; status: 'QUEUED' | 'READY' | 'FAILED'; }
 export interface AuditEntry { id: string; userId: string | null; action: string; entityType: string; entityId: string | null; detail: Record<string, unknown>; createdAt: string; }
 export interface RuleVersionView { id: string; jurisdiction: string; licenseType: string; label: string; sourceUrl: string; effectiveFrom: string; approval: { by: string; at: string } | null; requirementCount: number; }
+/** GET /programs/{id}/overview: the program, its latest finished assessment and determinations in one read (D-111). */
+export interface ProgramOverview { program: Program; assessment: AssessmentView | null; determinations: Determination[]; openChangeEvents: ChangeEvent[]; undecidedTotal: number; }
+/** GET /documents/{id}/pages/{n}: one immutable page of extracted text with its document and course context. */
+export interface DocumentPage { documentId: string; filename: string; kind: string; courseCode: string | null; courseRequired: boolean | null; pageNumber: number; pageCount: number; text: string; }
