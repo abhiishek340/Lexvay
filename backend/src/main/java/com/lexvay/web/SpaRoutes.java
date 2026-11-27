@@ -7,14 +7,14 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.util.UrlPathHelper;
 
 /**
- * Which paths belong to the single-page app and which to the service. The API and the actuator are the
- * service; every other GET is the app: a file from the bundle, or the app shell for a route that has no
- * file behind it.
+ * Which paths belong to the single-page app and which to the service. The API, the actuator and the
+ * single sign-on endpoints that Spring Security answers under profile {@code oidc} are the service; every
+ * other GET is the app: a file from the bundle, or the app shell for a route that has no file behind it.
  */
 public final class SpaRoutes {
 
     private static final UrlPathHelper PATHS = UrlPathHelper.defaultInstance;
-    private static final Pattern SERVICE_PATH = Pattern.compile("^/(api|actuator)(/.*)?$");
+    private static final Pattern SERVICE_PATH = Pattern.compile("^/(api|actuator|oauth2|login/oauth2)(/.*)?$");
 
     /** GET requests for the app. They carry no data, so the shell and its assets are served without sign-in. */
     public static final RequestMatcher APP_REQUESTS = (HttpServletRequest request) ->

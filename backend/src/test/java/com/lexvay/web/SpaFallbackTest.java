@@ -94,6 +94,9 @@ class SpaFallbackTest extends AbstractDatabaseTest {
         assertThat(SpaRoutes.isService("/api")).isTrue();
         assertThat(SpaRoutes.isService("/api/v1/x")).isTrue();
         assertThat(SpaRoutes.isService("/actuator/health")).isTrue();
+        assertThat(SpaRoutes.isService("/oauth2/authorization/lexvay")).isTrue();
+        assertThat(SpaRoutes.isService("/login/oauth2/code/lexvay")).isTrue();
+        assertThat(SpaRoutes.isService("/login")).isFalse();
         assertThat(SpaRoutes.isService("/apiary")).isFalse();
         assertThat(SpaRoutes.isService("/programs/api")).isFalse();
     }

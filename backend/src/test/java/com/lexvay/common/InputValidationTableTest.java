@@ -196,6 +196,10 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(row("me: hostile query parameter is ignored", "GET /api/v1/auth/me", HttpMethod.GET,
                 "/api/v1/auth/me?q=%00%ff", null, null, 200));
 
+        // --- test-only probe of the logging context (src/test, observability) ---
+        rows.add(row("mdc probe: hostile query parameter is ignored", "GET /api/v1/test-support/mdc", HttpMethod.GET,
+                "/api/v1/test-support/mdc?q=%00%ff", null, null, 200));
+
         // --- jurisdictions, jobs, audit ---
         rows.add(row("jurisdictions: hostile query parameter is ignored", "GET /api/v1/jurisdictions", HttpMethod.GET,
                 "/api/v1/jurisdictions?q=%00%ff", null, null, 200));
