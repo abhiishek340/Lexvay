@@ -2075,3 +2075,44 @@ Initial 606.77 kB raw, 155.87 kB estimated transfer (PERF-FE-1 on main: 695.03 k
   26 passed (2.3m)
 ```
 `LEXVAY_SCREENSHOTS=1 LEXVAY_E2E_SLOT=1 make e2e` (the suite plus both screenshot tests): `28 passed (3.5m)`.
+
+### F10a — Coverage matrix API
+
+Branch `feat-coverage-api`, no migration. Decisions D-390 to D-397 in `docs/decisions/F10a.md`. Backend only; nothing under `frontend/src`.
+
+#### What changed
+- **`GET /api/v1/programs/{id}/coverage?jurisdiction=XX`** (`com.lexvay.coverage`: `CoverageController`, `CoverageService`, `CoverageRepository`, `CoverageMatrix`).
+  One read-only transaction, one statement (`CoverageRepository.MATRIX`), one row whose `courses` and `requirements` are `jsonb` read into the view records (D-390).
+  Cells per (course version, source) with `SYSTEM` or `PERSON` and a distinct-quote count; program-level documents; `risk` computed in SQL (D-391, D-392).
+  Numbers checked by the rules engine have no cells and risk `NONE` (D-393). 400 for an unknown, malformed or non-target jurisdiction, 404 for an unknown program or another tenant (D-390).
+- **Shared predicates (D-396).** `AssessmentRepository.LATEST_FINISHED` and `CourseRepository.SUPERSEDED`, each used by its previous statement and by the matrix; `MappingRepository.current(...)` and `LATEST_EVENT` are reused.
+- **Outdated evidence (D-394, review change).** `risk = OUTDATED_EVIDENCE` and `outdatedCells` for evidence on superseded course versions; no `stale` field.
+
+#### Verification
+`make backend-test` and `make perf` were rerun after the D-394 change and after merging `origin/main` again (F5a and FIX-4 included). `make e2e` ran before that change (18 passed, 1 skipped, slot 8); the change is backend only and the matrix has no screen yet.
+
+`make backend-test` (exit 0):
+```
+[INFO] Tests run: 1044, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+`make perf` (exit 0):
+```
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 109.8 s -- in com.lexvay.perf.EndpointLatencyTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 121.2 s -- in com.lexvay.perf.IndexUsageTest
+| GET /programs/{id}/coverage?jurisdiction=CA | 3.15 | 4.91 | 5.88 | 1.0 | 4921 | 1666 |   (seed only: p50, p95, p99, connections, body, wire)
+| GET /programs/{id}/coverage?jurisdiction=CA | 2.64 | 4.15 | 5.28 | 1.0 | 4921 | 1666 |   (62 tenants)
+```
+`LEXVAY_E2E_SLOT=8 make e2e` (exit 0):
+```
+  1 skipped
+  18 passed (1.7m)
+```
+
+#### Tests added or changed
+`CoverageApiTest` (11: order, cells, risk, decisions, person cell beside the system cell, program-level response, elective-only, required plus elective, rule revision before and after the re-run, superseded course version, no assessment, 400s, 404 and 401),
+`CoverageSeedTest` (4: California order and the COUN 605 cell of CA-2, the elective-only CA-6, numeric rows without cells, accreditation as program-level evidence, UT-7, AZ-4 and TX-8 as `OUTDATED_EVIDENCE` with one outdated COUN 625 cell, Colorado outdated before the re-run),
+`EndpointLatencyTest`, `ReadPathConnectionsTest`, `IndexUsageTest` (EXPLAIN of the statement), `InputValidationTableTest` (eight rows). `ForbiddenWordsTest` is green in the full run.
+
+#### Open points for the orchestrator
+- The work queue's `latest` CTE still has its own copy of the latest-finished ordering (D-396).

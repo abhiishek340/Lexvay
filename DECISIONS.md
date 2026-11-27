@@ -2985,3 +2985,105 @@ queue popover, the avatar menu's theme across a reload, sign out, the rail colla
 400 px on sign-in and overview (plus the palette, work queue and avatar menu). `review-and-sign.spec.ts` checks the
 Demo data pill and its InfoTip instead of the notice strip; its theme test moved to the shell spec (the theme control
 left the top bar).
+
+### F10a — Coverage matrix API (D-390 to D-397)
+
+#### D-390 One statement, one row, the parts built as JSON
+
+`GET /api/v1/programs/{id}/coverage?jurisdiction=XX` (any signed-in role) runs `CoverageRepository.MATRIX` in one
+read-only transaction (`CoverageService`, D-110) and gets one row back: program, jurisdiction, whether the jurisdiction is
+a target, the assessment id, the rule version, and `courses` and `requirements` as `jsonb` that Jackson reads into the
+view records of `CoverageMatrix`. A matrix is a nested document (requirement, then cells, then program-level documents),
+so the nesting is done where the data is, by `jsonb_agg` over CTEs, instead of by one query per level or by a result set
+the Java code regroups. The CTEs are `target`, `latest`, `mappings`, `courses`, `evidence`, `cited`, `cell_rows`,
+`program_rows` and `reach`.
+- No row means the program does not exist for this tenant (row-level security, rule 7): 404. A row with `is_target =
+  false` means the jurisdiction code is unknown or is not a target of the program: 400 (`IllegalArgumentException`). The
+  statement then reads nothing else (`latest` is empty).
+- The jurisdiction parameter is required and `^[A-Z]{2}$`, like the other jurisdiction filters (400 otherwise).
+- Reused, not copied: `MappingRepository.current("= (SELECT id FROM latest)")` (D-364), `MappingRepository.LATEST_EVENT`
+  (D-003). Two predicates the statement needed existed only as text inside other statements, so they were extracted
+  (D-396).
+
+#### D-391 What a cell is
+
+A cell says that the verified evidence of a requirement cites a document of a course version. The evidence of a mapping is
+its own span (`source = SYSTEM`, only for `method = MATCH`) and every evidence response of that mapping (`source =
+PERSON`), whichever request it answered. There is one cell per (course version, source), so a course version that carries
+both a system quote and a person's quote has two cells; `quoteCount` is the number of distinct evidence spans behind
+the cell. Documents without a course version (degree plan, handbook, accreditation letter) are listed once per
+(document, source) in `programLevel`. Cells follow the order of `courses` (required first, then code), `SYSTEM` before
+`PERSON`; `programLevel` follows file name.
+
+#### D-392 Risk is a description, with a fixed order of tests
+
+`risk` is one of five fixed names, computed in the statement from the cited evidence of each mapping:
+1. `NONE` when the mapping was checked by the rules engine (D-393);
+2. `OUTDATED_EVIDENCE` when the mapping is stale or cites a superseded course version (D-394);
+3. `NO_EVIDENCE` when nothing is cited;
+4. `NONE` when any program-level document is cited (the evidence does not rest on a course);
+5. `ELECTIVE_ONLY` when every cited course version is an elective (`required = false`);
+6. `SINGLE_COURSE` when exactly one course version, a required one, is cited;
+7. `NONE` otherwise.
+An elective that is the only course is `ELECTIVE_ONLY`, not `SINGLE_COURSE` (test 5 runs first). The names are fixed and
+neutral; a screen words them as "rests on an elective", "rests on one course", "evidence is on an outdated course version" and "no evidence cited". The response
+never says that anything is sufficient, met or missing for a licence (rule 1); `finding` is the system's proposal as
+stored and `decision` the latest review decision, `null` when nobody decided or the requirement was reopened (the
+response of an evidence request reopens it).
+
+#### D-393 Numbers checked by the rules engine have no cells, of any source
+
+A mapping with `method = RULES_ENGINE` cites a program fact (a quote of the degree plan or handbook) as its span. That
+span is the input of an arithmetic check, not curriculum evidence, so the matrix leaves it out: no cells, no program-level
+documents, `risk = NONE`. An evidence response on such a mapping (possible when the credits are missing from the program)
+is not shown either, so that the row never has cells (spec point 2). Rejected: showing the fact's document as
+program-level evidence (a number row would then look like a document row).
+
+#### D-394 Evidence on a superseded course version is outdated evidence, never "no evidence"
+
+`courses` are the program's current course versions (no successor, `CourseRepository.SUPERSEDED`). Evidence (system or
+person) that cites a document of a superseded course version is not a current-version cell; it is listed in the
+requirement's `outdatedCells`: `{ courseVersionId, code, catalogYear, supersededBy, source, quoteCount }`, where
+`courseVersionId` and `catalogYear` are the outdated version's and `supersededBy` is the course's current version, a
+column of `courses` (not the next version of a chain), so a screen draws the cell under that column with an "outdated"
+marker. `cells` keep only current versions.
+`risk` gains `OUTDATED_EVIDENCE`, tested right after the rules-engine test and before every other value: it applies when
+the mapping is stale (a rule or course change outdated it) or any of its evidence cites a superseded version. It outranks
+`NO_EVIDENCE`, `ELECTIVE_ONLY` and `SINGLE_COURSE`, so "no evidence cited" never describes a requirement whose evidence
+exists. A stale mapping is `OUTDATED_EVIDENCE` whatever it cites, including a proposal of `EVIDENCE_MISSING` that a rule
+change outdated; a mapping that cites nothing and is not stale stays `NO_EVIDENCE` after a course change.
+There is no `stale` field: the fact has one representation, the risk value, with the cells behind it. The seeded tenant
+shows it: UT-7, AZ-4 and TX-8 cite the COUN 625 syllabus of 2026-27, which the change-tracking demo supersedes; each is
+`OUTDATED_EVIDENCE` with one outdated COUN 625 cell.
+Rejected: an extra column per old version (the matrix would stop being the current curriculum and grow with every catalog
+year); moving the cells to the successor version (invents evidence the successor's documents have not been shown to
+contain, rule 2).
+
+#### D-395 Before the first assessment, and a rule change in flight
+
+With no finished assessment the response is 200 with `assessmentId` and `ruleVersion` null, no requirements, and the
+courses (a screen shows an empty state, as the overview does). `ruleVersion` is the rule version of the first
+requirement of the current mappings. After a rule change the old list stays until the successor's mappings exist (D-066),
+and every row except the rules-engine numbers is `OUTDATED_EVIDENCE`; afterwards only the successor's rows appear, with new mapping ids, in its `ordinal` order (FIX-1).
+
+#### D-396 Two predicates extracted, nothing else touched
+
+- `AssessmentRepository.LATEST_FINISHED` (`a.status = 'FINISHED' ORDER BY a.finished_at DESC, a.created_at DESC LIMIT 1`):
+  used by `latestFinished` and by the matrix. The work queue's `latest` CTE (a lateral join with the same ordering) was not
+  rewritten in this item; the texts agree and a follow-up may take it.
+- `CourseRepository.SUPERSEDED` (`EXISTS (SELECT 1 FROM course_version n WHERE n.supersedes_id = cv.id)`): the document
+  list's `current` flag (`DocumentRepository.viewsByProgram`, behaviour unchanged) and the matrix's `courses` use it.
+
+#### D-397 Latency, plan and indexes (no migration)
+
+`GET /programs/{id}/coverage?jurisdiction=CA` on the seeded program: p50 3.15 ms, p95 4.91 ms, p99 5.88 ms in the seed-only pass and p50 2.64, p95 4.15, p99 5.28 ms with 62 tenants (budget 40 ms), 1.0 connection per call, 1 666 bytes on the
+wire (4 921 uncompressed). `IndexUsageTest` runs `EXPLAIN (ANALYZE, BUFFERS)` of `CoverageRepository.MATRIX` as the
+application role on the roughly 200-tenant database and fails on a sequential scan of `mapping`, `evidence_span`,
+`evidence_response` or `document` that is actually executed (plan in `backend/target/perf/coverage-plan.txt`): 0.31 ms
+execution. The mappings use `mapping_assessment_jurisdiction_idx`, review events
+`review_event_mapping_idx`, the latest assessment `assessment_program_status_finished_idx`, the superseded-version test
+`course_version_supersedes_id_key`. The plan contains a `Seq Scan on evidence_response` that is "never executed": the
+perf database holds no evidence responses, so the planner estimates one row and the join has nothing to probe. With rows
+it can use `evidence_response_mapping_idx (mapping_id, created_at)`, which already serves this join; no index was added
+because none can be shown to be needed. `ReadPathConnectionsTest` (one connection) and `EndpointLatencyTest` list the
+endpoint; `InputValidationTableTest` has eight rows for it.
