@@ -8,8 +8,8 @@ Rejected: a union of every screen's constant (the label tables would import type
 
 **D-296 — Each routed screen provides its own icons through its route; shared components use `viewProviders`.**
 A route's `providers` are built when the app starts, so naming a screen's `<SCREEN>_ICONS` in `app.routes.ts` would
-import the screen into the initial bundle. Each screen with icons beyond `SHELL_ICONS` (Overview, Review, Changes,
-Rules, Report, Register) therefore has a `<screen>.routes.ts` (one route, `path: ''`, the screen as `component`, its
+import the screen into the initial bundle. Each screen with icons beyond `SHELL_ICONS` (Overview, Review, Requests,
+Changes, Rules, Report, Register) therefore has a `<screen>.routes.ts` (one route, `path: ''`, the screen as `component`, its
 `providers: [provideIcons(<SCREEN>_ICONS)]`, its title and guards) that `app.routes.ts` loads with `loadChildren`; the
 screen and its routes are one chunk, so there is no second request. `provideIcons` merges with the icons of the parent
 injector, so a screen names only what `SHELL_ICONS` does not. `DocumentViewer`, `FindingLabel` and `DecisionState`
@@ -18,7 +18,7 @@ and Audit show nothing beyond the shell's icons and keep `loadComponent`. `confi
 `core/confirm-leave.ts` so `rules.routes.ts` does not import the root route table. The label tables that held icon names
 moved next to the one screen that shows them (`CHANGE_KIND` to `screens/changes/change-kind.ts`, `DIFF_STATUS` to
 `screens/rules/diff-status.ts`, `RULE_STATUS` to `screens/rules/rule-status.ts`, `OUTCOME_ICON` and `STATUS_ICON` into
-`register.ts`, `FINDING_ICON` and `DECISION_ICON` into `ui/finding.ts`): `core/labels.ts` and `core/rules.ts` are
+`register.ts`, `REQUEST_STATE` into `requests.ts`, `FINDING_ICON` and `DECISION_ICON` into `ui/finding.ts`): `core/labels.ts` and `core/rules.ts` are
 imported by the shell, so icon names left there would belong to every chunk.
 Rejected: component-level `providers` on each screen (works, but the spec says the route's).
 
@@ -37,7 +37,9 @@ matching Node 26.13.1) is a dev dependency and `tsconfig.spec.json` lists `node`
 chunks naming the same component (Dialog, InputNumber, Textarea, ProgressBar) are safe. Each screen exports its sets as
 `<SCREEN>_TOKENS` in `<screen>-theme.ts` and registers them from its constructor; `DocumentViewer` registers Dialog and
 InputNumber itself. Moved out of the shared preset: Dialog, InputNumber, ProgressBar, ProgressSpinner, RadioButton,
-Splitter, Textarea. The Lexvay overrides of ProgressBar and Splitter moved with their sets with the same values
+Splitter, Textarea. F4's Drawer set and F8's ToggleSwitch set (with its Lexvay colours, now `theme/toggleswitch-tokens.ts`,
+shared by Register and Requests) follow the same pattern; `evidence-drawer-theme.ts` is gone and the Requests screen
+registers the drawer's sets. The Lexvay overrides of ProgressBar and Splitter moved with their sets with the same values
 (`theme/progressbar-tokens.ts` is shared by Overview and Review); the Dialog override restated Aura's own title values
 (1.125rem, 600), so it was dropped with no change of value. Disagreement with the spec's list: SelectButton and
 ToggleButton stay in the preset because the shell's theme switcher renders them on every screen, and IconField stays

@@ -93,8 +93,8 @@ class Rule7_RuleSourceIsolationTest extends AbstractDatabaseTest {
     @Test
     void theWorkerFlagIsNotSomethingATenantSessionHas() {
         TenantContext.runAs(b.tenantId(), () -> {
-            assertThatThrownBy(() -> jdbc.sql("INSERT INTO job (tenant_id, type, payload) VALUES (:t, 'CHECK_RULE_SOURCE', '{}'::jsonb)")
-                    .param("t", a.tenantId()).update()).isInstanceOf(DataAccessException.class);
+            assertThatThrownBy(() -> jdbc.sql("INSERT INTO job (tenant_id, type, entity_id) VALUES (:t, 'CHECK_RULE_SOURCE', :entity)")
+                    .param("t", a.tenantId()).param("entity", sourceOfA).update()).isInstanceOf(DataAccessException.class);
             return null;
         });
     }

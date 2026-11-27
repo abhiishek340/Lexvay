@@ -61,7 +61,7 @@ class CheckRuleSourceTest extends AbstractRuleSourceTest {
                 .param("id", draftId).query().singleRow());
         assertThat(event).containsEntry("kind", "RULE_VERSION").containsEntry("status", "OPEN")
                 .containsEntry("old_id", approved).containsEntry("created_by", null);
-        var extraction = inTenant(() -> jobs.latest(JobType.EXTRACT_REQUIREMENTS, "ruleVersionId", draftId)).orElseThrow();
+        var extraction = inTenant(() -> jobs.latest(JobType.EXTRACT_REQUIREMENTS, draftId)).orElseThrow();
         assertThat(extraction.status()).isEqualTo(JobStatus.QUEUED);
 
         var source = source(sourceId);

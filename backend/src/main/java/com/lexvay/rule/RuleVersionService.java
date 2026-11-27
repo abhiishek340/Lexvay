@@ -120,7 +120,7 @@ public class RuleVersionService {
         if (version.supersedesId() != null) {
             changes.onRuleVersionSuperseded(version.supersedesId(), id, version.label());
         }
-        UUID jobId = jobs.enqueue(JobType.EXTRACT_REQUIREMENTS, Map.of("ruleVersionId", id.toString()));
+        UUID jobId = jobs.enqueue(JobType.EXTRACT_REQUIREMENTS, id, Map.of("ruleVersionId", id.toString()));
         return new CreateResult(id, jobId);
     }
 
@@ -132,13 +132,13 @@ public class RuleVersionService {
     @Transactional(readOnly = true)
     public RuleVersionView view(UUID id) {
         RuleVersion version = require(id);
-        return view(version, jobs.latest(JobType.EXTRACT_REQUIREMENTS, "ruleVersionId", id));
+        return view(version, jobs.latest(JobType.EXTRACT_REQUIREMENTS, id));
     }
 
     @Transactional(readOnly = true)
     public List<RuleVersionView> list() {
         List<RuleVersion> all = ruleVersions.findAll();
-        Map<UUID, Job> extractions = jobs.latestByPayloadValue(JobType.EXTRACT_REQUIREMENTS, "ruleVersionId", all.stream().map(RuleVersion::id).toList());
+        Map<UUID, Job> extractions = jobs.latestByEntity(JobType.EXTRACT_REQUIREMENTS, all.stream().map(RuleVersion::id).toList());
         return all.stream().map(v -> view(v, Optional.ofNullable(extractions.get(v.id())))).toList();
     }
 

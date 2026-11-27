@@ -71,6 +71,7 @@ export const ACTION_LABEL: Record<string, string> = {
   ASSESSMENT_STARTED: 'Assessment started',
   ASSESSMENT_FINISHED: 'Assessment finished',
   REVIEW_RECORDED: 'Review decision recorded',
+  EVIDENCE_PROVIDED: 'Evidence provided',
   DETERMINATION_SIGNED: 'Determination signed',
   DETERMINATION_REOPENED: 'Determination reopened',
   REGISTER_EXPORTED: 'Determination register exported',

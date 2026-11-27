@@ -14,6 +14,7 @@ import {
   phosphorSignOut,
   phosphorSquaresFour,
   phosphorSun,
+  phosphorTray,
   phosphorUserCircle,
   phosphorWarning,
 } from '@ng-icons/phosphor-icons/regular';
@@ -40,6 +41,7 @@ export const SHELL_ICONS = {
   phosphorSignOut,
   phosphorSquaresFour,
   phosphorSun,
+  phosphorTray,
   phosphorUserCircle,
   phosphorWarning,
 };

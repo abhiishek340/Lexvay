@@ -66,6 +66,30 @@ public class DocumentRepository {
                 .param("programId", programId).query(DOCUMENT).list();
     }
 
+    /**
+     * One statement: the program's documents with course, catalog year and page count. Rule text has no program, so
+     * it never appears. The supersession check uses the unique index on {@code course_version.supersedes_id}.
+     */
+    public List<DocumentService.ProgramDocumentView> viewsByProgram(UUID programId) {
+        return jdbc.sql("""
+                SELECT d.id, d.filename, d.kind, d.course_version_id, c.code AS course_code, c.title AS course_title,
+                       cv.catalog_year, cv.required AS course_required, d.created_at,
+                       (SELECT count(*) FROM document_page p WHERE p.document_id = d.id) AS page_count,
+                       (cv.id IS NULL OR NOT EXISTS (SELECT 1 FROM course_version n WHERE n.supersedes_id = cv.id)) AS current
+                FROM document d
+                LEFT JOIN course_version cv ON cv.id = d.course_version_id
+                LEFT JOIN course c ON c.id = cv.course_id
+                WHERE d.program_id = :programId
+                ORDER BY c.code NULLS FIRST, cv.catalog_year DESC NULLS FIRST, d.filename, d.id
+                """).param("programId", programId)
+                .query((rs, i) -> new DocumentService.ProgramDocumentView(rs.getObject("id", UUID.class), rs.getString("filename"),
+                        DocumentKind.valueOf(rs.getString("kind")), rs.getObject("course_version_id", UUID.class),
+                        rs.getString("course_code"), rs.getString("course_title"), rs.getString("catalog_year"),
+                        rs.getObject("course_required", Boolean.class), rs.getInt("page_count"), rs.getBoolean("current"),
+                        rs.getObject("created_at", java.time.OffsetDateTime.class)))
+                .list();
+    }
+
     public List<Document> findByCourseVersion(UUID courseVersionId) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM document WHERE course_version_id = :cv ORDER BY created_at, id")
                 .param("cv", courseVersionId).query(DOCUMENT).list();

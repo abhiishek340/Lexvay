@@ -8,6 +8,13 @@ value, font or visual changed. Decisions D-295 to D-299 in `docs/decisions/PERF-
 Built and tested. The budget step is not done: the initial bundle is 695.0 kB raw, not under 640 kB, so
 `angular.json` keeps 700 kB / 800 kB. The breakdown and the next cuts are in `docs/PERF.md`, "Frontend bundle".
 
+## After merging F4 (PR #28)
+
+F4's evidence request screen and drawer follow the pattern (`requests.routes.ts`, `REQUESTS_ICONS`, `requests-theme.ts`;
+`phosphorTray`, the rail entry, joins `SHELL_ICONS`; Review's new `ChatCircleText` and `User` join `REVIEW_ICONS`).
+Initial bundle on the merged tree: 698.75 kB raw / 168.84 kB transfer (main 691.30 kB), `requests-routes` chunk
+12.59 kB / 4.27 kB. The budget stays at 700 / 800 kB; the figures below are from before the merge.
+
 ## What changed
 
 - `SHELL_ICONS` (17 icons) is the only registry in `app.config.ts`; `LEXVAY_ICONS` is gone.

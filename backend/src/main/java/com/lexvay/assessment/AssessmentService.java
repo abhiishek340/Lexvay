@@ -87,7 +87,7 @@ public class AssessmentService {
         audit.record("ASSESSMENT_STARTED", "assessment", id, Map.of(
                 "programId", programId.toString(), "jurisdictions", program.jurisdictions(), "llmModel", llm.modelId(),
                 "promptVersion", EvidenceMatcher.PROMPT_VERSION));
-        UUID jobId = jobs.enqueue(JobType.RUN_ASSESSMENT, Map.of("assessmentId", id.toString()));
+        UUID jobId = jobs.enqueue(JobType.RUN_ASSESSMENT, id, Map.of("assessmentId", id.toString()));
         return new StartResult(id, jobId);
     }
 

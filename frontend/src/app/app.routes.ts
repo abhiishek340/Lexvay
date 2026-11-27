@@ -15,6 +15,7 @@ export const routes: Routes = [
     children: [
       { path: 'overview', loadChildren: () => import('./screens/overview/overview.routes') },
       { path: 'review', loadChildren: () => import('./screens/review/review.routes') },
+      { path: 'requests', loadChildren: () => import('./screens/requests/requests.routes') },
       { path: 'changes', loadChildren: () => import('./screens/changes/changes.routes') },
       { matcher: rulesMatcher, loadChildren: () => import('./screens/rules/rules.routes') },
       { path: 'report', loadChildren: () => import('./screens/report/report.routes') },

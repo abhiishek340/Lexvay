@@ -401,7 +401,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F13 if needed, V015 F7c. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -2075,3 +2075,193 @@ tenant under its own name and email domain, the approach `RuleVersionDiffSeedTes
 the shared test helper `seed/SeedCopy` and both tests use it (the follow-up asking for one shared seeded fixture
 still stands). The test checks the five targets before any signature (all `NO_CURRENT_SIGNATURE`), signs the first
 jurisdiction whose mappings are all current, and checks the partition again and the register row.
+
+### FIX-2 — Job entity id column and index (D-200 to D-209)
+
+**D-200 — `job.entity_id uuid NOT NULL` holds the record a job works on.** Every job payload carried exactly one
+id (`documentId`, `ruleVersionId`, `assessmentId`, `changeEventId`, `reportId`, and `ruleSourceId` from F12), and
+the lookups compared that value with `payload->>'key'`. That comparison is not leakproof, and the policies of `job`
+have an OR branch for the worker flag (V002, V011), so the planner could not use an expression index below them and
+scanned the whole table, which only grows because jobs are never deleted (D-115). `entity_id = :id` is leakproof.
+It is a stored column written by the enqueuer, not a generated column over the payload: a generated column would
+need the key name per job type, which is the string key this item removes. Rejected: one column per record kind
+(six nullable columns for one value).
+
+**D-201 — Migration `V013__job_entity_id.sql`.** `NO FORCE ROW LEVEL SECURITY` on `job`, `ADD COLUMN entity_id uuid`,
+backfill, `SET NOT NULL`, `FORCE ROW LEVEL SECURITY`, then the index; all in Flyway's transaction, so a failure
+leaves neither the policy weakened nor the column half filled (the pattern of V012, D-231). The exemption is needed
+because the backfill touches rows of every tenant and the owner is otherwise bound by `FORCE`. The backfill is
+`(SELECT value::uuid FROM jsonb_each_text(payload) LIMIT 1)` for rows where `jsonb_typeof(payload) = 'object'`. A
+job whose payload is not an object of one uuid value is left NULL and `SET NOT NULL` fails the migration loudly;
+no such row can exist, because every enqueue path put one id in the payload object. The job triggers and policies
+of V002, V003 and V011 are unchanged.
+
+**D-202 — The index is `job_entity_idx (type, entity_id, created_at DESC)`, without `tenant_id` (orchestrator
+decision, supersedes the key in the roadmap).** The roadmap specified `(tenant_id, type, entity_id, created_at
+DESC)`. The implementation of FIX-2 measured it and the orchestrator accepted the change. Under the policy OR
+branch (V002, V011) `tenant_id = current_tenant()` is a filter, not an index condition, so an index that leads with
+`tenant_id` is walked with a skip scan over every tenant, and its cost grows with the number of tenants. Entity ids
+are random uuids, so `tenant_id` adds no selectivity to the key. Measured on the `IndexUsageTest` database (about 200
+tenants, 1304 pages of `job`), shared buffers of one ingest status lookup as the application role under row-level
+security: 1304 for the sequential scan it replaces, 636 with the tenant-leading key, 21 to 25 with this key.
+`IndexUsageTest` now records the buffers of each job lookup and fails above 100, so a key that walks every tenant
+cannot return unnoticed. The tenant condition is still applied, by the policy, on the few heap rows the index
+returns.
+
+**D-203 — API.** `JobRepository.enqueue(JobType type, UUID entityId, Map<String, ?> payload)` writes both columns;
+`latest(JobType, UUID entityId)` replaces `latest(JobType, String key, UUID value)`; `latestByEntity(JobType,
+Collection<UUID>)` replaces `latestByPayloadValue` and keys its result by `Job.entityId()`, so it no longer selects an
+extra payload column. `Job` gains `entityId` after `type`. There is no string payload key in any lookup, so the
+helper that validated keys for use inside SQL text is deleted. `GET /jobs/{id}` (`JobView`) is unchanged.
+
+**D-204 — The payload stays.** Handlers still read their input from it (`Map<String, Object> payload`), and a
+future job may need more than one id. Call sites pass the id they already put in the payload: document upload,
+rule version create, assessment run, change re-run, report generation, rule source check.
+
+**D-205 — Every `payload->>` comparison in main code is replaced.** `JobRepository.latest`, `latestByEntity`,
+`WorkQueueRepository.EXTRACTION_FAILED` (`x.entity_id = rv.id`) and F12's scheduler dedupe in
+`RuleSourceRepository.ENQUEUE` (`j.entity_id = rs.id`; the statement also inserts `entity_id`, `rs.id`, beside the
+unchanged `jsonb_build_object('ruleSourceId', rs.id)` payload). `grep -rn "payload *->>" backend/src` finds only the
+migration comment. The job policies in V002 and V011 are untouched.
+
+**D-206 — The scheduler's dedupe is served by `job_claim_idx`, not `job_entity_idx`.** `IndexUsageTest` runs
+`EXPLAIN` of the exact `RuleSourceRepository.ENQUEUE` statement, as a tenant (manual check) and under the worker flag
+without a tenant (`enqueueDue`, the scheduler). In both the planner reads the QUEUED and RUNNING jobs from
+`job_claim_idx (status, created_at)` and filters the entity; those jobs are few, which is what the statement asks
+for, and it never scans `job` sequentially. The roadmap expected `job_entity_idx` here. The test asserts what is
+true and what matters (an index on `job`, no sequential scan of `job`) instead of forcing the planner's hand.
+
+**D-207 — `IndexUsageTest`.** The two rejected payload candidates and their `EXPLAIN` rows are removed (the
+statements no longer exist); `job_entity_idx` is a kept candidate for the ingest status, the extraction status and
+the rule version list (`latestByEntity`); every statement fails the test on `Seq Scan on job`. `PerfSeed.addHistoryVolume`
+adds finished jobs (20 re-ingests per document, 20 extractions per rule version, 30 checks per rule source), because
+at the seed's few hundred jobs the planner correctly prefers a sequential scan even without row-level security
+and the index could not be shown to be chosen. `ENQUEUE` and a new `DUE` predicate are public constants of
+`RuleSourceRepository`, like `WorkQueueRepository.LIST`, so the test explains what the application runs. The
+candidate for `requirement` named `requirement_rule_version_id_ref_key`, which V012 replaced with
+`requirement_ordinal_key`; `make perf` had failed on `main` since FIX-1 and is repaired here (query `ORDER BY ordinal`).
+
+**D-208 — The backfill is proven by running the migration's own statement.** `JobEntityIdBackfillTest` creates a
+temporary table named `job` (it shadows the real one for that connection only, and is dropped in a `finally`
+because the pool reuses connections), reads `V013__job_entity_id.sql` from the classpath, runs its `UPDATE`
+unchanged and asserts: documentId, ruleVersionId and ruleSourceId payloads yield their value; an empty object, an
+array and a string stay NULL and are not visited. `JobEntityLookupTest` covers the repository: newest job of a type
+for a record, other types and records ignored, another tenant's job invisible, `latestByEntity` returning one job
+per record and omitting records without one. `MigrationsApplyCleanlyTest` already counts migration files from the
+classpath, so it counts V013 without change.
+
+**D-209 — Measurements.** `docs/PERF.md` ("Job lookups (FIX-2)") has the before and after rows for
+`GET /documents/{id}` and `GET /rule-versions` and the plans and buffer counts. At the seeded volume (under a
+thousand jobs) the endpoints do not move beyond run-to-run noise; the change shows in the plans, which no longer scan
+`job`, and in the buffer counts on the larger database.
+
+### F4 — Evidence request screens (D-260 to D-269)
+
+**D-260 — Route, rail entry and one source for the rows.** `programs/:programId/requests` is its own lazy chunk
+(`screens/requests/`). The rail shows "Evidence requests" after Review with `phosphorTray`, for every role, with a
+badge whose screen-reader text is "n open evidence request(s)". `ProgramContext` loads
+`GET /programs/{id}/evidence-requests?status=ALL` beside the other program reads and keeps the rows in one signal; the
+badge, the SelectButton counts and the table all derive from it, and the Open / Answered / All filter is applied in
+the browser. The inbox fetches the rows again when it is opened on a program that is already loaded (requests are other
+people's work), Review refreshes them after every decision, and `refreshAfterChange` after a re-run (a re-run can
+unblock a request). Rejected: one request per filter (three fetches for the counts); a separate store for the inbox
+(the badge would need a second copy, D-085).
+
+**D-261 — Status derivation.** `requestState(row)` in `core/evidence-requests.ts` is the only derivation: an OPEN row on
+a stale mapping is Blocked (`phosphorArrowsClockwise`, warn tag, the helper text from the spec, no action), any other
+OPEN row is Open (`phosphorEnvelopeOpen`), an ANSWERED row is "Answered, awaiting review" (`phosphorCheckCircle`). A
+blocked request is still an open request: it is listed and counted under Open and in the badge, because it still
+needs an answer once the change is re-run. A stale ANSWERED row stays Answered: there is nothing to answer and the
+reviewer's Review screen already says the mapping needs a re-run. Rejected: hiding blocked requests (the contributor
+would not know a request exists).
+
+**D-262 — `stale` on `EvidenceRequestView`.** One column (`m.stale`) in the existing statement of
+`EvidenceRequestRepository`, after `status`. Tested in `EvidenceRequestApiTest`
+(`aStaleMappingsRequestIsListedWithItsStaleFlagAndCannotBeAnswered` and the flag in the full loop).
+
+**D-263 — `GET /api/v1/programs/{id}/documents` (orchestrator decision during F4).** No endpoint on `main` listed a
+program's documents: the courses endpoint carries no documents and every document read takes a document id, so the
+spec's fallback could not be built. The orchestrator decided to add the endpoint here, in the document package next to
+the other document reads: `DocumentService.forProgram` checks the program (`ProgramService.get`, 404 for an unknown
+or another tenant's program) and `DocumentRepository.viewsByProgram` runs one statement returning `{ id, filename,
+kind, courseVersionId, courseCode, courseTitle, catalogYear, courseRequired, pageCount, current, createdAt }`,
+ordered program-level documents first (course code null), then course code, newest catalog year, file name. `current`
+is true for program-level documents and for documents of a course version no other version supersedes (the unique
+index on `course_version.supersedes_id` serves the `NOT EXISTS`); the page count uses the `(document_id,
+page_number)` key. Rule text has no program, so it never appears. Any role may read; it is a GET, so it is not
+audited. Rows in `InputValidationTableTest` (bad id 400, unknown program 404), `ReadPathConnectionsTest` (one
+connection) and `EndpointLatencyTest` (p95 5.5 ms seeded, 5.4 ms with 62 tenants); `ProgramDocumentsApiTest` covers
+order, fields, the `current` flag, a document without pages, every role, anonymous 401, another tenant 404.
+
+**D-264 — The document picker (orchestrator decision during F4).** A grouped PrimeNG Select: "Program documents" first,
+then one group per course ("COUN 605 Professional Orientation and Ethical Practice"), in the server's order. Current
+documents only by default; a ToggleSwitch "Include earlier catalog years" (shown only when there are any) adds the
+others, labelled "catalog year 2026-27". Switching it off again clears a choice that is no longer listed. A document
+with no pages is listed disabled with "No text available yet". The job table is not read for ingest status (FIX-2 makes
+that cheap later). The grouping is the plain function `documentGroups` (Vitest). An option's accessible name is its
+visible text (file name, then kind and year); the Select shows the same words, joined with commas, once chosen.
+
+**D-265 — The answer drawer.** `EvidenceDrawer` is a `@defer (when answering())` block of the inbox, so its code
+(Drawer, Select, ToggleSwitch, Textarea and their tokens) is a chunk of its own (`evidence-drawer`, 32.6 kB raw) loaded on
+the first "Provide evidence". PrimeNG Drawer on the right, 70 % wide, 100 % under 1024 px, appended to the body.
+PrimeNG renders the panel as `role="complementary"`; pass-through makes it `role="dialog"`, `aria-modal="true"`,
+labelled by its "Provide evidence" heading (D-087 style). Its focus trap keeps Tab inside; the Drawer gives no initial
+focus, so the heading takes it on show. Escape, the close button, the mask and Cancel return focus to the row's
+"Provide evidence" button; after an answer that button no longer exists, so focus goes to the page heading next to
+the status line. The inbox keeps the request it last opened while the drawer slides out. The Drawer runs with
+`modal` false and the screen draws its own backdrop (click closes, `aria-hidden`), and Escape is handled by the
+drawer for keys pressed inside it (`closeOnEscape` false): PrimeNG removes its own mask on `animationend`, which does
+not reliably fire when animations are reduced to zero (`prefers-reduced-motion` in `styles.css`), and a mask left
+behind made the whole page unclickable (seen in 1 of 3 end-to-end runs); its document-wide Escape listener also closed
+the drawer when Escape only meant to close the viewer's range dialog above it. The rule text is not on the request row; the drawer
+reads it from the existing `GET /assessments/{id}/mappings?jurisdiction=` (one request per opening) rather than
+adding the text to every inbox row. Wide layout: request, picker, passage, comment and actions on the left, the page on
+the right (sticky); under 1024 px everything stacks in reading order. The selection (mouse, "Use this passage" or the
+keyboard range dialog) fills "Selected passage" in serif with page and character range in mono; `responseBody` sends
+`{ documentId, pageNumber, quote, comment }` with the quote exactly as stored and a blank comment as null. A 400 is
+shown under the passage with the server's detail; a 409 (or any other failure) in a Message above the actions, and the
+inbox reloads. On success: toast "Evidence sent to review", a status-line sentence, the drawer closes, the row moves to
+Answered.
+
+**D-266 — `responseCount` on the mapping read (orchestrator decision during F4).** Option (a) of the review: a correlated
+`(SELECT count(*) FROM evidence_response er WHERE er.mapping_id = m.id)` in `MappingRepository`'s shared select, served
+by `evidence_response_mapping_idx`, exposed as `Mapping.responseCount`. No migration. `make perf`, p95 of
+`GET /assessments/{id}/mappings`: by jurisdiction 4.92 → 2.71 ms (seed only) and 3.57 → 5.68 ms (62 tenants); all
+mappings 9.38 → 5.77 ms and 9.27 → 11.14 ms. The differences are run-to-run noise in both directions and far under the
+40 ms budget; `ReadPathConnectionsTest` still shows one connection for every read endpoint. The marker means "this
+requirement has evidence provided by a person" and stays after a decision.
+
+**D-267 — Review.** Responses are fetched with the selected mapping only when its `responseCount` is above zero, kept per
+mapping in `ReviewWorkspace.responses` for the screen's lifetime, and fetched again when the count has grown since
+(`evidenceView`, Vitest). The Evidence pane shows the system's evidence (or "No quoted evidence") first and unchanged,
+then one block per response, newest first: a heading "Evidence provided by <name>, <date>" with `phosphorUser`, the
+same file, course, page and character list, the elective warning, "Quote only", the `DocumentViewer` with the stored
+span marked, and the comment. Both kinds use one `passageTpl` template; under 1024 px each has its own "Show on page"
+(the shown set is a `linkedSignal` of the selection). The requirement list shows `phosphorChatCircleText` "evidence
+provided" on mappings with responses; the note placeholder is "Note the evidence you relied on" while a person has
+answered and no decision has been made. The system test ids (`evidence-meta`, `evidence-quote`) stay on the system's
+block only.
+
+**D-268 — Bundle.** Initial bundle raw: 703.67 kB on the `main` this item started from, 710.30 kB with F4 before
+merging F3b and F8; after merging them, 703.12 kB on `main` and 707.30 kB with F4 (warning budget 700 kB, error
+800 kB). The screen and the drawer are lazy (`requests`, and `evidence-drawer` at 32.6 kB raw). The Drawer and
+ToggleSwitch token sets follow F3b's and F8's pattern and join the preset when the drawer's chunk first runs
+(`evidence-drawer-theme.ts`, which reuses the register's ToggleSwitch definition rather than copying it). The 4.2 kB
+left in the initial bundle are four icons in the single registry (`phosphorTray`, `phosphorEnvelopeOpen`,
+`phosphorChatCircleText`, `phosphorUser`, about 1.7 kB) and the code the rail badge needs (`ProgramContext`,
+`ApiService`, `core/evidence-requests.ts`). PERF-FE-1 moves screen icons into their chunks.
+
+**D-269 — Tests.** Vitest: `core/evidence-requests.spec.ts` (status derivation including blocked, filters and counts),
+`screens/requests/answer.spec.ts` (selection to request body, document groups, earlier years, disabled documents),
+`review-workspace.spec.ts` (responses merged into the evidence view, loading, answered, cache). End to end,
+`e2e/evidence-requests.spec.ts` follows the spec's scenario on Utah's missing requirement (Colorado and California are
+used by other suites): request with a note, the contributor's badge and inbox, row detail from the keyboard, the drawer,
+current and earlier documents, Escape closing only the range dialog, a passage typed into the range dialog, a tampered
+quote refused through the API and through the screen with the server's words, submit, Answered, the reviewer's
+"Needs review" filter with the marker, "Evidence provided by Jordan Ellis" and the marked quote, accept, nothing open.
+A second test checks 400 px: the inbox, the full-width drawer and focus returning to the row action, a blocked row,
+and the provided evidence behind "Show on page". The seed cannot make a requested mapping stale without a rule or
+course change that other suites depend on (and a stale mapping cannot be reviewed), so the blocked row is produced by
+setting `stale` on one row of the real list response in the test; the flag itself is covered by the backend test.
+`e2e/support.ts` gains `apiPost` (a mutating call with the CSRF header) and `switchUser`. The range offsets are typed key by
+key: Playwright's `fill` leaves PrimeNG InputNumber's model unchanged until the field loses focus.

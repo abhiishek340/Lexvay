@@ -6,10 +6,13 @@ import com.lexvay.rule.RequirementType;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** One requirement's proposed finding with its evidence, as shown to reviewers (D-053). */
+/**
+ * One requirement's proposed finding with its evidence, as shown to reviewers (D-053). {@code responseCount}: how
+ * many evidence responses people attached to it (F4); they never change the proposal and outlive any decision.
+ */
 public record Mapping(UUID id, UUID assessmentId, UUID jurisdictionId, String jurisdiction, UUID ruleVersionId,
                       RequirementView requirement, Finding finding, MappingMethod method, String rationale,
-                      boolean stale, Evidence evidence, Decision decision) {
+                      boolean stale, Evidence evidence, Decision decision, int responseCount) {
 
     /** The current human decision (D-003): the latest review event unless that event is REOPENED. */
     public record Decision(String kind, String note, UUID userId, String userDisplayName, java.time.OffsetDateTime at) {

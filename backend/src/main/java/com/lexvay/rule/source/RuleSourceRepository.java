@@ -39,15 +39,21 @@ public class RuleSourceRepository {
     /**
      * Queues one CHECK_RULE_SOURCE job for every source the {@code %s} predicate selects, unless one is already
      * QUEUED or RUNNING for it. One statement, so the dedupe and the insert cannot interleave with themselves.
+     * Public so the index-usage check can run {@code EXPLAIN} on exactly what the application runs.
      */
-    private static final String ENQUEUE = """
-            INSERT INTO job (tenant_id, type, payload, created_by)
-            SELECT rs.tenant_id, 'CHECK_RULE_SOURCE', jsonb_build_object('ruleSourceId', rs.id), CAST(:createdBy AS uuid)
+    public static final String ENQUEUE = """
+            INSERT INTO job (tenant_id, type, entity_id, payload, created_by)
+            SELECT rs.tenant_id, 'CHECK_RULE_SOURCE', rs.id, jsonb_build_object('ruleSourceId', rs.id), CAST(:createdBy AS uuid)
             FROM rule_source rs
             WHERE %s
               AND NOT EXISTS (SELECT 1 FROM job j WHERE j.type = 'CHECK_RULE_SOURCE' AND j.status IN ('QUEUED', 'RUNNING')
-                              AND j.payload ->> 'ruleSourceId' = rs.id::text)
+                              AND j.entity_id = rs.id)
             RETURNING id""";
+
+    /** The predicate of {@link #ENQUEUE} for the scheduler: active sources never checked or past their interval. Public like it. */
+    public static final String DUE = """
+            rs.active AND (rs.last_checked_at IS NULL
+                           OR rs.last_checked_at < now() - rs.check_interval_hours * interval '1 hour')""";
 
     private static final String SELECT_SOURCE = """
             SELECT rs.id, rs.jurisdiction_id, j.code AS jurisdiction_code, rs.license_type, rs.label, rs.url,
@@ -135,9 +141,6 @@ public class RuleSourceRepository {
     @Transactional
     public int enqueueDue() {
         jdbc.sql("SELECT set_config('lexvay.worker', 'on', true)").query().singleRow();
-        return jdbc.sql(ENQUEUE.formatted("""
-                        rs.active AND (rs.last_checked_at IS NULL
-                                       OR rs.last_checked_at < now() - rs.check_interval_hours * interval '1 hour')"""))
-                .param("createdBy", null).query(UUID.class).list().size();
+        return jdbc.sql(ENQUEUE.formatted(DUE)).param("createdBy", null).query(UUID.class).list().size();
     }
 }

@@ -42,6 +42,15 @@ public class DocumentService {
     public record IngestStatus(UUID jobId, String status, String error) {
     }
 
+    /**
+     * A program document with its course context, for choosing a passage (F4). {@code current}: a program-level
+     * document, or one of a course version no other version supersedes. {@code pageCount} 0: no text yet.
+     */
+    public record ProgramDocumentView(UUID id, String filename, DocumentKind kind, UUID courseVersionId, String courseCode,
+                                      String courseTitle, String catalogYear, Boolean courseRequired, int pageCount,
+                                      boolean current, java.time.OffsetDateTime createdAt) {
+    }
+
     public record DocumentView(UUID id, UUID programId, UUID courseVersionId, String filename, String sha256,
                                DocumentKind kind, java.time.OffsetDateTime createdAt, UUID createdBy,
                                List<PageSummary> pages, IngestStatus ingest) {
@@ -104,7 +113,7 @@ public class DocumentService {
         audit.record("DOCUMENT_UPLOADED", "document", documentId, Map.of(
                 "filename", filename, "kind", kind.name(), "sha256", sha256, "bytes", bytes.length,
                 "programId", programId.toString()));
-        UUID jobId = jobs.enqueue(JobType.INGEST_DOCUMENT, Map.of("documentId", documentId.toString()));
+        UUID jobId = jobs.enqueue(JobType.INGEST_DOCUMENT, documentId, Map.of("documentId", documentId.toString()));
         return new UploadResult(documentId, jobId);
     }
 
@@ -139,10 +148,17 @@ public class DocumentService {
                 .map(p -> new PageSummary(p.pageNumber(), p.charStart(), p.charEnd(), p.text().length(), p.textSource(),
                         p.ocrConfidence()))
                 .toList();
-        Optional<IngestStatus> ingest = jobs.latest(JobType.INGEST_DOCUMENT, "documentId", id)
+        Optional<IngestStatus> ingest = jobs.latest(JobType.INGEST_DOCUMENT, id)
                 .map(j -> new IngestStatus(j.id(), j.status().name(), j.error()));
         return new DocumentView(document.id(), document.programId(), document.courseVersionId(), document.filename(),
                 document.sha256(), document.kind(), document.createdAt(), document.createdBy(), pages, ingest.orElse(null));
+    }
+
+    /** Every document of the program, program-level documents first, then by course and newest catalog year. */
+    @Transactional(readOnly = true)
+    public List<ProgramDocumentView> forProgram(UUID programId) {
+        programs.get(programId);
+        return documents.viewsByProgram(programId);
     }
 
     /** The document row, one statement; row-level security makes another tenant's document not found. */

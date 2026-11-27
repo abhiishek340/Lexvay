@@ -93,7 +93,7 @@ public class ChangeService {
         if (view.kind() == ChangeKind.COURSE_VERSION && !view.newVersionHasDocument()) {
             throw new ConflictException("Upload a document for the new course version before re-running");
         }
-        UUID jobId = jobs.enqueue(JobType.RERUN_CHANGE, Map.of("changeEventId", changeEventId.toString()));
+        UUID jobId = jobs.enqueue(JobType.RERUN_CHANGE, changeEventId, Map.of("changeEventId", changeEventId.toString()));
         audit.record("CHANGE_RERUN_REQUESTED", "change_event", changeEventId, Map.of("kind", view.kind().name(), "jobId", jobId.toString()));
         return new RerunResult(changeEventId, jobId);
     }

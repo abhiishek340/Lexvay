@@ -50,9 +50,10 @@ final class PerfSeed {
     /**
      * Rows the seed never produces but a tenant that has used the product for a while has: repeated
      * assessments per program, signed or reopened determinations and a review history on most mappings
-     * (none, an open evidence request, a reopening, or a request answered and accepted). Inserted as the database owner of the
-     * test container (which bypasses row-level security) so that those tables are big enough for the planner
-     * to consider an index. Synthetic; used only to check which indexes the planner chooses.
+     * (none, an open evidence request, a reopening, or a request answered and accepted), and the finished jobs
+     * that pile up because jobs are never deleted (re-ingests, extractions, source checks). Inserted as the
+     * database owner of the test container (which bypasses row-level security) so that those tables are big
+     * enough for the planner to consider an index. Synthetic; used only to check which indexes the planner chooses.
      */
     static void addHistoryVolume(Statement admin) throws SQLException {
         admin.execute("""
@@ -70,6 +71,17 @@ final class PerfSeed {
                 JOIN rule_version rv ON rv.tenant_id = a.tenant_id
                 CROSS JOIN generate_series(1, 2) g
                 JOIN LATERAL (SELECT id FROM app_user WHERE tenant_id = a.tenant_id LIMIT 1) u ON true
+                """);
+        admin.execute("""
+                INSERT INTO job (tenant_id, type, entity_id, payload, status, created_at)
+                SELECT d.tenant_id, 'INGEST_DOCUMENT', d.id, jsonb_build_object('documentId', d.id), 'DONE', now() - g * interval '1 hour'
+                FROM document d CROSS JOIN generate_series(1, 20) g
+                UNION ALL
+                SELECT rv.tenant_id, 'EXTRACT_REQUIREMENTS', rv.id, jsonb_build_object('ruleVersionId', rv.id), 'DONE', now() - g * interval '1 hour'
+                FROM rule_version rv CROSS JOIN generate_series(1, 20) g
+                UNION ALL
+                SELECT rs.tenant_id, 'CHECK_RULE_SOURCE', rs.id, jsonb_build_object('ruleSourceId', rs.id), 'DONE', now() - g * interval '1 day'
+                FROM rule_source rs CROSS JOIN generate_series(1, 30) g
                 """);
         admin.execute("""
                 INSERT INTO review_event (tenant_id, mapping_id, kind, note, user_id, created_at)

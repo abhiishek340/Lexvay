@@ -81,6 +81,18 @@ export async function shoot(page: Page, name: string): Promise<void> {
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
 }
 
+/** A mutating API call as the signed-in user, with the CSRF header the app would send (XSRF-TOKEN cookie). */
+export async function apiPost(page: Page, url: string, body: unknown) {
+  const token = (await page.context().cookies()).find((c) => c.name === 'XSRF-TOKEN')?.value ?? '';
+  return page.request.post(url, { data: body, headers: { 'X-XSRF-TOKEN': token } });
+}
+
+/** Signs the current user out by dropping the session, then signs in as someone else. */
+export async function switchUser(page: Page, email: string): Promise<void> {
+  await page.context().clearCookies();
+  await signIn(page, email);
+}
+
 export function nav(page: Page, name: string) {
   return page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name, exact: true });
 }
