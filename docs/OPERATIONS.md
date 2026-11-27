@@ -107,6 +107,14 @@ user returns a one-time setup code (valid 72 hours, stored only as a SHA-256) th
 `POST /api/v1/users/{id}/setup-code` issues a new one, which is also how a forgotten password is reset (D-371).
 Choosing a password counts against the login rate limit of the client address.
 
+Passwords are stored as Argon2id hashes (32 MiB, 4 passes, one lane; about 70 ms per sign-in on a development laptop,
+and 32 MiB of heap while it runs) and are 12 to 128 characters long (D-400, D-402). A hash made before SEC-2 is bcrypt;
+it keeps working and is replaced at that user's next successful sign-in, with one `PASSWORD_REHASHED` audit entry
+(D-401). Any administrator can issue a setup code for any user, a signer or another administrator included, and so
+could sign in as that person once the code is used. Both actions are audited (`USER_SETUP_CODE_ISSUED`, `PASSWORD_SET`),
+but without email delivery that power is inherent to password accounts. Production deployments should use OIDC for
+SIGNER and ADMIN accounts (profile `oidc`, D-090), where the identity provider's own controls decide who can sign in.
+
 A session ends when its user's role, activity or password changes. Each instance keeps the last known access of every
 user it served for 15 seconds (at most 10 000 users) and refuses a session issued with other values:
 - A change made on this instance takes effect on the next request.
