@@ -8,7 +8,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["ref", "title", "text", "type", "numeric_field", "numeric_operator", "numeric_value"],
+        "required": ["ref", "title", "text", "type", "numeric_field", "numeric_operator", "numeric_value", "search_terms"],
         "properties": {
           "ref": { "type": "string", "description": "Short stable identifier, e.g. UT-3" },
           "title": { "type": "string", "description": "Five words or fewer naming the requirement" },
@@ -16,7 +16,13 @@
           "type": { "type": "string", "enum": ["NUMERIC", "SUBJECT", "SUPERVISED_HOURS", "ACCREDITATION", "JURISDICTION_SPECIFIC"] },
           "numeric_field": { "type": ["string", "null"], "enum": ["TOTAL_CREDITS", "PRACTICUM_HOURS", "INTERNSHIP_HOURS", null] },
           "numeric_operator": { "type": ["string", "null"], "enum": [">=", "<=", "=", ">", "<", null] },
-          "numeric_value": { "type": ["number", "null"] }
+          "numeric_value": { "type": ["number", "null"] },
+          "search_terms": {
+            "type": "array",
+            "maxItems": 8,
+            "items": { "type": "string", "maxLength": 40 },
+            "description": "Words or two-word phrases a syllabus would use for the requirement's subject; none already in the text, no state names, no numbers"
+          }
         }
       }
     }

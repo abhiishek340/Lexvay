@@ -47,7 +47,7 @@ public final class RetrievalScorer {
     }
 
     /** A query that was not recalled or whose evidence the excerpt left out, for the report. */
-    public record Miss(String query, String problem) {
+    public record Miss(String query, String problem, boolean lexicalGap) {
     }
 
     /** @param counted the queries that count toward thresholds; @param gap the lexical gaps, which never do */
@@ -64,9 +64,9 @@ public final class RetrievalScorer {
         for (Result r : results) {
             int rank = r.rank();
             if (rank == 0) {
-                misses.add(new Miss(r.query().id(), "expected " + r.query().file() + " page " + r.query().page() + " is not in the top " + DEEP));
+                misses.add(new Miss(r.query().id(), "expected " + r.query().file() + " page " + r.query().page() + " is not in the top " + DEEP, r.query().lexicalGap()));
             } else if (!r.excerptCoversEvidence()) {
-                misses.add(new Miss(r.query().id(), "excerpt of " + r.query().file() + " page " + r.query().page() + " leaves out the evidence"));
+                misses.add(new Miss(r.query().id(), "excerpt of " + r.query().file() + " page " + r.query().page() + " leaves out the evidence", r.query().lexicalGap()));
             }
         }
         return new Score(metrics(counted), metrics(gap), misses);

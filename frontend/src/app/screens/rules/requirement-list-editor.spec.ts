@@ -3,7 +3,7 @@ import { RequirementView } from '../../core/models';
 import { RequirementListEditor, requirementProblems } from './requirement-list-editor';
 
 function requirement(ref: string, patch: Partial<RequirementView> = {}): RequirementView {
-  return { id: `id-${ref}`, ref, title: `Title ${ref}`, text: `Text ${ref}`, type: 'SUBJECT', numericField: null, numericOperator: null, numericValue: null, ...patch };
+  return { id: `id-${ref}`, ref, title: `Title ${ref}`, text: `Text ${ref}`, type: 'SUBJECT', numericField: null, numericOperator: null, numericValue: null, searchTerms: [], ...patch };
 }
 const hours = requirement('CO-5', { type: 'SUPERVISED_HOURS', numericField: 'INTERNSHIP_HOURS', numericOperator: '>=', numericValue: 600 });
 
@@ -18,9 +18,9 @@ describe('RequirementListEditor', () => {
     const e = editor();
     expect(e.dirty()).toBe(false);
     expect(e.toDrafts()).toEqual([
-      { ref: 'CO-1', title: 'Title CO-1', text: 'Text CO-1', type: 'SUBJECT', numeric_field: null, numeric_operator: null, numeric_value: null },
-      { ref: 'CO-2', title: 'Title CO-2', text: 'Text CO-2', type: 'SUBJECT', numeric_field: null, numeric_operator: null, numeric_value: null },
-      { ref: 'CO-5', title: 'Title CO-5', text: 'Text CO-5', type: 'SUPERVISED_HOURS', numeric_field: 'INTERNSHIP_HOURS', numeric_operator: '>=', numeric_value: 600 },
+      { ref: 'CO-1', title: 'Title CO-1', text: 'Text CO-1', type: 'SUBJECT', numeric_field: null, numeric_operator: null, numeric_value: null, search_terms: [] },
+      { ref: 'CO-2', title: 'Title CO-2', text: 'Text CO-2', type: 'SUBJECT', numeric_field: null, numeric_operator: null, numeric_value: null, search_terms: [] },
+      { ref: 'CO-5', title: 'Title CO-5', text: 'Text CO-5', type: 'SUPERVISED_HOURS', numeric_field: 'INTERNSHIP_HOURS', numeric_operator: '>=', numeric_value: 600, search_terms: [] },
     ]);
   });
 
@@ -34,6 +34,29 @@ describe('RequirementListEditor', () => {
     expect(e.dirty()).toBe(false);
   });
 
+  it('sends back the search terms each row was loaded with after an edit, a move and a type change', () => {
+    const e = new RequirementListEditor();
+    e.load([requirement('CO-1', { searchTerms: ['code of ethics', 'confidentiality'] }), requirement('CO-2', { searchTerms: ['fieldwork'] }), hours]);
+    const [first, second] = e.rows().map((r) => r.key);
+    e.update(first, { title: 'Ethics coursework' });
+    e.move(second, -1);
+    e.update(second, { type: 'ACCREDITATION' });
+    expect(e.toDrafts().map((d) => [d.ref, d.title, d.search_terms])).toEqual([
+      ['CO-2', 'Title CO-2', ['fieldwork']],
+      ['CO-1', 'Ethics coursework', ['code of ethics', 'confidentiality']],
+      ['CO-5', 'Title CO-5', []],
+    ]);
+  });
+
+  it('does not share the loaded terms with the row: a discard returns to the server list', () => {
+    const e = new RequirementListEditor();
+    e.load([requirement('CO-1', { searchTerms: ['aging'] })]);
+    e.update(e.rows()[0].key, { title: 'Changed' });
+    e.restore();
+    expect(e.dirty()).toBe(false);
+    expect(e.toDrafts()[0].search_terms).toEqual(['aging']);
+  });
+
   it('adds an empty row at the end with no type chosen', () => {
     const e = editor();
     const row = e.add();
@@ -41,6 +64,7 @@ describe('RequirementListEditor', () => {
     expect(row).toMatchObject({ ref: '', title: '', text: '', type: null });
     expect(e.dirty()).toBe(true);
     expect(e.toDrafts().at(-1)?.type).toBeNull();
+    expect(e.toDrafts().at(-1)?.search_terms).toEqual([]);
   });
 
   it('moves rows up and down, stays put at either end, and a move alone makes the list dirty', () => {

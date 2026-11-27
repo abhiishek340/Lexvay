@@ -25,7 +25,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Budget of ROADMAP F7: one BM25 statement for a requirement, headlines of the long pages among its top eight included, has a p95
+ * Budget of ROADMAP F7, still met with F7c's six search terms per requirement: one BM25 statement for a requirement, headlines of the long pages among its top eight included, has a p95
  * of at most 30 ms on a program of 500 pages. The pages are synthetic: words drawn from a skewed vocabulary of 4,000 words, each
  * page with the policy sentences every syllabus repeats, 2,000 to 3,500 characters long so that part of the shortlist is excerpted.
  */
@@ -97,12 +97,12 @@ class PassageSearchLatencyTest extends AbstractDatabaseTest {
     @Test
     void bm25ShortlistForARequirementOnFiveHundredPagesIsWithinBudget() {
         List<String[]> requirements = List.of(
-                new String[] {"Ethics coursework", "coursework in professional ethics and legal standards for counselors word12 word45"},
-                new String[] {"Group counseling", "coursework in group counseling theory and practice word7 word300"},
-                new String[] {"Supervised practice", "a course in which students practice counseling skills under supervision word2 word99"},
-                new String[] {"Diagnosis", "coursework in the diagnosis and treatment planning of mental disorders word1000 word3"},
-                new String[] {"Human growth", "coursework in human growth and development across the lifespan word5 word64"},
-                new String[] {"Research", "coursework in research methods and program evaluation word8 word21"});
+                new String[] {"Ethics coursework", "coursework in professional ethics and legal standards for counselors word12 word45", "code of ethics,confidentiality,word77,word150,informed consent,liability"},
+                new String[] {"Group counseling", "coursework in group counseling theory and practice word7 word300", "group therapy,group dynamics,word33,word2000,facilitation,process groups"},
+                new String[] {"Supervised practice", "a course in which students practice counseling skills under supervision word2 word99", "practicum,role play,word41,word1500,skills lab,live observation"},
+                new String[] {"Diagnosis", "coursework in the diagnosis and treatment planning of mental disorders word1000 word3", "psychopathology,abnormal psychology,word88,word2500,dsm,diagnostic criteria"},
+                new String[] {"Human growth", "coursework in human growth and development across the lifespan word5 word64", "lifespan development,aging,word19,word3000,life stages,cognitive development"},
+                new String[] {"Research", "coursework in research methods and program evaluation word8 word21", "statistics,outcome research,word55,word999,data analysis,needs assessment"});
         TenantContext.runAs(tenant.tenantId(), () -> {
             for (int i = 0; i < WARM_UP; i++) {
                 run(requirements.get(i % requirements.size()));
@@ -124,6 +124,6 @@ class PassageSearchLatencyTest extends AbstractDatabaseTest {
     }
 
     private List<Passage> run(String[] requirement) {
-        return new ArrayList<>(search.search(programId, requirement[0], requirement[1], 8));
+        return new ArrayList<>(search.search(programId, requirement[0], requirement[1], List.of(requirement[2].split(",")), 8));
     }
 }

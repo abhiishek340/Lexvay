@@ -32,7 +32,8 @@ public class RuleVersionRepository {
             rs.getObject("id", UUID.class), rs.getObject("rule_version_id", UUID.class), rs.getString("ref"),
             rs.getString("title"), rs.getString("text"), RequirementType.valueOf(rs.getString("type")),
             rs.getString("numeric_field") == null ? null : NumericField.valueOf(rs.getString("numeric_field")),
-            rs.getString("numeric_operator"), rs.getBigDecimal("numeric_value"), rs.getInt("ordinal"));
+            rs.getString("numeric_operator"), rs.getBigDecimal("numeric_value"), rs.getInt("ordinal"),
+            List.of((String[]) rs.getArray("search_terms").getArray()));
 
     private final JdbcClient jdbc;
 
@@ -96,13 +97,14 @@ public class RuleVersionRepository {
     public void insertRequirements(UUID tenantId, UUID ruleVersionId, List<RequirementDraft> drafts, UUID createdBy) {
         for (int i = 0; i < drafts.size(); i++) {
             RequirementDraft draft = drafts.get(i);
-            jdbc.sql("INSERT INTO requirement (tenant_id, rule_version_id, ordinal, ref, title, text, type, numeric_field, numeric_operator, numeric_value, created_by) "
-                            + "VALUES (:tenantId, :ruleVersionId, :ordinal, :ref, :title, :text, :type, :numericField, :numericOperator, :numericValue, :createdBy)")
+            jdbc.sql("INSERT INTO requirement (tenant_id, rule_version_id, ordinal, ref, title, text, type, numeric_field, numeric_operator, numeric_value, search_terms, created_by) "
+                            + "VALUES (:tenantId, :ruleVersionId, :ordinal, :ref, :title, :text, :type, :numericField, :numericOperator, :numericValue, CAST(:searchTerms AS text[]), :createdBy)")
                     .param("tenantId", tenantId).param("ruleVersionId", ruleVersionId).param("ordinal", i + 1)
                     .param("ref", draft.ref()).param("title", draft.title()).param("text", draft.text())
                     .param("type", draft.type().name())
                     .param("numericField", draft.numericField() == null ? null : draft.numericField().name())
                     .param("numericOperator", draft.numericOperator()).param("numericValue", draft.numericValue())
+                    .param("searchTerms", draft.searchTerms().toArray(String[]::new))
                     .param("createdBy", createdBy).update();
         }
     }
@@ -112,7 +114,7 @@ public class RuleVersionRepository {
     }
 
     public List<Requirement> requirements(UUID ruleVersionId) {
-        return jdbc.sql("SELECT id, rule_version_id, ref, title, text, type, numeric_field, numeric_operator, numeric_value, ordinal "
+        return jdbc.sql("SELECT id, rule_version_id, ref, title, text, type, numeric_field, numeric_operator, numeric_value, ordinal, search_terms "
                         + "FROM requirement WHERE rule_version_id = :id ORDER BY ordinal")
                 .param("id", ruleVersionId).query(REQUIREMENT).list();
     }

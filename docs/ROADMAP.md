@@ -102,7 +102,8 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F2 Program setup workspace | `feat-setup-workspace` | 3 | Opus 5.5 | folded into UI2-4 (built directly in v2) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | merged (PR #28) |
-| F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
+| F5a User administration and audit export API | `feat-admin-api` | 5 | Sonnet 5.5 | in progress |
+| F5b Administration and audit screens (v2) | `ui2-admin` | — | Opus 5.5 | queued (after F5a, UI2-0) |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
 | F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
 | TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | merged (PR #25) |
@@ -113,8 +114,9 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI2-3 Changes, audit and report in v2 | `ui2-changes-audit-report` | 7 | Opus 5.5 | queued (after UI2-0) |
 | UI2-4 Rules, requests and setup in v2 (includes F2) | `ui2-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI2-0, F4) |
 | FIX-3 Work queue and evidence request follow-ups | `fix-queue-followups` | 9 | Sonnet 5.5 | in progress |
+| FIX-4 Rule source backoff, live search terms, PDF page cap at upload | `fix-backoff-terms-pages` | 7 | Sonnet 5.5 | in progress |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
-| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | PR #30 in review (grid pass-through, eval port) |
+| F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | merged (PR #30); screen cell in UI2-4 |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
@@ -631,6 +633,82 @@ version share a timestamp, so the order is the text order of the ref ("CO-10" be
    version's order" then follows the rule's own order.
 3. Tests: a rule with twelve requirements lists CO-1 … CO-12 in order through the requirements endpoint,
    the mappings endpoint and the diff; replace keeps the submitted order; `Rule5` immutability unchanged.
+
+## F5a — User administration and audit export API (backend only; slot 5; migration `V015__user_administration.sql`)
+Purpose: a tenant's administrator must add colleagues, change their role and remove their access without the seed or
+the database, and must be able to hand an auditor the audit trail as a file. Users are never deleted (product rule 9:
+every action names who did it). The screens come in v2 later (F5b). Decisions D-370 to D-379 in
+`docs/decisions/F5a.md`.
+1. **Schema (V015)**: `app_user` gains `active boolean NOT NULL DEFAULT true` and `security_stamp integer NOT NULL
+   DEFAULT 0` (updates to `app_user` stay ordinary; there is no immutability trigger on it today; keep it that way).
+   New table `user_setup_token` (`id`, `tenant_id`, `user_id` → app_user, `token_hash` text unique (SHA-256 hex),
+   `expires_at`, `used_at`, `created_at`, `created_by`), RLS + FORCE + tenant policy as in V002, immutable except
+   `used_at` (`restrict_update_to_columns('used_at')`), plus a SELECT and UPDATE policy honouring the existing
+   transaction-local `lexvay.auth_lookup` flag so the anonymous setup call can find its token, exactly like
+   `app_user`'s `auth_lookup` policy.
+2. **Create**: `POST /api/v1/users` (ADMIN) `{ email, displayName, role }` → 201 `{ user, setupCode, expiresAt }`. The
+   code is 32 random bytes from `SecureRandom`, base64url, returned once and stored only as its SHA-256; valid 72 hours.
+   Email is lower-cased and unique across tenants (409 "An account with this email exists"). Audited `USER_CREATED`
+   (email, role; never the code). `POST /api/v1/users/{id}/setup-code` (ADMIN) issues a new code and marks every
+   unused earlier code of that user used (audited `USER_SETUP_CODE_ISSUED`).
+3. **Set password**: `POST /api/v1/auth/setup` (anonymous, CSRF as for login, counted against the login rate-limit
+   budget) `{ code, password }`. Look the token up under `auth_lookup` in one statement; unknown, used or expired →
+   400 "This setup code is not valid" (same message for all three). Password 12 to 128 characters and not equal to
+   the email (400 naming the rule). Then, under the token's tenant: hash with the application's existing
+   `PasswordEncoder`, set `password_hash`, increment `security_stamp`, mark the token used, audit `PASSWORD_SET`
+   with the user as actor. Does not sign the user in; the client goes to the sign-in screen.
+4. **Role and access**: `PUT /api/v1/users/{id}/role` `{ role }` and `PUT /api/v1/users/{id}/active` `{ active }`
+   (ADMIN). An administrator cannot change their own role or deactivate themselves (409), and no change may leave
+   the tenant without an active ADMIN (409 "At least one active administrator is required"), checked in the same
+   transaction with `SELECT ... FOR UPDATE` on the tenant's active admins so two concurrent changes cannot both
+   pass. Each change increments `security_stamp` and is audited (`USER_ROLE_CHANGED` with old and new role,
+   `USER_DEACTIVATED`, `USER_REACTIVATED`). `findForLogin` ignores inactive users (the login error stays the generic
+   "Email or password is incorrect"); OIDC login refuses them with the existing 403.
+5. **Session revocation**: the session principal `LexvayUser` carries the stamp it was issued with. A
+   `UserStampCheck` in the existing `TenantContextFilter` path compares it with the current `(active, role,
+   security_stamp)` from a per-instance Caffeine cache (TTL 15 s, max 10 000 users, evicted locally on every change
+   made by this instance). On mismatch or inactive: invalidate the session and answer 401 problem detail "Your access
+   changed. Sign in again." A change made on another instance takes effect within 15 s (record in D-37x and
+   `docs/OPERATIONS.md`). The cache lookup is one statement and at most one extra connection checkout per user per
+   15 s; `ReadPathConnectionsTest` warms the cache first and still asserts one checkout per read.
+6. **Reads**: `GET /api/v1/users` gains `active`, `createdAt` and `passwordSet` (boolean) for ADMIN callers; other
+   roles keep today's fields. Ordered by display name.
+7. **Audit export**: `GET /api/v1/audit.csv` (ADMIN) with the existing audit filters (`action`, `entityType`,
+   `entityId`, `userId`, `from`, `to`), streamed: one read-only transaction, `JdbcClient` query with fetch size 500
+   streamed row by row through F8's `CsvWriter` into the response writer (never the whole log in memory), columns
+   time (ISO 8601 UTC), actor (display name, or "System"), action, record type, record id, details (the JSON as
+   text), `Content-Disposition: attachment; filename="lexvay-audit-<yyyy-mm-dd>.csv"`. Audited `AUDIT_EXPORTED`
+   with the filters and the row count after the stream completes. Test with 20 000 audit rows that heap growth during
+   the export stays under 32 MB (measure with `MemoryMXBean` before and after, after a GC).
+8. **Tests**: every rule above, including concurrency of the last-admin rule (two threads), expired and reused codes,
+   timing-safe comparison of the code hash (`MessageDigest.isEqual`), session revocation over real HTTP (sign in,
+   deactivate from an admin session, next request 401), RLS isolation of `user_setup_token`, immutability, rate limit on
+   `/auth/setup`, rows in `InputValidationTableTest` for every new endpoint, `Rule9_AuditCoverageTest` for every
+   mutating one and the export, `ForbiddenWordsTest` green.
+Done when `make backend-test`, `make perf` and `LEXVAY_E2E_SLOT=5 make e2e` are green.
+
+## FIX-4 — Rule source backoff, live search terms, PDF page cap at upload (backend; slot 7; migration `V016__rule_source_schedule.sql`)
+Three follow-ups from the F12, F7c and WS-SEC reviews. Decisions D-380 to D-389 in `docs/decisions/FIX-4.md`.
+1. **Rule source schedule.** `rule_source` gains `next_check_at timestamptz` and `consecutive_failures integer NOT
+   NULL DEFAULT 0` (backfill `next_check_at = coalesce(last_checked_at + check_interval_hours * interval '1 hour',
+   now())`, then `SET NOT NULL`); recreate the update restriction so these two columns are updatable alongside
+   `active`, `last_checked_at` and `last_content_hash`. The scheduler's due predicate becomes `active AND
+   next_check_at <= now()` with a partial index `ON rule_source (next_check_at) WHERE active`. After a check:
+   UNCHANGED, CHANGED and DRAFT_EXISTS reset `consecutive_failures` to 0 and set `next_check_at = now() + interval`;
+   FETCH_FAILED increments it and sets `next_check_at = now() + least(interval, 15 minutes × 2^(failures − 1))`. A
+   manual check does not change the schedule except through its outcome. `GET /rule-sources` exposes `nextCheckAt`
+   and `consecutiveFailures`. Tests: backoff sequence 15, 30, 60 minutes capped at the interval; reset on success;
+   scheduler picks only due sources; `IndexUsageTest` covers the due query.
+2. **Live evaluation with search terms.** `eval/golden.yml` gains hand-written fictional `search_terms` for every
+   golden requirement (header says so), and the replace path used by `make eval-live` carries them, so live
+   retrieval is measured with terms. The live report adds, per requirement, the overlap between the model's proposed
+   terms and the golden terms (Jaccard of the normalised sets) and its mean. `make eval` (scripted) is unchanged except
+   that the golden file now validates the new field (`RetrievalFileTest`-style check).
+3. **PDF page cap at upload.** `DocumentService.upload` counts the pages of a PDF before storing it (PDFBox, temp-file
+   memory setting so a 25 MB file does not sit in heap twice) and answers 400 "PDF has N pages; the limit is 500"
+   without storing anything; ingest keeps its own check as a second line. Test: a 501-page PDF is refused at upload,
+   nothing stored, no job queued, the message names the count.
+Done when `make backend-test`, `make perf`, `make eval` and `LEXVAY_E2E_SLOT=7 make e2e` are green.
 
 ## FIX-3 — Work queue and evidence request follow-ups (backend only; slot 9; no migration expected)
 Settles the open points recorded in the F13 and F4 reviews. Decisions D-360 to D-369 in `docs/decisions/FIX-3.md`.

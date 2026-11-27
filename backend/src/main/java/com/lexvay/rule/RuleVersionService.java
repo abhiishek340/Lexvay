@@ -204,7 +204,8 @@ public class RuleVersionService {
                 "ref", r.ref(), "title", r.title(), "text", r.text(), "type", r.type().name(),
                 "numericField", r.numericField() == null ? "" : r.numericField().name(),
                 "numericOperator", r.numericOperator() == null ? "" : r.numericOperator(),
-                "numericValue", r.numericValue() == null ? "" : r.numericValue().toPlainString())).toList();
+                "numericValue", r.numericValue() == null ? "" : r.numericValue().toPlainString(),
+                "searchTerms", r.searchTerms())).toList();
     }
 
     public static String slug(String label) {

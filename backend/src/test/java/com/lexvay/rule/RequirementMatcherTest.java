@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 class RequirementMatcherTest {
 
     private static Requirement req(String ref, String text) {
-        return new Requirement(UUID.randomUUID(), UUID.randomUUID(), ref, "Title " + ref, text, RequirementType.SUBJECT, null, null, null, 1);
+        return new Requirement(UUID.randomUUID(), UUID.randomUUID(), ref, "Title " + ref, text, RequirementType.SUBJECT, null, null, null, 1, List.of());
     }
 
     /** "before>after", "-" for a missing side, "*" when the ref changed. */

@@ -9,9 +9,12 @@ import java.util.Set;
 /** The single definition of "same requirement" (D-120): re-run carry-over and the rule version diff both use it. */
 public final class RequirementComparison {
 
-    /** What can differ between two requirements. A title-only change does not affect how the requirement is evaluated. */
+    /**
+     * What can differ between two requirements. A change of the title or of the search terms does not affect how the
+     * requirement is evaluated: the terms only help retrieval find pages, and the next assessment may use them.
+     */
     public enum Aspect {
-        TITLE(false), TEXT(true), TYPE(true), NUMERIC(true);
+        TITLE(false), TEXT(true), TYPE(true), NUMERIC(true), SEARCH_TERMS(false);
 
         private final boolean affectsEvaluation;
 
@@ -43,10 +46,13 @@ public final class RequirementComparison {
                 || !sameValue(a.numericValue(), b.numericValue())) {
             changes.add(Aspect.NUMERIC);
         }
+        if (!a.searchTerms().equals(b.searchTerms())) {
+            changes.add(Aspect.SEARCH_TERMS);
+        }
         return changes;
     }
 
-    /** True when the earlier evaluation of {@code a} still holds for {@code b}: nothing but the title differs. */
+    /** True when the earlier evaluation of {@code a} still holds for {@code b}: nothing but the title or the search terms differs. */
     public static boolean sameForEvaluation(Requirement a, Requirement b) {
         return changes(a, b).stream().noneMatch(Aspect::affectsEvaluation);
     }
