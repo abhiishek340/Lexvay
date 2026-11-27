@@ -3,11 +3,19 @@
 Owned by the orchestrator (CTO). Agents implement one work item each, exactly as specified, on the named
 branch, and open a pull request. Status values: `queued`, `in progress`, `in review`, `merged`.
 
+## Owner decisions needed
+- **PrimeUI license key (D-080).** PrimeNG 22 is distributed under the PrimeUI License and verifies a key offline.
+  Without one every page shows an "Invalid PrimeUI License" badge. The Community License is free for individuals
+  and organisations under USD 1 M revenue with fewer than 5 developers (renewed yearly); register at
+  https://primeui.dev, claim the key, and pass it at build time: `ng build --define
+  "LEXVAY_PRIMEUI_LICENSE='<key>'"` (never commit it). Alternative if declined: Angular 21 with PrimeNG 21 (MIT),
+  a framework downgrade the orchestrator does not recommend.
+
 ## Status board
 
 | Item | Branch | E2E slot | Model | Status |
 |---|---|---|---|---|
-| WS-UI Design system and screen rebuild | `ui-foundation` | 1 | Opus 5.5 | in progress |
+| WS-UI Design system and screen rebuild | `ui-foundation` | 1 | Opus 5.5 | merged (PR #15) |
 | WS-SEC OIDC and hardening (spec milestone 8) | `sec-oidc-hardening` | 2 | Sonnet 5.5 | merged (PR #12) |
 | WS-EVAL Evaluation harness and Terraform (spec milestone 9) | `eval-and-infra` | 3 | Sonnet 5.5 | merged (PR #11) |
 | WS-PERF Read-path latency and read APIs | `perf-read-path` | 4 | Sonnet 5.5 | in progress |
@@ -498,6 +506,10 @@ read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
    kinds above contain no forbidden words). Read-only endpoint, so nothing to add to the audit coverage set.
 
 ## Follow-ups recorded from reviews
+- WS-UI: the overview still finds the latest assessment through the audit log; switch it to the WS-PERF
+  `GET /programs/{id}/overview` endpoint (do this in F1). Audit filtering is client-side over the newest 500
+  entries; switch to the WS-PERF server filters (F5). Add a build check that the production `index.html` has no
+  inline script (F6 or F1). PrimeNG's own dialog-close and select-chevron SVGs are not Phosphor.
 - WS-PERF: `GET /documents/{id}` and the rule version views look up job status by scanning the `job` table under
   RLS because `jsonb ->>` is not leakproof and the payload expression indexes are ignored. FIX-2: add a generated
   `payload_entity_id uuid` column on `job` (from the payload's entity id), index it, and compare with `=`. Decided
