@@ -57,5 +57,6 @@ class GoldenFileTest {
         assertThat(thresholds.fake()).isEqualTo(new Thresholds.Limits(0.0, 1.0, 1.0, 1.0, 1.0));
         assertThat(thresholds.live().maxFalseEvidenceFoundRate()).isZero();
         assertThat(thresholds.live().minNumericAccuracy()).isEqualTo(1.0);
+        assertThat(thresholds.retrieval()).isEqualTo(new Thresholds.Retrieval(0.95, 1.0));
     }
 }

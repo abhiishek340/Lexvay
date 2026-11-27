@@ -127,11 +127,11 @@ public class SeedLoader {
             Map<String, UUID> documentByFile = new LinkedHashMap<>();
             for (SeedManifest.Course c : t.courses()) {
                 if (c.syllabus() != null) {
-                    documentByFile.put(c.syllabus(), upload(contributor, programId, seedDir, c.syllabus(), DocumentKind.SYLLABUS, courseVersionByCode.get(c.code())));
+                    documentByFile.put(c.syllabus(), upload(contributor, programId, pdf(seedDir, c.syllabus()), DocumentKind.SYLLABUS, courseVersionByCode.get(c.code())));
                 }
             }
             for (SeedManifest.Document d : t.documents()) {
-                documentByFile.put(d.file(), upload(contributor, programId, seedDir, d.file(), DocumentKind.valueOf(d.kind()), null));
+                documentByFile.put(d.file(), upload(contributor, programId, pdf(seedDir, d.file()), DocumentKind.valueOf(d.kind()), null));
             }
             jobs.runPending();
             for (SeedManifest.Fact f : t.facts()) {
@@ -156,6 +156,22 @@ public class SeedLoader {
         });
     }
 
+    /** A tenant holding one program and only the given documents: no courses, facts, rules or assessment. */
+    public record Corpus(UUID tenantId, UUID programId, int documents) {
+    }
+
+    /** The documents of the retrieval evaluation: a fresh tenant, its program, and every PDF uploaded and ingested through the services. */
+    public Corpus loadCorpus(String tenantName, String adminEmail, String password, SeedManifest.Program program, Map<Path, DocumentKind> pdfs) {
+        var created = tenants.createTenant(tenantName, adminEmail, "Retrieval Evaluator", password);
+        return TenantContext.runAs(created.tenantId(), () -> {
+            UUID programId = as(created.admin(), () -> programs.create(new CreateProgramRequest(program.name(), program.licenseType(),
+                    program.catalogYear(), program.jurisdictions())).id());
+            pdfs.forEach((pdf, kind) -> upload(created.admin(), programId, pdf, kind, null));
+            jobs.runPending();
+            return new Corpus(created.tenantId(), programId, pdfs.size());
+        });
+    }
+
     /** Milestone 7 demo: a superseding rule version and a new course version, left as OPEN change events. */
     private void applyChanges(SeedManifest.Tenant t, Path seedDir, ModelStrategy model, LexvayUser contributor,
                               LexvayUser reviewer, UUID programId, Map<String, UUID> courseVersionByCode, Map<String, UUID> documentByFile) {
@@ -173,7 +189,7 @@ public class SeedLoader {
                     .orElseThrow(() -> new IllegalStateException("changes.courseVersion.course not found: " + cv.course()));
             var course = as(contributor, () -> courses.addVersion(courseId, new AddCourseVersionRequest(cv.catalogYear(), cv.required(), courseVersionId)));
             UUID newVersionId = course.versions().get(course.versions().size() - 1).id();
-            documentByFile.put(cv.syllabus(), upload(contributor, programId, seedDir, cv.syllabus(), DocumentKind.SYLLABUS, newVersionId));
+            documentByFile.put(cv.syllabus(), upload(contributor, programId, pdf(seedDir, cv.syllabus()), DocumentKind.SYLLABUS, newVersionId));
             jobs.runPending();
         }
     }
@@ -192,14 +208,19 @@ public class SeedLoader {
         return created.ruleVersionId();
     }
 
-    private UUID upload(LexvayUser as, UUID programId, Path seedDir, String file, DocumentKind kind, UUID courseVersionId) {
+    private static Path pdf(Path seedDir, String file) {
+        return seedDir.resolve("pdf").resolve(file);
+    }
+
+    private UUID upload(LexvayUser as, UUID programId, Path pdf, DocumentKind kind, UUID courseVersionId) {
         byte[] bytes;
         try {
-            bytes = Files.readAllBytes(seedDir.resolve("pdf").resolve(file));
+            bytes = Files.readAllBytes(pdf);
         } catch (IOException e) {
-            throw new UncheckedIOException("Missing seed PDF " + file + " (run make seed-pdfs)", e);
+            throw new UncheckedIOException("Missing seed PDF " + pdf + " (run make seed-pdfs)", e);
         }
-        return as(as, () -> documents.upload(programId, new BytesMultipartFile(file, "application/pdf", bytes), kind, courseVersionId).documentId());
+        return as(as, () -> documents.upload(programId, new BytesMultipartFile(pdf.getFileName().toString(), "application/pdf", bytes), kind,
+                courseVersionId).documentId());
     }
 
     /** Runs an action with the given seeded user authenticated, so audit rows name a real person. */
