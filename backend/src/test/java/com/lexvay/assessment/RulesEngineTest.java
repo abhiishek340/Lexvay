@@ -20,7 +20,7 @@ class RulesEngineTest {
 
     static Requirement numeric(String operator, String value) {
         return new Requirement(UUID.randomUUID(), UUID.randomUUID(), "X-1", "Credits", "At least " + value + " hours",
-                RequirementType.NUMERIC, NumericField.TOTAL_CREDITS, operator, new BigDecimal(value));
+                RequirementType.NUMERIC, NumericField.TOTAL_CREDITS, operator, new BigDecimal(value), 1);
     }
 
     static Map<NumericField, RulesEngine.Fact> facts(String credits) {
@@ -58,7 +58,7 @@ class RulesEngineTest {
     @Test
     void engineNeverProducesAmbiguousAndRefusesNonNumericTypes() {
         var subject = new Requirement(UUID.randomUUID(), UUID.randomUUID(), "X-2", "Ethics", "Ethics coursework",
-                RequirementType.SUBJECT, null, null, null);
+                RequirementType.SUBJECT, null, null, null, 1);
         assertThatThrownBy(() -> RulesEngine.evaluate(subject, Map.of())).isInstanceOf(IllegalArgumentException.class);
     }
 }

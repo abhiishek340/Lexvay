@@ -79,8 +79,8 @@ public class SchemaFixtures {
                     .param("from", LocalDate.of(2026, 1, 1)).param("d", ruleDocumentId).param("u", userId).update();
 
             UUID requirementId = UUID.randomUUID();
-            jdbc.sql("INSERT INTO requirement (id, tenant_id, rule_version_id, ref, title, text, type, created_by) "
-                            + "VALUES (:id, :t, :rv, 'FIX-1', 'Ethics', 'Coursework in professional ethics.', 'SUBJECT', :u)")
+            jdbc.sql("INSERT INTO requirement (id, tenant_id, rule_version_id, ordinal, ref, title, text, type, created_by) "
+                            + "VALUES (:id, :t, :rv, 1, 'FIX-1', 'Ethics', 'Coursework in professional ethics.', 'SUBJECT', :u)")
                     .param("id", requirementId).param("t", tenantId).param("rv", ruleVersionId).param("u", userId).update();
 
             UUID assessmentId = UUID.randomUUID();

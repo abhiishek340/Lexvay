@@ -165,9 +165,7 @@ public class RuleVersionService {
         UUID tenantId = TenantContext.require();
         UUID actor = CurrentUser.require().id();
         ruleVersions.deleteRequirements(id);
-        for (RequirementDraft draft : drafts) {
-            ruleVersions.insertRequirement(tenantId, id, draft, actor);
-        }
+        ruleVersions.insertRequirements(tenantId, id, drafts, actor);
         List<Requirement> after = ruleVersions.requirements(id);
         audit.record("REQUIREMENTS_REPLACED", "rule_version", id, Map.of("before", summarize(before), "after", summarize(after)));
         return new RequirementsView(id, false, after);
