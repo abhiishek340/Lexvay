@@ -37,6 +37,7 @@ lexvay:
   matching:
     min-quote-chars: ${LEXVAY_MIN_QUOTE_CHARS:40}
     shortlist-size: 8
+    ranker: ${LEXVAY_MATCHING_RANKER:bm25}   # bm25 | ts_rank (the baseline the evaluation compares against)
   jobs:
     polling-enabled: true
     poll-interval-ms: 1000
