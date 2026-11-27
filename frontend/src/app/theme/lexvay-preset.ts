@@ -62,6 +62,9 @@ const t = {
   shadow: '0 8px 24px rgba(15, 17, 19, 0.14), 0 1px 3px rgba(15, 17, 19, 0.08)',
 };
 
+/** The design tokens, for lazy screens that register their own component token sets (screens/register/register-theme.ts). */
+export const lexvayTokens = t;
+
 const severity = (fg: string, bg: string, border: string) => ({
   background: bg,
   borderColor: border,
