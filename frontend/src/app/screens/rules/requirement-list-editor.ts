@@ -1,6 +1,7 @@
 import { computed, signal } from '@angular/core';
 import { NUMERIC_TYPES } from '../../core/labels';
 import { NumericField, NumericOperator, RequirementDraft, RequirementType, RequirementView } from '../../core/models';
+import { sameTerms } from './search-terms';
 
 /** One row of the list while it is edited. The key is the client's own and survives moves and edits. */
 export interface EditableRequirement {
@@ -12,7 +13,7 @@ export interface EditableRequirement {
   numericField: NumericField | null;
   numericOperator: NumericOperator | null;
   numericValue: number | null;
-  /** Carried through unchanged until the screen has a cell for them; a new row has none. */
+  /** The row's search terms as chips (F7c); a new row has none. */
   searchTerms: string[];
 }
 
@@ -111,7 +112,8 @@ export class RequirementListEditor {
 
 function sameContent(row: EditableRequirement, r: RequirementView | undefined): boolean {
   return !!r && row.ref === r.ref && row.title === r.title && row.text === r.text && row.type === r.type
-    && row.numericField === r.numericField && row.numericOperator === r.numericOperator && row.numericValue === r.numericValue;
+    && row.numericField === r.numericField && row.numericOperator === r.numericOperator && row.numericValue === r.numericValue
+    && sameTerms(row.searchTerms, r.searchTerms);
 }
 
 const LIST_PREFIX = 'Requirement list is invalid: ';

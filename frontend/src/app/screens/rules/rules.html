@@ -1,9 +1,11 @@
 <div class="lx-page lx-rules">
   <header class="lx-page-header lx-rules-header">
-    <div>
+    <div class="lx-title-row">
       <h1>Rules</h1>
-      <p>Each jurisdiction's rule versions. The model proposes a version's requirement list; a reviewer corrects it and approves it, and only an
-        approved list is used in assessments. An approved list is never edited: a revision is entered as a new version.</p>
+      <lx-info-tip label="About rule versions">
+        Each state's rule versions. The model proposes a version's requirement list; a reviewer corrects and approves it, and only an approved
+        list is used in assessments. An approved list is never edited: a revision is entered as a new version.
+      </lx-info-tip>
     </div>
     @if (session.canEnterRules()) {
       <button pButton type="button" #newButton (click)="newOpen.set(true)">
@@ -17,30 +19,31 @@
   @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
 
   @if (context.ready()) {
-    <div class="lx-rules-panes">
+    <div class="lx-hero lx-rules-panes">
       <section class="lx-versions" aria-labelledby="versions-heading">
-        <h2 id="versions-heading" class="lx-label">Rule versions</h2>
+        <h2 id="versions-heading" class="lx-versions-heading">Versions <span class="lx-versions-count">{{ versionCount() }}</span></h2>
         @if (groups().length === 0) {
-          <p class="lx-muted lx-empty">No rule versions yet. A contributor enters one with New rule version; the model then proposes its requirement
-            list for a reviewer to correct and approve.</p>
+          <div class="lx-empty-state">
+            <ng-icon name="phosphorScalesDuotone" size="32" aria-hidden="true" />
+            <p>No rule versions yet.</p>
+          </div>
         } @else {
           <p-listbox class="lx-version-list" [options]="groups()" [group]="true" optionGroupLabel="label" optionGroupChildren="items" optionLabel="name"
                      optionValue="id" [ngModel]="listValue()" (onChange)="open($event.value)" [metaKeySelection]="true"
                      ariaLabel="Rule versions" scrollHeight="none" [fluid]="true" [pt]="{ list: { 'aria-multiselectable': 'false' } }">
             <ng-template #group let-group>
-              <span class="lx-group">{{ group.label }}</span>
+              <span class="lx-group"><span class="lx-state-code">{{ group.code }}</span>{{ group.name }}</span>
             </ng-template>
             <ng-template #item let-option>
               @let v = option.row.view;
               @let s = statusOf(option.row);
-              <div class="lx-version">
-                <span class="lx-version-code lx-mono">{{ v.jurisdiction }}</span>
+              <div class="lx-version" [lxEnter]="option.index">
                 <span class="lx-version-label">{{ v.label }}</span>
                 <span class="lx-version-meta">
-                  <span class="lx-mono">Effective {{ v.effectiveFrom }}</span>
-                  <p-tag [severity]="s.severity" [value]="s.label">
-                    <ng-template #icon><ng-icon [name]="s.icon" size="14" aria-hidden="true" [class.lx-spin]="option.row.status === 'EXTRACTING'" /></ng-template>
-                  </p-tag>
+                  <span class="lx-version-status" [attr.data-tone]="s.tone">
+                    <ng-icon [name]="s.icon" size="16" aria-hidden="true" [class.lx-spin]="option.row.status === 'EXTRACTING'" />{{ s.label }}
+                  </span>
+                  <span class="lx-mono">{{ v.effectiveFrom }}</span>
                 </span>
               </div>
             </ng-template>
@@ -52,9 +55,12 @@
         @if (selected(); as v) {
           <lx-rule-version-detail [version]="v" [all]="context.ruleVersions()" [users]="users()" (notice)="notify($event)" (changed)="refresh()" />
         } @else if (ruleVersionId()) {
-          <p class="lx-muted lx-empty">This rule version does not exist or belongs to another organisation.</p>
+          <div class="lx-empty-state"><ng-icon name="phosphorScalesDuotone" size="32" aria-hidden="true" /><p>This rule version does not exist here.</p></div>
         } @else if (groups().length > 0) {
-          <p class="lx-muted lx-empty">Choose a rule version to see its requirements, its rule text and what changed from the version it replaces.</p>
+          <div class="lx-empty-state lx-choose" data-testid="choose-version">
+            <ng-icon name="phosphorScalesDuotone" size="32" aria-hidden="true" />
+            <p>Choose a version.</p>
+          </div>
         }
       </section>
     </div>

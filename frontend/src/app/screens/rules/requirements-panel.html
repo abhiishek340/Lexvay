@@ -11,7 +11,10 @@
         <button pButton type="button" severity="secondary" [outlined]="true" [disabled]="busy()" (click)="addRow()">
           <ng-icon name="phosphorPlus" size="16" aria-hidden="true" /><span pButtonLabel>Add requirement</span>
         </button>
-        <span class="lx-help">{{ editor.dirty() ? 'Unsaved changes.' : 'No changes yet.' }} The whole list is saved at once, in this order.</span>
+        <span class="lx-edit-state" [class.lx-edit-dirty]="editor.dirty()">
+          <span class="lx-edit-dot" aria-hidden="true"></span>{{ editor.dirty() ? 'Unsaved changes' : 'No changes yet' }}
+        </span>
+        <lx-info-tip label="About editing the list">The whole list is saved at once, in this order. Approving it afterwards locks it.</lx-info-tip>
       } @else {
         @if (canApprove()) {
           <button pButton type="button" #approveButton (click)="openApprove()">
@@ -94,10 +97,24 @@
             </tr>
             <tr class="lx-line-two">
               <td>
-                <label class="lx-f-label" [for]="controlId(row, 'text')">Text</label>
-                <textarea pTextarea [id]="controlId(row, 'text')" class="lx-serif-input" rows="2" [autoResize]="true" [ngModel]="row.text"
-                          [ngModelOptions]="{ standalone: true }" (ngModelChange)="editor.update(row.key, { text: $event })"
-                          [attr.aria-label]="cellLabel(row, 'text')" [attr.aria-describedby]="described" [fluid]="true"></textarea>
+                <div class="lx-line-two-fields">
+                  <div class="lx-f lx-f-text">
+                    <label class="lx-f-label" [for]="controlId(row, 'text')">Text</label>
+                    <textarea pTextarea [id]="controlId(row, 'text')" class="lx-serif-input" rows="2" [autoResize]="true" [ngModel]="row.text"
+                              [ngModelOptions]="{ standalone: true }" (ngModelChange)="editor.update(row.key, { text: $event })"
+                              [attr.aria-label]="cellLabel(row, 'text')" [attr.aria-describedby]="described" [fluid]="true"></textarea>
+                  </div>
+                  <div class="lx-f lx-f-terms">
+                    <span class="lx-f-label" aria-hidden="true">Search terms <span class="lx-term-count">{{ row.searchTerms.length }} of {{ maxTerms }}</span></span>
+                    <p-autocomplete [ngModel]="row.searchTerms" [ngModelOptions]="{ standalone: true }" (ngModelChange)="setTerms(row, $event)"
+                                    [multiple]="true" [typeahead]="false" separator="," [addOnBlur]="true" [inputId]="controlId(row, 'terms')"
+                                    [ariaLabel]="cellLabel(row, 'search terms')" [placeholder]="row.searchTerms.length ? '' : 'Add a term'" [fluid]="true"
+                                    data-testid="terms-input" />
+                    @if (termsProblems().get(row.key); as tp) {
+                      <p class="lx-row-problem" role="status" data-testid="terms-problem"><ng-icon name="phosphorWarningCircle" size="14" aria-hidden="true" />{{ tp }}</p>
+                    }
+                  </div>
+                </div>
                 @if (problems) {
                   <div [id]="'problems-' + row.key" class="lx-row-problem-list" data-testid="row-problems">
                     @for (p of problems; track $index) {
@@ -114,15 +131,17 @@
         </p-table>
       </form>
     } @else if (list.length === 0) {
-      <p class="lx-muted lx-empty">
+      <div class="lx-empty-state" data-testid="requirements-empty">
         @if (status() === 'EXTRACTING') {
-          The model is proposing the requirement list from the rule text. It appears here when extraction finishes.
+          <ng-icon name="phosphorSpinnerDuotone" size="32" class="lx-spin" aria-hidden="true" />
+          <p>The model is proposing the list.</p>
         } @else {
-          This version has no requirements yet.{{ canChange() ? ' Choose Edit list to enter them.' : '' }}
+          <ng-icon name="phosphorListChecksDuotone" size="32" aria-hidden="true" />
+          <p>No requirements yet.</p>
         }
-      </p>
+      </div>
     } @else {
-      <p-table [value]="list" dataKey="id" [scrollable]="true" [tableStyle]="{ 'min-width': '38rem' }" [pt]="{ table: { 'aria-label': 'Requirements' }, tableContainer: { tabindex: '0' } }">
+      <p-table [value]="list" dataKey="id" [scrollable]="true" [tableStyle]="{ 'min-width': '46rem' }" [pt]="{ table: { 'aria-label': 'Requirements' }, tableContainer: { tabindex: '0' } }">
         <ng-template #header>
           <tr>
             <th scope="col">Ref</th>
@@ -130,21 +149,31 @@
             <th scope="col">Type</th>
             <th scope="col">Check</th>
             <th scope="col">Text</th>
+            <th scope="col">Search terms</th>
           </tr>
         </ng-template>
-        <ng-template #body let-r>
-          <tr>
+        <ng-template #body let-r let-i="rowIndex">
+          <tr [lxEnter]="i">
             <td class="lx-mono lx-nowrap">{{ r.ref }}</td>
             <td class="lx-title">{{ r.title }}</td>
             <td><p-tag severity="secondary" [value]="typeName(r)" /></td>
             <td class="lx-mono lx-nowrap">{{ check(r) ?? '' }}</td>
             <td class="lx-text">
-              <p class="lx-serif" lxClamp #clamp="lxClamp" [id]="'text-' + r.id">{{ r.text }}</p>
+              <p class="lx-requirement-text" lxClamp #clamp="lxClamp" [id]="'text-' + r.id">{{ r.text }}</p>
               @if (clamp.overflowing() || clamp.open()) {
                 <button pButton type="button" [link]="true" size="small" class="lx-more" (click)="clamp.toggle()"
                         [attr.aria-expanded]="clamp.open()" [attr.aria-controls]="'text-' + r.id">
                   <span pButtonLabel>{{ clamp.open() ? 'Show less' : 'Show all' }}</span>
                 </button>
+              }
+            </td>
+            <td class="lx-terms-cell">
+              @if (r.searchTerms.length) {
+                <ul class="lx-terms" [attr.aria-label]="r.ref + ' search terms'">
+                  @for (term of r.searchTerms; track term) { <li class="lx-term">{{ term }}</li> }
+                </ul>
+              } @else {
+                <span class="lx-muted">None</span>
               }
             </td>
           </tr>
@@ -153,19 +182,26 @@
     }
   } @else if (!error()) {
     <div class="lx-table-skeleton" aria-busy="true" aria-label="Loading requirements">
-      @for (i of [1, 2, 3, 4]; track i) { <p-skeleton height="2.75rem" /> }
+      @for (i of [1, 2, 3, 4]; track i) { <p-skeleton height="3.25rem" /> }
     </div>
   }
 </div>
 
-<p-dialog header="Approve requirements" [visible]="approveOpen()" (visibleChange)="approveOpen.set($event)" (onHide)="approveClosed()" [modal]="true"
-          [draggable]="false" [resizable]="false" [style]="{ width: '32rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Cancel approval">
-  <p class="lx-dialog-text">
-    Approving locks this list. Assessments for {{ jurisdictionName() }} will use these {{ requirements()?.length ?? 0 }} requirements.
-    The list can no longer be edited.
-  </p>
+<p-dialog [visible]="approveOpen()" (visibleChange)="approveOpen.set($event)" (onHide)="approveClosed()" [modal]="true" [draggable]="false"
+          [resizable]="false" [style]="{ width: '30rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Cancel approval"
+          header="Approve requirements">
+  <div class="lx-approve">
+    <span class="lx-approve-icon" aria-hidden="true"><ng-icon name="phosphorSealCheckDuotone" size="32" /></span>
+    <p class="lx-approve-count"><span class="lx-number">{{ requirements()?.length ?? 0 }}</span> requirements for {{ jurisdictionName() }}</p>
+    <p class="lx-dialog-text">
+      Approving locks this list. Assessments for {{ jurisdictionName() }} will use these {{ requirements()?.length ?? 0 }} requirements.
+      The list can no longer be edited.
+    </p>
+  </div>
   <ng-template #footer>
     <button pButton type="button" severity="secondary" [outlined]="true" (click)="approveOpen.set(false)"><span pButtonLabel>Cancel</span></button>
-    <button pButton type="button" [disabled]="busy()" [loading]="busy()" (click)="approve()"><span pButtonLabel>Approve</span></button>
+    <button pButton type="button" [disabled]="busy()" [loading]="busy()" (click)="approve()">
+      <ng-icon name="phosphorSealCheck" size="16" aria-hidden="true" /><span pButtonLabel>Approve</span>
+    </button>
   </ng-template>
 </p-dialog>

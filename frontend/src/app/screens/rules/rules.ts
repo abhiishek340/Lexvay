@@ -3,13 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
 import { phosphorArchive, phosphorArrowCounterClockwise, phosphorArrowDown, phosphorArrowSquareOut, phosphorArrowUp, phosphorCircleDashed, phosphorEquals, phosphorFloppyDisk, phosphorMinusCircle, phosphorNotePencil, phosphorPencilSimple, phosphorPlus, phosphorPlusCircle, phosphorSealCheck, phosphorSpinner, phosphorTrash, phosphorWarningCircle } from '@ng-icons/phosphor-icons/regular';
+import { phosphorListChecksDuotone, phosphorScalesDuotone, phosphorSealCheckDuotone, phosphorSpinnerDuotone } from '@ng-icons/phosphor-icons/duotone';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Listbox } from 'primeng/listbox';
 import { Message } from 'primeng/message';
 import { Skeleton } from 'primeng/skeleton';
-import { Tag } from 'primeng/tag';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { UserSummary } from '../../core/models';
@@ -18,6 +18,8 @@ import { ProgramContext } from '../../core/program-context';
 import { RuleVersionRow, anyExtracting, groupRuleVersions } from '../../core/rules';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
+import { Enter } from '../../ui/enter';
+import { InfoTip } from '../../ui/info-tip';
 import { NewRuleVersionDialog } from './new-rule-version';
 import { Notice, RuleVersionDetail } from './rule-version-detail';
 import { RULES_TOKENS } from './rules-theme';
@@ -34,13 +36,17 @@ export const RULES_ICONS = {
   phosphorCircleDashed,
   phosphorEquals,
   phosphorFloppyDisk,
+  phosphorListChecksDuotone,
   phosphorMinusCircle,
   phosphorNotePencil,
   phosphorPencilSimple,
   phosphorPlus,
   phosphorPlusCircle,
+  phosphorScalesDuotone,
   phosphorSealCheck,
+  phosphorSealCheckDuotone,
   phosphorSpinner,
+  phosphorSpinnerDuotone,
   phosphorTrash,
   phosphorWarningCircle,
 };
@@ -48,12 +54,13 @@ export const RULES_ICONS = {
 /** While an extraction runs the list is fetched again this often (and never while the tab is hidden). */
 const POLL_MS = 5000;
 
-interface VersionOption { id: string; name: string; row: RuleVersionRow }
-interface VersionGroup { label: string; code: string; items: VersionOption[] }
+/** `index` is the option's place in the whole list, for the entrance stagger. */
+interface VersionOption { id: string; name: string; row: RuleVersionRow; index: number }
+interface VersionGroup { label: string; code: string; name: string; items: VersionOption[] }
 
 @Component({
   selector: 'lx-rules',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, ConfirmDialog, Listbox, Message, Skeleton, Tag, NewRuleVersionDialog, RuleVersionDetail],
+  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, ConfirmDialog, Listbox, Message, Skeleton, Enter, InfoTip, NewRuleVersionDialog, RuleVersionDetail],
   providers: [UnsavedChanges, ConfirmationService],
   templateUrl: './rules.html',
   styleUrl: './rules.css',
@@ -84,16 +91,20 @@ export class Rules {
 
   readonly groups = computed<VersionGroup[]>(() => {
     const program = this.context.program();
+    let index = 0;
     return groupRuleVersions(this.context.ruleVersions(), program?.jurisdictions ?? [], (code) => this.context.jurisdictionName(code)).map((g) => ({
       code: g.code,
+      name: g.name,
       label: `${g.name} (${g.code})`,
       items: g.rows.map((row) => ({
         id: row.view.id,
         name: `${row.view.jurisdiction}, ${row.view.label}, effective ${row.view.effectiveFrom}, ${RULE_STATUS[row.status].label}`,
         row,
+        index: index++,
       })),
     }));
   });
+  readonly versionCount = computed(() => this.context.ruleVersions().length);
   /** The list's value: follows the route, and snaps back when a guarded navigation is cancelled. */
   readonly listValue = linkedSignal<string | null>(() => this.ruleVersionId() ?? null);
   readonly selected = computed(() => this.context.ruleVersions().find((v) => v.id === this.ruleVersionId()) ?? null);
