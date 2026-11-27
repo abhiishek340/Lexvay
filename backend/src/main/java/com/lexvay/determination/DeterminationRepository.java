@@ -20,6 +20,16 @@ public class DeterminationRepository {
             JOIN app_user u ON u.id = d.signed_by
             """;
 
+    /**
+     * A SIGNED determination exists for an assessment and a jurisdiction (D-361). The single definition behind
+     * {@link #hasSigned}, the evidence request view and the work queue; the arguments are SQL expressions: the
+     * columns of the row it is tested for, or bind parameters.
+     */
+    public static String signedFor(String assessmentId, String jurisdictionId) {
+        return "EXISTS (SELECT 1 FROM determination sd WHERE sd.assessment_id = " + assessmentId
+                + " AND sd.jurisdiction_id = " + jurisdictionId + " AND sd.status = 'SIGNED')";
+    }
+
     private final JdbcClient jdbc;
 
     public DeterminationRepository(JdbcClient jdbc) {
@@ -41,8 +51,8 @@ public class DeterminationRepository {
     }
 
     public boolean hasSigned(UUID assessmentId, UUID jurisdictionId) {
-        return jdbc.sql("SELECT count(*) FROM determination WHERE assessment_id = :a AND jurisdiction_id = :j AND status = 'SIGNED'")
-                .param("a", assessmentId).param("j", jurisdictionId).query(Long.class).single() > 0;
+        return jdbc.sql("SELECT " + signedFor(":a", ":j"))
+                .param("a", assessmentId).param("j", jurisdictionId).query(Boolean.class).single();
     }
 
     public boolean hasSignedForProgram(UUID programId, UUID jurisdictionId) {

@@ -1887,3 +1887,12 @@ matched terms, quotes in terms, ts_rank), `SearchTermsMatchingTest` (the rationa
 normalises, rejects 13 naming the row and a 41-character term, locks after approval), `RuleVersionChangeTest` (carry-over and diff), `SeedSearchTermsTest`,
 `RetrievalFileTest` and `RetrievalScorerTest` (limits), `RetrievalServiceTest` (the lexical-gap limit with and without terms). Fixtures that build extraction output by hand now
 supply `search_terms`.
+
+## FIX-3 — Work queue and evidence request follow-ups (PR #31)
+
+- ASSESSMENTS_FAILED ignores failures older than the latest finished assessment (D-360).
+- Evidence requests carry `signed`; the work queue counts signed and stale requests as blocked (D-361).
+- `findingCounts` shares the decided predicate (D-362).
+- `CURRENT` measured (D-363) and rewritten as a once-per-statement set (D-364): mappings of a 500-row assessment 15 to
+  30 ms down to about 3 ms, work queue 280 ms down to 2 to 5 ms on the same tenant.
+- `IndexUsageTest` no longer pins one index for the manual dedupe (D-365).

@@ -12,8 +12,8 @@ decisions D-380 to D-389 in `docs/decisions/FIX-4.md`. Backend and evaluation on
   carries them; the live report prints the mean Jaccard overlap between the model's terms and the golden terms and one line per requirement
   (`TermOverlap`). `make eval` is unchanged except that the golden file validates the new field.
 - **PDF page cap at upload (D-385).** `ContentLimits.requirePdfPages(byte[])` (PDFBox, temp-file stream cache) before anything is stored; ingest keeps its check.
-- **`IndexUsageTest` (D-386).** Covers the due query; the manual-check candidate named `job_claim_idx`, but the planner has chosen `job_entity_idx` for a
-  single source since FIX-2, so the test had been failing on `main` (F7c's progress note records it). The candidate now names the index the planner uses.
+- **`IndexUsageTest` (D-386).** Covers the due query. Before the merge of FIX-3 the manual-check candidate named `job_claim_idx` while the planner chooses
+  `job_entity_idx`, which failed the first `make perf` run on this branch; FIX-3 had already fixed it (`Candidate.eitherOf`), so the merge took its version.
 
 ### Verification
 `make backend-test` (exit 0):
@@ -21,7 +21,7 @@ decisions D-380 to D-389 in `docs/decisions/FIX-4.md`. Backend and evaluation on
 [INFO] Tests run: 900, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
-`make perf` (exit 0; first run failed only on the manual-check candidate described above, fixed, second run):
+`make perf` (exit 0, run after merging `origin/main`):
 ```
 [INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 143.5 s -- in com.lexvay.perf.EndpointLatencyTest
 [INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 162.0 s -- in com.lexvay.perf.IndexUsageTest
