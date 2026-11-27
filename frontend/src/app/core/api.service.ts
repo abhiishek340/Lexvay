@@ -40,9 +40,6 @@ export class ApiService {
   ruleVersionDiff(ruleVersionId: string, against: string | null): Observable<RuleVersionDiff> {
     return this.http.get<RuleVersionDiff>(`${this.base}/rule-versions/${ruleVersionId}/diff`, { params: against ? { against } : {} });
   }
-  documentPage(documentId: string, pageNumber: number): Observable<DocumentPage> {
-    return this.http.get<DocumentPage>(`${this.base}/documents/${documentId}/pages/${pageNumber}`);
-  }
 
   assessment(id: string): Observable<AssessmentView> { return this.http.get<AssessmentView>(`${this.base}/assessments/${id}`); }
   mappings(assessmentId: string, jurisdiction: string): Observable<MappingsView> {
