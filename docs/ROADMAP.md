@@ -123,9 +123,10 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
 | F10a Coverage matrix API | `feat-coverage-api` | 8 | Sonnet 5.5 | merged (PR #35) |
 | F10b Coverage matrix screen (v2) | `ui2-coverage` | 7 | Opus 5.5 | merged (#41) |
-| FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | in progress |
+| FIX-6 OCR checkpoints per page | `fix-ocr-checkpoints` | 5 | Sonnet 5.5 | merged (#42) |
 | F12b Rule sources in the Rules workspace (v2) | `ui2-rule-sources` | 1 | Opus 5.5 | queued (after UI2-4) |
 | FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | in progress |
+| F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | queued |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
@@ -1266,7 +1267,7 @@ stop and report.
      - `FETCH_FAILED`: "Could not fetch", plus "N in a row" when `consecutiveFailures > 1`. The InfoTip holds the
        HTTP status and `detail`.
      - No check yet: "Not checked yet".
-   - The words "compliant", "meets" or "verified" never appear; the ForbiddenWords test covers the new templates.
+   - The words "compliant" and "meets requirements" never appear; `ForbiddenWordsTest` scans the new templates.
 2. **History:** expanding a row (PrimeNG Accordion, or a disclosure button with `aria-expanded`) loads
    `GET /rule-sources/{id}/checks?limit=20` once per expansion and shows a vertical timeline. Reuse UI2-3's
    changes timeline markup. If it is screen-local, extract it to `ui/` first and keep Changes unchanged
@@ -1328,6 +1329,68 @@ WHERE EXISTS (SELECT 1 FROM mapping m JOIN requirement r ON r.id = m.requirement
    Record that in D-450.
 5. Remove the FIX-5 and F10a lines about this from "Follow-ups recorded from reviews" in `docs/ROADMAP.md`;
    that is the only ROADMAP edit. Decisions go in `docs/decisions/FIX-7.md`, progress in `docs/progress/FIX-7.md`.
+
+## F14 — Check a report file (backend and frontend; slot 3; Opus 5.5; migration `V018__report_content_hash.sql`; D-453 to D-462)
+Signed evidence reports leave Lexvay as PDFs and travel by email to deans, boards and auditors. Staff need to answer
+"is this the file Lexvay produced, unchanged, and does its determination still stand?" without trusting the sender.
+Decided design: hash the PDF bytes when the report is generated, and look a dropped file up by that hash. The file
+is never stored.
+
+**Backend**
+1. **V018:**
+   - `ALTER TABLE report ADD COLUMN content_sha256 text CHECK (content_sha256 ~ '^[0-9a-f]{64}$')`.
+   - `CREATE INDEX report_content_sha_idx ON report (tenant_id, content_sha256) WHERE content_sha256 IS NOT NULL`.
+   - `GenerateReportHandler` computes SHA-256 over the exact bytes it stores and sets the column in the same UPDATE
+     as `markReady`; `markReady` gains the parameter.
+   - Reports generated before V018 keep NULL. Nothing is deployed, and the seed regenerates its reports, so there
+     is no backfill. Record that in D-453.
+2. **`POST /api/v1/reports/check`:**
+   - Multipart, one part `file`, any authenticated role.
+   - Maximum 25 MB, enforced by the existing upload limit configuration; do not add a second limit.
+   - The body must start with `%PDF-`, otherwise 400 "Not a PDF file".
+   - Hash with a streaming `MessageDigest` and never hold the file twice in memory.
+   - Look up within the tenant through RLS: `SELECT ... FROM report r JOIN determination d ... WHERE r.content_sha256
+     = :h`. One statement, served by the new index; prove it in `IndexUsageTest`.
+   - Response `ReportCheck(boolean match, String sha256, Match matchDetails)`. `Match` holds `reportId`,
+     `generatedAt`, `determinationId`, `programName`, `jurisdictionCode`, `ruleVersionLabel`, `signedByName`,
+     `signedAt`, `determinationStatus` (`SIGNED` | `REOPENED`), `reopenedAt` (null unless reopened) and
+     `versionsHash`.
+   - Several reports cannot share a hash in practice. If one ever does, return the newest and log a warning.
+   - Audited as `REPORT_CHECKED`, with details `{match, sha256}` and entity the report when matched, else null.
+   - Add it to `Rule9_AuditCoverageTest` and to `InputValidationTableTest`.
+   - Add the sentence to `frontend/.../audit-sentence.ts` and its spec: "{actor} checked a report file: it matches"
+     or "…: no match".
+3. **Tests:**
+   - Generate a report, download it and check it: a match with every field right.
+   - One byte changed: no match.
+   - A PDF from another tenant's report: no match (rule 7).
+   - A reopened determination: the match says REOPENED with its time.
+   - Not a PDF: 400. Oversized: 413.
+   - The audit entry for each case.
+
+**Frontend (Evidence report screen, design v2)**
+4. A secondary button "Check a file" in the report screen's header. It opens a PrimeNG Dialog with a drop zone
+   (PrimeNG FileUpload in custom mode, restyled): drag a PDF or choose one. Show a ProgressRing while the file
+   uploads and hashes.
+5. **Results:**
+   - **Match, determination signed:** the Seal in `preview` mode, a headline "Matches the report generated
+     {date}", and three facts:
+     - state and program;
+     - "Signed by {name}, {date}";
+     - rule version label.
+     A link opens that determination's report. The SHA-256 is in Plex Mono, shortened to 16 characters, with a copy
+     button.
+   - **Match, determination reopened:** a warning StatusIcon and "Matches, but this determination was reopened on
+     {date}". There is no Seal; a reopened record is not presented as standing.
+   - **No match:** a neutral icon, "No report in this workspace has exactly this content", and an InfoTip explaining
+     that any change to the file, even re-saving it, changes its fingerprint.
+   - Wording: never "compliant", "meets requirements", "valid" or "authentic". The page states facts about the file.
+6. **Tests and checks:**
+   - Unit tests for the three result views and the size and type errors.
+   - End-to-end: download a seeded report, check it (match), check a modified copy (no match), and see the audit
+     sentence. Run axe on each state in both themes and at 400 px.
+   - Screenshots `f14-*` at 1440 and 400 px in both themes.
+   - The initial bundle must not grow by more than 0.5 kB; the dialog is deferred.
 
 ## Follow-ups recorded from reviews
 - FIX-5: `MappingRepository.latestAssessmentsUsing` still has its own correlated copy of the "latest finished"
@@ -1402,10 +1465,8 @@ WHERE EXISTS (SELECT 1 FROM mapping m JOIN requirement r ON r.id = m.requirement
 - `scripts/eval.sh` repeats the slot and cleanup lines of `scripts/e2e.sh`; extract `scripts/lib/stack.sh`
   and source it from both (do this inside F7, which already touches the evaluation scripts).
 - The old Review screen logs `TypeError ... reading 'id'` at `review.ts:82`; verify it is gone after WS-UI.
-- Tests that need the seeded demo data currently use three different approaches (`SeedLoaderTest` loads the
-  shared tenants; F3a copies the manifest under another tenant name; F9 ingests the PDFs through the upload
-  API). After WS-EVAL makes `SeedLoader` load into a uniquely named tenant, give tests one shared fixture
-  for "a fresh tenant with the demo program" and delete the other two approaches.
+- Seeded test data: `SeedCopy.northfield` became the shared fixture (five seed tests use it); `SeedLoaderTest` tests
+  the loader itself and F9's search tests ingest through the upload API on purpose. Settled, no item needed.
 - F9 reported its end-to-end run on backend port 8084 although it was assigned slot 8; check that agents
   export `LEXVAY_E2E_SLOT` in the same shell as `make test`.
 - F1 viewer: search headlines are computed excerpts and cannot be mapped to character offsets; opening a

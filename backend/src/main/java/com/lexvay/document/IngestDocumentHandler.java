@@ -18,12 +18,15 @@ public class IngestDocumentHandler implements JobHandler {
     private final DocumentRepository documents;
     private final FileStore files;
     private final TextExtractor extractor;
+    private final DocumentOcrCheckpoints checkpoints;
     private final AuditService audit;
 
-    public IngestDocumentHandler(DocumentRepository documents, FileStore files, TextExtractor extractor, AuditService audit) {
+    public IngestDocumentHandler(DocumentRepository documents, FileStore files, TextExtractor extractor,
+                                 DocumentOcrCheckpoints checkpoints, AuditService audit) {
         this.documents = documents;
         this.files = files;
         this.extractor = extractor;
+        this.checkpoints = checkpoints;
         this.audit = audit;
     }
 
@@ -38,19 +41,21 @@ public class IngestDocumentHandler implements JobHandler {
         Document document = documents.findById(documentId)
                 .orElseThrow(() -> new PermanentJobFailure("Document " + documentId + " not found"));
         byte[] bytes = files.get(document.storageKey());
+        UUID tenantId = TenantContext.require();
+        DocumentOcrCheckpoints.ForDocument ocrCheckpoints = checkpoints.forDocument(tenantId, documentId);
         List<ExtractedPage> pages;
         try {
-            pages = extractor.extract(FileType.fromFilename(document.filename()), bytes);
+            pages = extractor.extract(FileType.fromFilename(document.filename()), bytes, ocrCheckpoints);
         } catch (UnparsableDocumentException | EmptyDocumentException | TooManyScannedPagesException | IllegalArgumentException e) {
             throw new PermanentJobFailure(e.getMessage(), e);
         }
-        UUID tenantId = TenantContext.require();
         int inserted = 0;
         for (ExtractedPage page : pages) {
             inserted += documents.insertPage(tenantId, documentId, page, document.createdBy());
         }
         audit.recordAs(null, "DOCUMENT_INGESTED", "document", documentId, Map.of(
                 "jobId", job.id().toString(), "pages", pages.size(), "pagesInserted", inserted,
-                "ocrPages", pages.stream().filter(page -> page.textSource() == TextSource.OCR).count()));
+                "ocrPages", pages.stream().filter(page -> page.textSource() == TextSource.OCR).count(),
+                "ocrPagesReused", ocrCheckpoints.reused()));
     }
 }

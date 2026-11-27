@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6 (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14 (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -3691,3 +3691,54 @@ evidence" with a dashed cell in the COUN 625 column, the URL state across a relo
 stop, Enter and Escape on the card, "Open in Review" landing on CA-2, the flag filter dimming rows, axe in both themes at
 1440 and 400 px with the card open and a filter on, no sideways page scroll, a focused cell not under a sticky column.
 The screen is its own chunk (36.9 kB raw); the initial bundle is 606.07 kB raw after merging `main` (warning 680 kB).
+
+### FIX-6 — OCR checkpoints per page (D-436 to D-441)
+
+**D-436 — One immutable table, no job per page.** `document_ocr_page` (V017) holds one row per page that was sent to
+the OCR engine: `tenant_id`, `document_id`, `page_number`, the normalized `text`, `mean_confidence`, `render_dpi` and
+`created_at`, primary key `(document_id, page_number)`. The primary key serves the only read (all checkpoints of one
+document), so there is no other index. Row-level security is enabled and forced with the same `tenant_isolation`
+policy as `document_page`; the application role gets its privileges from the default privileges of the role script, so
+the migration has no `GRANT`. `forbid_change()` (V003) rejects UPDATE and DELETE (rule 5). Rows stay after the ingest
+succeeds or fails for good: they record how a page's text was obtained. `JobRunner` and the job table are unchanged;
+the retry that already exists is what resumes.
+
+**D-437 — The checkpoint stores what the engine said, never a verdict.** Every page sent to the engine is saved, the
+too-short ones and the ones with no words too (`text = ''`, `mean_confidence` NULL; `OcrPage.NOTHING` in code). Whether
+the text is enough to count as read (`TextExtractor.hasEnoughText`) is decided in code from the stored text on every
+extraction, so a checkpoint can never change an outcome and a later change of that threshold applies to old
+checkpoints too. The confidence is saved after the same clamp and two-decimal rounding that `document_page` applies, so
+a page read from a checkpoint carries exactly the confidence the first run gave it.
+
+**D-438 — `OcrCheckpoints`, and `find` takes the render DPI.** The interface has `find` and `save` and the constant
+`NONE`; `TextExtractor.extract(FileType, byte[])` delegates with `NONE`, so rule texts, rule sources and the existing
+tests are unchanged. A page that needs OCR asks `find` first; on a hit it neither renders nor calls the engine; on a
+miss it renders, recognises and saves before the next page starts. A checkpoint taken at another DPI than
+`renderDpi(page)` (the DPI rule changed, D-164 family) is ignored and the page is recognised again; the insert is
+`ON CONFLICT DO NOTHING`, so the first checkpoint of a page stays and this run uses its fresh result in memory. The
+spec lists `find(int pageNumber)`, which cannot express that comparison, so the signature is
+`find(int pageNumber, int renderDpi)` (see the report; this is the one deviation).
+
+**D-439 — Commit per page with `PROPAGATION_REQUIRES_NEW`.** `DocumentOcrCheckpoints.forDocument(tenantId,
+documentId)` loads every checkpoint of the document in one statement and returns a `ForDocument` that is used for one
+ingest attempt. `save` runs `INSERT ... ON CONFLICT DO NOTHING` through a `TransactionTemplate` that always starts a new
+transaction, so the row commits although the job's transaction rolls back later. The new transaction gets a new
+connection from `TenantAwareDataSource`, which binds `lexvay.tenant_id` on checkout; nothing needs the worker flag
+because the ingest job already runs as its tenant. This is proved, not assumed: a test saves inside a transaction marked
+rollback-only and finds the row afterwards, and the isolation test shows tenant B can neither read nor write tenant A's
+checkpoints through the same path.
+
+**D-440 — Audit, no new action.** `DOCUMENT_INGESTED` gains `ocrPagesReused`, the number of pages read from a
+checkpoint instead of the engine (`ForDocument.reused()`, counted in `find` when a checkpoint at the right DPI is
+returned). It is a detail of an existing action, so `Rule9_AuditCoverageTest` and the frontend's `audit-sentence.spec.ts`
+need no row. No endpoint changes. The handler reads the tenant before extraction because the checkpoints need it.
+
+**D-441 — Tests.** `TextExtractorOcrTest` (where the fake-engine OCR tests of F11 already live) gains the checkpoint
+cases with an in-memory `InMemoryOcrCheckpoints` that has the table's semantics: zero engine calls and equal pages on a
+second extraction, a page saved before the next is read, a short checkpoint still falling back to the text layer, a page
+with no words stored as nothing, and a DPI mismatch recognising again. `FakeOcrEngine.failOnCall(n)` throws once on the
+n-th recognition. `DocumentOcrCheckpointIngestTest` runs the real upload and job path: the engine fails on page 3 of 4
+on the first attempt only, pages 1 and 2 are committed after the rollback, the retry recognises pages 3 and 4 only, the
+final `document_page` rows equal those of a clean run in another program, and the audit says `ocrPagesReused = 2`. It
+also covers the rollback-only commit and the keep-first rule. `Rule5_OcrCheckpointImmutabilityTest` and
+`Rule7_OcrCheckpointIsolationTest` cover rules 5 and 7; `Rule7_EveryTableHasPolicyTest` covers the table without a change.
