@@ -82,6 +82,8 @@ describe('audit sentences', () => {
       ['CHANGE_RERUN_REQUESTED', { kind: 'RULE_VERSION' }, 'Dana Whitfield re-ran the assessment for a new rule version'],
       ['CHANGE_RERUN_REQUESTED', { kind: 'COURSE_VERSION' }, 'Dana Whitfield re-ran matching for a new course version'],
       ['REPORT_REQUESTED', { determinationId: 'd' }, 'Dana Whitfield requested an evidence report PDF'],
+      ['REPORT_CHECKED', { match: true, sha256: 'a'.repeat(64) }, 'Dana Whitfield checked a report file: it matches'],
+      ['REPORT_CHECKED', { match: false, sha256: 'b'.repeat(64) }, 'Dana Whitfield checked a report file: no match'],
       ['JOB_FAILED', { type: 'RUN_ASSESSMENT', error: 'boom' }, 'Dana Whitfield could not finish an assessment'],
     ];
     for (const [action, detail, sentence] of cases) {

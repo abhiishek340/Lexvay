@@ -16,13 +16,14 @@ export default defineConfig({
     trace: 'retain-on-failure',
     ...devices['Desktop Chrome'],
   },
-  // Every spec shares one seeded stack, and a jurisdiction can be signed once. The register and records specs read the
-  // California signature that review-and-sign.spec.ts records, so they run after the rest of the suite. The setup spec
-  // creates a second program, after which the home screen lists programs instead of opening the only one, so it runs last.
+  // Every spec shares one seeded stack, and a jurisdiction can be signed once. The register, records and report check
+  // specs read the California signature that review-and-sign.spec.ts records, so they run after the rest of the suite. The
+  // setup spec creates a second program, after which the home screen lists programs instead of opening the only one, so it
+  // runs last.
   projects: [
-    { name: 'suite', testIgnore: /(register|records|setup)\.spec\.ts$/ },
+    { name: 'suite', testIgnore: /(register|records|report-check|setup)\.spec\.ts$/ },
     { name: 'register', testMatch: /register\.spec\.ts$/, dependencies: ['suite'] },
-    { name: 'records', testMatch: /records\.spec\.ts$/, dependencies: ['suite'] },
+    { name: 'records', testMatch: /(records|report-check)\.spec\.ts$/, dependencies: ['suite'] },
     { name: 'setup', testMatch: /setup\.spec\.ts$/, dependencies: ['register', 'records'] },
   ],
   webServer: {

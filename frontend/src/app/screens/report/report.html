@@ -10,11 +10,19 @@
       </div>
       @if (context.program(); as p) { <p>{{ p.name }}</p> }
     </div>
-    @if (context.program()) {
-      <p-select class="lx-jurisdiction" [options]="options()" optionLabel="label" optionValue="code" [ngModel]="jurisdiction()"
-                (ngModelChange)="selectJurisdiction($event)" ariaLabel="Jurisdiction" size="small" appendTo="body" />
-    }
+    <div class="lx-header-actions">
+      <button pButton type="button" severity="secondary" [outlined]="true" size="small" (click)="checkOpen.set(true)">
+        <span pButtonLabel>Check a file</span>
+      </button>
+      @if (context.program()) {
+        <p-select class="lx-jurisdiction" [options]="options()" optionLabel="label" optionValue="code" [ngModel]="jurisdiction()"
+                  (ngModelChange)="selectJurisdiction($event)" ariaLabel="Jurisdiction" size="small" appendTo="body" />
+      }
+    </div>
   </header>
+  @defer (when checkOpen(); prefetch on idle) {
+    <lx-report-check-dialog [(open)]="checkOpen" />
+  }
   @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
   @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
 

@@ -1,6 +1,7 @@
 package com.lexvay.determination.register;
 
 import com.lexvay.common.WhereClause;
+import com.lexvay.determination.DeterminationRepository;
 import com.lexvay.determination.DeterminationStatus;
 import com.lexvay.determination.Outcome;
 import java.sql.ResultSet;
@@ -36,7 +37,7 @@ public class RegisterRepository {
     /**
      * One row per target jurisdiction of the program (one row with a null code when it has none). {@code s} is the
      * current SIGNED determination; {@code r}, read only when there is none, the latest REOPENED one, dated by its
-     * DETERMINATION_REOPENED audit entry (the determination row keeps no reopening time). {@code now()} is the
+     * DETERMINATION_REOPENED audit entry ({@link DeterminationRepository#reopenedAt}). {@code now()} is the
      * transaction's start, the moment the lists describe.
      */
     private static final String TARGETS = """
@@ -44,9 +45,7 @@ public class RegisterRepository {
                    j.code AS jurisdiction_code, j.name AS jurisdiction_name,
                    s.id AS determination_id, s.outcome, s.signed_by, u.display_name AS signed_by_name, s.signed_at,
                    rv.label AS rule_version_label, s.versions_hash,
-                   r.id AS reopened_id,
-                   (SELECT max(a.created_at) FROM audit_log a
-                     WHERE a.entity_id = r.id AND a.action = 'DETERMINATION_REOPENED') AS reopened_at
+                   r.id AS reopened_id, %s AS reopened_at
             FROM program p
             LEFT JOIN program_jurisdiction pj ON pj.program_id = p.id
             LEFT JOIN jurisdiction j ON j.id = pj.jurisdiction_id
@@ -62,7 +61,7 @@ public class RegisterRepository {
                 ORDER BY d.signed_at DESC, d.id DESC LIMIT 1) r ON true
             WHERE p.id = :programId
             ORDER BY j.code
-            """;
+            """.formatted(DeterminationRepository.reopenedAt("r.id"));
 
     private static final ResultSetExtractor<Optional<DeterminationLists>> LISTS = RegisterRepository::readLists;
 

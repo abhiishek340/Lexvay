@@ -51,7 +51,8 @@ final class PerfSeed {
 
     /**
      * Rows the seed never produces but a tenant that has used the product for a while has: repeated
-     * assessments per program, signed or reopened determinations and a review history on most mappings
+     * assessments per program, signed or reopened determinations with their evidence reports (generated after V018
+     * with a content hash, generated before it without one, or still queued), and a review history on most mappings
      * (none, an open evidence request, a reopening, or a request answered and accepted), and the finished jobs
      * that pile up because jobs are never deleted (re-ingests, extractions, source checks), and the many sources
      * that are not due yet beside the few that are. Inserted as the
@@ -74,6 +75,14 @@ final class PerfSeed {
                 JOIN rule_version rv ON rv.tenant_id = a.tenant_id
                 CROSS JOIN generate_series(1, 2) g
                 JOIN LATERAL (SELECT id FROM app_user WHERE tenant_id = a.tenant_id LIMIT 1) u ON true
+                """);
+        admin.execute("""
+                INSERT INTO report (tenant_id, determination_id, storage_key, status, content_sha256, created_at)
+                SELECT d.tenant_id, d.id, CASE WHEN g < 3 THEN d.tenant_id || '/report-synthetic-' || d.id || '-' || g END,
+                       CASE WHEN g < 3 THEN 'READY' ELSE 'QUEUED' END,
+                       CASE WHEN g = 1 THEN encode(sha256(convert_to(d.id || '-' || g, 'UTF8')), 'hex') END,
+                       now() - g * interval '1 hour'
+                FROM determination d CROSS JOIN generate_series(1, 3) g
                 """);
         admin.execute("""
                 INSERT INTO job (tenant_id, type, entity_id, payload, status, created_at)

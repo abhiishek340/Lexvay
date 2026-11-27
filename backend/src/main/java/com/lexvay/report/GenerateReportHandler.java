@@ -4,6 +4,7 @@ import com.lexvay.audit.AuditService;
 import com.lexvay.common.TenantContext;
 import com.lexvay.determination.Determination;
 import com.lexvay.determination.DeterminationRepository;
+import com.lexvay.document.DocumentService;
 import com.lexvay.document.FileStore;
 import com.lexvay.job.Job;
 import com.lexvay.job.JobHandler;
@@ -48,7 +49,7 @@ public class GenerateReportHandler implements JobHandler {
         byte[] pdf = PdfTextWriter.render(service.content(determination));
         String key = TenantContext.require() + "/report-" + reportId;
         files.put(key, pdf);
-        reports.markReady(reportId, key);
+        reports.markReady(reportId, key, DocumentService.sha256(pdf));
         audit.recordAs(null, "REPORT_GENERATED", "report", reportId, Map.of("jobId", job.id().toString(),
                 "determinationId", determination.id().toString(), "bytes", pdf.length));
     }
