@@ -1,3 +1,4 @@
+import { softWrap } from '../src/app/shared/document-viewer/page-text';
 import { PRIYA, citedRequirement, expect, expectAccessible, openRequirement, signIn, test } from './support';
 
 test('the review screen shows the cited page with the quote marked, pages through it, and opens the original', async ({ page }) => {
@@ -8,13 +9,18 @@ test('the review screen shows the cited page with the quote marked, pages throug
 
   const viewer = page.locator('lx-document-viewer');
   const mark = viewer.getByTestId('evidence-mark');
-  // The mark is exactly the verified quote, placed from the stored offsets, and it is scrolled into view.
+  const pageText = await (await page.request.get(`/api/v1/documents/${evidence.documentId}/pages/${evidence.pageNumber}`)).json();
+  // The page reads as reflowed text: line breaks that only wrap a sentence show as spaces, one character for one, so
+  // the shown text has the stored length and the mark sits at the stored offsets around exactly the verified quote.
+  const shown = softWrap(pageText.text);
+  expect(await viewer.locator('pre').textContent()).toBe(shown);
+  expect(shown.length).toBe(pageText.text.length);
+  expect(shown).not.toBe(pageText.text);
+  expect(await mark.textContent()).toBe(shown.slice(evidence.charStart, evidence.charEnd));
+  expect(pageText.text.slice(evidence.charStart, evidence.charEnd)).toBe(evidence.quote);
   await expect(mark).toHaveText(evidence.quote);
-  expect(await mark.textContent()).toBe(evidence.quote);
   await expect(mark).toBeInViewport();
   await expect(viewer.locator('mark')).toHaveCount(1);
-  const pageText = await (await page.request.get(`/api/v1/documents/${evidence.documentId}/pages/${evidence.pageNumber}`)).json();
-  expect(await viewer.locator('pre').textContent()).toBe(pageText.text);
   // In the wide layout the viewer is always on screen, so it does not take focus from the list.
   await expect(mark).not.toBeFocused();
 
@@ -39,7 +45,7 @@ test('the review screen shows the cited page with the quote marked, pages throug
   await expect(position).toHaveText(`Page ${evidence.pageNumber + 1} of ${pageText.pageCount}`);
   await expect(viewer.locator('mark')).toHaveCount(0);
   const nextPage = await (await page.request.get(`/api/v1/documents/${evidence.documentId}/pages/${evidence.pageNumber + 1}`)).json();
-  await expect(viewer.locator('pre')).toHaveText(nextPage.text);
+  expect(await viewer.locator('pre').textContent()).toBe(softWrap(nextPage.text));
   if (evidence.pageNumber + 1 === pageText.pageCount) {
     // Next is now disabled at the last page, and focus moved to Previous instead of falling to the page.
     await expect(next).toBeDisabled();
@@ -90,19 +96,27 @@ test('a passage can be chosen by mouse selection and by character range from the
   await page.goto(`/programs/${programId}/dev/document-viewer?document=${evidence.documentId}&page=${evidence.pageNumber}`);
   const viewer = page.locator('lx-document-viewer');
   await expect(viewer.locator('pre')).toHaveText(stored.text);
+  expect(await viewer.locator('pre').textContent()).toBe(softWrap(stored.text));
   const chosen = page.getByTestId('selection');
 
-  // Mouse: select the first 40 characters of the page text; the toolbar offers the passage.
-  await viewer.locator('pre').evaluate((pre) => {
+  // Mouse: select a stretch of the shown text across a line break shown as a space; the toolbar offers the passage,
+  // quoted from the stored text by the same offsets, so the line break is still in it.
+  const joined = softWrap(stored.text).split('').findIndex((c, i) => c !== stored.text[i]);
+  expect(joined).toBeGreaterThan(0);
+  const [from, to] = [Math.max(0, joined - 20), joined + 20];
+  await viewer.locator('pre').evaluate((pre, [start, end]) => {
     const text = Array.from(pre.childNodes).find((n) => n.nodeType === Node.TEXT_NODE)!;
     const range = document.createRange();
-    range.setStart(text, 0);
-    range.setEnd(text, 40);
+    range.setStart(text, start);
+    range.setEnd(text, end);
     document.getSelection()!.removeAllRanges();
     document.getSelection()!.addRange(range);
     pre.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-  });
-  await expect(chosen).toHaveText(stored.text.slice(0, 40));
+  }, [from, to]);
+  await expect(chosen).toHaveAttribute('data-start', String(from));
+  await expect(chosen).toHaveAttribute('data-end', String(to));
+  expect(await chosen.textContent()).toBe(stored.text.slice(from, to));
+  expect(stored.text.slice(from, to)).toContain('\n');
   const toolbar = page.getByRole('toolbar', { name: 'Selected passage' });
   await expect(toolbar).toBeVisible();
   await page.keyboard.press('Escape');
