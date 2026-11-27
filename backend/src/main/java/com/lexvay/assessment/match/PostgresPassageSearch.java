@@ -1,5 +1,6 @@
 package com.lexvay.assessment.match;
 
+import com.lexvay.document.TextSource;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -63,7 +64,8 @@ public class PostgresPassageSearch implements PassageSearch {
         return statement(CANDIDATES, programId, tsquery, null, null, limit)
                 .query((rs, i) -> new Passage(rs.getObject("document_id", UUID.class), rs.getString("filename"), rs.getString("kind"),
                         rs.getObject("course_version_id", UUID.class), rs.getString("course_code"),
-                        rs.getObject("course_required", Boolean.class), rs.getInt("page_number"), rs.getString("text")))
+                        rs.getObject("course_required", Boolean.class), rs.getInt("page_number"), rs.getString("text"),
+                        TextSource.valueOf(rs.getString("text_source")), rs.getObject("ocr_confidence", Double.class)))
                 .list();
     }
 
@@ -90,6 +92,7 @@ public class PostgresPassageSearch implements PassageSearch {
                 WITH scored AS (
                     SELECT d.id AS document_id, d.filename, d.kind, d.course_version_id, c.code AS course_code,
                            cv.required AS course_required, d.created_at, dp.page_number, dp.text,
+                           dp.text_source, CAST(dp.ocr_confidence AS double precision) AS ocr_confidence,
                            %2$s AS rank
                     FROM document_page dp
                     JOIN document d ON d.id = dp.document_id
@@ -103,7 +106,7 @@ public class PostgresPassageSearch implements PassageSearch {
                     SELECT * FROM scored ORDER BY %4$s LIMIT :limit
                 )
                 SELECT h.document_id, h.filename, h.kind, h.course_version_id, h.course_code, h.course_required,
-                       h.page_number, h.rank, %3$s
+                       h.page_number, h.rank, h.text_source, h.ocr_confidence, %3$s
                 FROM top h
                 ORDER BY %4$s
                 """.formatted(mode.tsquery(), mode.rankExpression(), mode.projectionExpression(), ORDER);

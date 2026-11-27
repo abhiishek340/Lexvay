@@ -198,6 +198,10 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(row("users: hostile query parameter is ignored", "GET /api/v1/users", HttpMethod.GET,
                 "/api/v1/users?q=%00%ff", null, null, 200));
 
+        // --- test-only probe of the logging context (src/test, observability) ---
+        rows.add(row("mdc probe: hostile query parameter is ignored", "GET /api/v1/test-support/mdc", HttpMethod.GET,
+                "/api/v1/test-support/mdc?q=%00%ff", null, null, 200));
+
         // --- jurisdictions, jobs, audit ---
         rows.add(row("jurisdictions: hostile query parameter is ignored", "GET /api/v1/jurisdictions", HttpMethod.GET,
                 "/api/v1/jurisdictions?q=%00%ff", null, null, 200));
@@ -292,6 +296,10 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(row("assessment start: program id is not a UUID", "POST /api/v1/programs/{programId}/assessments", HttpMethod.POST,
                 "/api/v1/programs/" + BAD_ID + "/assessments", null, null, 400));
         rows.add(row("assessment: id is not a UUID", "GET /api/v1/assessments/{id}", HttpMethod.GET, "/api/v1/assessments/" + BAD_ID, null, null, 400));
+        rows.add(row("assessment usage: id is not a UUID", "GET /api/v1/assessments/{id}/usage", HttpMethod.GET,
+                "/api/v1/assessments/" + BAD_ID + "/usage", null, null, 400));
+        rows.add(row("assessment usage: unknown id", "GET /api/v1/assessments/{id}/usage", HttpMethod.GET,
+                "/api/v1/assessments/" + ID + "/usage", null, null, 404));
         rows.add(row("assessment mappings: id is not a UUID", "GET /api/v1/assessments/{id}/mappings", HttpMethod.GET,
                 "/api/v1/assessments/" + BAD_ID + "/mappings", null, null, 400));
         rows.add(row("assessment mappings: jurisdiction is not two capital letters", "GET /api/v1/assessments/{id}/mappings", HttpMethod.GET,

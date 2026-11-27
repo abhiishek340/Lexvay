@@ -42,7 +42,7 @@ class SecurityHeadersTest extends AbstractDatabaseTest {
 
     static Stream<Case> responses() {
         return Stream.of(
-                new Case("200 health check, public", HttpMethod.GET, "/actuator/health", false, false, 200),
+                new Case("200 readiness probe, public", HttpMethod.GET, "/readyz", false, false, 200),
                 new Case("200 JSON from the API", HttpMethod.GET, "/api/v1/programs", true, false, 200),
                 new Case("401 not signed in", HttpMethod.GET, "/api/v1/programs", false, false, 401),
                 new Case("403 missing CSRF token", HttpMethod.POST, "/api/v1/programs", true, false, 403),

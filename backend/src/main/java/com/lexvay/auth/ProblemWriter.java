@@ -1,5 +1,6 @@
 package com.lexvay.auth;
 
+import com.lexvay.observability.ProblemDetailRequestId;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ public class ProblemWriter {
     public void write(HttpServletResponse response, HttpStatus status, String detail) throws IOException {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
         problem.setTitle(status.getReasonPhrase());
+        ProblemDetailRequestId.stamp(problem);
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         json.writeValue(response.getOutputStream(), problem);

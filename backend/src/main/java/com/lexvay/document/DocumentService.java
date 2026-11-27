@@ -30,7 +30,8 @@ public class DocumentService {
     public record UploadResult(UUID documentId, UUID jobId) {
     }
 
-    public record PageSummary(int pageNumber, int charStart, int charEnd, int length) {
+    public record PageSummary(int pageNumber, int charStart, int charEnd, int length, TextSource textSource,
+                              Double ocrConfidence) {
     }
 
     /** A single page of extracted text with where it belongs. Pages never change once ingested. */
@@ -111,7 +112,8 @@ public class DocumentService {
     public DocumentView get(UUID id) {
         Document document = find(id);
         List<PageSummary> pages = documents.pages(id).stream()
-                .map(p -> new PageSummary(p.pageNumber(), p.charStart(), p.charEnd(), p.text().length()))
+                .map(p -> new PageSummary(p.pageNumber(), p.charStart(), p.charEnd(), p.text().length(), p.textSource(),
+                        p.ocrConfidence()))
                 .toList();
         Optional<IngestStatus> ingest = jobs.latest(JobType.INGEST_DOCUMENT, "documentId", id)
                 .map(j -> new IngestStatus(j.id(), j.status().name(), j.error()));

@@ -68,8 +68,18 @@ public class AssessmentFixtures {
 
     /** Uploads a TXT document and runs ingest. Returns the document id. */
     public UUID document(TestTenants.TenantWithUsers t, UUID programId, String filename, String kind, UUID courseVersionId, String text) {
+        return upload(t, programId, filename, "text/plain", kind, courseVersionId, text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Uploads a PDF without a text layer and runs ingest; the OcrEngine of the test decides what its pages read as. */
+    public UUID scannedDocument(TestTenants.TenantWithUsers t, UUID programId, String filename, String kind, UUID courseVersionId, byte[] pdf) {
+        return upload(t, programId, filename, "application/pdf", kind, courseVersionId, pdf);
+    }
+
+    private UUID upload(TestTenants.TenantWithUsers t, UUID programId, String filename, String contentType, String kind,
+                        UUID courseVersionId, byte[] bytes) {
         var request = multipart("/api/v1/programs/" + programId + "/documents")
-                .file(new MockMultipartFile("file", filename, "text/plain", text.getBytes(StandardCharsets.UTF_8)))
+                .file(new MockMultipartFile("file", filename, contentType, bytes))
                 .param("kind", kind).with(user(t.contributor())).with(csrf());
         if (courseVersionId != null) {
             request.param("courseVersionId", courseVersionId.toString());

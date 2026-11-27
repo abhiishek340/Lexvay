@@ -3,6 +3,7 @@ package com.lexvay.seed;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.lexvay.document.FileType;
+import com.lexvay.document.NoOcrEngine;
 import com.lexvay.document.TextExtractor;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,7 +23,7 @@ class SeedIsLabeledFictionalTest {
             var pdfs = files.filter(p -> p.toString().endsWith(".pdf")).toList();
             assertThat(pdfs).hasSize(14);
             for (Path pdf : pdfs) {
-                var pages = TextExtractor.extract(FileType.PDF, Files.readAllBytes(pdf));
+                var pages = new TextExtractor(new NoOcrEngine(), 200).extract(FileType.PDF, Files.readAllBytes(pdf));
                 assertThat(pages.get(0).text()).as(pdf.getFileName().toString()).contains("Fictional. Prototype data.");
             }
         }

@@ -28,7 +28,7 @@ public final class TenantContext {
     public static <T> T runAs(UUID tenantId, Supplier<T> action) {
         UUID previous = CURRENT.get();
         CURRENT.set(tenantId);
-        try {
+        try (LogContext.Scope ignored = LogContext.with(LogContext.TENANT_ID, tenantId)) {
             return action.get();
         } finally {
             if (previous == null) {
@@ -50,7 +50,7 @@ public final class TenantContext {
     public static <T> T runWithoutTenant(Supplier<T> action) {
         UUID previous = CURRENT.get();
         CURRENT.remove();
-        try {
+        try (LogContext.Scope ignored = LogContext.without(LogContext.TENANT_ID)) {
             return action.get();
         } finally {
             if (previous != null) {

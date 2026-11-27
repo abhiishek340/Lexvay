@@ -58,11 +58,13 @@ public class RuleVersionService {
     private final AuditService audit;
     private final RequirementListParser parser;
     private final ChangeService changes;
+    private final TextExtractor extractor;
 
     public RuleVersionService(RuleVersionRepository ruleVersions, JurisdictionRepository jurisdictions,
                               DocumentRepository documents, FileStore files, JobRepository jobs, AuditService audit,
-                              RequirementListParser parser, ChangeService changes) {
+                              RequirementListParser parser, ChangeService changes, TextExtractor extractor) {
         this.changes = changes;
+        this.extractor = extractor;
         this.ruleVersions = ruleVersions;
         this.jurisdictions = jurisdictions;
         this.documents = documents;
@@ -89,7 +91,7 @@ public class RuleVersionService {
         UUID actor = CurrentUser.require().id();
 
         byte[] bytes = request.text().getBytes(StandardCharsets.UTF_8);
-        List<ExtractedPage> pages = TextExtractor.extract(FileType.TXT, bytes);
+        List<ExtractedPage> pages = extractor.extract(FileType.TXT, bytes);
         String sha256 = DocumentService.sha256(bytes);
         documents.findDuplicate(null, sha256).ifPresent(existing -> {
             throw new DuplicateDocumentException(existing.id());

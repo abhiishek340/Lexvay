@@ -20,5 +20,51 @@ services:
       timeout: 3s
       retries: 20
 
+  # The production image: API and single-page app on :8080, metrics on :8090. `docker compose --profile app up`.
+  app:
+    profiles: ["app"]
+    build:
+      context: .
+      args:
+        LEXVAY_PRIMEUI_LICENSE: ${LEXVAY_PRIMEUI_LICENSE:-}
+    image: lexvay:local
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      LEXVAY_DB_URL: jdbc:postgresql://db:5432/${LEXVAY_DB_NAME:-lexvay}
+      LEXVAY_DB_OWNER_USER: ${LEXVAY_DB_OWNER_USER:-lexvay_owner}
+      LEXVAY_DB_OWNER_PASSWORD: ${LEXVAY_DB_OWNER_PASSWORD:-lexvay-owner-dev}
+      LEXVAY_DB_APP_USER: ${LEXVAY_DB_APP_USER:-lexvay_app}
+      LEXVAY_DB_APP_PASSWORD: ${LEXVAY_DB_APP_PASSWORD:-lexvay-app-dev}
+      LEXVAY_LLM_PROVIDER: ${LEXVAY_LLM_PROVIDER:-fake}
+      LEXVAY_LLM_MODEL: ${LEXVAY_LLM_MODEL:-claude-sonnet-5-5}
+      LEXVAY_LLM_EFFORT: ${LEXVAY_LLM_EFFORT:-medium}
+      LEXVAY_LLM_PRICE_INPUT_PER_MTOK: ${LEXVAY_LLM_PRICE_INPUT_PER_MTOK:-0}
+      LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK: ${LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK:-0}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Use "prod,oidc" for single sign-on (LEXVAY_OIDC_* below). Behind a reverse proxy set LEXVAY_FORWARD_HEADERS=native.
+      SPRING_PROFILES_ACTIVE: ${LEXVAY_PROFILES:-prod}
+      LEXVAY_FORWARD_HEADERS: ${LEXVAY_FORWARD_HEADERS:-none}
+      LEXVAY_COOKIE_SECURE: ${LEXVAY_COOKIE_SECURE:-false}
+      LEXVAY_OIDC_ISSUER_URI: ${LEXVAY_OIDC_ISSUER_URI:-}
+      LEXVAY_OIDC_CLIENT_ID: ${LEXVAY_OIDC_CLIENT_ID:-}
+      LEXVAY_OIDC_CLIENT_SECRET: ${LEXVAY_OIDC_CLIENT_SECRET:-}
+      LEXVAY_OIDC_POST_LOGIN_URL: ${LEXVAY_OIDC_POST_LOGIN_URL:-/}
+      LEXVAY_RATELIMIT_LOGIN_PER_MINUTE: ${LEXVAY_RATELIMIT_LOGIN_PER_MINUTE:-10}
+      LEXVAY_RATELIMIT_API_PER_MINUTE: ${LEXVAY_RATELIMIT_API_PER_MINUTE:-600}
+      LEXVAY_RATELIMIT_UPLOAD_PER_MINUTE: ${LEXVAY_RATELIMIT_UPLOAD_PER_MINUTE:-30}
+      LEXVAY_UPLOAD_MAX_MB: ${LEXVAY_UPLOAD_MAX_MB:-25}
+    ports:
+      - "${LEXVAY_APP_PORT:-8080}:8080"
+      - "127.0.0.1:${LEXVAY_APP_MANAGEMENT_PORT:-8090}:8090"
+    volumes:
+      - lexvay-app-data:/var/lexvay
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 40s
+
 volumes:
   lexvay-db-data:
+  lexvay-app-data:

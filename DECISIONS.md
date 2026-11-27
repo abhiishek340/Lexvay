@@ -391,7 +391,7 @@ End-to-end stacks are slot-based (`LEXVAY_E2E_SLOT`) so several checkouts can te
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F13 if needed. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–249, F7c D-250–259. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F13 if needed, V015 F7c. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -1021,6 +1021,124 @@ through row-level security, as everywhere else.
 work item and the version numbers have a gap. Applied count is 6 here (V001 to V005 and V007); it is 7 once V006
 merges, with no test change.
 
+### F6 — Production packaging and observability (D-140 to D-149)
+
+**D-140 — One image, three stages, exact pins.** `Dockerfile` at the repository root: `node:26.13.1-bookworm-slim`
+builds the Angular production bundle (Node 26.13.1 is the D-002 pin); `eclipse-temurin:21.0.13_9-jdk-noble` builds
+the jar through the Maven wrapper with the bundle copied to `src/main/resources/static` and extracts Spring Boot's
+layers (`-Djarmode=tools extract --layers`); `eclipse-temurin:21.0.13_9-jre-noble` is the runtime. Digests (checked
+2026-11-26) are in `docs/OPERATIONS.md`. The runtime image holds the layered jar and nothing else: no source, no
+tests (`.dockerignore` also keeps `backend/src/test` out of the build context), no Maven or npm cache (they live in
+the build stages), no secrets. It runs as uid 10001, files and temporary files are under `/var/lexvay`
+(`LEXVAY_FILESTORE_PATH`, `-Djava.io.tmpdir`, `-XX:-UsePerfData`) so `read_only: true` works, and
+`ENTRYPOINT ["sh","-c","exec java $JAVA_OPTS -jar /app/app.jar"]` keeps the JVM as PID 1 so SIGTERM reaches it.
+`HEALTHCHECK` calls `/readyz`. Rejected: Alpine runtime (musl, not tried: PDFBox and POI font handling is the likely place
+for a surprise, and the size saving was not measured or asked for), Spring Boot buildpacks (`bootBuildImage`
+needs a daemon socket in CI and hides the pins), a fat jar run as is (no layer reuse: every code change would
+re-ship 126 MB of libraries), `jlink` runtime (smaller, but a custom module list to keep in step with PDFBox, POI,
+the AWS SDK and the Anthropic SDK; revisit if size matters), BuildKit cache mounts (the Colima setup on this
+machine has no buildx; the build stages are discarded anyway).
+
+**D-141 — The backend serves the app.** `SpaResourceConfig` registers two resource handlers over
+`classpath:/static/`. Files with a content hash (`/*.js`, `/*.css`, `/media/**`; Angular's `outputHashing: all`)
+get `Cache-Control: max-age=31536000, public, immutable`. Everything else is `no-cache` (revalidate with the
+validators), so a new release is picked up at once. A GET that matches no file falls back to `index.html` when the
+last path segment has no extension and the path is not under `/api` or `/actuator` (`SpaRoutes`); `/api/...`
+therefore stays a 404 problem detail, and `/missing.js` stays a 404. The resource chain is not cached
+(`resourceChain(false)`) because a cache keyed by path would grow with every probed URL. Security: GET requests
+outside `/api` and `/actuator` are public (the sign-in screen has to load before anyone can sign in; the bundle holds
+no data); every other method and every service path keeps requiring authentication. One line in `SecurityConfig`
+(`requestMatchers(SpaRoutes.APP_REQUESTS).permitAll()`). Rejected: a `@Controller` forwarding a fixed list of
+patterns (Spring's path patterns cannot express "any depth, no dot"), a 404 handler that forwards (it hides real
+missing files from the API's error handling), nginx in front (a second process and image for a static folder).
+
+**D-142 — Management port and health.** `management.server.port` is `LEXVAY_MANAGEMENT_PORT` (default 8090).
+Spring Boot moves every actuator endpoint to that port; there is no property that keeps `/actuator/health` on the
+main one (additional health paths accept a single segment). The Boot-supported way to keep health on the main port
+is `management.endpoint.health.probes.add-additional-paths`, so the main port serves `/livez` and `/readyz`, public,
+and the container `HEALTHCHECK`, `scripts/e2e.sh` and `HealthEndpointTest` use `/readyz`. The readiness group is
+`readinessState,db`, so an instance that cannot reach PostgreSQL stops being ready. The management port exposes only
+`health` and `prometheus` (`management.endpoints.web.exposure.include`). `/actuator/health` on the main port is
+therefore not served (404). **This departs from the roadmap's "health stays on the main port" in its literal
+reading (the aggregate `/actuator/health`); the probes do stay on the main port.** The Spring Security chain applies
+on the management port as well, so `ManagementSecurityConfig` adds one chain, `EndpointRequest.toAnyEndpoint()`
+permitAll, which Spring Boot evaluates only in the management server's own context, and which is not even created
+when the management port equals the main port (`@ConditionalOnManagementPort(DIFFERENT)`). Result, tested: the main
+port answers 401 for `/actuator/prometheus`; the management port answers prometheus and health without a session and
+401 for anything else. The seed profile sets the port to -1 so `make seed` cannot collide with a running app.
+Rejected: a hand-written `/actuator/health` controller on the main port (duplicates what Boot provides), publishing
+the management port to users (it is bound to 127.0.0.1 in compose and documented as private).
+
+**D-143 — Request correlation.** `RequestIdFilter` runs before Spring Security (`HIGHEST_PRECEDENCE + 10`): it
+accepts `X-Request-Id` only when it matches `[A-Za-z0-9-]{8,64}` (anything else, including log-injection attempts,
+is replaced by a UUID), echoes it on the response and sets MDC `requestId`. MDC `tenantId` is set by
+`TenantContext.runAs` (so web requests and job runs get it from one place) and `userId` by `TenantContextFilter`;
+`JobRunner` sets `jobId`. `LogContext` owns the four keys and restores the previous value on close, so nothing leaks
+between requests on a pooled thread. `ProblemDetailRequestId` is a `ResponseBodyAdvice` that adds `requestId` to every
+`ProblemDetail` the MVC layer writes, whichever handler made it (including Spring's own 404 and 400 handlers); the two
+problem details written by the security entry points call the same `stamp` helper. `ApiAccessLog` writes one INFO
+line per `/api/**` request that reached a handler (method, path, status, duration; never the query string, which can
+hold search text) so the ids are visible in logs without an error. Rejected: a servlet-filter access log (runs after
+the security context is cleared, so tenant and user are gone), Micrometer tracing (not asked for; it brings trace
+ids and propagation that nothing consumes yet).
+
+**D-144 — Structured logs.** Profile `prod` sets `logging.structured.format.console: ecs` and
+`logging.structured.ecs.service.name: lexvay` (Spring Boot's built-in formatter, no extra dependency). MDC entries
+appear as top-level fields (`requestId`, `tenantId`, `userId`, `jobId`). Locally the normal pattern is kept and
+`logging.pattern.correlation` adds `[requestId or jobId]`. The image sets `SPRING_PROFILES_ACTIVE=prod`. What is never
+logged: document text, quotes, rule text, prompts, model output, emails. To make that true, `JobRunner` no longer
+logs the failure message (it can carry model output or document text); the log has the job type, the attempt and the
+root exception class, and the message is stored on the job row and audit entry as before.
+
+**D-145 — Metrics.** `micrometer-registry-prometheus` (managed by the Boot BOM through `micrometer-bom` 1.17.3, on
+`prometheus-metrics` 1.7.0). All meters are created in `LexvayMetrics`; call sites pass facts (enums, booleans,
+durations). Names and tags are as the roadmap lists them: `lexvay.llm.calls` (purpose, model, outcome:
+success | refused | error), `lexvay.llm.tokens` (direction: input | output), `lexvay.llm.duration`,
+`lexvay.job.duration` (type, outcome: done | retried | failed), `lexvay.job.queue.depth` (gauge),
+`lexvay.quote.verification` (result: verified | rejected), `lexvay.mapping.finding` (finding, method). Tag values are
+enum names or fixed words; a test scrapes the endpoint and fails on any label outside that set, on UUID-shaped
+values, and on any occurrence of an id, an email or quote text. The model call is wrapped by `LlmGateway`
+(delegates to the configured `LlmClient`, times the call, reports success, refusal or error) and the two call sites
+use it instead of the client; rejected: wrapping the `LlmClient` bean (the tests cast the bean to
+`FakeLlmClient`) and metering inside `LlmCallRecorder` (it only sees successes). Mapping findings are counted after
+the per-requirement transaction commits and only when the row was inserted, so a retried run does not double count.
+The queue depth is `SELECT count(*) FROM job WHERE status = 'QUEUED'` under the worker flag, answered by
+`job_claim_idx`, evaluated at scrape time. `lexvay.llm.duration` carries `purpose` (the roadmap listed no tags; added at review so extraction and
+matching latencies are not blended).
+
+**D-146 — Graceful shutdown.** `server.shutdown: graceful`, `spring.lifecycle.timeout-per-shutdown-phase` and
+`spring.task.scheduling.shutdown.await-termination(-period)` all take `LEXVAY_SHUTDOWN_GRACE` (default 30 s; compose
+`stop_grace_period` is 40 s). `JobPoller` listens for `ContextClosedEvent` and stops claiming; `JobRunner.runWhile`
+checks that flag between jobs, so the job in hand finishes (its transaction commits) and the scheduler, which now
+waits for its task, joins. A job that outlives the grace period is released by the existing ten-minute re-claim rule
+in `JobRepository.claim`. Rejected: interrupting the running job (leaves a half-written run; D-052 makes resuming
+safe but wasteful), draining the whole queue on shutdown (unbounded).
+
+**D-147 — Usage endpoint.** `GET /api/v1/assessments/{id}/usage`, any signed-in user of the tenant, returns calls,
+input and output tokens, `modelTimeMs` (sum of call durations), `wallTimeMs` (the assessment's own run time, null
+until it has finished), `estimatedCostUsd`, the `prices` used, and the same totals by purpose. One aggregate over
+`llm_call` grouped by purpose; totals are summed in Java from those rows; the assessment is looked up first through
+the existing tenant-scoped `AssessmentService.require`, so another tenant's id is a 404. Extraction calls have no
+assessment id (D-047) and are not part of it. Prices are `lexvay.llm.price.*` from WS-EVAL
+(`LEXVAY_LLM_PRICE_INPUT_PER_MTOK`, `..._OUTPUT_...`, default 0 meaning not set); with no price the cost is `null`,
+not 0, the same rule as the evaluation report. Migration `V010__llm_call_assessment_index.sql` adds
+`llm_call (assessment_id)` (the table had no index for this lookup; V006 and V008 are WS-PERF, V007 is F4a, V009 is F11).
+
+**D-148 — Compose and smoke.** `docker compose --profile app up` adds the `app` service: read-only root filesystem,
+`cap_drop: ALL`, `no-new-privileges`, a named volume for `/var/lexvay`, the management port published on 127.0.0.1
+only. Configuration is `LEXVAY_*` variables with the same development defaults as the `db` service; nothing secret
+is in the image or the repository. `scripts/smoke.sh` (`make smoke`, slot-aware like `e2e.sh`) builds the image,
+seeds the demo tenants with the same image (profile `seed`, seed directory mounted read-only), starts the app and
+checks: non-root user, read-only root, no source or caches in the image, the app shell on `/` and a deep link, cache
+headers, sign-in through the container with the CSRF cookie flow, an API read, the 404 problem detail with its
+request id, the usage endpoint, the scrape (including a failed job counted by outcome), ECS logs with request and job
+ids, and a graceful stop. The e2e script now exports `LEXVAY_MANAGEMENT_PORT` as 8091 plus the slot (slot 7: 8098).
+
+**D-149 — Test shell for the SPA.** `backend/src/test/resources/static/` holds a stand-in `index.html` and a hashed
+asset so the fallback and cache rules are tested without a frontend build. Test sources are excluded from the image
+build context, so the stand-in can never reach production. `AbstractDatabaseTest` sets the two price properties so
+the usage tests have prices to compute with.
+
 ### F9 — Curriculum search API (D-150 to D-159)
 
 **D-150 — Query syntax.** The reviewer's text goes to `websearch_to_tsquery('english', :q)` as a bound
@@ -1086,3 +1204,85 @@ through the upload API, using the course and document lists from `seed/manifest.
 `SeedLoader`. The loader creates the shared demo tenants once per database and `SeedLoaderTest` asserts that
 first load, so a second test calling it would make that test depend on class order. The search tests need no
 model and no scripts.
+
+### F11 — OCR for scanned documents (D-160 to D-169)
+
+**D-160 — Engine seam and selection.** `OcrEngine { boolean available(); Optional<OcrPage> recognize(BufferedImage) }`
+with `NoOcrEngine` (the default, `LEXVAY_OCR=off`) and `TesseractCliOcrEngine` (`LEXVAY_OCR=tesseract`, binary
+`LEXVAY_OCR_TESSERACT_PATH`, language `LEXVAY_OCR_LANGUAGE`). `OcrConfig` picks the bean like `FileStoreConfig` and
+rejects an unknown value at start. Decided by the CTO. Rejected: a Java binding (JavaCPP or Tess4J: native
+libraries inside the JVM, a crash takes the server down, a larger supply chain) and a cloud OCR service (student
+and institutional documents leave the deployment; no network in tests).
+
+**D-161 — The command line and its safety.** `tesseract <png> stdout -l <lang> --psm 3 tsv`, an argument array
+(never a shell), a private temporary directory per call that is always deleted, standard error redirected to a file
+in that directory, 60 s timeout then `destroyForcibly`, `OMP_THREAD_LIMIT=1` so concurrent runs do not oversubscribe
+cores. The language is validated against `[A-Za-z0-9_]+(+...)*` so a configuration value cannot become an option.
+`available()` runs `<binary> --version` once (10 s timeout) and caches the answer; a configured but missing binary
+is logged once at WARN and behaves as "not enabled". Decided by the CTO; validation and the thread limit are
+additions.
+
+**D-162 — No page text in logs or messages.** Neither the engine nor the extractor logs recognised text. A
+failure message carries the exit code and the first line of Tesseract's standard error (at most 200 characters),
+which reports configuration problems such as a missing language file, not page content. `OcrFailedException` is
+retryable (the job runner requeues it up to `lexvay.jobs.max-attempts`), because a timeout or a killed process can
+be transient. `recognize` returning empty means "no words found", not "failed".
+
+**D-163 — TSV parsing.** Recorded from a real run (`src/test/resources/ocr/tesseract-5.5.5-page.tsv`, 32 words).
+Words are level-5 rows with `conf >= 0` and non-empty text; control characters are dropped from words (PostgreSQL
+`text` rejects NUL); words of one (block, paragraph, line) are joined by a space, lines by a line feed, paragraphs by
+a blank line. The mean confidence is the plain average over the words kept. Decided by the CTO.
+
+**D-164 — Per-page ingest rule.** A PDF page keeps its text layer when it has at least 20 non-whitespace characters
+(`TEXT_LAYER`). Any other page is rendered at 300 DPI in grayscale and read when the engine is available; the result
+replaces the text layer only when it also has at least 20 non-whitespace characters (`OCR`, confidence rounded to two
+decimals to fit `numeric(5,2)`). In every other case (no engine, or too little recognised) the page keeps its text
+layer, however short, as `TEXT_LAYER`. The first version of the spec emptied such pages; the CTO changed it after
+review because discarding extracted text silently loses data that the product could cite (a short heading, a figure
+such as "60 credits"), and nothing is gained by it: the length threshold exists to decide when OCR is worth trying,
+not to delete text. The "no extractable text" rejection therefore applies only when every page's text layer is
+blank. A page whose image would exceed 25 megapixels is rendered at the largest DPI that stays under the cap.
+`TextExtractor` became an injected component (engine and page cap) instead of a static utility; DOCX and TXT are
+unchanged. Rejected: always running OCR and preferring the better text (slow, and a text layer is more reliable
+than any recognition) and emptying thin pages (data loss).
+
+**D-165 — Page cap and the "scanned" hint.** At most `lexvay.ocr.max-pages` (200) pages per document are sent to
+OCR. The check counts the pages that need OCR and runs before any recognition, so an oversized upload fails at
+once with `TooManyScannedPagesException`, a permanent job failure, and no CPU is spent. A document whose pages are
+all empty still fails with "Document has no extractable text"; for a PDF whose engine is unavailable the message
+continues ". It looks scanned; OCR is not enabled on this server". Decided by the CTO.
+
+**D-166 — Schema (V009).** `document_page.text_source` (default `TEXT_LAYER`, `CHECK IN ('TEXT_LAYER','OCR')`),
+`ocr_confidence numeric(5,2)` and `CHECK ((text_source = 'OCR') = (ocr_confidence IS NOT NULL))`, as specified;
+one addition, `CHECK` that the confidence lies in 0..100. The default makes existing rows `TEXT_LAYER` without a
+backfill. `document_page` stays immutable (V003 trigger); the columns are written only on insert. V006 and V008
+remain reserved. The repositories read the confidence with `CAST(... AS double precision)` because the PostgreSQL
+driver does not convert `numeric` to `Double`.
+
+**D-167 — Product rule 4 for OCR pages.** Evidence cited from an OCR page with confidence below
+`lexvay.matching.min-ocr-confidence` (80, exclusive: exactly 80 passes) cannot be `EVIDENCE_FOUND`; it becomes
+`AMBIGUOUS` with "the cited page was read by OCR with NN % confidence; check the original". NN is rounded down so a
+page under the threshold never displays as the threshold. The quote is verified against the stored OCR text exactly
+as against a text layer (rule 2); a quote that is not in the OCR text is still `EVIDENCE_MISSING`. The threshold has
+no `LEXVAY_*` alias on purpose; it is a safety setting.
+
+**D-168 — Downgrade rules as an ordered list.** `DowngradeRule` is a functional interface returning an optional
+reason for a passage and a verified quote; `DowngradeRule.ordered(minQuoteChars, minOcrConfidence)` lists
+`notRequiredCourse`, `thinQuote`, `lowOcrConfidence`. `EvidenceMatcher` walks the list for an `EVIDENCE_FOUND`
+proposal; every rule that applies appends " Downgraded to ambiguous: <reason>". This differs from the two `if`
+blocks it replaces in one visible way: when two rules apply (an elective course and a thin quote) the rationale now
+names both, where the second used to be hidden behind the first. The finding is the same either way. A fourth
+rule is one more list entry.
+
+**D-169 — Read models and audit.** `PageSummary` (document view) and `Mapping.Evidence` expose `textSource` and
+`ocrConfidence` (null for text layers). `MappingRepository` joins `document_page` on (document, page number) to
+fill them; `Passage` carries the same two fields from the one shared search template. `DOCUMENT_INGESTED` audit
+detail gains `ocrPages`. Docker: no `Dockerfile` exists on `main` at the time of writing, so there is no runtime
+stage to extend; whoever adds one must install Tesseract (`apt-get install tesseract-ocr`) and set
+`LEXVAY_OCR=tesseract`.
+
+**Content limits (after WS-SEC).** OCR goes through the existing `ContentLimits`: `TextExtractor.pdfPages` calls
+`ContentLimits.requirePdfPages` (500 pages) before any text is read or any page is rendered, and DOCX still passes
+`requireSafeDocx`. The OCR cap (`lexvay.ocr.max-pages`, 200) is not a parallel copy of that limit: it counts only the
+pages that need recognition, which is where the CPU cost is. F11 adds no endpoint, so `InputValidationTableTest`
+needs no new row (upload and document read are already covered).

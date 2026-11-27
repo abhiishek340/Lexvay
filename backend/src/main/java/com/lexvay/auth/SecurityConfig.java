@@ -2,6 +2,7 @@ package com.lexvay.auth;
 
 import com.lexvay.audit.AuditService;
 import com.lexvay.common.TenantContext;
+import com.lexvay.web.SpaRoutes;
 import java.util.Map;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -83,6 +84,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(LOGIN_URL, SESSION_URL).permitAll()
+                        .requestMatchers(SpaRoutes.APP_REQUESTS).permitAll()
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .loginProcessingUrl(LOGIN_URL)
