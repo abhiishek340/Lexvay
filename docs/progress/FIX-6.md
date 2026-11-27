@@ -13,4 +13,7 @@ Branch `fix-ocr-checkpoints`, slot 5, migration V017. Decisions D-436 to D-441 a
 - `docs/OPERATIONS.md`: one sentence.
 
 ## Test runs
-Recorded below after the full run.
+`LEXVAY_E2E_SLOT=5 make test`, exit 0: backend `Tests run: 1091, Failures: 0, Errors: 0, Skipped: 0` (`BUILD SUCCESS`),
+frontend `Test Files 29 passed (29)`, `Tests 312 passed (312)`, end-to-end `37 passed (4.0m)`. The first backend run had one
+failure in the new ingest test: `JobRunner.runOne` claims the oldest queued job of any tenant, and jobs that other test
+classes had left queued were claimed first. The test now drains the queue in `setUp`.
