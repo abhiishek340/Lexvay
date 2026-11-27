@@ -272,7 +272,11 @@ class EvidenceRequestApiTest extends AbstractAssessmentTest {
         TenantContext.runAs(t.tenantId(), () -> jdbc.sql("UPDATE mapping SET stale = false WHERE id = :id")
                 .param("id", s.ambiguousMapping()).update());
 
+        assertThat(requests(t.reviewer(), s.programId(), "OPEN").get(0).get("signed").asBoolean()).as("not signed yet").isFalse();
         assertThat(rf.sign(t.signer(), s.programId(), "CA", "DOES_NOT_MEET")).hasStatus(201);
+        JsonNode listed = requests(t.reviewer(), s.programId(), "OPEN");
+        assertThat(listed).as("the status stays OPEN").hasSize(1);
+        assertThat(listed.get(0).get("signed").asBoolean()).isTrue();
         var signed = respond(t.contributor(), s.ambiguousMapping(), schedule, 1, "Week 2", null);
         assertThat(signed).hasStatus(409);
         assertThat(fx.read(signed).get("detail").asString()).contains("signed determination");
