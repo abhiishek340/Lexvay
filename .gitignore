@@ -18,6 +18,7 @@ frontend/playwright-report/
 # infra
 infra/.terraform/
 infra/*.tfstate*
+infra/backend.hcl
 
 # OS / IDE
 .DS_Store

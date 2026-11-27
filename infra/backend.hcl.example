@@ -1,0 +1,9 @@
+# Copy to backend.hcl (ignored by git), replace every value, then run
+#   terraform init -backend-config=backend.hcl
+# The bucket is created once, outside this stack (docs/OPERATIONS.md, "Terraform state").
+bucket       = "REPLACE-with-the-state-bucket-name"
+key          = "REPLACE-project/REPLACE-environment/terraform.tfstate"
+region       = "REPLACE-with-the-bucket-region"
+encrypt      = true
+kms_key_id   = "REPLACE-with-the-state-key-arn"
+use_lockfile = true

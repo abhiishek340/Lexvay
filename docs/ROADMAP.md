@@ -72,7 +72,8 @@ Coverage: the matrix on `surface` with the v3 marks, flags as text with marks, t
 Screenshots `ui3-1-*`.
 
 ### UI3-2 — Changes, Audit trail, Evidence report, Register and People in v3 (slot 3; Opus 5.5; after UI3-0 and F14; D-510 to D-519)
-- Changes and Audit trail: plain day-grouped lists of one-sentence rows.
+- Changes and Audit trail: plain day-grouped lists of one-sentence rows. The audit trail gains a "Verify" text action
+  for administrators (SEC-3), with the result as one sentence and the head hash in mono.
 - Evidence report: the 816 px sheet, with actions in the title row; F14's check dialog restyled.
 - Determination register and People: tables under a title row and meta line.
 - The setup-password page in the sign-in column style.
@@ -202,12 +203,13 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F12b Rule sources in the Rules workspace (v3) | `ui3-rule-sources` | 5 | Opus 5.5 | queued (after UI3-3) |
 | FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | merged (#45) |
 | F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | in progress |
-| INFRA-2 Remote state, WAF, flow logs, egress | `infra-hardening` | — | Sonnet 5.5 | in progress |
+| INFRA-2 Remote state, WAF, flow logs, egress | `infra-hardening` | — | Sonnet 5.5 | merged (#46) |
 | FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | in progress |
 | UI3-0 Design v3 foundation, shell, sign-in, overview | `ui3-foundation` | 1 | Opus 5.5 | in progress |
 | UI3-1 Review and Coverage in v3 | `ui3-review-coverage` | 2 | Opus 5.5 | queued (after UI3-0) |
 | UI3-2 Changes, audit, report, register, people in v3 | `ui3-records` | 3 | Opus 5.5 | queued (after UI3-0, F14) |
 | UI3-3 Rules, requests, setup in v3 | `ui3-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI3-0, UI2-4) |
+| SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | in progress |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
 
@@ -1547,6 +1549,71 @@ suite did not notice, because it only guards against unknown icons.
 4. **Record it:** decisions in `docs/decisions/FIX-8.md`, progress in `docs/progress/FIX-8.md`. List every
    `allowConsoleErrors` added, with the reason for each.
 
+## SEC-3 — Tamper-evident audit trail (backend only; slot 6; Sonnet 5.5; migration `V019__audit_seal.sql`; D-530 to D-537)
+Rule 9 audits every action, and triggers stop UPDATE and DELETE through the application. But a database superuser,
+or a restore from an altered backup, could still change history without trace. Auditors of licensing records ask for
+evidence that the trail is complete and unaltered. Decided design: a per-tenant hash chain built by an asynchronous
+sealer. Chaining inside the business transaction is rejected, because it would need a per-tenant lock held until
+commit by every audited write, which serializes the tenant and risks deadlocks.
+
+1. **V019** (numbered after F14's V018). If V018 is not on main when you start, stop and ask.
+   - `audit_seal`:
+     - columns `tenant_id uuid NOT NULL REFERENCES tenant`, `seq bigint NOT NULL CHECK (seq > 0)`,
+       `audit_id uuid PRIMARY KEY REFERENCES audit_log(id)`, `prev_hash char(64) NOT NULL`,
+       `row_hash char(64) NOT NULL`, `sealed_at timestamptz NOT NULL DEFAULT now()`;
+     - `UNIQUE (tenant_id, seq)`;
+     - forced RLS with the standard tenant policy;
+     - `forbid_change()` on UPDATE and DELETE.
+   - `audit_unsealed` is the sealer's queue, not a record, so DELETE is allowed:
+     - columns `audit_id uuid PRIMARY KEY REFERENCES audit_log(id)`, `tenant_id uuid NOT NULL`,
+       `created_at timestamptz NOT NULL`;
+     - forced RLS with the tenant policy, plus the worker-flag read policy that the `job` table uses (D-013).
+   - Backfill: insert every existing `audit_log` row into `audit_unsealed`. The sealer seals them on its first runs.
+2. **Write path:** `AuditRepository.insert` becomes one statement,
+   `WITH a AS (INSERT INTO audit_log ... RETURNING id, tenant_id, created_at) INSERT INTO audit_unsealed SELECT ...
+   FROM a`. No other audit write path may exist; add a test that greps `src/main` for `INSERT INTO audit_log` and
+   finds only this one.
+3. **Canonical form** (`AuditCanonical`, pure, unit-tested): the UTF-8 bytes of these fields joined with `\u001f`:
+   `tenant_id`, `seq`, `audit_id`, `user_id` or empty, `action`, `entity_type`, `entity_id` or empty, `detail` as
+   PostgreSQL's `jsonb::text` (deterministic), `created_at` as UTC ISO-8601 with microseconds, and `prev_hash`.
+   `row_hash = hex(SHA-256(canonical))`. The genesis `prev_hash` is 64 zeros.
+4. **Sealer** (`AuditSealer`, `@Scheduled(fixedDelayString = "${lexvay.audit.seal-interval-ms:2000}")`, stopping
+   with the app like `JobPoller`):
+   - Find the tenants with queued rows under the worker flag.
+   - For each tenant, run one transaction as that tenant:
+     - `pg_try_advisory_xact_lock(hashtextextended('audit-seal:' || tenant, 0))`; skip if not acquired, which makes
+       several app instances safe;
+     - read the last seal (`seq`, `row_hash`);
+     - read up to 500 queued rows joined to `audit_log`, ordered by `created_at, id`, with `detail::text`;
+     - compute the chain in Java;
+     - batch-insert the seals;
+     - delete those queue rows.
+   - Seal order is the order sealed, not creation order. A row committed late with an earlier `created_at` gets the
+     next `seq`. Say so in D-532.
+5. **Verify:**
+   - `GET /api/v1/audit/verify`, ADMIN only.
+   - It walks `audit_seal` joined to `audit_log` in `seq` order, in pages of 1000 by keyset, recomputing every hash
+     and checking `prev_hash` links and `seq` continuity.
+   - It returns `AuditVerification(long sealed, long pending, boolean intact, Long firstBrokenSeq, String
+     firstBrokenReason, OffsetDateTime lastSealedAt, String headHash)`.
+   - It is audited as `AUDIT_VERIFIED {intact, sealed, headHash}`. Add the row to `Rule9_AuditCoverageTest`,
+     `InputValidationTableTest` and the frontend `audit-sentence.ts` with its spec ("{actor} verified the audit trail:
+     intact" / "…: broken at entry N").
+6. **Export:** the F5a audit CSV gains `seq` and `row_hash` columns (empty while pending), so an exported trail can
+   be checked offline. Document the canonical form and an offline check recipe in `docs/OPERATIONS.md`.
+7. **Tests:**
+   - **Chain:** after sealing, `seq` is contiguous from 1 and the chain verifies.
+   - **Concurrency:** 8 threads × 50 audited actions, then sealing, gives one contiguous chain.
+   - **Restart:** stop and restart the sealer mid-queue; the chain continues correctly.
+   - **Tamper:** as the superuser with the trigger disabled, change one row's `detail`; verify reports that `seq`
+     and reason. Deleting a sealed `audit_log` row is refused by the FK; deleting a seal row (trigger disabled)
+     reports a `seq` gap.
+   - **Rule 7:** one tenant's verify never reads another's rows.
+   - **Perf:** verify over 20,000 sealed entries on the perf seed finishes under 2 s (`make perf`); the sealer's
+     queue query uses the `audit_unsealed` primary key and its tenant index.
+8. **Docs:** decisions in `docs/decisions/SEC-3.md`, progress in `docs/progress/SEC-3.md`. The Audit trail screen's
+   "Verify" action is built in UI3-2, not here.
+
 ## Follow-ups recorded from reviews
 - FIX-5 (rule 9): `LOGOUT` is audited after the session is cleared, so its audit entry has no actor. Capture the
   user before the logout handler clears the context and record `LOGOUT` with that user as actor and `entity_id`;
@@ -1591,8 +1658,6 @@ suite did not notice, because it only guards against unknown icons.
   only by unit tests until the seed has a scanned document (add one to `seed/` with F7c or later).
 - F12: a failed check waits a full interval (up to 30 days) before the scheduler retries; a shorter backoff
   needs a `next_check_at` column. The Sources tab is scheduled as F12b.
-- F12 deployment note: the SSRF guard resolves the host before connecting and the JDK client resolves it
-  again, so a DNS-rebinding window remains; production egress must also block private ranges (Terraform).
 - WS-UI: the overview still finds the latest assessment through the audit log; switch it to the WS-PERF
   `GET /programs/{id}/overview` endpoint (do this in F1). Audit filtering is client-side over the newest 500
   entries; switch to the WS-PERF server filters (F5). Add a build check that the production `index.html` has no
@@ -1611,8 +1676,7 @@ suite did not notice, because it only guards against unknown icons.
   profile; an SSO-only switch is a follow-up. Behind a load balancer set `LEXVAY_FORWARD_HEADERS=native`.
 - WS-EVAL: the live thresholds in `eval/thresholds.yml` (recall 0.80, extraction 0.90, evidence agreement
   0.80) are unmeasured first values; set them from the first `make eval-live` run once a model key exists.
-  Terraform still needs a remote state backend, WAF and flow logs before any real deployment, and the
-  database roles must be bootstrapped with `db/initdb/01-roles.sh` after RDS is created.
+  After RDS is created, the database roles must be bootstrapped with `db/initdb/01-roles.sh`.
 - `scripts/eval.sh` repeats the slot and cleanup lines of `scripts/e2e.sh`; extract `scripts/lib/stack.sh`
   and source it from both (do this inside F7, which already touches the evaluation scripts).
 - The old Review screen logs `TypeError ... reading 'id'` at `review.ts:82`; verify it is gone after WS-UI.
