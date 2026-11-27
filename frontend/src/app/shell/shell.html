@@ -57,7 +57,7 @@
         <ul>
           @if (pillTop() !== null) { <li class="lx-rail-pill" aria-hidden="true" [style.transform]="'translateY(' + pillTop() + 'px)'"></li> }
           @for (link of links(); track link.id) {
-            <li [class.lx-rail-tenant]="link.tenant">
+            <li [class.lx-rail-tenant]="link.tenant" [class.lx-rail-overflow]="inMore(link)">
               <a [routerLink]="link.path" routerLinkActive="lx-active" ariaCurrentWhenActive="page"
                  [attr.aria-label]="link.short !== link.label ? link.label : null"
                  [pTooltip]="link.label" tooltipPosition="right" [tooltipDisabled]="link.short === link.label && !collapsed()" [showDelay]="300"
@@ -69,6 +69,15 @@
               @if (link.badge > 0) {
                 <span class="lx-sr-only" [id]="'nav-badge-' + link.id">{{ link.badgeText }}</span>
               }
+            </li>
+          }
+          @if (moreLinks().length > 0) {
+            <!-- Phones only: the screens the bottom bar has no room for (navigation.ts, onPhoneBar). -->
+            <li class="lx-rail-more">
+              <button type="button" (click)="openMore($event)" aria-haspopup="menu" [attr.aria-expanded]="moreOpen()" [class.lx-active]="moreActive()"
+                      aria-label="More screens">
+                <ng-icon name="phosphorDotsThree" size="20" aria-hidden="true" />
+              </button>
             </li>
           }
         </ul>
@@ -89,6 +98,7 @@
   @defer (on idle) {
     <lx-work-queue-menu #queueMenu (opened)="queueOpen.set($event)" (total)="queueCount.set($event)" />
     <lx-account-menu #accountMenu (opened)="accountOpen.set($event)" />
+    <lx-more-menu #moreMenu [links]="moreLinks()" (opened)="moreOpen.set($event)" />
   }
 }
 @defer (on idle) {

@@ -2,10 +2,10 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, switchMap } from 'rxjs';
 import {
-  AssessmentView, AuditEntry, ChangeEvent, Course, DecisionKind, Determination, DeterminationLists, DocumentKind, DocumentPage, DocumentView, EvidenceRequest,
-  EvidenceResponse, EvidenceResponseBody, Jurisdiction, Mapping, MappingsView, NewCourse, NewCourseVersion, NewProgram, NewProgramFact, NewRuleVersion, Outcome,
-  Program, ProgramDocument, ProgramFact, ProgramOverview, RegisterFilter, RegisterRow, RequirementDraft, RequirementsView, RuleVersionDiff,
-  RuleVersionView, SessionView, UploadResult, UserSummary, UserView, WorkQueue,
+  AssessmentView, AuditEntry, ChangeEvent, Course, CoverageMatrix, DecisionKind, Determination, DeterminationLists, DocumentKind, DocumentPage, DocumentView,
+  EvidenceRequest, EvidenceResponse, EvidenceResponseBody, Jurisdiction, Mapping, MappingsView, NewCourse, NewCourseVersion, NewProgram, NewProgramFact,
+  NewRuleVersion, Outcome, Program, ProgramDocument, ProgramFact, ProgramOverview, RegisterFilter, RegisterRow, RequirementDraft, RequirementsView,
+  RuleVersionDiff, RuleVersionView, SessionView, UploadResult, UserSummary, UserView, WorkQueue,
 } from './models';
 import { REGISTER_PATH, registerQuery } from './register';
 import { ReportAnswer, readReport } from './report-answer';
@@ -74,6 +74,11 @@ export class ApiService {
   }
   provideEvidence(mappingId: string, body: EvidenceResponseBody): Observable<EvidenceResponse> {
     return this.http.post<EvidenceResponse>(`${this.base}/mappings/${mappingId}/evidence-responses`, body);
+  }
+
+  /** Which course carries the evidence of each requirement of one target state (F10a); read only. */
+  coverage(programId: string, jurisdiction: string): Observable<CoverageMatrix> {
+    return this.http.get<CoverageMatrix>(`${this.base}/programs/${programId}/coverage`, { params: { jurisdiction } });
   }
 
   determinations(programId: string): Observable<Determination[]> { return this.http.get<Determination[]>(`${this.base}/programs/${programId}/determinations`); }

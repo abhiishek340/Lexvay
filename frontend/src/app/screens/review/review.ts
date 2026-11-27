@@ -10,7 +10,7 @@ import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
 import { Message } from 'primeng/message';
 import { Skeleton } from 'primeng/skeleton';
-import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
+import { TabPanel, TabPanels, Tabs } from 'primeng/tabs';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { DECISION_LABEL, OUTCOME_LABEL } from '../../core/labels';
@@ -24,6 +24,7 @@ import { DecisionBar } from '../../ui/decision-bar/decision-bar';
 import { InfoTip } from '../../ui/info-tip';
 import { ProgressRing } from '../../ui/progress-ring';
 import { Seal } from '../../ui/seal';
+import { StatePill, StatePills } from '../../ui/state-pills';
 import { EvidencePane } from './evidence-pane';
 import { RequirementCard } from './requirement-card';
 import { RequirementList } from './requirement-list';
@@ -48,8 +49,8 @@ export const REVIEW_ICONS = {
  */
 @Component({
   selector: 'lx-review',
-  imports: [NgIcon, ButtonDirective, ButtonLabel, Dialog, Message, Skeleton, Tab, TabList, TabPanel, TabPanels, Tabs,
-    DecisionBar, InfoTip, ProgressRing, Seal, EvidencePane, RequirementCard, RequirementList, SignDialog],
+  imports: [NgIcon, ButtonDirective, ButtonLabel, Dialog, Message, Skeleton, TabPanel, TabPanels, Tabs,
+    DecisionBar, InfoTip, ProgressRing, Seal, StatePills, EvidencePane, RequirementCard, RequirementList, SignDialog],
   templateUrl: './review.html',
   styleUrl: './review.css',
   host: { '(document:keydown)': 'onKey($event)' },
@@ -120,7 +121,10 @@ export class Review {
   /** Mapping ids whose responses are being fetched, so a selection never asks twice. */
   private readonly fetching = new Set<string>();
   readonly stateName = computed(() => this.context.jurisdictionName(this.jurisdiction()));
-  readonly pills = computed(() => stateProgress(this.context.assessment()?.jurisdictions ?? []));
+  readonly pills = computed<StatePill[]>(() => {
+    const progress = stateProgress(this.context.assessment()?.jurisdictions ?? []);
+    return (this.context.program()?.jurisdictions ?? []).map((code) => ({ code, name: this.context.jurisdictionName(code), progress: progress.get(code) ?? null }));
+  });
   readonly signed = computed(() => this.context.determinations().find((d) => d.jurisdiction === this.jurisdiction() && d.status === 'SIGNED') ?? null);
   readonly reopened = computed(() => !this.signed() && this.context.determinations().some((d) => d.jurisdiction === this.jurisdiction() && d.status === 'REOPENED'));
   readonly ruleVersion = computed(() => this.context.ruleVersions().find((r) => r.id === this.selected()?.ruleVersionId) ?? null);

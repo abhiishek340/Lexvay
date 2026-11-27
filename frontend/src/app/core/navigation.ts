@@ -36,12 +36,23 @@ export function navLinks(programId: string | null, counts: NavCounts): NavLink[]
     screen('overview', 'Program overview', 'phosphorSquaresFour'),
     screen('setup', 'Program setup', 'phosphorWrench'),
     screen('review', 'Review', 'phosphorListChecks', waiting, `${plural(waiting, 'requirement', 'requirements')} waiting for review`),
+    screen('coverage', 'Coverage', 'phosphorGridFour'),
     screen('requests', 'Evidence requests', 'phosphorTray', requests, `${plural(requests, 'open evidence request', 'open evidence requests')}`, 'Requests'),
     screen('changes', 'Changes', 'phosphorGitDiff', open, `${plural(open, 'open change', 'open changes')}`),
     screen('rules', 'Rules', 'phosphorScales', rules, `${plural(rules, 'rule version', 'rule versions')} waiting for approval`),
     screen('report', 'Evidence report', 'phosphorFileText'),
     screen('audit', 'Audit trail', 'phosphorClockCounterClockwise'),
   ];
+}
+
+/**
+ * The screens the phone's bottom tab bar shows itself; the others (the register, program setup, coverage, the report
+ * and the audit trail, the least used on a phone) sit behind its "More" menu, so ten screens never make it scroll.
+ */
+const PHONE_TABS: ReadonlySet<string> = new Set(['overview', 'review', 'requests', 'changes', 'rules']);
+
+export function onPhoneBar(link: NavLink): boolean {
+  return PHONE_TABS.has(link.id);
 }
 
 /** "/programs/p1/rules/rv7?x=1" is the screen "/programs/p1/rules": the path up to the screen's own segment. */

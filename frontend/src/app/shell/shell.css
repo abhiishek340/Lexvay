@@ -91,6 +91,8 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; outline: none; }
   background: transparent; color: var(--p-lx-text-2); cursor: pointer;
 }
 .lx-rail-toggle:hover { background: var(--p-lx-surface-2); color: var(--p-lx-text); }
+/* The phone bar's More tab; the rail lists every screen itself. */
+.lx-rail-more { display: none; }
 
 /* Collapsed (chosen, or any window under 1200 px): icons only, labels kept as accessible names. */
 .lx-app--collapsed .lx-rail { --rail: 64px; }
@@ -116,8 +118,15 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; outline: none; }
     background: var(--p-lx-surface); box-shadow: var(--p-lx-e1);
   }
   .lx-rail ul { flex-direction: row; flex: 1; gap: 0; }
-  .lx-rail li { flex: 1 0 44px; }
-  .lx-rail-pill, .lx-rail-toggle { display: none; }
+  /* Five screens and More (navigation.ts, onPhoneBar) fit a 400 px window at 40 px each and more. */
+  .lx-rail li { flex: 1 0 40px; }
+  .lx-rail-pill, .lx-rail-toggle, .lx-rail-overflow { display: none; }
+  .lx-rail-more { display: block; flex: 1 0 40px; }
+  .lx-rail-more button {
+    width: 100%; height: 56px; padding: 0; border: 0; display: grid; place-items: center; background: transparent; color: var(--p-lx-text-2); cursor: pointer;
+  }
+  .lx-rail-more button.lx-active { color: var(--p-lx-accent); box-shadow: inset 0 -2px 0 var(--p-lx-accent); }
+  .lx-rail-more button:focus-visible { outline-offset: -2px; }
   .lx-rail-tenant { padding: 0; margin: 0; border: 0; }
   .lx-rail a { height: 56px; border-radius: 0; }
   .lx-rail a.lx-active { box-shadow: inset 0 -2px 0 var(--p-lx-accent); }

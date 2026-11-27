@@ -1,23 +1,9 @@
 <p-tabs class="lx-review" [value]="jurisdiction()" (valueChange)="selectJurisdiction($event)" [selectOnFocus]="true" [scrollable]="true" [showNavigators]="false">
   <header class="lx-head">
     <h1>Review</h1>
-    @if (context.program(); as p) {
+    @if (pills().length > 0) {
       <!-- The states as pills; the active one carries the view-transition name the overview's map tile morphs into. -->
-      <p-tablist class="lx-pills">
-        @for (code of p.jurisdictions; track code) {
-          @let progress = pills().get(code);
-          <p-tab [value]="code" class="lx-pill" [style.view-transition-name]="code === jurisdiction() ? 'state-' + code : null"
-                 [attr.aria-describedby]="progress ? 'pill-progress-' + code : null">
-            @if (progress) {
-              <span class="lx-pill-ring" aria-hidden="true"><lx-progress-ring [size]="20" [value]="progress.decided" [total]="progress.total" [label]="progress.label" /></span>
-            }
-            <span>{{ context.jurisdictionName(code) }}</span>
-          </p-tab>
-        }
-      </p-tablist>
-      <div hidden>
-        @for (entry of pills(); track entry[0]) { <span [id]="'pill-progress-' + entry[0]">{{ entry[1].label }}</span> }
-      </div>
+      <lx-state-pills class="lx-pills" [states]="pills()" [active]="jurisdiction()" />
     }
     @if (workspace.total() > 0) {
       <div class="lx-progress">

@@ -2410,3 +2410,72 @@ Main's opening overview checks in `review-and-sign.spec.ts` kept with the `state
 (equivalent to this branch's); `initials` imported from `ui/initials.ts`. `make frontend-test`: `Test Files 29 passed
 (29)`, `Tests 312 passed (312)`. `LEXVAY_E2E_SLOT=1 make e2e` twice in a row: `37 passed (4.0m)`, `37 passed (3.7m)`.
 Initial bundle 605.33 kB raw, 155.71 kB transfer.
+
+## F10b — Coverage matrix screen (PR #41)
+
+Branch `ui2-coverage`, end-to-end slot 7. Decisions D-416 to D-425 in `docs/decisions/F10b.md`.
+
+### What changed
+- **Route and rail**: `programs/:programId/coverage`, a lazy chunk with its own icons and token sets; "Coverage" in the
+  rail after Review (`phosphorGridFour`, added to the generated `SHELL_ICONS`) and so in the command palette. The state
+  is the `jurisdiction` query parameter; the selected state is requested first, then each other target once for the
+  pill rings.
+- **`StatePills`** (`ui/state-pills.ts`): Review's pills from UI2-2, extracted as the tab list of the screen's own
+  PrimeNG Tabs, with the 20 px ring as each tab's description and the `state-<code>` shared element; here the ring is
+  the share of requirements without a flag ("2 of 8 with no flag").
+- **Matrix**: a real table; requirements as row headers (ref in mono, title), current courses as columns (code in mono
+  with the title in a tooltip), "Required" and "Elective" marked once per run under the codes, "Program" last. Filled
+  dot for the system's quote, ring for a person's, dot in a ring for both, dashed ring with a clock for evidence on a
+  superseded course version (under the column of its current version). Faint points in empty cells; rules-engine rows
+  read "Checked by the rules engine".
+- **Card**: hover or focus opens a PrimeNG Popover with the code, title, required or elective, each source with its
+  quote count (or the program documents), and "Open in Review" (`review?jurisdiction=XX&ref=REF`). Enter moves the
+  focus into it, Escape closes it and gives the focus back.
+- **Flags**: a sticky right column with icon, colour and words; flag chips above the matrix with counts (a PrimeNG
+  SelectButton drawn as pills) dim the other rows, which keep their place.
+- **Keyboard**: one tab stop; arrows between the cells that hold evidence, Home and End, Ctrl+Home and Ctrl+End; the
+  row and column of the current cell light up.
+- **Motion**: column by column, 20 ms apart (at most twelve), marks scale in from .6 on the spring; off under reduced
+  motion.
+- **Narrow windows**: the matrix scrolls inside its frame with sticky requirement and flag columns; a focused cell is
+  scrolled clear of them; under 640 px the chips scroll in one row, the requirement column is 164 px with titles on two
+  lines at most (ellipsis, a tooltip only for a cut title), every row 60 px, and the flag column shows its icon.
+- **Shell** (one line, D-423): bottom tab bar items 40 px so nine screens fit 400 px.
+
+### Tests
+- Vitest `coverage-view.spec.ts` (16 tests): column order and groups, cell lookup by course version, outdated cells under
+  `supersededBy`, current plus outdated, program column, rules-engine rows, flag counts and matching, pill share,
+  keyboard movement; `icons.spec.ts` has a unit for Coverage; `commands.spec.ts` lists the new screen.
+- End to end `coverage.spec.ts` (5 tests): CA-2's COUN 605 dot in its column, CA-6 "Rests on an elective", CA-7 "No
+  evidence cited", the rules-engine rows, Utah's UT-7 "Outdated evidence" with the dashed cell in the COUN 625 column,
+  UT-6 in the program column, the state across a reload, keyboard movement with one tab stop, Enter and Escape on the
+  card, "Open in Review" landing on CA-2 in Review, the flag filter dimming rows (and the live region), axe in both themes
+  at 1440 and 400 px (plain, with the card open, with a filter on), no sideways page scroll, a focused cell clear of the
+  sticky columns.
+
+### Bundle
+Initial 605.94 kB raw, 155.78 kB estimated transfer (warning 680 kB). Coverage chunk 35.48 kB raw, 9.27 kB transfer;
+Review chunk 66.01 kB raw.
+
+### Review and `StatePills`
+UI2-2 merged first, so this branch moved Review onto the shared pills (D-417): Review's header renders
+`<lx-state-pills>` inside its `p-tabs`, its own pill markup and styles are gone, and `stateProgress` returns the shared
+`PillProgress`. Review's behaviour and end-to-end tests are unchanged; a Review capture on the slot-7 stack shows the
+same header as `ui2-2-review-1440`, so the `ui2-2-*` screenshots were not retaken (they differ only by the rail's new
+Coverage entry).
+
+### Test tails (2026-11-27, `LEXVAY_E2E_SLOT=7 make test`, after merging origin/main with UI2-2 and the review fixes)
+```
+[INFO] Tests run: 1074, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  30 passed (30)
+      Tests  329 passed (329)
+  5 skipped
+  42 passed (5.2m)
+```
+The five skipped tests are the screenshot tests, which run only with `LEXVAY_SCREENSHOTS=1`. The `f10b-*` screenshots
+were taken from `coverage.spec.ts` with `LEXVAY_SCREENSHOTS=1` on a freshly seeded slot-7 stack.
+
+### Screenshots (`docs/screens/`, light and dark)
+`f10b-california-{1440,400}`, `f10b-utah-{1440,400}`, `f10b-card-{1440,400}` (the outdated UT-7 cell's card open),
+`f10b-filter-{1440,400}` (a flag highlighted).

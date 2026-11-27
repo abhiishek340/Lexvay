@@ -6,7 +6,7 @@ import { Tooltip } from 'primeng/tooltip';
 import { filter, firstValueFrom } from 'rxjs';
 import { ApiService } from '../core/api.service';
 import { ROLE_LABEL } from '../core/labels';
-import { navLinks, screenOf } from '../core/navigation';
+import { NavLink, navLinks, onPhoneBar, screenOf } from '../core/navigation';
 import { ProgramContext } from '../core/program-context';
 import { SessionService } from '../core/session.service';
 import { CommandPalette } from '../ui/command-palette/command-palette';
@@ -17,6 +17,7 @@ import { initials } from '../ui/initials';
 import { AccountMenu } from './account-menu';
 import { ProgramSwitcher } from './program-switcher';
 import { ShellToast } from './shell-toast';
+import { MoreMenu } from './more-menu';
 import { WorkQueueMenu } from './work-queue-menu';
 
 const RAIL_KEY = 'lexvay.rail.collapsed';
@@ -29,7 +30,7 @@ const RAIL_KEY = 'lexvay.rail.collapsed';
  */
 @Component({
   selector: 'lx-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIcon, Badge, Tooltip, InfoTip, Mark, AccountMenu, CommandPalette, ProgramSwitcher, ShellToast, WorkQueueMenu],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIcon, Badge, Tooltip, InfoTip, Mark, AccountMenu, CommandPalette, MoreMenu, ProgramSwitcher, ShellToast, WorkQueueMenu],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
   host: { '(document:keydown)': 'onKey($event)' },
@@ -74,11 +75,17 @@ export class Shell {
   readonly queueCount = signal(0);
   readonly queueOpen = signal(false);
   readonly accountOpen = signal(false);
+  readonly moreOpen = signal(false);
+  /** The screens behind the phone bar's More menu; none while the register is the only screen. */
+  readonly moreLinks = computed(() => (this.links().length > 1 ? this.links().filter((l) => !onPhoneBar(l)) : []));
+  /** More is the active tab on a phone while one of its screens is shown. */
+  readonly moreActive = computed(() => this.moreLinks().some((l) => (this.url() ?? '').split(/[?#]/)[0].startsWith(l.path.join('/'))));
   /** The active rail item's offset, where the pill glides to (null while no item is active). */
   readonly pillTop = signal<number | null>(null);
 
   readonly accountMenu = viewChild<AccountMenu>('accountMenu');
   readonly queueMenu = viewChild<WorkQueueMenu>('queueMenu');
+  readonly moreMenu = viewChild<MoreMenu>('moreMenu');
 
   constructor() {
     let previousScreen: string | null = null;
@@ -129,6 +136,14 @@ export class Shell {
 
   openQueue(event: Event): void {
     this.queueMenu()?.toggle(event);
+  }
+
+  openMore(event: Event): void {
+    this.moreMenu()?.toggle(event);
+  }
+
+  inMore(link: NavLink): boolean {
+    return this.moreLinks().includes(link);
   }
 
   openAccount(event: Event): void {
