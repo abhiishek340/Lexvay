@@ -49,6 +49,8 @@ lexvay:
     upload-per-minute: ${LEXVAY_RATELIMIT_UPLOAD_PER_MINUTE:30}
     max-keys: 10000
     idle-expiry: 10m
+  security:
+    password-hash-concurrency: ${LEXVAY_PASSWORD_HASH_CONCURRENCY:}   # password hashes at once, 32 MiB each (D-407); unset: processors, at least 2
   matching:
     min-quote-chars: ${LEXVAY_MIN_QUOTE_CHARS:40}
     min-ocr-confidence: 80

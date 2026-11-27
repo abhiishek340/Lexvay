@@ -90,7 +90,7 @@ class PasswordSetupApiTest extends AbstractDatabaseTest {
         assertThat(login(GOOD_PASSWORD)).hasStatus(200);
         assertThat(query("SELECT security_stamp FROM app_user WHERE id = ?", Integer.class, userId)).isEqualTo(stamp + 1);
         assertThat(query("SELECT password_hash FROM app_user WHERE id = ?", String.class, userId))
-                .startsWith("{bcrypt}").doesNotContain(GOOD_PASSWORD);
+                .startsWith("{argon2}$argon2id$").doesNotContain(GOOD_PASSWORD);
         assertThat(query("SELECT used_at IS NOT NULL FROM user_setup_token WHERE user_id = ?", Boolean.class, userId)).isTrue();
 
         AuditEntry entry = TenantContext.runAs(t.tenantId(), () -> audit.forEntity(userId)).stream()
@@ -133,10 +133,11 @@ class PasswordSetupApiTest extends AbstractDatabaseTest {
         assertThat(tooShort).hasStatus(400);
         assertThat(body(tooShort).get("detail").asString()).isEqualTo("Password must have at least 12 characters");
 
-        var tooLong = setup(code, "p".repeat(73));
+        var tooLong = setup(code, "p".repeat(129));
         assertThat(tooLong).hasStatus(400);
-        assertThat(body(tooLong).get("detail").asString()).isEqualTo("Password must be at most 72 bytes long in UTF-8");
-        assertThat(setup(code, "é".repeat(37))).as("37 two-byte characters are 74 bytes").hasStatus(400);
+        assertThat(body(tooLong).get("detail").asString()).isEqualTo("Password must have at most 128 characters");
+        assertThat(setup(code, "é".repeat(129))).as("characters are counted, not bytes").hasStatus(400);
+        assertThat(setup(code, "😀".repeat(129))).as("a character outside the basic plane counts once").hasStatus(400);
 
         for (String same : List.of(email, email.toUpperCase())) {
             var asEmail = setup(code, same);
@@ -144,7 +145,27 @@ class PasswordSetupApiTest extends AbstractDatabaseTest {
             assertThat(body(asEmail).get("detail").asString()).isEqualTo("Password must not be the same as the email");
         }
 
-        assertThat(setup(code, "é".repeat(36))).as("72 bytes are accepted").hasStatus(204);
+        assertThat(setup(code, "p".repeat(128))).as("128 characters are accepted").hasStatus(204);
+    }
+
+    @Test
+    void aLongPasswordIsStoredWholeAndSignsInOnlyWithAllOfIt() {
+        String longest = "p".repeat(127) + "q";
+        assertThat(setup(code, longest)).hasStatus(204);
+
+        assertThat(login(longest)).hasStatus(200);
+        assertThat(login("p".repeat(128))).as("the end of the password counts, there is no cut at 72 bytes").hasStatus(401);
+        assertThat(login("p".repeat(72))).hasStatus(401);
+    }
+
+    @Test
+    void aPasswordOf128MultiByteCharactersIsAcceptedAndSignsIn() {
+        String multiByte = "é日😀".repeat(42) + "éa"; // 128 characters, 2, 3 and 4 bytes: 381 bytes in all
+        assertThat(multiByte.codePointCount(0, multiByte.length())).isEqualTo(128);
+        assertThat(setup(code, multiByte)).hasStatus(204);
+
+        assertThat(login(multiByte)).hasStatus(200);
+        assertThat(login(multiByte.substring(0, multiByte.length() - 1) + "b")).hasStatus(401);
     }
 
     @Test

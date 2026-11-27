@@ -25,6 +25,7 @@
     <anthropic.version>3.14.0</anthropic.version>
     <json-schema-validator.version>3.0.9</json-schema-validator.version>
     <bucket4j.version>8.22.0</bucket4j.version>
+    <bouncycastle.version>1.87</bouncycastle.version>
     <java-diff-utils.version>4.18</java-diff-utils.version>
     <jsoup.version>1.24.1</jsoup.version>
     <!-- The latency benchmark (tag perf) runs only through `make perf`, which overrides this. -->
@@ -113,6 +114,11 @@
       <groupId>com.bucket4j</groupId>
       <artifactId>bucket4j_jdk17-core</artifactId>
       <version>${bucket4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>${bouncycastle.version}</version>
     </dependency>
     <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>
