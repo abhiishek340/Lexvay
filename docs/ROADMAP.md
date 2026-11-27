@@ -24,7 +24,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F6 Production packaging and observability | `ops-packaging` | 7 | Sonnet 5.5 | PR #16 in review (renumber to V010, merge after #14, #13) |
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | PR #13 approved (merges after #14) |
-| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | in progress |
+| FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | PR #18 approved (merges after V011) |
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | in progress |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
@@ -36,7 +36,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F8 Determination register | `feat-determination-register` | — | Sonnet 5.5 | queued |
 | F10 Coverage matrix | `feat-coverage-matrix` | — | Opus 5.5 | queued (after WS-UI) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | in progress |
-| F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | queued (after WS-PERF) |
+| F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | in progress |
 
 ---
 
