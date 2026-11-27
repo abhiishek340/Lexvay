@@ -10,10 +10,16 @@ DOCKER_HOST ?= $(shell docker context inspect -f '{{(index .Endpoints "docker").
 export DOCKER_HOST
 export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE ?= /var/run/docker.sock
 
-.PHONY: help db-up db-down dev dev-backend dev-frontend test backend-test frontend-test e2e seed-pdfs seed eval eval-live infra-validate
+.PHONY: help image smoke db-up db-down dev dev-backend dev-frontend test backend-test frontend-test e2e seed-pdfs seed eval eval-live infra-validate
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
+
+image: ## Build the production image (API and single-page app in one) as lexvay:local
+	docker build -t lexvay:local .
+
+smoke: ## Build the image, run it with PostgreSQL, sign in through it and scrape its metrics (LEXVAY_E2E_SLOT shifts ports)
+	scripts/smoke.sh
 
 db-up: ## Start PostgreSQL with docker compose and wait until healthy
 	docker compose up -d --wait

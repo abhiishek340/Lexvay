@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.util.UrlPathHelper;
 
 /**
  * Which paths belong to the single-page app and which to the service. The API and the actuator are the
@@ -12,11 +13,12 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  */
 public final class SpaRoutes {
 
+    private static final UrlPathHelper PATHS = UrlPathHelper.defaultInstance;
     private static final Pattern SERVICE_PATH = Pattern.compile("^/(api|actuator)(/.*)?$");
 
     /** GET requests for the app. They carry no data, so the shell and its assets are served without sign-in. */
     public static final RequestMatcher APP_REQUESTS = (HttpServletRequest request) ->
-            HttpMethod.GET.matches(request.getMethod()) && !isService(request.getServletPath());
+            HttpMethod.GET.matches(request.getMethod()) && !isService(PATHS.getPathWithinApplication(request));
 
     private SpaRoutes() {
     }

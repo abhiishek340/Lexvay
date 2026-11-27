@@ -8,16 +8,20 @@ import com.lexvay.common.TestCsrf;
 import com.lexvay.common.TestTenants;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /** Request ids: accepted format, generation, echo, the logging context, and the problem detail property. */
+@ExtendWith(OutputCaptureExtension.class)
 class RequestCorrelationTest extends AbstractDatabaseTest {
 
     private static final String PROBE = "/api/v1/test-support/mdc";
@@ -40,7 +44,7 @@ class RequestCorrelationTest extends AbstractDatabaseTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"abcdefgh", "0123456789-ABCDEF-0123456789-abcdef", "A".repeat(64)})
+    @ValueSource(strings = {"abcdefgh", "0123456789-ABCDEF-0123456789-abcdef", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"})
     void echoesAClientIdOfEightToSixtyFourSafeCharacters(String supplied) throws Exception {
         var t = tenants.create("corr");
         var result = mvc.get().uri(PROBE).header("X-Request-Id", supplied).with(user(t.reviewer())).exchange();
@@ -49,7 +53,7 @@ class RequestCorrelationTest extends AbstractDatabaseTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"short-7", "A".repeat(65), "has space inside", "under_score_id", "semi;colon-1234", "café-12345678",
+    @ValueSource(strings = {"short-7", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "has space inside", "under_score_id", "semi;colon-1234", "café-12345678",
             "<script>-12345678"})
     void replacesAClientIdOutsideTheAcceptedFormat(String supplied) throws Exception {
         var t = tenants.create("corr");
@@ -70,6 +74,14 @@ class RequestCorrelationTest extends AbstractDatabaseTest {
         assertThat(context.get("userId").asString()).isEqualTo(t.reviewer().id().toString());
         assertThat(context.has("jobId")).isFalse();
         assertThat(MDC.getCopyOfContextMap()).as("nothing leaks to the next request on this thread").isNullOrEmpty();
+    }
+
+    @Test
+    void theAccessLineCarriesTheRequestIdAndNeverTheQueryString(CapturedOutput output) {
+        var t = tenants.create("corr");
+        mvc.get().uri(PROBE + "?q=confidential+syllabus+text").header("X-Request-Id", "req-access-0001").with(user(t.reviewer())).exchange();
+
+        assertThat(output.getAll()).contains("[req-access-0001]", "GET " + PROBE + " 200").doesNotContain("confidential");
     }
 
     @Test

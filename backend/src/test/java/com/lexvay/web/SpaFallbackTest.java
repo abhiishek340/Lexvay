@@ -10,12 +10,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
+import org.springframework.web.client.RestClient;
 
 /** The image serves the Angular bundle from the classpath; the test classpath holds a stand-in shell and asset. */
 class SpaFallbackTest extends AbstractDatabaseTest {
 
+    @LocalServerPort int port;
     @Autowired MockMvcTester mvc;
     @Autowired TestTenants tenants;
 
@@ -24,7 +27,7 @@ class SpaFallbackTest extends AbstractDatabaseTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"/", "/index.html", "/programs", "/programs/0d0b4e5c-4a33-4d58-9d4b-111111111111/review",
+    @ValueSource(strings = {"/index.html", "/programs", "/programs/0d0b4e5c-4a33-4d58-9d4b-111111111111/review",
             "/assessments/x/mappings/y", "/v1.2/dashboard", "/login"})
     void routesWithoutAFileReturnTheShellWithoutSignIn(String path) throws Exception {
         var result = mvc.get().uri(path).exchange();
@@ -32,6 +35,14 @@ class SpaFallbackTest extends AbstractDatabaseTest {
         assertThat(result.getResponse().getContentType()).startsWith("text/html");
         assertThat(body(result)).contains("<app-root>");
         assertThat(result.getResponse().getHeader("Cache-Control")).isEqualTo("no-cache");
+    }
+
+    @Test
+    void theRootIsTheShellToo() {
+        var response = RestClient.create("http://localhost:" + port).get().uri("/").retrieve().toEntity(String.class);
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).contains("<app-root>");
+        assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-cache");
     }
 
     @Test

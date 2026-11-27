@@ -8,17 +8,23 @@ import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
 import com.lexvay.common.TestTenants;
 import com.lexvay.observability.LexvayMetrics;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
+@ExtendWith(OutputCaptureExtension.class)
 class JobRunnerTest extends AbstractDatabaseTest {
 
     @Autowired JobRepository jobs;
@@ -29,11 +35,14 @@ class JobRunnerTest extends AbstractDatabaseTest {
     @Autowired MockMvcTester mvc;
     @Autowired ObjectMapper json;
     @Autowired LexvayMetrics metrics;
+    @Autowired MeterRegistry registry;
 
     /** A handler that records the tenant it ran under and fails a configurable number of times. */
     static class ProbeHandler implements JobHandler {
         final AtomicInteger calls = new AtomicInteger();
         volatile UUID seenTenant;
+        volatile String seenJobId;
+        volatile String failureMessage = "transient failure";
         volatile int failTimes;
         volatile boolean permanent;
 
@@ -42,12 +51,13 @@ class JobRunnerTest extends AbstractDatabaseTest {
         @Override public void handle(Job job, Map<String, Object> payload) {
             calls.incrementAndGet();
             seenTenant = TenantContext.require();
+            seenJobId = MDC.get("jobId");
             if (permanent) {
                 throw new PermanentJobFailure("bad input");
             }
             if (failTimes > 0) {
                 failTimes--;
-                throw new IllegalStateException("transient failure");
+                throw new IllegalStateException(failureMessage);
             }
         }
     }
@@ -130,6 +140,76 @@ class JobRunnerTest extends AbstractDatabaseTest {
         Job job = TenantContext.runAs(t.tenantId(), () -> jobs.findById(jobId)).orElseThrow();
         assertThat(job.status()).isEqualTo(JobStatus.FAILED);
         assertThat(job.error()).contains("No handler registered");
+    }
+
+    private long outcomes(String outcome) {
+        var timer = registry.find("lexvay.job.duration").tags("type", "GENERATE_REPORT", "outcome", outcome).timer();
+        return timer == null ? 0 : timer.count();
+    }
+
+    @Test
+    void theJobIdIsInTheLogContextWhileTheHandlerRunsAndGoneAfter() {
+        var t = tenants.create("jobs");
+        var probe = new ProbeHandler();
+        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+
+        runnerWith(probe).runPending();
+
+        assertThat(probe.seenJobId).isEqualTo(jobId.toString());
+        assertThat(MDC.get("jobId")).isNull();
+        assertThat(MDC.get("tenantId")).isNull();
+    }
+
+    @Test
+    void runWhileStopsClaimingWhenToldToButTheStartedJobFinishes() {
+        var t = tenants.create("jobs");
+        var probe = new ProbeHandler();
+        UUID first = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+        UUID second = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+        AtomicInteger asked = new AtomicInteger();
+
+        int processed = runnerWith(probe).runWhile(() -> asked.getAndIncrement() < 1);
+
+        assertThat(processed).isEqualTo(1);
+        assertThat(TenantContext.runAs(t.tenantId(), () -> jobs.findById(first)).orElseThrow().status()).isEqualTo(JobStatus.DONE);
+        assertThat(TenantContext.runAs(t.tenantId(), () -> jobs.findById(second)).orElseThrow().status()).isEqualTo(JobStatus.QUEUED);
+        assertThat(runnerWith(probe).runPending()).isEqualTo(1);
+    }
+
+    @Test
+    void doneRetriedAndFailedAttemptsAreCountedByOutcome() {
+        var t = tenants.create("jobs");
+        var probe = new ProbeHandler();
+        probe.failTimes = 5;
+        TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+        long done = outcomes("done");
+        long retried = outcomes("retried");
+        long failed = outcomes("failed");
+
+        runnerWith(probe).runPending();
+
+        assertThat(outcomes("retried") - retried).isEqualTo(2);
+        assertThat(outcomes("failed") - failed).isEqualTo(1);
+        probe.failTimes = 0;
+        TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+        runnerWith(probe).runPending();
+        assertThat(outcomes("done") - done).isEqualTo(1);
+    }
+
+    @Test
+    void failureMessagesGoToTheJobRowAndNeverToTheLog(CapturedOutput output) {
+        var t = tenants.create("jobs");
+        var probe = new ProbeHandler();
+        probe.failTimes = 5;
+        probe.failureMessage = "model said: SECRET quote from a syllabus";
+        UUID jobId = TenantContext.runAs(t.tenantId(), () -> jobs.enqueue(JobType.GENERATE_REPORT, Map.of()));
+
+        runnerWith(probe).runPending();
+
+        assertThat(TenantContext.runAs(t.tenantId(), () -> jobs.findById(jobId)).orElseThrow().error())
+                .isEqualTo("model said: SECRET quote from a syllabus");
+        assertThat(output.getAll()).contains("will retry", "failed permanently", "java.lang.IllegalStateException")
+                .doesNotContain("SECRET quote");
     }
 
     @Test
