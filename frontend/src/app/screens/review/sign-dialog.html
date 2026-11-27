@@ -28,7 +28,7 @@
       <!-- A picture of what signing would produce; hidden from assistive technology because nothing is signed yet. -->
       <div class="lx-seal-slot" aria-hidden="true">
         @if (outcome(); as o) {
-          <lx-seal class="lx-seal-preview" [outcome]="o" [signer]="signerName()" [signedAt]="today()" [size]="136" />
+          <lx-seal class="lx-seal-preview" [preview]="true" [outcome]="o" [signer]="signerName()" [signedAt]="today()" [size]="136" />
         } @else {
           <span class="lx-seal-empty">{{ signerInitials() }}</span>
         }

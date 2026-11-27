@@ -34,7 +34,10 @@ export function initials(name: string): string {
       <text x="50" y="50" class="lx-seal-initials" text-anchor="middle" dominant-baseline="central">{{ letters() }}</text>
     </svg>
   `,
-  host: { role: 'img', '[attr.aria-label]': 'description()', '[class.lx-seal-stamp]': 'stamp()' },
+  host: {
+    '[attr.role]': 'preview() ? null : "img"', '[attr.aria-label]': 'preview() ? null : description()',
+    '[attr.aria-hidden]': 'preview() ? "true" : null', '[class.lx-seal-stamp]': 'stamp()',
+  },
   styles: `
     :host { display: inline-block; line-height: 0; color: var(--p-lx-seal); }
     svg { overflow: visible; }
@@ -58,6 +61,11 @@ export class Seal {
   readonly size = input(96);
   /** Plays the stamp when the seal appears: the signing moment, nowhere else. */
   readonly stamp = input(false);
+  /**
+   * A picture of a seal that does not exist yet (the signing dialog before the server has signed): no role, no name,
+   * hidden from assistive technology, so nothing on the page claims a signature that has not happened.
+   */
+  readonly preview = input(false);
   readonly pathId = `lx-seal-path-${nextId++}`;
 
   readonly date = computed(() => formatDate(this.signedAt(), 'd MMM y', 'en-US'));

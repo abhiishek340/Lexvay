@@ -92,6 +92,11 @@ export class Review {
   private requested: string | null = null;
   /** A requirement asked for by ref, selected once its jurisdiction's list has loaded. */
   private requestedRef: string | null = null;
+  /**
+   * The states this screen is writing into the URL right now. Their query parameter comes back as an input; an echo
+   * that lands after the person has already moved on to another state must not pull the screen back.
+   */
+  private readonly ownNavigations = new Set<string>();
   private readonly bar = viewChild(DecisionBar);
   private readonly centre = viewChild<ElementRef<HTMLElement>>('centre');
 
@@ -144,7 +149,7 @@ export class Review {
       const ref = this.ref();
       untracked(() => {
         if (ref) { this.requestedRef = ref; }
-        if (code && this.jurisdiction() && code !== this.jurisdiction()) {
+        if (code && this.jurisdiction() && code !== this.jurisdiction() && !this.ownNavigations.has(code)) {
           this.selectJurisdiction(code);
         } else if (this.workspace.mappings().length > 0) {
           this.selectRequested();
@@ -185,7 +190,9 @@ export class Review {
     this.message.set(null);
     this.error.set(null);
     this.loading.set(true);
-    this.router.navigate([], { relativeTo: this.route, queryParams: { jurisdiction: code }, replaceUrl: true });
+    this.ownNavigations.add(code);
+    this.router.navigate([], { relativeTo: this.route, queryParams: { jurisdiction: code }, replaceUrl: true })
+      .finally(() => this.ownNavigations.delete(code));
     try {
       const view = await firstValueFrom(this.api.mappings(assessment.id, code));
       if (this.jurisdiction() === code) {

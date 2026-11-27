@@ -89,7 +89,12 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
   await expect(dialog.getByRole('img', { name: /^Signed by/ })).toHaveCount(0);
   await expectAccessible(page, 'Signing dialog');
   await dialog.getByText('Determined not to meet', { exact: true }).click();
-  await expect(dialog.getByLabel('Determined not to meet')).toBeChecked();
+  await expect(dialog.getByRole('radio', { name: 'Determined not to meet' })).toBeChecked();
+  // The preview seal now shows the choice, but it names nothing: the radio is the only thing with that label, and no
+  // image claims a signature before the server has made one.
+  await expect(dialog.locator('lx-seal.lx-seal-preview')).toHaveAttribute('aria-hidden', 'true');
+  await expect(dialog.getByLabel('Determined not to meet')).toHaveCount(1);
+  await expect(dialog.getByRole('img', { name: /^Signed by/ })).toHaveCount(0);
   await expectAccessible(page, 'Signing dialog with an outcome chosen');
   await dialog.getByRole('button', { name: 'Sign', exact: true }).click();
   await expect(page.getByTestId('message')).toContainText('Determination for CA signed by Dana Whitfield');
