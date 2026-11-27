@@ -90,7 +90,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | merged (PR #18) |
-| FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | in progress |
+| FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | merged (PR #27) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | merged (PR #21) |
 | F2 Program setup workspace | `feat-setup-workspace` | 3 | Opus 5.5 | folded into UI2-4 (built directly in v2) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
@@ -643,7 +643,7 @@ Every job payload today holds exactly one id (`documentId`, `ruleVersionId`, `as
    extraction status); `EXPLAIN` under the application role shows an index scan on `job_entity_idx`;
    `MigrationsApplyCleanlyTest` counts the new file; the WS-PERF latency table in `docs/PERF.md` gets the
    before and after rows for `GET /documents/{id}` and `GET /rule-versions`.
-Decisions D-200 to D-209 in `docs/decisions/FIX-2.md`.
+Decisions D-200 to D-209 in `DECISIONS.md (FIX-2)`.
 
 ## F11 — OCR for scanned documents (slot 6; migration `V009__document_page_text_source.sql`)
 Real syllabi and handbooks are often scans. Today a PDF without a text layer is rejected. OCR text is less
