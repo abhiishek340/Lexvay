@@ -3422,3 +3422,85 @@ failed depending on the order the classes ran in. The two calls are swapped to `
 `RuleVersionApiTest`, `Rule5_ApprovedRequirementsRejectEditsTest`, `EvalServiceTest`, `EvalModelTest` and the classes that load
 the seed (`SeedLoaderTest`, `CoverageSeedTest`, `RegisterSeedTest`, `RuleVersionDiffSeedTest`, `FindingCountsParityTest`,
 and this item's `WorkQueueSeedParityTest`). Draining first leaves the fake empty when the test starts, whatever ran before.
+
+### UI2-1 — Program overview and determination register in v2 (D-320 to D-329)
+
+**D-320 — The overview's view model is one pure file next to the screen.** `screens/overview/overview-view.ts` turns the
+program, its latest assessment, its determinations, the signer flag and the work queue into what the screen shows:
+`stateCards` (one per target, in the program's order), `mapStates` (the same facts for the map, so a tile and its card
+never disagree), `heroStats` and `needsYou`. `core/overview.ts` keeps `overviewCounts` (the rail badge) and
+`jurisdictionRows`, which now reports the stage and a `reopened` flag instead of v1 words; the words live with the
+cards. The v1 table, the findings bar (`ui/findings-bar.ts`, `barSegments`) and the overview's ProgressBar, DataTable
+and Tag-only token sets are gone with it: nothing else used them. Vitest: `overview-view.spec.ts`, `core/overview.spec.ts`.
+
+**D-321 — A card's one action follows the stage.** Signed: "View report" (the evidence report on that state). All
+requirements decided: "Sign" for a signer, "Review" for everyone else (the signing endpoint is the signer's; offering
+Sign to a reviewer would lead to a refusal). Requirements waiting: "Review". Not assessed: no action, and the chip says
+so. Sign and Review open Review on the state (`review?jurisdiction=`), where signing happens. The chip carries the
+stage in words and an icon: the outcome label once signed (found, missing, or the seal colour for "No determination
+made"), "Ready to sign", "<n> to review", "Not assessed", with "Reopened" first when a signature was reopened by a
+change. The card's ring is the findings mix (found, ambiguous, missing) of the state's requirements; review progress is
+in the chip and on the map tile's fill. Only "Sign" is a filled button; the others are text buttons, so five cards do
+not shout. The action's hit area covers the card (a stretched link): the whole card is one link that lifts on hover,
+and its focus ring outlines the card.
+
+**D-322 — "Needs you": this program's items, what finishes work soonest first, at most three.** The overview fetches
+`GET /work-queue` (role filtered in SQL, F13) alongside the program context and keeps the items that concern this
+program: its own (`programId`), open changes whose `programIds` include it, and rule versions or failed extractions of
+the states it targets (those kinds carry no program). Order: ready to sign, failed assessment, open changes (they make
+decisions stale), evidence requests, reviews, rule versions to approve, failed extractions; within a kind the queue's
+own order (oldest first). Each row reuses `workItemView` (icon, count-first title, screen) with the state's name as the
+detail (the program's name says nothing on its own overview) and one verb-first action. A failed assessment's screen
+is this overview, so its action is "Run again", which starts an assessment in place. The section is absent when nothing
+concerns the program (no empty card under the hero); a failed fetch shows the server's message in the section.
+
+**D-323 — The overview appears once the program and the queue are both in.** "Needs you" sits between the hero and the
+cards, so drawing the page before the queue arrives would push the cards down (layout shift). The skeleton (title,
+hero, five cards) stays until both have settled; the queue is one indexed statement (F13, 40 ms budget) fetched in
+parallel with the program's six reads, so it adds no round trip.
+
+**D-324 — `AssessmentRunner` is shared.** "Run assessment" lived inside the command palette; the overview needs it for
+an empty program and for "Run again". It moved to `core/assessment-runner.ts` (start, follow the job, toast, refresh the
+program context) and both call it; behaviour unchanged.
+
+**D-325 — Shared-element transition: the departing element alone carries `state-<code>`.** The state's tile and its
+card both live on the overview, and a `view-transition-name` must be unique in the document or the browser abandons the
+transition. So neither carries it at rest: activating a tile (click, Enter, or its card's link) sets
+`view-transition-name: state-<code>` on that tile (StateMap's `departing` signal), and a card's action sets it on that
+card's head (name and ring). The name is in place when the router calls `startViewTransition` (checked in Chromium: the
+names at that moment are `root` and `state-TX`). `<code>` is the upper-case postal code, `state-CA`; UI2-2 gives
+Review's state header the same name. Reduced motion skips route transitions altogether (D-307).
+
+**D-326 — StateMap gains a legend, a "different outcomes" status and progress-free states.** For the register's map
+the shared component needed three small additions, all backwards compatible: `legend` (input, default off) draws the
+one legend below the map with only the statuses on it ("Not a target" for the quiet tiles), from the pure
+`legendEntries`; `TileStatus` gains `MIXED` (a dashed ring, `phosphorCircleHalf` in the card) for a state signed with
+different outcomes in different programs; and a state with `total` 0 has no progress to show, so its card has no ring
+and its accessible name no "not assessed" (the old name read "Utah, not assessed, not assessed"). ProgressRing gains a
+`seal` tone for the hero's "Signed" ring.
+
+**D-327 — The register's map shows what its table shows.** `registerMapStates` colours every state with a current
+(`SIGNED`) row among the rows on screen by its outcome; reopened rows colour nothing ("current outcome"). Signed in one
+program, the tile's card opens that program's evidence report; signed in several, the tile shows their common outcome
+("Determined to meet in 2 programs") or `MIXED` ("Different outcomes in 2 programs") and has no action, since there is
+no single report to open; the table lists each. The map follows the filters and keeps its last picture while a new
+filter loads (it is never torn down, so the wave plays once). The filters moved into a panel beside the map with the
+row count as a Stat (still `aria-live`); "Download CSV" is unchanged.
+
+**D-328 — Explanations behind InfoTips; paper keeps the disclosure note.** The register's subtitle and the By program
+paragraph moved into InfoTips ("About the register", "About these lists"); the overview's single explanation, that
+findings are proposals and only a signer signs, is the hero's InfoTip ("About these figures"). The lists' paragraph is
+regulatory context a printed list must carry, so a print-only copy (`DISCLOSURE_NOTE`, one constant) prints exactly as
+before; the rest of the print view is unchanged in content (tenant, program, generated time, the three lists with
+signer, date and rule version, the notes), the map and the filter panel are screen-only. The empty register says "No
+signed determination matches these filters." with "Clear filters", or "Nothing is signed yet."
+
+**D-329 — By program as three clean lists with seals; bundle.** Each list is a card (title and count) of rows: the
+`Seal` of the signature (outcome of the list, signer's initials, date; its accessible name is the full sentence) or a
+dashed placeholder where there is none, the state, and the signer with date and rule version or the note. They are
+lists (`ul`), not tables. `initials` moved from `ui/seal.ts` to `ui/initials.ts`: the shell used it, and once the
+register imported the Seal component the bundler put the whole Seal module in the initial chunk (+2.3 kB). Initial
+bundle 605.46 kB raw (main 596.16 kB, styles 9.30 kB), 155.80 kB estimated transfer, measured after merging UI2-3; before it, this branch measured 606.36 kB against 606.77 kB on `origin/main`.
+Also global (`styles.css`): a link button (`<a pButton>`) takes the button's colours and no underline. The global link
+rule is unlayered, so it beat PrimeNG's layered button colours: a filled link button (the map card's action) drew
+accent text on the accent fill. The rule now reads `a:not(.p-button)`.
