@@ -58,6 +58,10 @@ export async function expectAccessible(page: Page, screen: string): Promise<void
   const original = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   // Colour transitions would otherwise be measured half-way between the two themes.
   await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; }' });
+  // A hover tooltip fades in by script (PrimeNG), which the style above cannot stop; park the pointer where nothing
+  // has one, so axe never measures a tooltip half-way through its fade.
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(300);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));

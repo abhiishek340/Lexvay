@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import {
   AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, DeterminationLists, DocumentPage, EvidenceRequest, EvidenceResponse, EvidenceResponseBody,
   Jurisdiction, Mapping, MappingsView, NewRuleVersion, Outcome, Program, ProgramDocument, ProgramOverview, RegisterFilter, RegisterRow, ReportStatusView,
-  RequirementDraft, RequirementsView, RuleVersionDiff, RuleVersionView, SessionView, UserSummary, UserView,
+  RequirementDraft, RequirementsView, RuleVersionDiff, RuleVersionView, SessionView, UserSummary, UserView, WorkQueue,
 } from './models';
 import { REGISTER_PATH, registerQuery } from './register';
 
@@ -44,8 +44,13 @@ export class ApiService {
   }
 
   assessment(id: string): Observable<AssessmentView> { return this.http.get<AssessmentView>(`${this.base}/assessments/${id}`); }
-  mappings(assessmentId: string, jurisdiction: string): Observable<MappingsView> {
-    return this.http.get<MappingsView>(`${this.base}/assessments/${assessmentId}/mappings`, { params: { jurisdiction } });
+  /** Without a jurisdiction, every mapping of the assessment (the command palette's requirement list). */
+  mappings(assessmentId: string, jurisdiction: string | null): Observable<MappingsView> {
+    return this.http.get<MappingsView>(`${this.base}/assessments/${assessmentId}/mappings`, { params: jurisdiction ? { jurisdiction } : {} });
+  }
+  /** 202: the assessment runs as a job; it only proposes findings. */
+  startAssessment(programId: string): Observable<{ assessmentId: string; jobId: string }> {
+    return this.http.post<{ assessmentId: string; jobId: string }>(`${this.base}/programs/${programId}/assessments`, null);
   }
   review(mappingId: string, kind: DecisionKind, note: string | null): Observable<Mapping> {
     return this.http.post<Mapping>(`${this.base}/mappings/${mappingId}/reviews`, { kind, note });
@@ -87,6 +92,8 @@ export class ApiService {
   jobStatus(jobId: string): Observable<{ id: string; status: string; error: string | null }> {
     return this.http.get<{ id: string; status: string; error: string | null }>(`${this.base}/jobs/${jobId}`);
   }
+  workQueue(): Observable<WorkQueue> { return this.http.get<WorkQueue>(`${this.base}/work-queue`); }
+  workQueueCount(): Observable<{ total: number }> { return this.http.get<{ total: number }>(`${this.base}/work-queue/count`); }
   users(): Observable<UserSummary[]> { return this.http.get<UserSummary[]>(`${this.base}/users`); }
   audit(limit = 200): Observable<AuditEntry[]> { return this.http.get<AuditEntry[]>(`${this.base}/audit`, { params: { limit } }); }
 

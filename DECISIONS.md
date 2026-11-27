@@ -387,6 +387,11 @@ End-to-end stacks are slot-based (`LEXVAY_E2E_SLOT`) so several checkouts can te
 
 **D-002 addendum (WS-SEC).** `com.bucket4j:bucket4j_jdk17-core` 8.22.0 (checked on repo1.maven.org 2026-11-26; 8.23.0 was four days old). `spring-boot-starter-security-oauth2-client` and `caffeine` 3.2.4 come from the Boot 4.1.3 BOM.
 
+**D-002 addendum (UI2-0).** `@fontsource-variable/inter` 5.3.0 (published 2026-07-19) and
+`@fontsource-variable/source-serif-4` 5.3.1 (published 2026-10-11), both the registry's `latest` on 2026-11-27 and more
+than 14 days old; `@fontsource/ibm-plex-sans` and `@fontsource/ibm-plex-serif` removed, `@fontsource/ibm-plex-mono`
+5.3.0 kept (docs/decisions/UI2-0.md, D-301).
+
 **D-300 — Design system v2 (owner directive, 2026-11-26).** The owner judged the v1 interface not good enough and asked
 for a world-class one: clean, few words, animated, impressive on first sight. `docs/DESIGN.md` v1 is replaced by v2:
 one focal point per screen, a word budget with explanations behind InfoTips, depth instead of hairlines, a motion
@@ -401,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 SEC-2 if the audit index is needed. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, no V017 (SEC-2 found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -2789,3 +2794,296 @@ run here (no `ANTHROPIC_API_KEY`), so the live report's text is proven by `TermO
 at the time of writing; if F5a is not merged when this one is, nothing in this branch needs renumbering (Flyway runs V016 on a database that has no V015). The
 risk is the other order: if F5a merges after this item, a database that already applied V016 fails Flyway's validation on V015 (out-of-order is
 not enabled in `application.yml`). Merge F5a first when it is close, or renumber one of them.
+
+### UI2-0 — Design v2 foundation, shell and sign-in (D-301 to D-319)
+
+**D-301 — Fonts: Inter and Source Serif 4, variable weight axis, latin and latin-ext.** `@fontsource-variable/inter`
+5.3.0 (published 2026-07-19) and `@fontsource-variable/source-serif-4` 5.3.1 (published 2026-10-11), both the
+registry's `latest` and more than 14 days old on 2026-11-27; `@fontsource/ibm-plex-mono` 5.3.0 stays (400, latin and
+latin-ext). `@fontsource/ibm-plex-sans` and `@fontsource/ibm-plex-serif` are removed. The packages' CSS entry points
+declare every subset (cyrillic, greek, vietnamese), so `styles.css` declares its own `@font-face` rules for the two
+subsets the product shows (D-084), pointing at the packages' `wght` files: Inter 48 kB + 85 kB, Source Serif 4 51 kB +
+42 kB, loaded only when a glyph in their range is on the page, `font-display: swap`. Fonts are media files, never in
+the JS bundle. Rejected: the `opsz` files (Inter latin 73 kB instead of 48 kB for an optical-size axis the Display size
+does not need at 40 px with -0.025em tracking); italic files (no screen sets italic type); the packages' `index.css`
+(every subset).
+
+**D-302 — Metric-matched fallbacks, measured.** Two `@font-face` fallbacks with `size-adjust`, `ascent-override`,
+`descent-override` and `line-gap-override: 0%` keep text in the same box before and after the swap. Values measured in
+Chromium (Playwright): the width of a 96-character sample at 450 in the web font against 400 in the fallback gives
+`size-adjust`; `fontBoundingBoxAscent` and `Descent` at 1000 px divided by it give the overrides. Inter on Arial
+(`local('Arial'), local('Liberation Sans')`): 107.47 %, 90.17 %, 22.43 %. Source Serif 4 on Times New Roman
+(`local('Times New Roman'), local('Liberation Serif')`): 116.58 %, 88.87 %, 28.74 %. Liberation Sans and Serif are the
+metric twins Linux ships. Rejected: Georgia for the serif (closer in width, 107.17 %, but absent from most Linux
+installs); values copied from other projects (not verified against these exact files).
+
+**D-303 — The token table as data, derived tokens, and the contrast test.** `theme/tokens.ts` holds the DESIGN.md
+table as light and dark hex pairs (the only copy) plus derived tokens the table implies: `lineStrong` (form-control
+boundary, #80868F / #6F7783, 3:1 against every page background; `line` is a hairline at 1.2:1), `onAccent`,
+`accentHover` and `accentActive` (4 % and 8 % black over the accent: "buttons darken 4 %"), `foundTint`,
+`ambiguousTint` and `missingTint` (10 % light, 16 % dark over surface, computed by `mix`), and `accentFill` (26 % /
+24 % accent over surface, the in-review fill of a StateMap tile). `tokens.spec.ts` computes the WCAG ratio of every
+text and background pair the product uses, in both themes: 4.5 for text, 3.0 for 18 px text, icons and control
+boundaries. Two consequences of the test, both deviations from DESIGN.md wording, made because DESIGN.md also says
+every text pair passes AA: placeholders use `text-2`, not `text-3` (placeholders are 14 px content and `text-3` reaches
+only 3.17:1 on surface); and the codes on non-target StateMap tiles use `text-2` at weight 500, not `text-3` (2.80:1 on
+`surface-2`). `neutral` is a fill only (not-reviewed ring segments): at 2.6:1 it is never text or an icon. Rejected:
+colour-mix() in CSS for the tints (the test could not read the result).
+
+**D-304 — Elevation as one value per level; CSS names as DESIGN.md spells them.** `light-dark()` takes colours only, so
+each shadow layer carries its own `light-dark()` colour: light themes get the DESIGN.md shadows, dark themes get
+transparent shadows, the 1 px `line` ring and the inner top highlight, in the same `--p-lx-e1/e2/e3` value. The preset
+publishes `extend.lx` under kebab-case names (`surface2` becomes `--p-lx-surface-2`, `accentTint` `--p-lx-accent-tint`),
+the names DESIGN.md uses. Every old name was renamed in one pass (hairline → line, text-secondary → text-2, primary →
+accent, card → surface, sunken and hover → surface-2, selected → accent-tint, control → line-strong, `*-bg` → `*-tint`,
+shadow → e3, notice-* removed); no old name is left in `src/`. Rejected: `colorScheme.light/dark` blocks (D-081).
+
+**D-305 — Shared preset: Button, Badge, Popover and Tooltip; every other set from its chunk (PERF-FE-1 cut 2).** The preset
+holds the semantic tokens (form fields, lists, overlays, navigation, radius, focus ring), which restyle every PrimeNG
+component, plus the component sets the shell paints first: Button, Badge (work queue count), Tooltip (rail, program pill) and Popover (InfoTip,
+StateMap card, the shell's menus). Lexvay's component overrides live in one file per set beside the preset
+(`datatable-`, `dialog-`, `message-`, `progressbar-`, `skeleton-`, `tabs-`, `tag-`, `toggleswitch-tokens.ts` and
+`segmented-tokens.ts` for SelectButton and ToggleButton), and each screen's `<screen>-theme.ts` (new: `audit-theme.ts`,
+`report-theme.ts`; Home and Sign in register theirs in the component) names every set it renders, registered through
+`registerComponentTokens`. Splitter and RadioButton overrides live in `review-theme.ts`, the Toast set in the deferred
+`ShellToast`, the CommandMenu and Menu sets in the palette. IconField and Tooltip were in the preset but rendered
+nowhere; they are gone. Drawer, Stepper and FileUpload have no Lexvay overrides beyond the semantic tokens yet: Drawer
+is F4's (Aura set, Lexvay overlay tokens), Stepper and FileUpload get theirs with their first screen (UI2-4, F2).
+Rejected: one module with every Lexvay set (each chunk would load all of them); keeping Lexvay overrides in the preset
+while chunks register raw Aura sets (a later `updatePreset` with an Aura set replaces the override).
+
+**D-306 — The shell's own copy of its icons (PERF-FE-1 cut 1); icons with the piece that shows them.** `SHELL_ICONS`
+in `theme/icons.ts` is a generated copy of 13 regular-weight SVG strings (`node scripts/shell-icons.mjs` rewrites them
+from the package; `icons.spec.ts` asserts each equals the package's), so `main` never imports
+`@ng-icons/phosphor-icons`. It holds the rail's, the top bar's (search, bell, rail toggle, InfoTip) and Home's icons.
+The account menu, work queue popover, command palette, toast, StateMap and StatusIcon each register the rest in
+`viewProviders` (`ACCOUNT_MENU_ICONS`, `WORK_QUEUE_ICONS`, `PALETTE_ICONS`, `SHELL_TOAST_ICONS`, `STATE_MAP_ICONS`,
+`STATUS_ICONS`), and `icons.spec.ts` has a unit for each. The work queue button uses `phosphorBell` because F4's
+Evidence requests screen took `phosphorTray`. `paletteShortcut` moved to `command-palette/shortcut.ts` so the shell does
+not reach the palette's command list.
+
+**D-307 — Motion foundation.** `MotionPreferences` (`core/motion.ts`) is the one signal for reduced motion; the
+sign-in story, count-ups and route transitions read it, and `styles.css` zeroes every duration token and animation
+under the same media query. `lxEnter` is a directive with a host `animate.enter: 'lx-enter'` binding and a `--lx-i`
+index; the keyframes stagger 30 ms and cap at the tenth item. `lxCountUp` drives its text from an effect-less
+`Animation(new KeyframeEffect(null, [], { easing }))`, whose computed progress is already eased, counts only the
+first value it receives, and reserves the final width in `ch` (tabular figures). The router uses
+`withViewTransitions({ skipInitialTransition: true })` and skips a transition when motion is reduced or when the
+navigation stays on one screen (`sameScreen` in `core/navigation.ts`: a review tab or filter must not cross-fade the
+page). Browsers without the API fall back to an instant change (Angular's own check). In development builds Angular
+logs each skipped transition ("AbortError: Transition was skipped") with console.error; production builds do not. Entrances of the largest text never fade from transparent (the sign-in
+headline and form rise by transform only): a fade would hold Largest Contentful Paint until it ends (1.55 s measured,
+224 ms without it). Rejected: `@angular/animations` (deprecated, DESIGN.md); a timer-driven count-up (not the Web
+Animations API the spec names).
+
+**D-308 — StateMap.** `ui/state-map/`: `us-tiles.ts` (the 51 tiles in the 8 × 12 grid with names, the only copy),
+`state-map-model.ts` (pure: cells, accessible names, reviewed share, keyboard movement; Vitest), the component and its
+CSS. A tile is a stack of layers (accent tint, a bottom-up fill scaled with `transform: scaleY`, the outcome fill or
+the seal ring) whose opacity and transform alone change, so the wave entrance, the sign-in story and data changes run
+on the compositor. Keyboard: one tab stop; arrows go to the nearest target within 45 degrees (along-axis distance plus
+twice the across distance), Home and End to the first and last; Enter or a click runs the tile's action; Escape
+closes the card. The card is a PrimeNG Popover with `focusOnShow` false, opened on hover (120 ms delay) or focus, and
+kept open while the pointer travels into it. `interactive` false draws a picture hidden from assistive technology (the
+sign-in story). Sizes: hero 44 px shrinking with its container (container query), compact 34 px (30 px read as cramped
+next to a Display headline), mini 16 px without codes or card. No screen shows the interactive map before UI2-1, so a
+development-only route `dev/ui` (`dev/ui-harness.ts`, dropped from production builds like F1's viewer harness, D-225)
+shows the map at all three sizes with the rings, stats, seal and status icons, for the screenshot review and the items
+that adopt them. Rejected: SVG for the tiles (text rendering and focus rings are crisper as HTML); a hand-built hover
+card (PrimeNG provides Popover).
+
+**D-309 — ProgressRing animates only stroke-dashoffset.** Segments are drawn last first, each as an arc from the top to
+its cumulative end (`pathLength="100"`, `stroke-dasharray: 100 200`, `stroke-dashoffset: 100 - end`), so each earlier
+arc covers the start of the next and the visible part of each is its own segment. The first-view sweep is a keyframe
+from offset 100, delayed 90 ms per segment; later changes transition the offset. Single values use round caps,
+segments butt caps.
+
+**D-310 — StatusIcon mapping.** `requirementStatus(finding, decision, stale)` in `ui/status.ts`: undecided shows the
+finding outlined (check, question, cross circle in its status colour), a decision shows filled (accepted: filled check
+in found; evidence requested: filled paper plane in ambiguous; gap confirmed: filled cross in missing), stale shows
+"outdated by a change". The label always names the finding and the decision ("Evidence found, accepted"); the test
+asserts all twelve combinations have distinct labels.
+
+**D-311 — Command palette on PrimeNG CommandMenu.** PrimeNG 22 ships `CommandMenu`, so the palette is that component
+in a top-positioned modal Dialog, not a hand-built list. Matching is our `fuzzyScore` (exact dynamic programming over
+subsequence placements: 1 per character, 8 at a word start, 10 for a run, 4 at the very start, shorter text wins a
+tie) through CommandMenu's `filter`. Sources (`commands.ts`, pure): the screens from `navLinks` (the rail's own list),
+"Review <state>" for the program's targets, the latest assessment's requirements (one `GET
+/assessments/{id}/mappings` without a jurisdiction, the first time the palette opens for that assessment, listed only
+while searching), and actions by role (Run assessment, any role, as the endpoint allows, followed by its job to a
+toast; New rule version for contributors and administrators, through `rules?new=1`; Download register, the audited CSV
+link). Recent commands (five, per user, `localStorage`) come first. The first match is always highlighted, so Enter
+opens it. Two accessibility fixes: CommandMenu's input names a list id its list does not carry, so the list gets that
+id through pass-through (until the dialog has rendered, a few hundred milliseconds, the reference dangles; the e2e test
+waits for it before running axe); and the dialog is not closable (its close button would sit in the visually hidden
+header), so Escape is handled on the menu. Review takes `jurisdiction` and `ref` query parameters as inputs, so a
+link opens a state or selects a requirement even while Review is already open; Rules takes `new`. A declaration file
+(`src/primeuix-commandmenu.d.ts`) types the Aura CommandMenu set, which @primeuix/themes 3.1.1 ships without one.
+
+**D-312 — Shell.** Top bar: the mark and wordmark (link to Programs), the program pill (PrimeNG Select styled as a
+pill up to 360 px; a longer name is cut after its last whole word, `truncateAtWord`, with the full name in a PrimeNG
+Tooltip and in the accessible name "Program, <name>"; there is no short name in the model and deriving one from degree
+prefixes would guess), the search field that opens the palette (with the platform's key hint), the Demo data pill with an
+InfoTip holding the notice, the work queue button (bell, count from `GET /work-queue/count` after every navigation)
+and the avatar (initials). The palette, work queue popover, avatar menu, program switcher and toast are `@defer`
+chunks (on idle; the palette also when asked), each with its icons and token sets. The fictional-data notice stays
+in the DOM as a print-only `aside` named "Fictional data notice", so paper keeps it (D-276). Work queue items link by
+kind: reviews and ready-to-sign to Review on the state, evidence requests to F4's inbox, rule versions to Rules on the
+first version, open changes to Changes in the first program they touch, failed assessments to the overview; the list
+shows eight and its words put the count first ("8 to review"). The shell learns the URL at `ResolveEnd`, just before
+the screen is created, and keeps its frame `visibility: hidden` until the first navigation has resolved, so the bar,
+the rail and the screen arrive in one frame: a reload of the overview measured CLS 0.19 before (the frame painted, then
+the bar pushed it down) and 0.00 after.
+
+**D-313 — Rail.** The active item's pill is one absolutely positioned element moved by `transform: translateY`
+(320 ms ease-out) to the active link's offset after each navigation and resize, so it glides. "Collapse navigation"
+keeps icons only and is remembered in `localStorage` (`lexvay.rail.collapsed`); under 1200 px the rail is always
+compact; under 640 px it is a bottom tab bar of icons with an accent underline. Counts are pills, hidden from
+assistive technology, with the sentence in `aria-describedby` (D-087). A `NavLink` has a full `label` and a `short`
+one the rail prints: only Evidence requests differs ("Requests", word budget), and its link keeps "Evidence requests"
+as accessible name and tooltip. Rail tooltips (PrimeNG Tooltip, its token set in the shared preset) show the full name
+where it differs and every name while the rail is collapsed.
+
+**D-314 — Sign in.** `sign-in-story.ts` (pure, tested) gives the map at any moment of a six-second turn: sixteen states
+start in review 180 ms apart from west to east, their fill rises over 2.3 s, each is signed with its outcome at 2.6 s,
+and everything fades back at 5.4 s. The component advances it every 250 ms (CSS transitions smooth the steps), stops
+it on the first input event, and under reduced motion shows the story's fullest frame still. Errors appear under the
+field they concern. The stage is a container: the map spans 76 % of it with tiles up to 56 px (about 51 px in a
+1440 px window, through the StateMap's `--lx-map-max-tile` hook), the map and the headline are centred together, and
+the headline grows from 40/44 to 56/60 with the stage; the form is centred in the right column with the mark above it.
+
+**Demo account chips: from the build, not from `/session`.** Point 6 shows them "only when `/session` reports
+`demo: true`", but `GET /auth/session` computes `demo` from the signed-in user's tenant, so it is false before sign-in,
+and no endpoint lists demo accounts to an anonymous caller. Following the coordinator's choice (a public endpoint or
+the build's environment), the accounts come from the build: `core/demo.ts` reads the build-time constant
+`LEXVAY_DEMO_ACCOUNTS` (email, name, role), which `angular.json` sets in the development configuration to the four
+fictional Northfield accounts of `seed/manifest.yml` (the stack `make dev` and `make e2e` serve) and to an empty list
+otherwise; a demo deployment passes `--define 'LEXVAY_DEMO_ACCOUNTS=[...]'`. Each chip names the role ("Signer"), its
+accessible name adds the person, and it fills the email and moves focus to the password. Production builds carry no
+account (checked: no seed email in the production bundle). Rejected: an anonymous endpoint listing a tenant's users
+(a backend change that exposes account names before sign-in; worth an orchestrator decision if demo deployments
+should not need a build flag).
+
+**D-315 — Seal and mark.** `lx-seal` is an SVG ring in the seal colour: outcome and date set in caps on a circular path,
+the signer's initials in the centre, the whole sentence as its accessible name; UI2-2 animates the stamp on the host.
+`lx-mark` is the monogram: an accent tile with an L whose foot rises into a tick, in the on-accent colour.
+
+**D-316 — Global styles that point 7 allows.** The shared classes follow the v2 type scale and word budget without
+redesigning layouts: `h1` is the Title size, `.lx-label` and table headers are sentence case (no uppercase eyebrows
+anywhere), document frames, the rules panes and the report sheet are separated by elevation instead of borders, and
+radii follow DESIGN.md. Screen layouts are unchanged.
+
+**D-317 — Bundle.** Initial bundle 606.77 kB raw, 155.87 kB estimated transfer (main 597.55 kB, styles 9.22 kB; the rail and pill tooltips cost 17.6 kB of it), down
+from 695.03 kB after PERF-FE-1: cut 1 and cut 2 plus the deferred shell pieces. The budget is 680 kB warning and 760 kB
+error, as the coordinator set for an initial bundle under 660 kB.
+
+**D-318 — Merges.** F4 (evidence requests) and PERF-FE-1 merged while this item was in flight; both were merged into
+the branch, F4's screens take the v2 tokens and the per-chunk pattern, and the rail and palette list Evidence requests.
+
+**D-319 — End-to-end changes.** `e2e/shell.spec.ts` covers the sign-in story (plays, stops on typing, off under reduced
+motion), the palette (shortcut, jump to Review for a state and for a requirement, recents, the shortcuts list), the work
+queue popover, the avatar menu's theme across a reload, sign out, the rail collapse, and axe in both themes at 1440 and
+400 px on sign-in and overview (plus the palette, work queue and avatar menu). `review-and-sign.spec.ts` checks the
+Demo data pill and its InfoTip instead of the notice strip; its theme test moved to the shell spec (the theme control
+left the top bar).
+
+### F10a — Coverage matrix API (D-390 to D-397)
+
+#### D-390 One statement, one row, the parts built as JSON
+
+`GET /api/v1/programs/{id}/coverage?jurisdiction=XX` (any signed-in role) runs `CoverageRepository.MATRIX` in one
+read-only transaction (`CoverageService`, D-110) and gets one row back: program, jurisdiction, whether the jurisdiction is
+a target, the assessment id, the rule version, and `courses` and `requirements` as `jsonb` that Jackson reads into the
+view records of `CoverageMatrix`. A matrix is a nested document (requirement, then cells, then program-level documents),
+so the nesting is done where the data is, by `jsonb_agg` over CTEs, instead of by one query per level or by a result set
+the Java code regroups. The CTEs are `target`, `latest`, `mappings`, `courses`, `evidence`, `cited`, `cell_rows`,
+`program_rows` and `reach`.
+- No row means the program does not exist for this tenant (row-level security, rule 7): 404. A row with `is_target =
+  false` means the jurisdiction code is unknown or is not a target of the program: 400 (`IllegalArgumentException`). The
+  statement then reads nothing else (`latest` is empty).
+- The jurisdiction parameter is required and `^[A-Z]{2}$`, like the other jurisdiction filters (400 otherwise).
+- Reused, not copied: `MappingRepository.current("= (SELECT id FROM latest)")` (D-364), `MappingRepository.LATEST_EVENT`
+  (D-003). Two predicates the statement needed existed only as text inside other statements, so they were extracted
+  (D-396).
+
+#### D-391 What a cell is
+
+A cell says that the verified evidence of a requirement cites a document of a course version. The evidence of a mapping is
+its own span (`source = SYSTEM`, only for `method = MATCH`) and every evidence response of that mapping (`source =
+PERSON`), whichever request it answered. There is one cell per (course version, source), so a course version that carries
+both a system quote and a person's quote has two cells; `quoteCount` is the number of distinct evidence spans behind
+the cell. Documents without a course version (degree plan, handbook, accreditation letter) are listed once per
+(document, source) in `programLevel`. Cells follow the order of `courses` (required first, then code), `SYSTEM` before
+`PERSON`; `programLevel` follows file name.
+
+#### D-392 Risk is a description, with a fixed order of tests
+
+`risk` is one of five fixed names, computed in the statement from the cited evidence of each mapping:
+1. `NONE` when the mapping was checked by the rules engine (D-393);
+2. `OUTDATED_EVIDENCE` when the mapping is stale or cites a superseded course version (D-394);
+3. `NO_EVIDENCE` when nothing is cited;
+4. `NONE` when any program-level document is cited (the evidence does not rest on a course);
+5. `ELECTIVE_ONLY` when every cited course version is an elective (`required = false`);
+6. `SINGLE_COURSE` when exactly one course version, a required one, is cited;
+7. `NONE` otherwise.
+An elective that is the only course is `ELECTIVE_ONLY`, not `SINGLE_COURSE` (test 5 runs first). The names are fixed and
+neutral; a screen words them as "rests on an elective", "rests on one course", "evidence is on an outdated course version" and "no evidence cited". The response
+never says that anything is sufficient, met or missing for a licence (rule 1); `finding` is the system's proposal as
+stored and `decision` the latest review decision, `null` when nobody decided or the requirement was reopened (the
+response of an evidence request reopens it).
+
+#### D-393 Numbers checked by the rules engine have no cells, of any source
+
+A mapping with `method = RULES_ENGINE` cites a program fact (a quote of the degree plan or handbook) as its span. That
+span is the input of an arithmetic check, not curriculum evidence, so the matrix leaves it out: no cells, no program-level
+documents, `risk = NONE`. An evidence response on such a mapping (possible when the credits are missing from the program)
+is not shown either, so that the row never has cells (spec point 2). Rejected: showing the fact's document as
+program-level evidence (a number row would then look like a document row).
+
+#### D-394 Evidence on a superseded course version is outdated evidence, never "no evidence"
+
+`courses` are the program's current course versions (no successor, `CourseRepository.SUPERSEDED`). Evidence (system or
+person) that cites a document of a superseded course version is not a current-version cell; it is listed in the
+requirement's `outdatedCells`: `{ courseVersionId, code, catalogYear, supersededBy, source, quoteCount }`, where
+`courseVersionId` and `catalogYear` are the outdated version's and `supersededBy` is the course's current version, a
+column of `courses` (not the next version of a chain), so a screen draws the cell under that column with an "outdated"
+marker. `cells` keep only current versions.
+`risk` gains `OUTDATED_EVIDENCE`, tested right after the rules-engine test and before every other value: it applies when
+the mapping is stale (a rule or course change outdated it) or any of its evidence cites a superseded version. It outranks
+`NO_EVIDENCE`, `ELECTIVE_ONLY` and `SINGLE_COURSE`, so "no evidence cited" never describes a requirement whose evidence
+exists. A stale mapping is `OUTDATED_EVIDENCE` whatever it cites, including a proposal of `EVIDENCE_MISSING` that a rule
+change outdated; a mapping that cites nothing and is not stale stays `NO_EVIDENCE` after a course change.
+There is no `stale` field: the fact has one representation, the risk value, with the cells behind it. The seeded tenant
+shows it: UT-7, AZ-4 and TX-8 cite the COUN 625 syllabus of 2026-27, which the change-tracking demo supersedes; each is
+`OUTDATED_EVIDENCE` with one outdated COUN 625 cell.
+Rejected: an extra column per old version (the matrix would stop being the current curriculum and grow with every catalog
+year); moving the cells to the successor version (invents evidence the successor's documents have not been shown to
+contain, rule 2).
+
+#### D-395 Before the first assessment, and a rule change in flight
+
+With no finished assessment the response is 200 with `assessmentId` and `ruleVersion` null, no requirements, and the
+courses (a screen shows an empty state, as the overview does). `ruleVersion` is the rule version of the first
+requirement of the current mappings. After a rule change the old list stays until the successor's mappings exist (D-066),
+and every row except the rules-engine numbers is `OUTDATED_EVIDENCE`; afterwards only the successor's rows appear, with new mapping ids, in its `ordinal` order (FIX-1).
+
+#### D-396 Two predicates extracted, nothing else touched
+
+- `AssessmentRepository.LATEST_FINISHED` (`a.status = 'FINISHED' ORDER BY a.finished_at DESC, a.created_at DESC LIMIT 1`):
+  used by `latestFinished` and by the matrix. The work queue's `latest` CTE (a lateral join with the same ordering) was not
+  rewritten in this item; the texts agree and a follow-up may take it.
+- `CourseRepository.SUPERSEDED` (`EXISTS (SELECT 1 FROM course_version n WHERE n.supersedes_id = cv.id)`): the document
+  list's `current` flag (`DocumentRepository.viewsByProgram`, behaviour unchanged) and the matrix's `courses` use it.
+
+#### D-397 Latency, plan and indexes (no migration)
+
+`GET /programs/{id}/coverage?jurisdiction=CA` on the seeded program: p50 3.15 ms, p95 4.91 ms, p99 5.88 ms in the seed-only pass and p50 2.64, p95 4.15, p99 5.28 ms with 62 tenants (budget 40 ms), 1.0 connection per call, 1 666 bytes on the
+wire (4 921 uncompressed). `IndexUsageTest` runs `EXPLAIN (ANALYZE, BUFFERS)` of `CoverageRepository.MATRIX` as the
+application role on the roughly 200-tenant database and fails on a sequential scan of `mapping`, `evidence_span`,
+`evidence_response` or `document` that is actually executed (plan in `backend/target/perf/coverage-plan.txt`): 0.31 ms
+execution. The mappings use `mapping_assessment_jurisdiction_idx`, review events
+`review_event_mapping_idx`, the latest assessment `assessment_program_status_finished_idx`, the superseded-version test
+`course_version_supersedes_id_key`. The plan contains a `Seq Scan on evidence_response` that is "never executed": the
+perf database holds no evidence responses, so the planner estimates one row and the join has nothing to probe. With rows
+it can use `evidence_response_mapping_idx (mapping_id, created_at)`, which already serves this join; no index was added
+because none can be shown to be needed. `ReadPathConnectionsTest` (one connection) and `EndpointLatencyTest` list the
+endpoint; `InputValidationTableTest` has eight rows for it.

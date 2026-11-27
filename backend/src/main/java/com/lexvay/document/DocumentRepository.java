@@ -1,5 +1,6 @@
 package com.lexvay.document;
 
+import com.lexvay.program.CourseRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -75,13 +76,13 @@ public class DocumentRepository {
                 SELECT d.id, d.filename, d.kind, d.course_version_id, c.code AS course_code, c.title AS course_title,
                        cv.catalog_year, cv.required AS course_required, d.created_at,
                        (SELECT count(*) FROM document_page p WHERE p.document_id = d.id) AS page_count,
-                       (cv.id IS NULL OR NOT EXISTS (SELECT 1 FROM course_version n WHERE n.supersedes_id = cv.id)) AS current
+                       (cv.id IS NULL OR NOT %s) AS current
                 FROM document d
                 LEFT JOIN course_version cv ON cv.id = d.course_version_id
                 LEFT JOIN course c ON c.id = cv.course_id
                 WHERE d.program_id = :programId
                 ORDER BY c.code NULLS FIRST, cv.catalog_year DESC NULLS FIRST, d.filename, d.id
-                """).param("programId", programId)
+                """.formatted(CourseRepository.SUPERSEDED)).param("programId", programId)
                 .query((rs, i) -> new DocumentService.ProgramDocumentView(rs.getObject("id", UUID.class), rs.getString("filename"),
                         DocumentKind.valueOf(rs.getString("kind")), rs.getObject("course_version_id", UUID.class),
                         rs.getString("course_code"), rs.getString("course_title"), rs.getString("catalog_year"),

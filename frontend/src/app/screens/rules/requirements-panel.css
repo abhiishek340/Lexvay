@@ -23,7 +23,7 @@
 .lx-f-type { grid-area: type; }
 .lx-f-check { grid-area: check; }
 .lx-f-actions { grid-area: actions; flex-direction: row; gap: 0; }
-.lx-f-label { font-size: 11px; line-height: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--p-lx-text-secondary); }
+.lx-f-label { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-text-2); }
 .lx-check-controls { display: grid; grid-template-columns: 8.5rem 4.75rem minmax(0, 1fr); gap: 4px; }
 .lx-line-one td { border-bottom: 0; padding-bottom: 6px; }
 .lx-line-two td { padding-top: 0; }

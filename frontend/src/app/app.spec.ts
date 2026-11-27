@@ -19,6 +19,5 @@ describe('App', () => {
     expect(root.querySelector('a.lx-skip')?.getAttribute('href')).toBe('#main');
     expect(root.querySelector('main#main')).not.toBeNull();
     expect(root.querySelector('nav')).toBeNull();
-    expect(document.documentElement.getAttribute('data-theme')).toMatch(/^(light|dark)$/);
   });
 });

@@ -1,91 +1,99 @@
-import { Component, DestroyRef, computed, inject, signal, viewChild } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { ActivatedRouteSnapshot, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, DestroyRef, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { ActivatedRouteSnapshot, NavigationEnd, ResolveEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { MenuItem } from 'primeng/api';
 import { Badge } from 'primeng/badge';
-import { ButtonDirective } from 'primeng/button';
-import { Menu } from 'primeng/menu';
-import { Select } from 'primeng/select';
-import { SelectButton } from 'primeng/selectbutton';
-import { Toast } from 'primeng/toast';
-import { filter } from 'rxjs';
+import { Tooltip } from 'primeng/tooltip';
+import { filter, firstValueFrom } from 'rxjs';
+import { ApiService } from '../core/api.service';
 import { ROLE_LABEL } from '../core/labels';
+import { navLinks, screenOf } from '../core/navigation';
 import { ProgramContext } from '../core/program-context';
 import { SessionService } from '../core/session.service';
-import { Theme, ThemeService } from '../core/theme.service';
-import { IconName } from '../theme/icons';
+import { CommandPalette } from '../ui/command-palette/command-palette';
+import { paletteShortcut } from '../ui/command-palette/shortcut';
+import { InfoTip } from '../ui/info-tip';
+import { Mark } from '../ui/mark';
+import { initials } from '../ui/seal';
+import { AccountMenu } from './account-menu';
+import { ProgramSwitcher } from './program-switcher';
+import { ShellToast } from './shell-toast';
+import { WorkQueueMenu } from './work-queue-menu';
 
-interface NavLink { id: string; path: string[]; label: string; icon: IconName; badge: number; badgeText: string }
+const RAIL_KEY = 'lexvay.rail.collapsed';
 
+/**
+ * The application frame (DESIGN.md "Shell"): the top bar (mark, program pill, the command palette's search field,
+ * the Demo data pill, the work queue and the avatar menu), the rail with its gliding active pill (a bottom tab bar
+ * under 640 px), and the main region. The popovers, the palette, the program switcher and the toast are deferred
+ * chunks, so first paint carries only the bar, the rail and their icons.
+ */
 @Component({
   selector: 'lx-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, FormsModule, NgIcon, Badge, ButtonDirective, Menu, Select, SelectButton, Toast],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIcon, Badge, Tooltip, InfoTip, Mark, AccountMenu, CommandPalette, ProgramSwitcher, ShellToast, WorkQueueMenu],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
+  host: { '(document:keydown)': 'onKey($event)' },
 })
 export class Shell {
   readonly session = inject(SessionService);
-  readonly theme = inject(ThemeService);
   readonly context = inject(ProgramContext);
+  private readonly api = inject(ApiService);
   private readonly router = inject(Router);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
-  readonly themes: { value: Theme; label: string; icon: IconName }[] = [
-    { value: 'system', label: 'System', icon: 'phosphorMonitor' },
-    { value: 'light', label: 'Light', icon: 'phosphorSun' },
-    { value: 'dark', label: 'Dark', icon: 'phosphorMoon' },
-  ];
   readonly roleLabel = ROLE_LABEL;
-
-  private readonly url = signal(this.router.url);
-  readonly programId = signal<string | null>(null);
-  /** The top bar and navigation appear once someone is signed in; the sign-in page stands alone. */
-  readonly chrome = computed(() => this.session.authenticated() && !this.url().startsWith('/login'));
-
-  /** The rail is on every program screen and on the tenant-wide register, which needs no program. */
-  readonly railVisible = computed(() => this.chrome() && (this.programId() !== null || this.url().split(/[?#]/)[0] === '/register'));
+  readonly shortcut = paletteShortcut(typeof navigator === 'undefined' ? '' : navigator.platform);
 
   /**
-   * The tenant-wide register first, then the screens of the program in the URL (on the register, of the program
-   * last worked on; none before a program was opened).
+   * The URL being shown, set when a navigation has resolved (just before its screen is created), so the bar, the rail
+   * and the screen appear in the same frame and nothing shifts; null before the first navigation.
    */
-  readonly links = computed<NavLink[]>(() => {
-    const register: NavLink = { id: 'register', path: ['/register'], label: 'Determination register', icon: 'phosphorBookBookmark', badge: 0, badgeText: '' };
-    const programId = this.programId() ?? this.context.program()?.id;
-    if (!programId) {
-      return [register];
-    }
-    const waiting = this.context.counts()?.waitingForReview ?? 0;
-    const open = this.context.openChanges();
-    const rules = this.context.rulesWaiting();
-    const requests = this.context.openRequests();
-    const screen = (id: string, label: string, icon: IconName, badge = 0, badgeText = ''): NavLink =>
-      ({ id, path: ['/programs', programId, id], label, icon, badge, badgeText });
-    return [
-      register,
-      screen('overview', 'Program overview', 'phosphorSquaresFour'),
-      screen('review', 'Review', 'phosphorListChecks', waiting, `${waiting} requirement${waiting === 1 ? '' : 's'} waiting for review`),
-      screen('requests', 'Evidence requests', 'phosphorTray', requests, `${requests} open evidence request${requests === 1 ? '' : 's'}`),
-      screen('changes', 'Changes', 'phosphorGitDiff', open, `${open} open change${open === 1 ? '' : 's'}`),
-      screen('rules', 'Rules', 'phosphorScales', rules, `${rules} rule version${rules === 1 ? '' : 's'} waiting for approval`),
-      screen('report', 'Evidence report', 'phosphorFileText'),
-      screen('audit', 'Audit trail', 'phosphorClockCounterClockwise'),
-    ];
-  });
+  private readonly url = signal<string | null>(null);
+  readonly programId = signal<string | null>(null);
+  /** Until the first navigation resolves, the frame stays invisible, so the bar never pushes a painted frame down. */
+  readonly pending = computed(() => this.url() === null);
+  /** The top bar and navigation appear once someone is signed in; the sign-in page stands alone. */
+  readonly chrome = computed(() => this.session.authenticated() && this.url() !== null && !this.url()!.startsWith('/login'));
+  /** The rail is on every program screen and on the tenant-wide register, which needs no program. */
+  readonly railVisible = computed(() => this.chrome() && (this.programId() !== null || (this.url() ?? '').split(/[?#]/)[0] === '/register'));
+  /** The screen segment kept when switching programs ("review" in /programs/p1/review?jurisdiction=CA). */
+  readonly screen = computed(() => (this.url() ?? '').split(/[?#]/)[0].split('/')[3] ?? 'overview');
 
-  readonly menuItems: MenuItem[] = [{ label: 'Sign out', id: 'sign-out', command: () => this.signOut() }];
-  /** The menu, the toast and the program switcher are deferred chunks; the menu is ready once the page is idle. */
-  private readonly menu = viewChild<Menu>('accountMenu');
+  /** The register first, then the screens of the program in the URL (on the register, of the program last worked on). */
+  readonly links = computed(() => navLinks(this.programId() ?? this.context.program()?.id ?? null, {
+    waitingForReview: this.context.counts()?.waitingForReview ?? 0,
+    openChanges: this.context.openChanges(),
+    rulesWaiting: this.context.rulesWaiting(),
+    openRequests: this.context.openRequests(),
+  }));
+
+  readonly initials = computed(() => initials(this.session.user()?.displayName ?? ''));
+  readonly collapsed = signal(readCollapsed());
+  readonly scrolled = signal(false);
+  readonly paletteOpen = signal(false);
+  readonly queueCount = signal(0);
+  readonly queueOpen = signal(false);
+  readonly accountOpen = signal(false);
+  /** The active rail item's offset, where the pill glides to (null while no item is active). */
+  readonly pillTop = signal<number | null>(null);
+
+  readonly accountMenu = viewChild<AccountMenu>('accountMenu');
+  readonly queueMenu = viewChild<WorkQueueMenu>('queueMenu');
 
   constructor() {
     let previousScreen: string | null = null;
-    const sub = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {
+    const resolved = this.router.events.pipe(filter((e): e is ResolveEnd => e instanceof ResolveEnd)).subscribe((e) => {
       this.url.set(e.urlAfterRedirects);
-      const screen = screenOf(e.urlAfterRedirects);
-      const programId = findParam(this.router.routerState.snapshot.root, 'programId');
+      const programId = findParam(e.state.root, 'programId');
       this.programId.set(programId);
       if (programId) {
         this.context.ensure(programId);
+      }
+    });
+    const sub = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {
+      const screen = screenOf(e.urlAfterRedirects);
+      if (this.chrome()) {
+        this.refreshQueueCount();
       }
       // Moving to another screen puts focus on its heading. The first page load keeps the browser's start, and
       // a change within a screen (a jurisdiction tab, a rule version in the list) keeps focus where the person is working.
@@ -93,29 +101,57 @@ export class Shell {
         focusHeadingWhenRendered();
       }
       previousScreen = screen;
+      requestAnimationFrame(() => this.placePill());
     });
-    inject(DestroyRef).onDestroy(() => sub.unsubscribe());
+    const onResize = (): void => this.placePill();
+    window.addEventListener('resize', onResize);
+    inject(DestroyRef).onDestroy(() => { resolved.unsubscribe(); sub.unsubscribe(); window.removeEventListener('resize', onResize); });
   }
 
-  toggleMenu(event: Event): void {
-    this.menu()?.toggle(event);
+  /** Ctrl K or Cmd K opens the command palette from anywhere, including text fields. */
+  onKey(event: KeyboardEvent): void {
+    if (this.chrome() && (event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      this.paletteOpen.set(true);
+    }
   }
 
-  switchProgram(programId: string): void {
-    const screen = this.url().split('?')[0].split('/')[3] ?? 'overview';
-    this.router.navigate(['/programs', programId, screen]);
+  onMainScroll(event: Event): void {
+    this.scrolled.set((event.target as HTMLElement).scrollTop > 0);
   }
 
-  async signOut(): Promise<void> {
-    await this.session.logout();
-    this.context.clear();
-    await this.router.navigate(['/login']);
+  toggleRail(): void {
+    const next = !this.collapsed();
+    this.collapsed.set(next);
+    try { localStorage.setItem(RAIL_KEY, String(next)); } catch { /* storage may be unavailable; the choice then lasts for this page */ }
+    requestAnimationFrame(() => this.placePill());
+  }
+
+  openQueue(event: Event): void {
+    this.queueMenu()?.toggle(event);
+  }
+
+  openAccount(event: Event): void {
+    this.accountMenu()?.toggle(event);
+  }
+
+  /** The rail's active pill sits behind the active link; moving it is a transform, so it glides (320 ms). */
+  placePill(): void {
+    const active = this.host.querySelector<HTMLElement>('.lx-rail a.lx-active');
+    this.pillTop.set(active ? active.offsetTop : null);
+  }
+
+  private async refreshQueueCount(): Promise<void> {
+    try {
+      this.queueCount.set((await firstValueFrom(this.api.workQueueCount())).total);
+    } catch {
+      // The badge is a convenience; the popover reports errors when it is opened.
+    }
   }
 }
 
-/** "/programs/p1/rules/rv7?x=1" is the screen "/programs/p1/rules": the path up to the screen's own segment. */
-function screenOf(url: string): string {
-  return url.split(/[?#]/)[0].split('/').slice(0, 4).join('/');
+function readCollapsed(): boolean {
+  try { return localStorage.getItem(RAIL_KEY) === 'true'; } catch { return false; }
 }
 
 function findParam(route: ActivatedRouteSnapshot, name: string): string | null {

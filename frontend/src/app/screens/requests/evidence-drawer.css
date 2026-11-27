@@ -9,7 +9,7 @@
 
 .lx-answer-heading { font-size: 18px; line-height: 26px; }
 .lx-answer-heading:focus { outline: none; }
-.lx-answer-heading:focus-visible { outline: 2px solid var(--p-lx-primary); outline-offset: 4px; }
+.lx-answer-heading:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: 4px; }
 
 /* Wide: the request and the answer on the left, the page on the right; DOM order is the reading order on a phone. */
 .lx-answer { display: grid; gap: 20px 24px; grid-template-columns: minmax(0, 1fr); }
@@ -32,25 +32,25 @@
 section, .lx-answer-comment { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .lx-answer-ref { font-size: 15px; line-height: 22px; }
 .lx-answer-rule {
-  padding: 10px 14px; border-left: 2px solid var(--p-lx-hairline); background: var(--p-lx-card);
+  padding: 10px 14px; border-left: 2px solid var(--p-lx-line); background: var(--p-lx-surface);
   white-space: pre-wrap; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 6px;
 }
 .lx-answer-ask { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
 .lx-answer-note { white-space: pre-wrap; overflow-wrap: anywhere; }
 
-.lx-answer-group { font-size: 12px; font-weight: 600; color: var(--p-lx-text-secondary); }
+.lx-answer-group { font-size: 12px; font-weight: 600; color: var(--p-lx-text-2); }
 .lx-answer-option { display: flex; flex-direction: column; min-width: 0; }
-.lx-answer-option-meta { font-size: 12px; line-height: 16px; color: var(--p-lx-text-secondary); }
+.lx-answer-option-meta { font-size: 12px; line-height: 16px; color: var(--p-lx-text-2); }
 .lx-answer-earlier { display: flex; align-items: center; gap: 8px; }
 .lx-answer-earlier label { font-size: 13px; }
 
 .lx-answer-empty {
-  padding: 16px; border: 1px dashed var(--p-lx-control); border-radius: 4px; background: var(--p-lx-card);
-  color: var(--p-lx-text-secondary);
+  padding: 16px; border: 1px dashed var(--p-lx-line-strong); border-radius: 4px; background: var(--p-lx-surface);
+  color: var(--p-lx-text-2);
 }
 
 .lx-answer-passage blockquote {
-  padding: 10px 14px; border-left: 2px solid var(--p-lx-primary); background: var(--p-lx-card);
+  padding: 10px 14px; border-left: 2px solid var(--p-lx-accent); background: var(--p-lx-surface);
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .lx-answer-comment label { font-weight: 500; }

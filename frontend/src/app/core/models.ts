@@ -118,3 +118,11 @@ export interface EvidenceResponse {
 }
 /** POST /mappings/{id}/evidence-responses: the server verifies the quote against the stored page (product rule 2). */
 export interface EvidenceResponseBody { documentId: string; pageNumber: number; quote: string; comment: string | null; }
+
+/** GET /work-queue (F13): what needs the signed-in user. Program fields are null for jurisdiction-wide and tenant-wide kinds. */
+export type WorkQueueKind = 'REQUIREMENTS_TO_REVIEW' | 'EVIDENCE_REQUESTS_OPEN' | 'RULE_VERSIONS_TO_APPROVE' | 'EXTRACTION_FAILED' | 'CHANGES_OPEN' | 'READY_TO_SIGN' | 'ASSESSMENTS_FAILED';
+export interface WorkItem {
+  kind: WorkQueueKind; programId: string | null; programName: string | null; jurisdictionCode: string | null; count: number; oldestAt: string;
+  ids: { assessmentId?: string; mappingIds?: string[]; blockedCount?: number; ruleVersionIds?: string[]; changeKind?: string; changeEventIds?: string[]; programIds?: string[]; assessmentIds?: string[] };
+}
+export interface WorkQueue { generatedAt: string; counts: Partial<Record<WorkQueueKind, number>>; items: WorkItem[]; }

@@ -2009,3 +2009,110 @@ proves the model's terms are remembered and the golden terms are stored through 
 #### For the orchestrator
 The roadmap says `search_terms` for the golden file; the key is `searchTerms` like the file's other keys (D-383). If F5a (V015) merges after this item, a database
 that already applied V016 fails Flyway validation on V015 (D-389).
+
+## UI2-0 — Design v2 foundation, shell and sign-in (PR #34)
+
+Branch `ui2-foundation`, decisions D-301 to D-319 in `docs/decisions/UI2-0.md`. F4 (evidence requests) and PERF-FE-1
+merged into the branch while it was in flight; PERF-FE-1's per-chunk pattern is followed and its cuts 1 and 2 are taken.
+
+### Spec points
+1. **Fonts**: Inter and Source Serif 4 variable (wght axis, latin and latin-ext), IBM Plex Mono kept; Plex Sans and Serif
+   removed; measured metric-matched fallbacks (D-301, D-302). CLS on first paint: 0.00 (sign-in and overview).
+2. **Preset v2**: the DESIGN.md token table in `theme/tokens.ts` with derived tokens, `light-dark()` values published as
+   `--p-lx-*` (renamed in one pass), elevation, radius, type scale; Lexvay overrides for Button, Badge, Popover (shared)
+   and DataTable, Dialog, Message, Tag, Tabs, Skeleton, ProgressBar, ToggleSwitch, SelectButton, ToggleButton, Toast,
+   Menu, CommandMenu, Splitter, RadioButton (per chunk); Select, InputText, Password, Textarea, Listbox, Drawer take the
+   semantic form-field, list and overlay tokens (D-303 to D-305). Contrast test: `theme/tokens.spec.ts`, every pair in
+   both themes.
+3. **Motion**: tokens in `styles.css`, `MotionPreferences`, `lxEnter`, `lxCountUp`, route view transitions that skip
+   same-screen navigation and reduced motion (D-307).
+4. **Shared components** in `ui/`: StateMap (three sizes, roving keyboard, popover card, wave), ProgressRing, Stat,
+   InfoTip, StatusIcon, Seal, Mark, CommandPalette; a development-only harness at `dev/ui` (D-308 to D-311, D-315).
+5. **Shell v2**: top bar, rail with gliding pill, collapse and bottom tab bar, avatar menu with the theme, Demo data pill,
+   work queue (F13) button and popover; the keyboard shortcuts dialog lists the palette (D-312, D-313).
+6. **Sign in v2**: story map and headline, form with inline errors; the story stops on typing and is still under reduced
+   motion; the stage sizes the map from its width. Demo account chips come from the build (`LEXVAY_DEMO_ACCOUNTS`), because `/session` cannot report `demo: true` before sign-in (D-314).
+7. Every screen uses the new tokens; layouts unchanged; axe clean in the suite.
+8. Tests: listed below.
+
+### Unit tests (`make frontend-test`)
+New: `theme/tokens.spec.ts` (contrast), `ui/status.spec.ts`, `ui/state-map/state-map-model.spec.ts` (layout
+completeness, names, keyboard order), `ui/command-palette/fuzzy.spec.ts`, `ui/command-palette/commands.spec.ts`,
+`core/work-queue.spec.ts`, `screens/login/sign-in-story.spec.ts`; `theme/icons.spec.ts` gained units for every deferred
+shell piece and shared component and the check that the shell's icon copy equals the package's.
+
+### End-to-end
+`e2e/shell.spec.ts` (story, reduced motion, palette by shortcut to a state and to a requirement, work queue popover,
+avatar theme across a reload, sign out, rail collapse, axe in both themes at 1440 and 400 px on sign-in and overview,
+plus palette, work queue and avatar menu); `review-and-sign.spec.ts` checks the Demo data pill; `screens.spec.ts`
+captures the v2 screenshots.
+
+### Bundle
+Initial 606.77 kB raw, 155.87 kB estimated transfer (PERF-FE-1 on main: 695.03 kB, 168.22 kB). Budget 680 kB warning,
+760 kB error. Details in `docs/PERF.md`, "Frontend bundle".
+
+### Performance (production build on loopback, Chrome, 1440 × 900)
+- Sign-in: LCP 224 ms (1,547 ms before the headline stopped fading in), CLS 0.00. Frames over the first six seconds
+  (bootstrap, first paint, the map's wave entrance and one full turn of the story): 361 frames, median 16.7 ms, worst
+  18.7 ms, 0 dropped. After the design review (51 px tiles on the larger stage, chips): LCP 180 ms, CLS 0, 360 frames,
+  1 dropped at 39 ms during bootstrap (before first paint), none during the wave or the story.
+- Overview reload with the shell: LCP 356 to 375 ms, CLS 0.00 (0.19 before the shell waited for the first navigation to
+  resolve). Frames over three seconds: 179, 1 dropped at 79 ms during script evaluation, before first paint.
+- Method: `performance_start_trace` (Chrome DevTools) for LCP and CLS; a `requestAnimationFrame` recorder installed
+  before the page's scripts for frame intervals (a frame counts as dropped for each whole median interval it overran).
+
+### Screenshots (`docs/screens/`, light and dark)
+`ui2-sign-in-{1440,400}`, `ui2-overview-{1440,400}`, `ui2-command-palette-{1440,400}`, `ui2-work-queue-{1440,400}`,
+`ui2-avatar-menu-{1440,400}`, `ui2-components-{1440,400}`, and every existing screen regenerated.
+
+### Test tails (2026-11-27, final)
+`LEXVAY_E2E_SLOT=1 make test`:
+```
+[INFO] Tests run: 886, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  25 passed (25)
+      Tests  262 passed (262)
+  26 passed (2.3m)
+```
+`LEXVAY_SCREENSHOTS=1 LEXVAY_E2E_SLOT=1 make e2e` (the suite plus both screenshot tests): `28 passed (3.5m)`.
+
+### F10a — Coverage matrix API
+
+Branch `feat-coverage-api`, no migration. Decisions D-390 to D-397 in `docs/decisions/F10a.md`. Backend only; nothing under `frontend/src`.
+
+#### What changed
+- **`GET /api/v1/programs/{id}/coverage?jurisdiction=XX`** (`com.lexvay.coverage`: `CoverageController`, `CoverageService`, `CoverageRepository`, `CoverageMatrix`).
+  One read-only transaction, one statement (`CoverageRepository.MATRIX`), one row whose `courses` and `requirements` are `jsonb` read into the view records (D-390).
+  Cells per (course version, source) with `SYSTEM` or `PERSON` and a distinct-quote count; program-level documents; `risk` computed in SQL (D-391, D-392).
+  Numbers checked by the rules engine have no cells and risk `NONE` (D-393). 400 for an unknown, malformed or non-target jurisdiction, 404 for an unknown program or another tenant (D-390).
+- **Shared predicates (D-396).** `AssessmentRepository.LATEST_FINISHED` and `CourseRepository.SUPERSEDED`, each used by its previous statement and by the matrix; `MappingRepository.current(...)` and `LATEST_EVENT` are reused.
+- **Outdated evidence (D-394, review change).** `risk = OUTDATED_EVIDENCE` and `outdatedCells` for evidence on superseded course versions; no `stale` field.
+
+#### Verification
+`make backend-test` and `make perf` were rerun after the D-394 change and after merging `origin/main` again (F5a and FIX-4 included). `make e2e` ran before that change (18 passed, 1 skipped, slot 8); the change is backend only and the matrix has no screen yet.
+
+`make backend-test` (exit 0):
+```
+[INFO] Tests run: 1044, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+`make perf` (exit 0):
+```
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 109.8 s -- in com.lexvay.perf.EndpointLatencyTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 121.2 s -- in com.lexvay.perf.IndexUsageTest
+| GET /programs/{id}/coverage?jurisdiction=CA | 3.15 | 4.91 | 5.88 | 1.0 | 4921 | 1666 |   (seed only: p50, p95, p99, connections, body, wire)
+| GET /programs/{id}/coverage?jurisdiction=CA | 2.64 | 4.15 | 5.28 | 1.0 | 4921 | 1666 |   (62 tenants)
+```
+`LEXVAY_E2E_SLOT=8 make e2e` (exit 0):
+```
+  1 skipped
+  18 passed (1.7m)
+```
+
+#### Tests added or changed
+`CoverageApiTest` (11: order, cells, risk, decisions, person cell beside the system cell, program-level response, elective-only, required plus elective, rule revision before and after the re-run, superseded course version, no assessment, 400s, 404 and 401),
+`CoverageSeedTest` (4: California order and the COUN 605 cell of CA-2, the elective-only CA-6, numeric rows without cells, accreditation as program-level evidence, UT-7, AZ-4 and TX-8 as `OUTDATED_EVIDENCE` with one outdated COUN 625 cell, Colorado outdated before the re-run),
+`EndpointLatencyTest`, `ReadPathConnectionsTest`, `IndexUsageTest` (EXPLAIN of the statement), `InputValidationTableTest` (eight rows). `ForbiddenWordsTest` is green in the full run.
+
+#### Open points for the orchestrator
+- The work queue's `latest` CTE still has its own copy of the latest-finished ordering (D-396).

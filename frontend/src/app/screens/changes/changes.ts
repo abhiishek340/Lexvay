@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, effect, inject, input, signal, untracked } from '@angular/core';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorArrowsClockwise, phosphorBookOpen } from '@ng-icons/phosphor-icons/regular';
+import { phosphorArrowsClockwise, phosphorBookOpen, phosphorCheckCircle, phosphorWarning } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -21,7 +21,7 @@ import { rerunBlocker } from './change-rules';
 import { CHANGES_TOKENS } from './changes-theme';
 
 /** The icons the Changes screen shows beyond SHELL_ICONS, provided by its route (changes.routes.ts). */
-export const CHANGES_ICONS = { phosphorArrowsClockwise, phosphorBookOpen };
+export const CHANGES_ICONS = { phosphorArrowsClockwise, phosphorBookOpen, phosphorCheckCircle, phosphorWarning };
 
 const POLL_MS = 1000;
 const POLL_LIMIT = 90;
