@@ -8,6 +8,7 @@ import com.lexvay.document.TestDocuments;
 import com.lexvay.job.JobStatus;
 import com.lexvay.job.JobType;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -143,7 +144,7 @@ class CheckRuleSourceTest extends AbstractRuleSourceTest {
         assertThat(count("rule_version")).isEqualTo(versions);
         assertThat(count("change_event")).isEqualTo(changes);
         var after = source(sourceId);
-        assertThat(((java.time.OffsetDateTime) after.get("last_checked_at"))).isAfter((java.time.OffsetDateTime) before.get("last_checked_at"));
+        assertThat(((Timestamp) after.get("last_checked_at")).toInstant()).isAfter(((Timestamp) before.get("last_checked_at")).toInstant());
         assertThat(after.get("last_content_hash")).isEqualTo(before.get("last_content_hash"));
         assertThat(checkCount(sourceId)).isEqualTo(2);
     }
@@ -178,6 +179,7 @@ class CheckRuleSourceTest extends AbstractRuleSourceTest {
     @Test
     void aChangeSeenWhileADraftWaitedIsPickedUpOnceTheDraftIsApproved() {
         approvedCaliforniaRules();
+        scriptExtraction(fetchedLabel("CA"));
         String url = newUrl("html");
         fetcher.html(url, page("Applicants need 66 semester hours."));
         UUID sourceId = register("CA", url);

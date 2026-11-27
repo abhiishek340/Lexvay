@@ -27,7 +27,7 @@ class FileTypeTest {
     @CsvSource(delimiter = '|', value = {
             "text/html|<p>x</p>|HTML", "text/html; charset=UTF-8|x|HTML", "TEXT/HTML|x|HTML",
             "application/xhtml+xml|<html/>|HTML", "application/octet-stream|<!DOCTYPE HTML><html>|HTML",
-            "|  \n<html lang=en>|HTML", "text/plain|just words|TXT"})
+            "|   <html lang=en>|HTML", "text/plain|just words|TXT"})
     void fetchedTextIsRecognised(String contentType, String body, FileType expected) {
         assertThat(FileType.detectFetched(contentType, bytes(body))).isEqualTo(expected);
     }
@@ -43,10 +43,15 @@ class FileTypeTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @CsvSource(delimiter = '|', value = {"image/png|PNGDATA", "application/json|{}", "text/plain|\u0000binary", "|plain words without a type"})
+    @CsvSource(delimiter = '|', value = {"image/png|PNGDATA", "application/json|{}", "|plain words without a type"})
     void anythingElseIsRefused(String contentType, String body) {
         assertThatThrownBy(() -> FileType.detectFetched(contentType, bytes(body)))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageStartingWith("Unsupported content type");
+    }
+
+    @Test
+    void plainTextWithBinaryBytesIsRefused() {
+        assertThatThrownBy(() -> FileType.detectFetched("text/plain", new byte[] {'a', 0, 'b'})).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

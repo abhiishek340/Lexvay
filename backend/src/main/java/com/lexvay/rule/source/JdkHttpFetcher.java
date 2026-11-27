@@ -12,12 +12,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Flow;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.springframework.stereotype.Component;
 
 /**
  * {@link HttpFetcher} on the JDK's HTTP client (D-181). Connecting gives up after 10 seconds and the whole response,
- * body included, must arrive within 30. Redirects are followed by hand, at most three, and the {@link UrlPolicy}
+ * body included, must have arrived after 30. Redirects are followed by hand, at most three, and the {@link UrlPolicy}
  * checks every hop, so a redirect to an internal address is refused like a direct one. A body of more than 20 MB
  * is refused while it is read, not after it is in memory.
  */
@@ -63,13 +66,18 @@ public class JdkHttpFetcher implements HttpFetcher {
                 .header("User-Agent", "Lexvay rule source monitor")
                 .GET()
                 .build();
+        CompletableFuture<HttpResponse<byte[]>> pending = client.sendAsync(request, info -> new CappedBody());
         try {
-            return client.send(request, info -> new CappedBody());
+            return pending.get(RESPONSE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            pending.cancel(true);
+            throw new FetchRejected("The server did not finish answering within " + RESPONSE_TIMEOUT.toSeconds() + " seconds", e);
+        } catch (ExecutionException e) {
+            throw new FetchRejected(describe(e.getCause()), e.getCause());
         } catch (InterruptedException e) {
+            pending.cancel(true);
             Thread.currentThread().interrupt();
             throw new FetchRejected("The fetch was interrupted", e);
-        } catch (IOException e) {
-            throw new FetchRejected(describe(e), e);
         }
     }
 
@@ -81,7 +89,7 @@ public class JdkHttpFetcher implements HttpFetcher {
         }
     }
 
-    private static String describe(IOException e) {
+    private static String describe(Throwable e) {
         String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
         return "Could not fetch the address: " + message;
     }
