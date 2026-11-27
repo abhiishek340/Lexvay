@@ -103,7 +103,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | merged (PR #28) |
 | F5a User administration and audit export API | `feat-admin-api` | 5 | Sonnet 5.5 | merged (PR #32) |
-| F5b Administration and audit screens (v2) | `ui2-admin` | — | Opus 5.5 | queued (after F5a, UI2-0) |
+| F5b Administration screens (v2) | `ui2-admin` | 2 | Opus 5.5 | in progress |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
 | F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
 | TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | merged (PR #25) |
@@ -756,6 +756,40 @@ Decisions D-416 to D-425 in `docs/decisions/F10b.md`.
    popover's "Open in Review" lands on the requirement, the risk filter dims rows, axe in both themes at 1440 and 400 px.
 Done when `make frontend-test` and `LEXVAY_E2E_SLOT=7 make test` are green with screenshots `f10b-*` in both themes at 1440
 and 400 px.
+
+## F5b — Administration screens (frontend, v2; slot 2; Opus 5.5; uses F5a, SEC-2)
+Purpose: an administrator manages colleagues in the product: add, change role, remove access, reissue a setup code.
+A new colleague sets their own password from the code. Sessions that lost access end cleanly. Decisions D-426 to
+D-435 in `docs/decisions/F5b.md`.
+1. **People** (`/people`, tenant-wide rail entry under Determination register, icon `phosphorUsers`, ADMIN only; other
+   roles never see the entry and the route guard sends them to the overview): a table of users (avatar initials, name,
+   email, role chip, status chip Active / Deactivated / Setup pending when `passwordSet` is false, created date),
+   search by name or email, filter chips by role and status. Row actions in a menu: Change role, Deactivate or
+   Reactivate, New setup code. An administrator's own row has no role or deactivate action (the API refuses them; the
+   screen does not offer them).
+2. **Add person** (Dialog): name, email, role (Select with one-line role descriptions in an InfoTip). On success the
+   dialog turns into a one-time code view: the setup link (`<origin>/setup?code=…`) in mono with a Copy button and
+   the expiry ("valid for 72 hours, until 30 Nov 15:04"), a clear sentence that the code is shown once, and Done. The
+   code is never stored in the browser (no storage, no logs; cleared from component state on close). "New setup code"
+   shows the same view.
+3. **Change role / deactivate** (ConfirmDialog with the consequence in one sentence: "Their current session ends.");
+   the 409 messages from the API (last administrator, self) appear inline in the dialog.
+4. **Set password** (`/setup?code=…`, anonymous, uses the sign-in layout from UI2-0 without the map story): two
+   password fields with show/hide, live rules (12 to 128 characters, not the email) shown as a checklist with icons,
+   a strength meter based on length and character variety only (no dictionary library), Submit to
+   `POST /auth/setup`; the generic invalid-code message for 400s; on success go to sign-in with a toast "Password set.
+   Sign in." The page strips the code from the address bar with `history.replaceState` right after reading it.
+5. **Session and busy handling** (shared, in `core/`): a 401 with the problem detail "Your access changed. Sign in
+   again." (F5a session revocation) signs the user out locally, routes to sign-in and shows that sentence; a 503 with
+   `Retry-After` on sign-in or setup (SEC-2's hashing gate) shows "Sign-in is busy. Try again in a moment." and
+   disables the button for the `Retry-After` seconds with a visible countdown.
+6. **Tests**: Vitest for the password rule model and strength meter, the role/status filters, and the 401/503 handling;
+   e2e (`frontend/e2e/people.spec.ts`): the admin adds a Contributor, copies the code (read it from the dialog), signs
+   out, sets the password through the setup page, signs in as the new person; the admin changes the role and the
+   new person's next request lands on sign-in with the access-changed sentence; deactivate and reactivate; an
+   administrator cannot act on their own row; a reviewer never sees People; axe in both themes at 1440 and 400 px.
+Done when `make frontend-test` and `LEXVAY_E2E_SLOT=2 make test` are green with screenshots `f5b-*` in both themes at 1440 and
+400 px.
 
 ## FIX-4 — Rule source backoff, live search terms, PDF page cap at upload (backend; slot 7; migration `V016__rule_source_schedule.sql`)
 Three follow-ups from the F12, F7c and WS-SEC reviews. Decisions D-380 to D-389 in `docs/decisions/FIX-4.md`.
