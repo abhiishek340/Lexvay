@@ -4024,3 +4024,182 @@ override, the sign-in rule, the log group and redaction, the rate-limit bounds (
 its trust and key policy, and the network ACL rules and association. In `docs/ROADMAP.md` the F12 deployment note was
 removed whole; from the WS-EVAL line only the Terraform sentence was removed, because the rest of that bullet (the
 unmeasured thresholds, the database role bootstrap) is still open.
+
+### UI2-4 — Rules, evidence requests and program setup (F2) in v2 (D-285 to D-294, D-350 to D-359)
+
+UI2-4 restyles the Rules workspace and F4's evidence request screens to design v2 and builds F2 (program setup) in v2.
+F2's decision range belongs to this item; the F2 decisions come first.
+
+## Program setup (F2)
+
+**D-285 — One route for a new and an existing program.** `programs/new` and `programs/:programId/setup` are one route
+(`setupMatcher` in `app.routes.ts`, placed before `programs/:programId`, unit-tested), loaded with `loadChildren` from
+`screens/program-setup/program-setup.routes.ts` like every screen with its own icons. Creating a program navigates to its setup URL with
+`replaceUrl`, and the same `SetupWorkspace` instance goes on to Courses. A route guard sends anyone but a contributor or
+administrator from `/programs/new` to the home screen; the title resolver names the page "New program" or "Program setup".
+The rail lists "Program setup" (`phosphorWrench`, in `SHELL_ICONS`) after Program overview for every role; the home
+screen shows "New program" to contributors and administrators, and the program switcher's footer has a "New program"
+link for them. Rejected: two routes (Angular would rebuild the screen between them and the stepper would restart).
+
+**D-286 — The Stepper's semantics are replaced.** PrimeNG's Stepper marks its root a `tablist` holding presentation steps
+with `aria-current` and its panels as `tabpanel`s whose `aria-controls` name ids that do not exist; axe reports
+`aria-required-children` (critical) and `aria-valid-attr-value`. Through pass-through the root has no role, the step
+list is a `list` named "Setup steps", each step a `listitem`, and each step is a button with `aria-current="step"` when
+open (the WAI pattern for a step sequence); a panel has no role, and the region inside it is named by its step's button.
+Each step button carries number, name, a short status ("2 courses", "1 still reading", "2 missing", "Ready") and
+"done"; a finished step shows a check, the open one the accent number. Steps are freely navigable once the program
+exists; on `/programs/new` Details and States are open (both are the create form), the rest are disabled. The spec says
+"only Details is enabled", but the target states are part of `POST /programs`, so States must be reachable before it.
+
+**D-287 — Details and States.** Details: name, license type (an editable PrimeNG Select over the license types the
+tenant's rule versions use, so another can be typed), catalog year; "Next" checks the required fields and lengths the
+server would refuse. States: a MultiSelect of jurisdictions ("Arizona (AZ)") with filter and the StateMap `mini` beside
+it as a picture of the choice (non-interactive, hidden from assistive technology; "2 of 51 chosen" is its caption). The
+mini map is a picture rather than a second control: its 16 px tiles would be 51 more tab stops with no room for names,
+and the MultiSelect is the accessible control. The MultiSelect shows the chosen states as text, not chips: PrimeNG's chip
+remove icons are focusable inside `aria-hidden` (axe `aria-hidden-focus`, serious). After creation both steps are
+read-only with "Fixed once created" and an InfoTip holding the spec's sentence.
+
+**D-288 — Courses: one request per new course (disagreement with the spec).** The spec has the Add course dialog call
+`POST /programs/{id}/courses` and then `POST /courses/{id}/versions`. `POST /programs/{id}/courses` already creates the
+course with its first version for the program's catalog year (D-039), so the second call would give every new course two
+versions and open a COURSE_VERSION change event, stale mappings and reopened determinations for nothing. The dialog
+therefore shows the catalog year as the program's (fixed) and makes one call; "New catalog year" is the way to a later
+year (it supersedes the current version, with the one-line warning that it opens a change). A 409 on a new course is
+shown under its code ("SCHC 501 already exists in this program"); other server words appear in a Message.
+
+**D-289 — Documents.** A target Select ("Program documents" or a course) and a PrimeNG FileUpload in custom mode (choose
+button and drop zone; `accept=".pdf,.docx,.txt"`, no client size or type rule) feed an `UploadQueue` (plain signals,
+Vitest): a file going into a course is a syllabus of the course's current version, into the program a degree plan; each
+waiting file can change its kind and, for a syllabus, its course version. "Upload n files" posts them one after the
+other; each row then follows its document through Uploading, Reading and Ready (n pages) or Failed (the server's words, or
+the ingest job's error). A 409 naming `existingDocumentId` is "Already uploaded" with a link that opens the existing
+document. Below, the documents are grouped like F4's picker (program documents, then each course, current year first)
+and each ready one opens read-only in `DocumentViewer` inside a sheet (D-293).
+
+**D-290 — Reading status.** `GET /programs/{id}/documents` has no ingest status (D-263), so a listed document without
+pages counts as being read until `GET /documents/{id}` says otherwise; failed, or done without a page, is "Not readable"
+(`documentState`, Vitest). `SetupStore` asks after every document still being read every 2 s while the tab is visible,
+refreshes the list when one finishes, and stops when none is left. No backend change was needed (spec point 7).
+
+**D-291 — Program facts.** The rows are the numeric fields used by the approved rule versions an assessment started today
+would use for the program's states and license type: `assessedVersion` mirrors `RuleVersionRepository.findApprovedVersion`
+(approved, in effect today, latest effective date then newest entry), and `numericFieldsUsed` reads their requirement
+lists (one `GET /rule-versions/{id}/requirements` per state, fetched once). Each row shows the newest fact (value, quote in
+Document type, file, page, date) with earlier ones under History, or "Not recorded". "Record" opens a sheet: the value,
+the shared document picker, `DocumentViewer` with `selectable`; the passage must be selected on the page (mouse or the
+keyboard range dialog), the server verifies it (rule 2) and a 400 is shown under the passage. When the passage does not
+show the number as written (`quoteShowsValue`: its digits, with or without thousands separators) a warning appears; it
+never blocks.
+
+**D-292 — Readiness and the first assessment.** `programReadiness(program, courses, documents, facts, ruleVersions,
+requirements, today)` is the one checklist (Vitest): rules for every state (blocking; names the states, links to Rules),
+a ready document for every course's current version (blocking; names the courses), nothing still being read (blocking),
+every number recorded (warning, with the sentence that the rules engine reports it as missing evidence). Two additions to
+the spec's signature: the requirement lists (the facts line needs them) and today's date (the rules line needs it, and it
+keeps the function pure). A program without courses gets a warning line "No courses yet" instead of a vacuous green line.
+Every line has an icon and words plus a visually hidden "Done", "Blocks the run" or "Warning". "Run assessment"
+(contributors, administrators and reviewers, as the spec lists) is disabled while a blocking line fails. The run is
+followed every 2 s: `GET /assessments/{id}` carries per-state mapping totals, so the ring shows requirements assessed
+out of the requirements of the assessed versions; it ends in a toast, a live-region sentence and "Open Review", and
+`ProgramContext.refreshAfterChange` loads the new assessment for Review. No progress field was added to the backend.
+
+**D-293 — A shared sheet and a shared document picker.** Three drawers now exist (answer evidence, read a document, record
+a fact), so F4's drawer pattern (D-265: own backdrop, Escape only from inside, heading focused on show, pass-through to a
+named modal dialog) is one component, `shared/sheet/sheet.ts`, in two sizes (wide 70 %, narrow 40 rem; full width under
+1024 px); the evidence drawer uses it too. F4's grouped picker (`documentGroups` and the earlier-years switch) moved to
+`shared/document-picker/` with its tests, used by the evidence drawer and the fact sheet.
+
+**D-294 — End-to-end without a match script.** The e2e backend scripts only extractions; match scripts need document ids
+that exist only after a seed (D-280), so any requirement that reached the model would fail the run. The fixture syllabi
+(`e2e/fixtures/schc501-syllabus.pdf`, made from `fixtures/docs/` with `SeedPdfGenerator`, and `schc520-syllabus.docx`,
+a minimal WordprocessingML file; both labelled fictional) share no word with Arizona's or California's subject
+requirements, titles or search terms, so every such requirement has no candidate passage and is reported missing without
+a model call, and the numeric ones are checked by the rules engine. That is what the product does with such documents.
+`setup.spec.ts` runs as its own Playwright project after `register`: once it has created a second program, the home
+screen lists programs instead of opening the only one, which the other specs' sign-in expects.
+
+## Rules, requests and the rest (D-350 to D-359)
+
+**D-350 — Rules as one hero.** The version list and the selected version share one raised panel: the list on the inset
+colour with state-code tiles for groups and each version's status as a coloured icon and a word (`RULE_STATUS.tone`, one
+table with the Tag severity the header uses); the selected version is lifted onto the surface. The detail header is the
+focal point: state, the label at Title size, license, effective date and source as pills, the status Tag and the
+approval line, and the requirement count as a Stat. Paragraphs moved into InfoTips (page, new-version dialog, edit
+grid). Extraction states are empty states with a 32 px duotone icon (the spinner turns) and one sentence.
+
+**D-351 — Search terms are editable chips (F7c point 5).** The edit grid's second line holds the text and a "Search
+terms" cell: PrimeNG AutoComplete in multiple mode without suggestions (Enter, a comma or leaving the field adds a term).
+`applyTerms` (Vitest) normalises as the server stores (trim, collapse spaces, lower case), splits pasted lists, drops
+blanks and repeats, and refuses a term over 40 characters or a thirteenth with a sentence under the cell; the count reads
+"3 of 12". Terms are part of the editor's dirty check now (D-259 had them pass through). After a save the screen counts the
+terms the server's normaliser dropped (`droppedTerms`) and says so in the notice. The read-only table has a "Search terms"
+column of pills. Enter in the cell must not submit the list form, so it is prevented on the cell. PrimeNG renders the
+chips as an unnamed `listbox` of `option`s holding controls (axe `aria-input-field-name`, `nested-interactive`, both
+serious); pass-through makes them a named list of items.
+
+**D-352 — The title takes the free width (F3b follow-up).** One line needs 50.25 rem (ref 6, title at least 10, type 8.5,
+check 17.75 and actions 6, four gaps); a narrower pane uses two lines, where the check controls grow with the row so the
+field names are no longer cut. At 1440 px the pane is about 760 px, so the grid is two lines there; the e2e test still
+checks no sideways scroll at 1024, 1280 and 1440 px.
+
+**D-353 — `SEARCH_TERMS` in Compare.** A row whose changes include `SEARCH_TERMS` shows "Search terms" with the old list and
+the new one as pills, removed terms struck through in `del` and added ones underlined in `ins` (status colour on its tint,
+plus hidden "removed:" and "added:"), never colour alone (`termsDiff`, Vitest). The summary counts are four pills with
+their icons and count up on first view.
+
+**D-354 — Requests: signed requests are blocked (FIX-3).** `blockedReason(row)` is SIGNED (a signature outranks staleness,
+since a re-run does not lift it) or STALE; both show the Blocked tag, a short reason in the row ("Signed", "Waiting for a
+re-run") and the sentence behind an InfoTip. The rail badge (`awaitingAnswer`) counts open requests that are not signed:
+a signed one can never be answered, as the work queue already treats it (D-361); stale ones still count. The inbox is
+the screen's hero panel with the segmented filter and a "n blocked" note; rows enter with the stagger; the empty state is
+one sentence with "Open Review". "Answered, awaiting review" became "Answered" with "With the reviewer" in the action
+column (word budget).
+
+**D-355 — The answer drawer in v2.** The requirement card (state tile, ref, title, rule text in Document type) with the
+request as a quoted card with the asker's initials; then three numbered parts (document, passage, comment); the
+selected passage in Document type on the accent tint; the empty page area is a duotone placeholder. Behaviour is F4's.
+
+**D-356 — Token sets per chunk.** New Lexvay sets: Drawer (raised, e3, 20 px title), Stepper (accent number, line
+separators, panels on the page), FileUpload (inset drop zone, accent edge), MultiSelect with its Checkbox and Chip sets,
+Chip (pills). Setup registers Stepper, FileUpload, MultiSelect, ToggleSwitch, Drawer, Dialog, InputText, InputNumber,
+Select, ProgressBar and the shared ones from `setup-theme.ts`; Rules adds AutoComplete and Chip; Requests uses the Lexvay
+Drawer instead of Aura's. Nothing joins the shared preset.
+
+**D-357 — Shared CSS.** `styles.css` gains `.lx-title-row` (title and InfoTip), `.lx-empty-state`, `.lx-state-code`, and
+the sheet pieces two screens share (`.lx-numbered`, `.lx-passage`, `.lx-placeholder`). Links drawn as PrimeNG buttons
+(`<a pButton>`, "Open Review", "New program") are no longer underlined (`a.p-button` in the `lexvay` layer); main's
+merge already keeps their colours.
+
+**D-358 — Bundle.** Initial bundle 608.88 kB raw, 156.43 kB transfer after merging main (606.77 kB on the main this item
+started from; the wrench icon in the shell's copy, the rail entry, the switcher's footer and the shared CSS), under the
+680 kB warning. Lazy: `setup-routes` 236.5 kB raw (43.7 kB transfer), `rules-routes` 278.6 kB. Nothing joined the preset.
+
+**D-359 — Tests.** Vitest: `search-terms.spec.ts` (chip model, Compare marks, dropped count), `setup-model.spec.ts`
+(assessed version, numeric fields, readiness, document state, first open step, quote check, history),
+`upload-queue.spec.ts`, `evidence-requests.spec.ts` (signed and stale blocked, badge count), the editor's terms, the
+moved picker tests, `app.routes.spec.ts` (setup matcher); `icons.spec.ts` has a setup unit. Playwright: `setup.spec.ts`
+(the whole setup to Review, a duplicate upload, a reviewer's read-only pass, 400 px, axe at every step in both themes),
+`rules.spec.ts` (terms editing, the dropped-term notice, a terms-only Compare row from a modified diff response),
+`evidence-requests.spec.ts` (stale and signed blocked rows with their InfoTips and the badge), screenshots
+`ui2-4-*` in both themes at 1440 and 400 px.
+
+## Review round 1 (orchestrator, PR #43)
+
+- **Rules opens on a version (amends D-350).** Without a version in the address, Rules navigates (with `replaceUrl`, the
+  query kept) to `openingVersion(groups)`: the first version in list order that waits for a person (needs approval or
+  extraction failed), otherwise the newest approved version of the first state with one. The empty detail remains only
+  for a tenant without versions. Vitest covers the three cases; the e2e test checks the opened version and that Back
+  does not return to an empty Rules.
+- **Setup says what happened through the toast only (amends D-292).** Every step reports a `SetupNotice`; the workspace
+  shows it as a toast and puts the same words in a visually hidden polite live region (`data-testid="message"`). Nothing
+  stays between the title and the stepper.
+- **Request cards name the answer count.** In the card layout (under 720 px) the count reads "No answers", "1 answer",
+  "N answers" (`answersText`, Vitest); the table keeps the number under its "Answers" header.
+- **Phone bar.** F5b's bottom-bar overflow (`NavLink.priority`, `tabSlots`, `tabBarOverflow`) decides what goes behind
+  "More". Program setup has priority 65, just below Changes (70) and above the register (60): at 400 px it keeps its tab
+  for every role, and Evidence report and Audit trail (and People for administrators) go behind More. Unit tests cover
+  every role at 400 px and the shrinking order; the e2e suite checks the bar does not scroll for a reviewer, a
+  contributor and an administrator. An interim menu of this item's own was dropped in favour of F5b's.
+- **Folder.** F5b's password screen took `screens/setup/`, so program setup lives in `screens/program-setup/`
+  (`SetupWorkspace`, `PROGRAM_SETUP_ICONS`, chunk `program-setup-routes`).

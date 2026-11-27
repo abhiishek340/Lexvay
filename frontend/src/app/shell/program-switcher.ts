@@ -1,10 +1,11 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import auraSelect from '@primeuix/themes/aura/select';
 import { Select } from 'primeng/select';
 import { Tooltip } from 'primeng/tooltip';
 import { ProgramContext } from '../core/program-context';
+import { SessionService } from '../core/session.service';
 import { registerComponentTokens } from '../theme/component-tokens';
 
 /** About as many characters as the 360 px pill holds at 13 px. */
@@ -25,12 +26,19 @@ export function truncateAtWord(text: string, max: number): string {
  */
 @Component({
   selector: 'lx-program-switcher',
-  imports: [FormsModule, Select, Tooltip],
+  imports: [FormsModule, RouterLink, Select, Tooltip],
   template: `
     <p-select class="lx-program" [options]="context.programs()" optionLabel="name" optionValue="id" [ngModel]="programId()"
               (ngModelChange)="switchTo($event)" [ariaLabel]="'Program, ' + name()" size="small" appendTo="body"
               [pTooltip]="name()" tooltipPosition="bottom" [tooltipDisabled]="shortName() === name()" [showDelay]="300">
       <ng-template #selectedItem>{{ shortName() }}</ng-template>
+      <ng-template #footer>
+        @if (session.canSetUp()) {
+          <div class="lx-switcher-footer">
+            <a routerLink="/programs/new" class="lx-switcher-new">New program</a>
+          </div>
+        }
+      </ng-template>
     </p-select>
   `,
   styles: `
@@ -41,10 +49,16 @@ export function truncateAtWord(text: string, max: number): string {
     }
     :host ::ng-deep .lx-program.p-select:hover { background: var(--p-lx-line); border-color: transparent; }
     :host ::ng-deep .lx-program .p-select-label { font-weight: 550; padding-left: 0.875rem; white-space: nowrap; }
+    .lx-switcher-footer { padding: 0.375rem; border-top: 1px solid var(--p-lx-line); }
+    .lx-switcher-new {
+      display: flex; align-items: center; gap: 8px; padding: 0.5rem 0.75rem; border-radius: 6px; font-weight: 550; text-decoration: none;
+    }
+    .lx-switcher-new:hover { background: var(--p-lx-surface-2); }
   `,
 })
 export class ProgramSwitcher {
   readonly context = inject(ProgramContext);
+  readonly session = inject(SessionService);
   private readonly router = inject(Router);
   readonly programId = input<string | null>(null);
   /** The screen to keep when switching ("overview", "review", ...). */

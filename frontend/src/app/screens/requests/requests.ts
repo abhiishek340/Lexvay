@@ -1,8 +1,10 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorArrowsClockwise, phosphorCaretDown, phosphorCaretRight, phosphorCheckCircle, phosphorEnvelopeOpen, phosphorPaperPlaneTilt, phosphorQuotes } from '@ng-icons/phosphor-icons/regular';
+import { phosphorFilesDuotone, phosphorTrayDuotone } from '@ng-icons/phosphor-icons/duotone';
+import { phosphorCaretRight, phosphorCheckCircle, phosphorEnvelopeOpen, phosphorLockSimple, phosphorPaperPlaneTilt, phosphorQuotes } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -10,22 +12,34 @@ import { SelectButton } from 'primeng/selectbutton';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { Tag } from 'primeng/tag';
-import { REQUEST_FILTERS, RequestFilter, RequestState, canAnswer, matchesRequestFilter, requestCounts, requestState } from '../../core/evidence-requests';
+import { BlockedReason, REQUEST_FILTERS, RequestFilter, RequestState, answersText, blockedReason, canAnswer, matchesRequestFilter, requestCounts, requestState } from '../../core/evidence-requests';
 import { EvidenceRequest, EvidenceResponse } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { registerComponentTokens } from '../../theme/component-tokens';
 import type { IconName } from '../../theme/icons';
+import { Enter } from '../../ui/enter';
+import { InfoTip } from '../../ui/info-tip';
+import { initials } from '../../ui/initials';
 import { EvidenceDrawer } from './evidence-drawer';
 import { REQUESTS_TOKENS } from './requests-theme';
 
 /** The icons the inbox and its answer drawer show beyond SHELL_ICONS, provided by its route (requests.routes.ts). */
-export const REQUESTS_ICONS = { phosphorArrowsClockwise, phosphorCaretDown, phosphorCaretRight, phosphorCheckCircle, phosphorEnvelopeOpen, phosphorPaperPlaneTilt, phosphorQuotes };
+export const REQUESTS_ICONS = {
+  phosphorCaretRight, phosphorCheckCircle, phosphorEnvelopeOpen, phosphorLockSimple, phosphorPaperPlaneTilt, phosphorFilesDuotone, phosphorQuotes, phosphorTrayDuotone,
+};
 
-export const REQUEST_STATE: Record<RequestState, { label: string; icon: IconName; severity: 'info' | 'success' | 'warn' }> = {
-  OPEN: { label: 'Open', icon: 'phosphorEnvelopeOpen', severity: 'info' },
-  ANSWERED: { label: 'Answered, awaiting review', icon: 'phosphorCheckCircle', severity: 'success' },
-  BLOCKED: { label: 'Blocked', icon: 'phosphorArrowsClockwise', severity: 'warn' },
+/** One word and one shape per state; the Tag colour only repeats them. */
+export const REQUEST_STATE: Record<RequestState, { key: RequestState; label: string; icon: IconName; severity: 'info' | 'success' | 'warn' }> = {
+  OPEN: { key: 'OPEN', label: 'Open', icon: 'phosphorEnvelopeOpen', severity: 'info' },
+  ANSWERED: { key: 'ANSWERED', label: 'Answered', icon: 'phosphorCheckCircle', severity: 'success' },
+  BLOCKED: { key: 'BLOCKED', label: 'Blocked', icon: 'phosphorLockSimple', severity: 'warn' },
+};
+
+/** Why a blocked request has no answer action: a few words in the row, the sentence behind an InfoTip. */
+export const BLOCKED_TEXT: Record<BlockedReason, { short: string; why: string }> = {
+  STALE: { short: 'Waiting for a re-run', why: 'This requirement is waiting for a re-run after a change; answer it after the re-run.' },
+  SIGNED: { short: 'Signed', why: 'A signed determination already covers this requirement, so the request can no longer be answered.' },
 };
 
 /**
@@ -35,7 +49,7 @@ export const REQUEST_STATE: Record<RequestState, { label: string; icon: IconName
  */
 @Component({
   selector: 'lx-requests',
-  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, SelectButton, Skeleton, TableModule, Tag, EvidenceDrawer],
+  imports: [DatePipe, FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, SelectButton, Skeleton, TableModule, Tag, Enter, InfoTip, EvidenceDrawer],
   templateUrl: './requests.html',
   styleUrl: './requests.css',
 })
@@ -46,10 +60,15 @@ export class Requests {
   readonly programId = input.required<string>();
   readonly filters = REQUEST_FILTERS;
   readonly canAnswer = canAnswer;
+  readonly answersText = answersText;
+  readonly blockedText = BLOCKED_TEXT;
+  readonly initials = initials;
 
   readonly filter = signal<RequestFilter>('OPEN');
   readonly rows = computed(() => this.context.evidenceRequests().filter((r) => matchesRequestFilter(r, this.filter())));
   readonly counts = computed(() => requestCounts(this.context.evidenceRequests()));
+  readonly blockedCount = computed(() => this.context.evidenceRequests().filter((r) => requestState(r) === 'BLOCKED').length);
+  readonly emptyText = computed(() => EMPTY[this.filter()]);
   /** PrimeNG's row expansion state, keyed by mapping id. */
   expanded: Record<string, boolean> = {};
   readonly error = signal<string | null>(null);
@@ -83,8 +102,8 @@ export class Requests {
     return REQUEST_STATE[requestState(row)];
   }
 
-  blocked(row: EvidenceRequest): boolean {
-    return requestState(row) === 'BLOCKED';
+  blocked(row: EvidenceRequest): BlockedReason | null {
+    return blockedReason(row);
   }
 
   setFilter(filter: RequestFilter | null): void {
@@ -131,6 +150,13 @@ export class Requests {
     }
   }
 }
+
+/** Empty states are one sentence (DESIGN.md "States and feedback"). */
+const EMPTY: Record<RequestFilter, string> = {
+  OPEN: 'No open evidence requests.',
+  ANSWERED: 'No answered requests are waiting for review.',
+  ALL: 'No evidence requests yet.',
+};
 
 function headingOf(doc: Document): HTMLElement | null {
   const heading = doc.querySelector<HTMLElement>('main h1');

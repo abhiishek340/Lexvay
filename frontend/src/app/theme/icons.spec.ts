@@ -12,6 +12,7 @@ import { REQUESTS_ICONS } from '../screens/requests/requests';
 import { REPORT_ICONS } from '../screens/report/report';
 import { REVIEW_ICONS } from '../screens/review/review';
 import { RULES_ICONS } from '../screens/rules/rules';
+import { PROGRAM_SETUP_ICONS } from '../screens/program-setup/program-setup';
 import { SETUP_ICONS } from '../screens/setup/setup';
 import { ACCOUNT_MENU_ICONS } from '../shell/account-menu';
 import { SHELL_TOAST_ICONS } from '../shell/shell-toast';
@@ -46,6 +47,7 @@ const UNITS: Unit[] = [
   { name: 'requests', entries: ['screens/requests/requests.ts'], registered: REQUESTS_ICONS },
   { name: 'changes', entries: ['screens/changes/changes.ts'], registered: CHANGES_ICONS },
   { name: 'rules', entries: ['screens/rules/rules.ts'], registered: RULES_ICONS },
+  { name: 'program setup', entries: ['screens/program-setup/program-setup.ts'], registered: PROGRAM_SETUP_ICONS },
   { name: 'report', entries: ['screens/report/report.ts'], registered: REPORT_ICONS },
   { name: 'register', entries: ['screens/register/register.ts'], registered: REGISTER_ICONS },
   { name: 'audit', entries: ['screens/audit/audit.ts'], registered: AUDIT_ICONS },

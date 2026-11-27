@@ -2,10 +2,10 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, switchMap } from 'rxjs';
 import {
-  Account, AssessmentView, AuditEntry, ChangeEvent, CoverageMatrix, DecisionKind, Determination, DeterminationLists, DocumentPage, EvidenceRequest,
-  EvidenceResponse, EvidenceResponseBody, Jurisdiction, Mapping, MappingsView, NewRuleVersion, NewUser, Outcome, Program, ProgramDocument, ProgramOverview,
-  RegisterFilter, RegisterRow, RequirementDraft, RequirementsView, Role, RuleVersionDiff, RuleVersionView, SessionView, UserSetup, UserSummary, UserView,
-  WorkQueue,
+  Account, AssessmentView, AuditEntry, ChangeEvent, Course, CoverageMatrix, DecisionKind, Determination, DeterminationLists, DocumentKind, DocumentPage,
+  DocumentView, EvidenceRequest, EvidenceResponse, EvidenceResponseBody, Jurisdiction, Mapping, MappingsView, NewCourse, NewCourseVersion, NewProgram,
+  NewProgramFact, NewRuleVersion, NewUser, Outcome, Program, ProgramDocument, ProgramFact, ProgramOverview, RegisterFilter, RegisterRow, RequirementDraft,
+  RequirementsView, Role, RuleVersionDiff, RuleVersionView, SessionView, UploadResult, UserSetup, UserSummary, UserView, WorkQueue,
 } from './models';
 import { REGISTER_PATH, registerQuery } from './register';
 import { ReportAnswer, readReport } from './report-answer';
@@ -29,6 +29,13 @@ export class ApiService {
 
   programs(): Observable<Program[]> { return this.http.get<Program[]>(`${this.base}/programs`); }
   programOverview(id: string): Observable<ProgramOverview> { return this.http.get<ProgramOverview>(`${this.base}/programs/${id}/overview`); }
+  createProgram(body: NewProgram): Observable<Program> { return this.http.post<Program>(`${this.base}/programs`, body); }
+  courses(programId: string): Observable<Course[]> { return this.http.get<Course[]>(`${this.base}/programs/${programId}/courses`); }
+  createCourse(programId: string, body: NewCourse): Observable<Course> { return this.http.post<Course>(`${this.base}/programs/${programId}/courses`, body); }
+  /** A new catalog-year version; it opens a change event for every assessment that cited the version it supersedes. */
+  addCourseVersion(courseId: string, body: NewCourseVersion): Observable<Course> { return this.http.post<Course>(`${this.base}/courses/${courseId}/versions`, body); }
+  facts(programId: string): Observable<ProgramFact[]> { return this.http.get<ProgramFact[]>(`${this.base}/programs/${programId}/facts`); }
+  recordFact(programId: string, body: NewProgramFact): Observable<ProgramFact> { return this.http.post<ProgramFact>(`${this.base}/programs/${programId}/facts`, body); }
   jurisdictions(): Observable<Jurisdiction[]> { return this.http.get<Jurisdiction[]>(`${this.base}/jurisdictions`); }
   ruleVersions(): Observable<RuleVersionView[]> { return this.http.get<RuleVersionView[]>(`${this.base}/rule-versions`); }
   /** 202: the version is stored and its requirement extraction runs as a job. */
@@ -118,6 +125,14 @@ export class ApiService {
     return this.http.get<AuditEntry[]>(`${this.base}/audit`, { params: { ...filters, limit, offset } });
   }
 
+  /** 202: the file is stored and its text is read by a job; GET /documents/{id} tells how far it got. */
+  uploadDocument(programId: string, file: File, kind: DocumentKind, courseVersionId: string | null): Observable<UploadResult> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    const params: Record<string, string> = courseVersionId ? { kind, courseVersionId } : { kind };
+    return this.http.post<UploadResult>(`${this.base}/programs/${programId}/documents`, form, { params });
+  }
+  document(documentId: string): Observable<DocumentView> { return this.http.get<DocumentView>(`${this.base}/documents/${documentId}`); }
   programDocuments(programId: string): Observable<ProgramDocument[]> { return this.http.get<ProgramDocument[]>(`${this.base}/programs/${programId}/documents`); }
   /** Immutable and cached by the browser for a year (D-112); read through DocumentPageCache. */
   documentPage(documentId: string, pageNumber: number): Observable<DocumentPage> {

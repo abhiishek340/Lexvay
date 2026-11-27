@@ -9,6 +9,7 @@ import { RuleVersionView, UserSummary } from '../../core/models';
 import { ProgramContext } from '../../core/program-context';
 import { ruleVersionStatus } from '../../core/rules';
 import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
+import { Stat } from '../../ui/stat';
 import { RequirementsPanel } from './requirements-panel';
 import { RULE_STATUS } from './rule-status';
 import { RuleCompare } from './rule-compare';
@@ -21,7 +22,7 @@ type DetailTab = 'requirements' | 'text' | 'compare';
 /** One rule version: what it is, where it stands, and its three tabs. */
 @Component({
   selector: 'lx-rule-version-detail',
-  imports: [DatePipe, NgIcon, Message, Tab, TabList, TabPanel, TabPanels, Tabs, Tag, DocumentViewer, RequirementsPanel, RuleCompare],
+  imports: [DatePipe, NgIcon, Message, Tab, TabList, TabPanel, TabPanels, Tabs, Tag, DocumentViewer, Stat, RequirementsPanel, RuleCompare],
   templateUrl: './rule-version-detail.html',
   styleUrl: './rule-version-detail.css',
 })

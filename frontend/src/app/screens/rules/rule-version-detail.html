@@ -1,38 +1,40 @@
 @let v = version();
 <article class="lx-detail" aria-labelledby="version-heading">
   <header class="lx-detail-head">
-    <p class="lx-label">{{ jurisdictionName() }} <span class="lx-mono">{{ v.jurisdiction }}</span></p>
-    <h2 id="version-heading" class="lx-detail-title" tabindex="-1">{{ v.label }}</h2>
-    <dl class="lx-facts">
-      <div><dt>License type</dt><dd>{{ license() }}</dd></div>
-      <div><dt>Effective</dt><dd class="lx-mono">{{ v.effectiveFrom }}</dd></div>
-      <div>
-        <dt>Source</dt>
-        <dd><a class="lx-inline" [href]="v.sourceUrl" target="_blank" rel="noopener noreferrer">{{ v.sourceUrl }}<ng-icon name="phosphorArrowSquareOut" size="12" aria-hidden="true" /><span class="lx-sr-only">(opens in a new tab)</span></a></dd>
-      </div>
-    </dl>
-    <p class="lx-state" data-testid="version-state">
-      <p-tag [severity]="statusView().severity" [value]="statusView().label">
-        <ng-template #icon><ng-icon [name]="statusView().icon" size="14" aria-hidden="true" [class.lx-spin]="status() === 'EXTRACTING'" /></ng-template>
-      </p-tag>
-      @if (v.approval; as a) {
-        <span>Approved by {{ approverName() }} on <time class="lx-mono" [attr.datetime]="a.at">{{ a.at | date: 'yyyy-MM-dd' }}</time></span>
-      } @else {
-        <span class="lx-muted">Not approved</span>
-      }
-    </p>
-    @if (status() === 'EXTRACTION_FAILED') {
-      <div class="lx-extraction-failed" data-testid="extraction-failed">
-        <p-message severity="warn" size="small">Requirement extraction did not produce a list. A reviewer can enter the list by hand with Edit list.</p-message>
-        @if (v.extraction?.error; as technical) {
-          <details class="lx-technical">
-            <summary>Technical detail</summary>
-            <p class="lx-mono">{{ technical }}</p>
-          </details>
+    <div class="lx-detail-main">
+      <p class="lx-detail-state"><span class="lx-state-code">{{ v.jurisdiction }}</span>{{ jurisdictionName() }}</p>
+      <h2 id="version-heading" class="lx-detail-title" tabindex="-1">{{ v.label }}</h2>
+      <ul class="lx-pills" aria-label="Version facts">
+        <li class="lx-pill">{{ license() }}</li>
+        <li class="lx-pill"><span class="lx-pill-key">Effective</span><span class="lx-mono">{{ v.effectiveFrom }}</span></li>
+        <li class="lx-pill">
+          <a [href]="v.sourceUrl" target="_blank" rel="noopener noreferrer" class="lx-pill-link">Source<ng-icon name="phosphorArrowSquareOut" size="12" aria-hidden="true" /><span class="lx-sr-only">(opens in a new tab)</span></a>
+        </li>
+      </ul>
+      <p class="lx-state" data-testid="version-state">
+        <p-tag [severity]="statusView().severity" [value]="statusView().label">
+          <ng-template #icon><ng-icon [name]="statusView().icon" size="14" aria-hidden="true" [class.lx-spin]="status() === 'EXTRACTING'" /></ng-template>
+        </p-tag>
+        @if (v.approval; as a) {
+          <span>Approved by {{ approverName() }} on <time class="lx-mono" [attr.datetime]="a.at">{{ a.at | date: 'yyyy-MM-dd' }}</time></span>
+        } @else {
+          <span class="lx-muted">Not approved</span>
         }
-      </div>
-    }
+      </p>
+    </div>
+    <lx-stat class="lx-detail-stat" [value]="v.requirementCount" label="Requirements" />
   </header>
+  @if (status() === 'EXTRACTION_FAILED') {
+    <div class="lx-extraction-failed" data-testid="extraction-failed">
+      <p-message severity="warn" size="small">Requirement extraction did not produce a list. A reviewer can enter the list by hand with Edit list.</p-message>
+      @if (v.extraction?.error; as technical) {
+        <details class="lx-technical">
+          <summary>Technical detail</summary>
+          <p class="lx-mono">{{ technical }}</p>
+        </details>
+      }
+    </div>
+  }
 
   <p-tabs class="lx-detail-tabs" [value]="tab()" (valueChange)="selectTab($event)">
     <p-tablist>
