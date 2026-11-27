@@ -73,10 +73,12 @@ public class RuleSourceService {
         return id;
     }
 
+    @Transactional(readOnly = true)
     public List<RuleSourceView> list() {
         return sources.list();
     }
 
+    @Transactional(readOnly = true)
     public List<RuleSourceCheck> checks(UUID id, int limit) {
         return sources.checks(id, limit).orElseThrow(() -> new NotFoundException("Rule source not found"));
     }
