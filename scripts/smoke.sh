@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
-# Builds the production image, runs it against its own PostgreSQL, and proves the whole path a user takes:
-# the app shell on a deep link, sign-in through the container, an API call, a problem detail with a request
-# id, the usage endpoint, the metrics on the management port, structured logs, and a graceful stop.
-# Several checkouts can run at once: LEXVAY_E2E_SLOT (0-9) shifts the ports and the compose project.
-#   slot 0: PostgreSQL :5433, app :8081, management :8091   (slot n adds n to each)
+# Runs the production image against its own PostgreSQL and proves the whole path a user takes: the app shell on a
+# deep link, sign-in through the container, an API call, a problem detail with a request id, the usage endpoint,
+# the metrics on the management port, structured logs, and a graceful stop.
+#   scripts/smoke.sh               builds the image as lexvay:local first (what `make smoke` does)
+#   scripts/smoke.sh <image-tag>   tests an image that already exists (CI passes lexvay:ci-<sha>); nothing is built
+# The Docker daemon is the one the docker CLI already points at: DOCKER_HOST when set, otherwise the default.
+# The compose project and the ports come from scripts/lib/stack.sh, so several checkouts can run at once:
+# LEXVAY_E2E_SLOT (0-9) shifts them. Slot 0: PostgreSQL :5433, app :8081, management :8091 (slot n adds n to each).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-SLOT="${LEXVAY_E2E_SLOT:-0}"
-export LEXVAY_DB_PORT=$((5433 + SLOT))
+source scripts/lib/stack.sh
+stack_init smoke
+IMAGE="${1:-}"
+export LEXVAY_IMAGE="${IMAGE:-lexvay:local}"
 export LEXVAY_APP_PORT=$((8081 + SLOT))
 export LEXVAY_APP_MANAGEMENT_PORT=$((8091 + SLOT))
 APP="http://localhost:$LEXVAY_APP_PORT"
 MGMT="http://localhost:$LEXVAY_APP_MANAGEMENT_PORT"
 EMAIL="priya.raman@northfield.example"
 PASSWORD="${LEXVAY_DEMO_PASSWORD:-lexvay-demo}"
-COMPOSE="docker compose -p lexvay-smoke-$SLOT -f docker-compose.yml --profile app"
-WORK="$(mktemp -d)"
-cleanup() {
-  $COMPOSE down -v >/dev/null 2>&1 || true
-  rm -rf "$WORK"
-}
-trap cleanup EXIT
+COMPOSE="$COMPOSE --profile app"
+WORK="$LEXVAY_FILESTORE_PATH"
 
 fail() { echo "smoke: FAIL: $*" >&2; $COMPOSE logs --no-color app 2>&1 | tail -40 >&2; exit 1; }
 expect() { # expect <description> <actual> <expected>
@@ -33,9 +33,14 @@ contains() { # contains <description> <haystack> <needle>
 status() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 
 $COMPOSE down -v >/dev/null 2>&1 || true
-echo "smoke: building the image"
-$COMPOSE build app >/dev/null
-SIZE=$(docker image inspect lexvay:local --format '{{.Size}}')
+if [ -n "$IMAGE" ]; then
+  docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "smoke: image $IMAGE does not exist" >&2; exit 1; }
+  echo "smoke: testing the existing image $IMAGE"
+else
+  echo "smoke: building the image (LEXVAY_PRIMEUI_LICENSE is passed through; empty when unset)"
+  $COMPOSE build app >/dev/null
+fi
+SIZE=$(docker image inspect "$LEXVAY_IMAGE" --format '{{.Size}}')
 echo "smoke: image size $((SIZE / 1024 / 1024)) MiB"
 
 echo "smoke: starting the database and loading the demo tenants with the same image"
@@ -55,7 +60,7 @@ $COMPOSE logs --no-color app 2>&1 | grep -o 'Started LexvayApplication in [0-9.]
 echo "smoke: container"
 expect "runs as a non-root user" "$($COMPOSE exec -T app id -u)" "10001"
 expect "root filesystem is read-only" "$(docker inspect "$($COMPOSE ps -q app)" --format '{{.HostConfig.ReadonlyRootfs}}')" "true"
-LEFTOVERS=$(docker run --rm --entrypoint sh lexvay:local -c 'find / \( -name "*.java" -o -name ".m2" -o -name ".npm" -o -name node_modules -o -name pom.xml -o -name "*Test*.class" \) -not -path "/proc/*" -not -path "/sys/*" 2>/dev/null | head -3')
+LEFTOVERS=$(docker run --rm --entrypoint sh "$LEXVAY_IMAGE" -c 'find / \( -name "*.java" -o -name ".m2" -o -name ".npm" -o -name node_modules -o -name pom.xml -o -name "*Test*.class" \) -not -path "/proc/*" -not -path "/sys/*" 2>/dev/null | head -3')
 expect "no source, test, Maven or npm files in the image" "$LEFTOVERS" ""
 
 echo "smoke: app shell"

@@ -27,7 +27,7 @@ services:
       context: .
       args:
         LEXVAY_PRIMEUI_LICENSE: ${LEXVAY_PRIMEUI_LICENSE:-}
-    image: lexvay:local
+    image: ${LEXVAY_IMAGE:-lexvay:local}
     depends_on:
       db:
         condition: service_healthy
