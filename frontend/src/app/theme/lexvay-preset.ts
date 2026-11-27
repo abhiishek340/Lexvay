@@ -1,5 +1,27 @@
 import { definePreset } from '@primeuix/themes';
-import Aura from '@primeuix/themes/aura';
+import auraBase from '@primeuix/themes/aura/base';
+import auraBadge from '@primeuix/themes/aura/badge';
+import auraButton from '@primeuix/themes/aura/button';
+import auraDatatable from '@primeuix/themes/aura/datatable';
+import auraDialog from '@primeuix/themes/aura/dialog';
+import auraIconfield from '@primeuix/themes/aura/iconfield';
+import auraInputtext from '@primeuix/themes/aura/inputtext';
+import auraMenu from '@primeuix/themes/aura/menu';
+import auraMessage from '@primeuix/themes/aura/message';
+import auraPassword from '@primeuix/themes/aura/password';
+import auraProgressbar from '@primeuix/themes/aura/progressbar';
+import auraProgressspinner from '@primeuix/themes/aura/progressspinner';
+import auraRadiobutton from '@primeuix/themes/aura/radiobutton';
+import auraSelect from '@primeuix/themes/aura/select';
+import auraSelectbutton from '@primeuix/themes/aura/selectbutton';
+import auraSkeleton from '@primeuix/themes/aura/skeleton';
+import auraSplitter from '@primeuix/themes/aura/splitter';
+import auraTabs from '@primeuix/themes/aura/tabs';
+import auraTag from '@primeuix/themes/aura/tag';
+import auraTextarea from '@primeuix/themes/aura/textarea';
+import auraToast from '@primeuix/themes/aura/toast';
+import auraTogglebutton from '@primeuix/themes/aura/togglebutton';
+import auraTooltip from '@primeuix/themes/aura/tooltip';
 
 /**
  * The Lexvay design tokens (docs/DESIGN.md, "Tokens"), written once here as light-dark() pairs.
@@ -54,6 +76,17 @@ const severity = (fg: string, bg: string, border: string) => ({
 const ink = {
   50: '#EEF2F9', 100: '#DCE5F3', 200: '#B9CBE7', 300: '#9DB8E8', 400: '#6F8FC4', 500: '#3F6299',
   600: '#1B3A6B', 700: '#152E56', 800: '#102342', 900: '#0B182E', 950: '#060E1C',
+};
+
+
+/**
+ * Aura limited to the components Lexvay renders. The full Aura preset carries token sets for about 90
+ * components (130 kB of the initial bundle); PrimeNG needs tokens only for components on the page.
+ * A component added to a template must be added here too, or it renders without its theme.
+ */
+const Aura = {
+  ...auraBase,
+  components: { badge: auraBadge, button: auraButton, datatable: auraDatatable, dialog: auraDialog, iconfield: auraIconfield, inputtext: auraInputtext, menu: auraMenu, message: auraMessage, password: auraPassword, progressbar: auraProgressbar, progressspinner: auraProgressspinner, radiobutton: auraRadiobutton, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, splitter: auraSplitter, tabs: auraTabs, tag: auraTag, textarea: auraTextarea, toast: auraToast, togglebutton: auraTogglebutton, tooltip: auraTooltip },
 };
 
 export const LexvayPreset = definePreset(Aura, {
