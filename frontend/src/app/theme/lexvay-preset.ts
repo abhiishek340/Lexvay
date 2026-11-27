@@ -6,6 +6,7 @@ import auraButton from '@primeuix/themes/aura/button';
 import auraDatatable from '@primeuix/themes/aura/datatable';
 import auraDatepicker from '@primeuix/themes/aura/datepicker';
 import auraDialog from '@primeuix/themes/aura/dialog';
+import auraDrawer from '@primeuix/themes/aura/drawer';
 import auraIconfield from '@primeuix/themes/aura/iconfield';
 import auraInputnumber from '@primeuix/themes/aura/inputnumber';
 import auraInputtext from '@primeuix/themes/aura/inputtext';
@@ -24,6 +25,7 @@ import auraTabs from '@primeuix/themes/aura/tabs';
 import auraTag from '@primeuix/themes/aura/tag';
 import auraTextarea from '@primeuix/themes/aura/textarea';
 import auraToast from '@primeuix/themes/aura/toast';
+import auraToggleswitch from '@primeuix/themes/aura/toggleswitch';
 import auraTogglebutton from '@primeuix/themes/aura/togglebutton';
 import auraTooltip from '@primeuix/themes/aura/tooltip';
 
@@ -90,7 +92,7 @@ const ink = {
  */
 const Aura = {
   ...auraBase,
-  components: { accordion: auraAccordion, badge: auraBadge, button: auraButton, datatable: auraDatatable, datepicker: auraDatepicker, dialog: auraDialog, iconfield: auraIconfield, inputnumber: auraInputnumber, inputtext: auraInputtext, listbox: auraListbox, menu: auraMenu, message: auraMessage, password: auraPassword, progressbar: auraProgressbar, progressspinner: auraProgressspinner, radiobutton: auraRadiobutton, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, splitter: auraSplitter, tabs: auraTabs, tag: auraTag, textarea: auraTextarea, toast: auraToast, togglebutton: auraTogglebutton, tooltip: auraTooltip },
+  components: { accordion: auraAccordion, badge: auraBadge, button: auraButton, datatable: auraDatatable, datepicker: auraDatepicker, dialog: auraDialog, drawer: auraDrawer, iconfield: auraIconfield, inputnumber: auraInputnumber, inputtext: auraInputtext, listbox: auraListbox, menu: auraMenu, message: auraMessage, password: auraPassword, progressbar: auraProgressbar, progressspinner: auraProgressspinner, radiobutton: auraRadiobutton, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, splitter: auraSplitter, tabs: auraTabs, tag: auraTag, textarea: auraTextarea, toast: auraToast, toggleswitch: auraToggleswitch, togglebutton: auraTogglebutton, tooltip: auraTooltip },
 };
 
 export const LexvayPreset = definePreset(Aura, {
@@ -221,6 +223,14 @@ export const LexvayPreset = definePreset(Aura, {
     },
     selectbutton: {
       root: { borderRadius: '4px' },
+    },
+    // The track is the control's boundary, so it takes the 3:1 control colour in both states (WCAG 1.4.11).
+    toggleswitch: {
+      root: { background: t.control, hoverBackground: t.textSecondary, checkedBackground: t.primary, checkedHoverBackground: t.primaryHover },
+      handle: {
+        background: t.card, hoverBackground: t.card, checkedBackground: t.onPrimary, checkedHoverBackground: t.onPrimary,
+        color: t.textSecondary, hoverColor: t.text, checkedColor: t.primary, checkedHoverColor: t.primaryHover,
+      },
     },
     togglebutton: {
       root: {
