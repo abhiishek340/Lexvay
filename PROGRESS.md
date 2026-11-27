@@ -985,7 +985,7 @@ New tests: `EvalScorerTest` (9), `GoldenFileTest` (3), `EvalServiceTest` (3), `E
 ## WS-SEC — OIDC and hardening (PR #12; spec milestone 8)
 
 Branch `sec-oidc-hardening`, merged with `origin/main` (including PRs 8 to 11) on 2026-11-26. Decisions D-090 to D-099
-are in `docs/decisions/WS-SEC.md`.
+are in `DECISIONS.md` (D-090 to D-099).
 
 ### What was built
 

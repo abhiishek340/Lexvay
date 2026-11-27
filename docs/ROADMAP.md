@@ -17,6 +17,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | in progress |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | queued (after WS-PERF) |
+| FIX-2 Job payload entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1; spec to follow) |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 3 | Opus 5.5 | queued (after WS-UI, F3a) |
@@ -476,6 +477,14 @@ read budget. Decisions D-190 to D-199 in `docs/decisions/F13.md`.
    kinds above contain no forbidden words). Read-only endpoint, so nothing to add to the audit coverage set.
 
 ## Follow-ups recorded from reviews
+- WS-PERF: `GET /documents/{id}` and the rule version views look up job status by scanning the `job` table under
+  RLS because `jsonb ->>` is not leakproof and the payload expression indexes are ignored. FIX-2: add a generated
+  `payload_entity_id uuid` column on `job` (from the payload's entity id), index it, and compare with `=`. Decided
+  by the orchestrator when scheduled; spec to follow.
+- F11: OCR of a 200-page scan runs inside the job's single transaction and a retry redoes every page. Follow-up:
+  OCR per page in its own transaction (or a job per page) inside `JobRunner`.
+- F11 spec change (decided during review): a PDF page's text layer is never discarded; OCR replaces it only when
+  the layer is under 20 characters and OCR yields at least 20.
 - WS-SEC: every new endpoint must add a row to `InputValidationTableTest` (its `everyEndpointHasARow` guard fails
   otherwise). The PDF page cap (500) is enforced at ingest, so an oversized PDF fails its job rather than the
   upload; a synchronous page count at upload is a possible follow-up. Form login stays enabled in the `oidc`
