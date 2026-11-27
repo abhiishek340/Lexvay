@@ -15,6 +15,8 @@ export class SessionService {
   readonly tenantName = computed(() => this.state()?.tenantName ?? '');
   readonly isSigner = computed(() => this.user()?.role === 'SIGNER');
   readonly canReview = computed(() => ['REVIEWER', 'SIGNER', 'ADMIN'].includes(this.user()?.role ?? ''));
+  /** Entering a rule version (POST /rule-versions) is for contributors and administrators. */
+  readonly canEnterRules = computed(() => ['CONTRIBUTOR', 'ADMIN'].includes(this.user()?.role ?? ''));
 
   async load(): Promise<SessionView> {
     const session = await firstValueFrom(this.api.session());
