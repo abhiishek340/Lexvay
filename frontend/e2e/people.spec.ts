@@ -234,14 +234,14 @@ test("at 400 px an administrator's bottom bar fits, with the least used screens 
   expect(await bar.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
   await expect(nav(page, 'People')).toBeHidden();
   await expect(nav(page, 'Audit trail')).toBeHidden();
-  await expect(nav(page, 'Evidence report')).toBeVisible();
+  await expect(nav(page, 'Program setup')).toBeVisible();
 
   const more = bar.getByRole('button', { name: 'More screens' });
   await expect(more).toHaveAttribute('aria-haspopup', 'menu');
   await more.focus();
   await page.keyboard.press('Enter');
   const menu = page.getByRole('menu', { name: 'More screens' });
-  await expect(menu.getByRole('menuitem')).toHaveText(['People', 'Audit trail']);
+  await expect(menu.getByRole('menuitem')).toHaveText(['People', 'Evidence report', 'Audit trail']);
   await expect(more).toHaveAttribute('aria-expanded', 'true');
   await expectAccessible(page, 'More menu at 400 px');
   if (SCREENSHOTS) { await shoot(page, 'f5b-more-menu-400'); }

@@ -64,3 +64,14 @@ export function comparableVersions(all: readonly RuleVersionView[], jurisdiction
     .filter((v) => v.approval && v.jurisdiction === jurisdiction && v.licenseType === licenseType && v.id !== exceptId)
     .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
 }
+
+/**
+ * The version Rules opens on when the address names none, so the screen never starts on an empty detail: the first, in
+ * list order, that waits for a person (needs approval or its extraction failed), otherwise the newest approved version
+ * of the first state that has one. Null only when there is no version at all.
+ */
+export function openingVersion(groups: readonly RuleVersionGroup[]): string | null {
+  const rows = groups.flatMap((g) => g.rows);
+  const waiting = rows.find((r) => r.status === 'NEEDS_APPROVAL' || r.status === 'EXTRACTION_FAILED');
+  return (waiting ?? rows.find((r) => r.status === 'APPROVED') ?? rows[0])?.view.id ?? null;
+}

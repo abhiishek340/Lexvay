@@ -1,0 +1,112 @@
+<div class="lx-step-head">
+  <h2 class="lx-panel-title">Documents</h2>
+</div>
+
+@if (store.canEdit() && store.program()) {
+  <div class="lx-upload">
+    <div class="lx-upload-target">
+      <span id="upload-target-label" class="lx-field-label">Upload into</span>
+      <p-select [options]="targets()" optionLabel="label" optionValue="value" [ngModel]="target()" (ngModelChange)="target.set($event)"
+                ariaLabelledBy="upload-target-label" appendTo="body" class="lx-target-select" data-testid="upload-target" />
+    </div>
+    <p-fileupload #uploader mode="advanced" [multiple]="true" accept=".pdf,.docx,.txt" [customUpload]="true" [auto]="false" (onSelect)="chosen($event)"
+                  styleClass="lx-dropzone">
+      <ng-template #header let-choose="chooseCallback">
+        <button pButton type="button" severity="secondary" (click)="choose()"><ng-icon name="phosphorUploadSimple" size="16" aria-hidden="true" /><span pButtonLabel>Choose files</span></button>
+        <span class="lx-help">PDF, Word or text</span>
+      </ng-template>
+      <ng-template #content>
+        <p class="lx-drop-hint" aria-hidden="true">or drop them here</p>
+      </ng-template>
+    </p-fileupload>
+
+    @if (store.queue.entries().length > 0) {
+      <ul class="lx-queue" aria-label="Files to upload">
+        @for (entry of store.queue.entries(); track entry.key; let i = $index) {
+          @let st = uploadState[entry.state];
+          <li class="lx-queue-row" [lxEnter]="i" [attr.data-state]="entry.state" [attr.data-file]="entry.file.name">
+            <ng-icon [name]="entry.file.name.toLowerCase().endsWith('.pdf') ? 'phosphorFilePdf' : 'phosphorFileDoc'" size="20" aria-hidden="true" class="lx-file-icon" />
+            <span class="lx-queue-name">
+              <span class="lx-strong">{{ entry.file.name }}</span>
+              <span class="lx-help">{{ size(entry.file.size) }}</span>
+            </span>
+            @if (entry.state === 'WAITING') {
+              <p-select [options]="kinds" optionLabel="label" optionValue="value" [ngModel]="entry.kind" (ngModelChange)="store.queue.choose(entry.key, { kind: $event })"
+                        [ariaLabel]="'Kind of ' + entry.file.name" appendTo="body" size="small" class="lx-queue-kind" />
+              @if (entry.kind === 'SYLLABUS') {
+                <p-select [options]="versions()" optionLabel="label" optionValue="value" [ngModel]="entry.courseVersionId" [showClear]="true"
+                          (ngModelChange)="store.queue.choose(entry.key, { courseVersionId: $event ?? null })" [ariaLabel]="'Course of ' + entry.file.name"
+                          placeholder="No course" appendTo="body" size="small" class="lx-queue-course" />
+              }
+            } @else {
+              <span class="lx-queue-kind-text">{{ kindLabel(entry.kind) }}</span>
+            }
+            <span class="lx-queue-state" data-testid="upload-state">
+              <p-tag [severity]="st.severity" [value]="uploadLabel(entry)">
+                <ng-template #icon>
+                  @if (entry.state === 'UPLOADING' || entry.state === 'READING') { <ng-icon name="phosphorSpinner" size="14" class="lx-spin" aria-hidden="true" /> }
+                  @else if (entry.state === 'READY') { <ng-icon name="phosphorCheck" size="14" aria-hidden="true" /> }
+                  @else if (entry.state === 'FAILED') { <ng-icon name="phosphorX" size="14" aria-hidden="true" /> }
+                  @else if (entry.state === 'DUPLICATE') { <ng-icon name="phosphorCopy" size="14" aria-hidden="true" /> }
+                  @else { <ng-icon name="phosphorClock" size="14" aria-hidden="true" /> }
+                </ng-template>
+              </p-tag>
+              @if (entry.state === 'FAILED') { <span class="lx-queue-message" role="status">{{ entry.message }}</span> }
+              @if (entry.state === 'DUPLICATE' && entry.existingDocumentId; as existing) {
+                <button pButton type="button" [link]="true" size="small" (click)="open(existing, filenameOf(existing), $event.target)">
+                  <span pButtonLabel>Open {{ filenameOf(existing) }}</span>
+                </button>
+              }
+            </span>
+            @if (entry.state !== 'UPLOADING' && entry.state !== 'READING') {
+              <button pButton type="button" [text]="true" severity="secondary" size="small" (click)="store.queue.remove(entry.key)"
+                      [attr.aria-label]="'Remove ' + entry.file.name + ' from the list'"><ng-icon name="phosphorX" size="16" aria-hidden="true" /></button>
+            }
+          </li>
+        }
+      </ul>
+      <div class="lx-actions">
+        <button pButton type="button" [disabled]="store.queue.waiting().length === 0 || store.queue.busy()" [loading]="store.queue.busy()" (click)="upload()">
+          <ng-icon name="phosphorUploadSimple" size="16" aria-hidden="true" />
+          <span pButtonLabel>Upload {{ store.queue.waiting().length || '' }} {{ store.queue.waiting().length === 1 ? 'file' : 'files' }}</span>
+        </button>
+      </div>
+    }
+  </div>
+}
+
+@if (sections(); as list) {
+  <div class="lx-sections">
+    @for (section of list; track section.key; let i = $index) {
+      <section class="lx-section" [attr.aria-labelledby]="'section-' + section.key" [lxEnter]="i">
+        <h3 class="lx-section-title" [id]="'section-' + section.key">
+          @if (section.code) { <span class="lx-mono">{{ section.code }}</span> }{{ section.label }}
+        </h3>
+        @if (section.documents.length === 0) {
+          <p class="lx-help">{{ section.code ? 'No syllabus yet' : 'No program documents yet' }}</p>
+        } @else {
+          <ul class="lx-docs">
+            @for (d of section.documents; track d.document.id) {
+              @let ds = documentState[d.state];
+              <li class="lx-doc" [attr.data-state]="d.state">
+                <button type="button" class="lx-doc-open" (click)="open(d.document.id, d.document.filename, $event.target)" [disabled]="d.state !== 'READY'"
+                        [attr.aria-label]="'Read ' + d.document.filename">
+                  <ng-icon [name]="d.document.filename.toLowerCase().endsWith('.pdf') ? 'phosphorFilePdf' : 'phosphorFileDoc'" size="18" aria-hidden="true" />
+                  <span class="lx-doc-name">{{ d.document.filename }}</span>
+                </button>
+                <span class="lx-help">{{ kindLabel(d.document.kind) }}@if (!d.current) { , catalog year {{ d.document.catalogYear }} }</span>
+                <p-tag [severity]="ds.severity" [value]="d.state === 'READY' ? ds.label + ', ' + d.document.pageCount + (d.document.pageCount === 1 ? ' page' : ' pages') : ds.label" />
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    }
+  </div>
+} @else {
+  <div class="lx-panel-skeleton" aria-busy="true" aria-label="Loading documents">@for (i of [1, 2, 3]; track i) { <p-skeleton height="3rem" /> }</div>
+}
+
+<lx-sheet [heading]="reading()?.filename ?? 'Document'" headingId="document-sheet-heading" [open]="reading() !== null" (closed)="close()" size="narrow">
+  @if (reading(); as r) { <lx-document-viewer [documentId]="r.id" [pageNumber]="1" /> }
+</lx-sheet>

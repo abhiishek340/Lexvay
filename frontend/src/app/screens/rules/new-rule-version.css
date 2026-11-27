@@ -1,8 +1,8 @@
 .lx-form { display: flex; flex-direction: column; gap: 14px; }
-.lx-form-intro { max-width: 64ch; }
 .lx-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .lx-field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 12rem); gap: 14px; }
 .lx-field-label { font-weight: 500; font-size: 13px; }
+.lx-label-row { display: flex; align-items: center; gap: 4px; }
 .lx-rule-input { font-size: 12px; line-height: 18px; }
 
 @media (max-width: 640px) {
