@@ -69,6 +69,11 @@ class DocumentOcrIngestTest extends AbstractDatabaseTest {
                 .getResponse().getContentAsString());
     }
 
+    private JsonNode getPage(UUID id, int pageNumber) throws Exception {
+        return json.readTree(mvc.get().uri("/api/v1/documents/" + id + "/pages/" + pageNumber).with(user(t.reviewer())).exchange()
+                .getResponse().getContentAsString());
+    }
+
     @Test
     void scannedPdfIsStoredAsOcrPagesWithConfidenceAndTheAuditCountsThem() throws Exception {
         ocr.enable().page(PAGE_ONE, 93.5).page(PAGE_TWO, 71.25);
@@ -81,6 +86,10 @@ class DocumentOcrIngestTest extends AbstractDatabaseTest {
         assertThat(doc.get("pages").get(0).get("ocrConfidence").asDouble()).isEqualTo(93.5);
         assertThat(doc.get("pages").get(1).get("ocrConfidence").asDouble()).isEqualTo(71.25);
         assertThat(doc.get("pages").get(1).get("charStart").asInt()).isEqualTo(PAGE_ONE.length() + 1);
+        // The page endpoint the document viewer reads says the same (F1: "Read by OCR" in the viewer header).
+        JsonNode served = getPage(documentId, 2);
+        assertThat(served.get("textSource").asString()).isEqualTo("OCR");
+        assertThat(served.get("ocrConfidence").asDouble()).isEqualTo(71.25);
 
         List<DocumentPage> pages = TenantContext.runAs(t.tenantId(), () -> documents.pages(documentId));
         assertThat(pages).extracting(DocumentPage::text).containsExactly(PAGE_ONE, PAGE_TWO);
@@ -97,6 +106,9 @@ class DocumentOcrIngestTest extends AbstractDatabaseTest {
         JsonNode page = getDocument(documentId).get("pages").get(0);
         assertThat(page.get("textSource").asString()).isEqualTo("TEXT_LAYER");
         assertThat(page.get("ocrConfidence").isNull()).isTrue();
+        JsonNode served = getPage(documentId, 1);
+        assertThat(served.get("textSource").asString()).isEqualTo("TEXT_LAYER");
+        assertThat(served.get("ocrConfidence").isNull()).isTrue();
         var ingested = TenantContext.runAs(t.tenantId(), () -> audit.forEntity(documentId)).stream()
                 .filter(e -> e.action().equals("DOCUMENT_INGESTED")).findFirst().orElseThrow();
         assertThat(ingested.detail().get("ocrPages")).isEqualTo(0);

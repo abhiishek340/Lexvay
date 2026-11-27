@@ -5,6 +5,7 @@ import auraButton from '@primeuix/themes/aura/button';
 import auraDatatable from '@primeuix/themes/aura/datatable';
 import auraDialog from '@primeuix/themes/aura/dialog';
 import auraIconfield from '@primeuix/themes/aura/iconfield';
+import auraInputnumber from '@primeuix/themes/aura/inputnumber';
 import auraInputtext from '@primeuix/themes/aura/inputtext';
 import auraMenu from '@primeuix/themes/aura/menu';
 import auraMessage from '@primeuix/themes/aura/message';
@@ -86,7 +87,7 @@ const ink = {
  */
 const Aura = {
   ...auraBase,
-  components: { badge: auraBadge, button: auraButton, datatable: auraDatatable, dialog: auraDialog, iconfield: auraIconfield, inputtext: auraInputtext, menu: auraMenu, message: auraMessage, password: auraPassword, progressbar: auraProgressbar, progressspinner: auraProgressspinner, radiobutton: auraRadiobutton, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, splitter: auraSplitter, tabs: auraTabs, tag: auraTag, textarea: auraTextarea, toast: auraToast, togglebutton: auraTogglebutton, tooltip: auraTooltip },
+  components: { badge: auraBadge, button: auraButton, datatable: auraDatatable, dialog: auraDialog, iconfield: auraIconfield, inputnumber: auraInputnumber, inputtext: auraInputtext, menu: auraMenu, message: auraMessage, password: auraPassword, progressbar: auraProgressbar, progressspinner: auraProgressspinner, radiobutton: auraRadiobutton, select: auraSelect, selectbutton: auraSelectbutton, skeleton: auraSkeleton, splitter: auraSplitter, tabs: auraTabs, tag: auraTag, textarea: auraTextarea, toast: auraToast, togglebutton: auraTogglebutton, tooltip: auraTooltip },
 };
 
 export const LexvayPreset = definePreset(Aura, {

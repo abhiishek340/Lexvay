@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, Jurisdiction, Mapping, MappingsView, Outcome, Program, ReportStatusView, RuleVersionView, SessionView, UserSummary, UserView } from './models';
+import { AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, DocumentPage, Jurisdiction, Mapping, MappingsView, Outcome, Program, ProgramOverview, ReportStatusView, RuleVersionView, SessionView, UserSummary, UserView } from './models';
 
 /** Thin, typed wrapper over /api/v1. Holds no business rules. */
 @Injectable({ providedIn: 'root' })
@@ -17,7 +17,7 @@ export class ApiService {
   logout(): Observable<void> { return this.http.post<void>(`${this.base}/auth/logout`, null); }
 
   programs(): Observable<Program[]> { return this.http.get<Program[]>(`${this.base}/programs`); }
-  program(id: string): Observable<Program> { return this.http.get<Program>(`${this.base}/programs/${id}`); }
+  programOverview(id: string): Observable<ProgramOverview> { return this.http.get<ProgramOverview>(`${this.base}/programs/${id}/overview`); }
   jurisdictions(): Observable<Jurisdiction[]> { return this.http.get<Jurisdiction[]>(`${this.base}/jurisdictions`); }
   ruleVersions(): Observable<RuleVersionView[]> { return this.http.get<RuleVersionView[]>(`${this.base}/rule-versions`); }
 
@@ -52,10 +52,10 @@ export class ApiService {
   users(): Observable<UserSummary[]> { return this.http.get<UserSummary[]>(`${this.base}/users`); }
   audit(limit = 200): Observable<AuditEntry[]> { return this.http.get<AuditEntry[]>(`${this.base}/audit`, { params: { limit } }); }
 
-  /** The latest finished assessment is found through the audit trail's ASSESSMENT_FINISHED entries. */
-  latestAssessmentId(entries: AuditEntry[], programId: string): string | null {
-    const started = new Set(entries.filter((e) => e.action === 'ASSESSMENT_STARTED' && e.detail['programId'] === programId).map((e) => e.entityId));
-    const finished = entries.find((e) => e.action === 'ASSESSMENT_FINISHED' && e.entityId && started.has(e.entityId));
-    return finished?.entityId ?? null;
+  /** Immutable and cached by the browser for a year (D-112); read through DocumentPageCache. */
+  documentPage(documentId: string, pageNumber: number): Observable<DocumentPage> {
+    return this.http.get<DocumentPage>(`${this.base}/documents/${documentId}/pages/${pageNumber}`);
   }
+  /** The original uploaded file, opened by the browser in a new tab. */
+  documentFileUrl(documentId: string): string { return `${this.base}/documents/${documentId}/file`; }
 }
