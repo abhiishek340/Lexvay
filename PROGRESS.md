@@ -887,7 +887,7 @@ Deferred
 ## WS-EVAL — Evaluation harness and Terraform (PR #11)
 
 Branch `eval-and-infra`, slot 3, run 2026-11-26 on macOS arm64 (Colima), after merging `origin/main`.
-Decisions: `docs/decisions/WS-EVAL.md` (D-100 to D-109).
+Decisions: D-100 to D-109 in `DECISIONS.md`.
 
 ### `LEXVAY_E2E_SLOT=3 make eval` (scripted model), exit 0
 

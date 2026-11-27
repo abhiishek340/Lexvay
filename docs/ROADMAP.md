@@ -263,7 +263,7 @@ Reviewers must be able to look for a passage themselves instead of trusting the 
 4. Tests: phrase and negation queries on the seed, ordering by rank, segments reconstruct the headline,
    filters, limit cap, 400 for blank, tenant isolation, and a latency check (p95 ≤ 40 ms over 200 requests
    on the seeded tenant) following the pattern of `EndpointLatencyTest` if it exists on `main`.
-Decisions in `docs/decisions/F9.md` (D-150 to D-159).
+Decisions D-150 to D-159 (folded into `DECISIONS.md`).
 
 ## FIX-1 — Requirement order column (after WS-PERF merges; slot 5)
 Defect found in review of F3a: `RuleVersionRepository.requirements` orders by `created_at, ref`; rows of one
