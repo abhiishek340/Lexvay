@@ -6,6 +6,7 @@ import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
 import com.lexvay.auth.Role;
 import com.lexvay.llm.LlmClient;
+import com.lexvay.rule.source.RuleSourceRepository;
 import com.lexvay.seed.ScriptedFakeModel;
 import com.lexvay.seed.SeedLoader;
 import com.lexvay.tenant.AppUserRepository;
@@ -19,16 +20,20 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 /**
  * Proves with {@code EXPLAIN}, as the application role under row-level security, that the planner chooses
- * each index added by V008 for the query it was added for, and ignores the candidates that were left out. The database holds 100 renamed copies of the seed
+ * each index added by V008 and V013 for the query it was added for, and ignores the candidates that were left out. The database holds 100 renamed copies of the seed
  * (about 100 tenants), so tables are large enough for the planner to prefer an index over a sequential scan.
  * Run through {@code make perf}.
  */
@@ -38,6 +43,9 @@ class IndexUsageTest extends AbstractDatabaseTest {
     static final int COPIES = Integer.getInteger("lexvay.perf.indexCopies", 100);
     static final String PASSWORD = "perf-demo-password";
     static final Path SEED_DIR = Path.of("..", "seed");
+    /** A lookup by one record reads a handful of pages; the sequential scan it replaced read the whole table (over a thousand). */
+    static final int JOB_LOOKUP_BUFFER_BUDGET = 100;
+    static final Predicate<String> JOB_SEQUENTIAL_SCAN = line -> line.matches(".*Seq Scan on job\\b.*");
 
     /** An index and the application query it was considered for; a rejected one is created here only to prove it is ignored. */
     record Candidate(String index, String query, String sql, boolean kept) {
@@ -49,15 +57,14 @@ class IndexUsageTest extends AbstractDatabaseTest {
     /** Candidates from the work item that the planner ignores. They are not in V008; this test creates them to show why. */
     static final List<String> REJECTED_DDL = List.of(
             "CREATE INDEX rejected_document_program_idx ON document (program_id)",
-            "CREATE INDEX rejected_change_event_status_created_idx ON change_event (status, created_at DESC)",
-            "CREATE INDEX rejected_job_document_id_idx ON job ((payload->>'documentId'))",
-            "CREATE INDEX rejected_job_rule_version_id_idx ON job ((payload->>'ruleVersionId'))");
+            "CREATE INDEX rejected_change_event_status_created_idx ON change_event (status, created_at DESC)");
 
     @Autowired SeedLoader loader;
     @Autowired LlmClient llm;
     @Autowired ObjectMapper json;
     @Autowired AppUserRepository users;
     @Autowired JdbcClient jdbc;
+    @Autowired TransactionTemplate transaction;
 
     @Test
     void thePlannerChoosesEveryKeptIndexAndIgnoresTheRejectedOnes() throws Exception {
@@ -79,6 +86,9 @@ class IndexUsageTest extends AbstractDatabaseTest {
         report.add("|---|---|---|---|---|---|");
         List<String> keptButIgnored = new ArrayList<>();
         List<String> rejectedButChosen = new ArrayList<>();
+        List<String> jobSequentialScans = new ArrayList<>();
+        List<String> lookupBuffers = new ArrayList<>();
+        List<String> lookupsOverBudget = new ArrayList<>();
         try (Connection admin = DriverManager.getConnection(jdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
             for (Candidate candidate : TenantContext.runAs(tenantId, this::candidates)) {
                 List<String> plan = TenantContext.runAs(tenantId,
@@ -86,6 +96,18 @@ class IndexUsageTest extends AbstractDatabaseTest {
                 boolean chosen = plan.stream().anyMatch(line -> line.contains(candidate.index()));
                 report.add("| `" + candidate.index() + "` | " + candidate.query() + " | " + (candidate.kept() ? "yes" : "no") + " | " + scans(plan) + " | " + (chosen ? "yes" : "no")
                         + " | " + scans(explain(admin, candidate.sql())) + " |");
+                if (plan.stream().anyMatch(JOB_SEQUENTIAL_SCAN)) {
+                    jobSequentialScans.add(candidate.query());
+                }
+                if (candidate.index().equals("job_entity_idx")) {
+                    List<String> analyzed = TenantContext.runAs(tenantId,
+                            () -> jdbc.sql("EXPLAIN (ANALYZE, BUFFERS) " + candidate.sql()).query(String.class).list());
+                    int touched = buffers(analyzed);
+                    lookupBuffers.add("| " + candidate.query() + " | " + touched + " |");
+                    if (touched > JOB_LOOKUP_BUFFER_BUDGET) {
+                        lookupsOverBudget.add(candidate.query() + ": " + touched);
+                    }
+                }
                 if (candidate.kept() && !chosen) {
                     keptButIgnored.add(candidate.index());
                 }
@@ -93,6 +115,17 @@ class IndexUsageTest extends AbstractDatabaseTest {
                     rejectedButChosen.add(candidate.index());
                 }
             }
+        }
+        List<String> scheduler = workerPlan("EXPLAIN " + RuleSourceRepository.ENQUEUE.formatted(RuleSourceRepository.DUE)
+                .replace(":createdBy", "NULL"));
+        boolean schedulerUsesIndex = scheduler.stream().anyMatch(line -> line.contains("job_claim_idx"));
+        report.add("| `job_claim_idx` | is a check queued for every due source (scheduler, worker flag, all tenants; V001 index) | yes | "
+                + scans(scheduler) + " | " + (schedulerUsesIndex ? "yes" : "no") + " | |");
+        if (!schedulerUsesIndex) {
+            keptButIgnored.add("job_claim_idx (scheduler)");
+        }
+        if (scheduler.stream().anyMatch(JOB_SEQUENTIAL_SCAN)) {
+            jobSequentialScans.add("scheduler");
         }
         List<String> workQueue = new ArrayList<>();
         for (Role role : Role.values()) {
@@ -104,15 +137,35 @@ class IndexUsageTest extends AbstractDatabaseTest {
         Files.createDirectories(plan.getParent());
         Files.writeString(plan, String.join("\n", workQueue) + "\n");
 
-        String table = String.join("\n", report) + "\n";
+        String table = String.join("\n", report) + "\n\n| Job lookup (shared buffers touched, EXPLAIN ANALYZE) | Buffers |\n|---|---:|\n"
+                + String.join("\n", lookupBuffers) + "\n";
         System.out.println(table);
         Path out = Path.of("target", "perf", "index-usage.md");
         Files.createDirectories(out.getParent());
         Files.writeString(out, table);
-        assertThat(keptButIgnored).as("indexes of V008 the planner did not choose: drop them").isEmpty();
+        assertThat(keptButIgnored).as("indexes of V008 and V013 the planner did not choose: drop them").isEmpty();
         assertThat(rejectedButChosen).as("rejected candidates the planner now chooses: add them to V008").isEmpty();
+        assertThat(lookupsOverBudget).as("job lookups touching more than " + JOB_LOOKUP_BUFFER_BUDGET
+                + " buffers: a lookup by one record must not walk the index of every tenant").isEmpty();
+        assertThat(jobSequentialScans).as("statements that scan the job table sequentially: it only grows").isEmpty();
         assertThat(workQueue).as("the work queue statement scans no hot table sequentially (plan in target/perf/work-queue-plan.txt)")
                 .noneMatch(line -> line.matches(".*Seq Scan on (mapping|review_event|job)\\b.*") && !line.contains("never executed"));
+    }
+
+    /** What the scheduler runs: across tenants, under the transaction-local worker flag and no tenant. */
+    private List<String> workerPlan(String explain) {
+        return transaction.execute(status -> {
+            jdbc.sql("SELECT set_config('lexvay.worker', 'on', true)").query().singleRow();
+            return jdbc.sql(explain).query(String.class).list();
+        });
+    }
+
+    /** Shared buffers (hit and read) the statement touched: the first {@code Buffers} line of the plan is the top node, children included. */
+    private static int buffers(List<String> analyzedPlan) {
+        return analyzedPlan.stream().map(l -> Pattern.compile("Buffers: shared (?:hit=(\\d+))?(?: ?read=(\\d+))?").matcher(l))
+                .filter(Matcher::find)
+                .mapToInt(m -> (m.group(1) == null ? 0 : Integer.parseInt(m.group(1))) + (m.group(2) == null ? 0 : Integer.parseInt(m.group(2))))
+                .findFirst().orElseThrow();
     }
 
     /** The access paths of a plan, without costs and conditions. */
@@ -140,6 +193,8 @@ class IndexUsageTest extends AbstractDatabaseTest {
         String courseVersion = one("SELECT course_version_id FROM document WHERE course_version_id IS NOT NULL LIMIT 1");
         String document = one("SELECT id FROM document WHERE course_version_id = '" + courseVersion + "'");
         String ruleVersion = one("SELECT id FROM rule_version LIMIT 1");
+        String otherRuleVersion = one("SELECT id FROM rule_version OFFSET 1 LIMIT 1");
+        String ruleSource = one("SELECT id FROM rule_source LIMIT 1");
         return List.of(
                 new Candidate("mapping_assessment_jurisdiction_idx", "mappings of one jurisdiction in an assessment (list, counts)",
                         "SELECT m.id FROM mapping m JOIN requirement r ON r.id = m.requirement_id "
@@ -170,14 +225,19 @@ class IndexUsageTest extends AbstractDatabaseTest {
                                 + "' AND status = 'FINISHED' ORDER BY finished_at DESC, created_at DESC LIMIT 1"),
                 new Candidate("rejected_change_event_status_created_idx", "open change events, newest first",
                         "SELECT id FROM change_event WHERE status = 'OPEN' ORDER BY created_at DESC", false),
-                new Candidate("rejected_job_document_id_idx", "ingest status of a document",
-                        "SELECT id FROM job WHERE type = 'INGEST_DOCUMENT' AND payload->>'documentId' = '" + document
-                                + "' ORDER BY created_at DESC LIMIT 1", false),
-                new Candidate("rejected_job_rule_version_id_idx", "extraction status of a rule version",
-                        "SELECT id FROM job WHERE type = 'EXTRACT_REQUIREMENTS' AND payload->>'ruleVersionId' = '" + ruleVersion
-                                + "' ORDER BY created_at DESC LIMIT 1", false),
-                new Candidate("requirement_rule_version_id_ref_key", "requirements of a rule version (existing unique index, so V008 adds none)",
-                        "SELECT id FROM requirement WHERE rule_version_id = '" + ruleVersion + "' ORDER BY created_at, ref"));
+                new Candidate("job_entity_idx", "ingest status of a document",
+                        "SELECT id FROM job WHERE type = 'INGEST_DOCUMENT' AND entity_id = '" + document
+                                + "' ORDER BY created_at DESC LIMIT 1"),
+                new Candidate("job_entity_idx", "extraction status of a rule version",
+                        "SELECT id FROM job WHERE type = 'EXTRACT_REQUIREMENTS' AND entity_id = '" + ruleVersion
+                                + "' ORDER BY created_at DESC LIMIT 1"),
+                new Candidate("job_entity_idx", "extraction status of every rule version (rule version list)",
+                        "SELECT DISTINCT ON (entity_id) id FROM job WHERE type = 'EXTRACT_REQUIREMENTS' AND entity_id IN ('"
+                                + ruleVersion + "', '" + otherRuleVersion + "') ORDER BY entity_id, created_at DESC"),
+                new Candidate("job_claim_idx", "is a check of a rule source already queued (manual check; only queued jobs are read, V001 index)",
+                        RuleSourceRepository.ENQUEUE.formatted("rs.id = '" + ruleSource + "'").replace(":createdBy", "NULL")),
+                new Candidate("requirement_ordinal_key", "requirements of a rule version (existing unique index, so V008 adds none)",
+                        "SELECT id FROM requirement WHERE rule_version_id = '" + ruleVersion + "' ORDER BY ordinal"));
     }
 
     private String one(String sql) {

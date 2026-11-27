@@ -99,7 +99,7 @@ public class WorkQueueRepository {
     /**
      * Rule versions whose extraction job failed and which have no requirements. A rule version has one extraction
      * job (a retry requeues the same row), so "a FAILED job" is also its latest job, as RuleVersionService reads it.
-     * The status test uses the (status, created_at) index; the payload test is a filter on the few failed jobs.
+     * The status test uses the (status, created_at) index; the entity test is a filter on the few failed jobs.
      */
     private static final String EXTRACTION_FAILED = """
             SELECT 4, 'EXTRACTION_FAILED', NULL, NULL, j.code, count(*), min(rv.created_at),
@@ -109,7 +109,7 @@ public class WorkQueueRepository {
             WHERE CAST(:role AS text) IN ('ADMIN', 'REVIEWER')
               AND NOT EXISTS (SELECT 1 FROM requirement r WHERE r.rule_version_id = rv.id)
               AND EXISTS (SELECT 1 FROM job x WHERE x.status = 'FAILED' AND x.type = 'EXTRACT_REQUIREMENTS'
-                          AND x.payload->>'ruleVersionId' = CAST(rv.id AS text))
+                          AND x.entity_id = rv.id)
             GROUP BY j.code
             """.formatted(ids("rv.id", "rv.created_at, rv.id", null));
 

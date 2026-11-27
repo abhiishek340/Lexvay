@@ -32,7 +32,7 @@ class RuleSourceEnqueueTest extends AbstractRuleSourceTest {
 
     private long jobs(TestTenants.TenantWithUsers tenant, UUID sourceId) {
         return TenantContext.runAs(tenant.tenantId(), () -> jdbc.sql("SELECT count(*) FROM job WHERE type = 'CHECK_RULE_SOURCE' "
-                + "AND payload ->> 'ruleSourceId' = :id").param("id", sourceId.toString()).query(Long.class).single());
+                + "AND entity_id = :id").param("id", sourceId).query(Long.class).single());
     }
 
     @Test
@@ -61,8 +61,8 @@ class RuleSourceEnqueueTest extends AbstractRuleSourceTest {
         assertThat(jobs(t, inactive)).as("monitoring is off").isZero();
         assertThat(jobs(other, otherTenants)).as("another tenant is served too").isEqualTo(1);
         assertThat(jobs(t, otherTenants)).as("and the job belongs to that tenant only").isZero();
-        var job = TenantContext.runAs(other.tenantId(), () -> jdbc.sql("SELECT status, created_by FROM job WHERE payload ->> 'ruleSourceId' = :id")
-                .param("id", otherTenants.toString()).query().singleRow());
+        var job = TenantContext.runAs(other.tenantId(), () -> jdbc.sql("SELECT status, created_by FROM job WHERE entity_id = :id")
+                .param("id", otherTenants).query().singleRow());
         assertThat(job).containsEntry("status", "QUEUED").containsEntry("created_by", null);
 
         repository.enqueueDue();
