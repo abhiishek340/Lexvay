@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, Jurisdiction, Mapping, MappingsView, Outcome, Program, ReportStatusView, RuleVersionView, SessionView, UserView } from './models';
+import { AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, Jurisdiction, Mapping, MappingsView, Outcome, Program, ReportStatusView, RuleVersionView, SessionView, UserSummary, UserView } from './models';
 
 /** Thin, typed wrapper over /api/v1. Holds no business rules. */
 @Injectable({ providedIn: 'root' })
@@ -49,6 +49,7 @@ export class ApiService {
   jobStatus(jobId: string): Observable<{ id: string; status: string; error: string | null }> {
     return this.http.get<{ id: string; status: string; error: string | null }>(`${this.base}/jobs/${jobId}`);
   }
+  users(): Observable<UserSummary[]> { return this.http.get<UserSummary[]>(`${this.base}/users`); }
   audit(limit = 200): Observable<AuditEntry[]> { return this.http.get<AuditEntry[]>(`${this.base}/audit`, { params: { limit } }); }
 
   /** The latest finished assessment is found through the audit trail's ASSESSMENT_FINISHED entries. */

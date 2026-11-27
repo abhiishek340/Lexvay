@@ -1,50 +1,100 @@
-<header class="page-header">
-  <h1>Evidence report</h1>
-  @if (program(); as p) { <p class="muted">{{ p.name }} · catalog year {{ p.catalogYear }}</p> }
-</header>
-@if (error(); as e) { <p class="error" role="alert">{{ e }}</p> }
-@if (program(); as p) {
-  <label for="jurisdiction">Jurisdiction</label>
-  <select id="jurisdiction" [value]="jurisdiction()" (change)="selectJurisdiction($any($event.target).value)">
-    @for (code of p.jurisdictions; track code) { <option [value]="code">{{ code }}</option> }
-  </select>
-}
-@if (assessment()) {
-  @if (signed(); as d) {
-    <section class="stamp signed" aria-label="Signed determination">
-      <h2>Signed determination · {{ d.jurisdiction }}</h2>
-      <p><strong>{{ outcomeLabel[d.outcome] }}</strong></p>
-      <p>Signed by {{ d.signedByName }} on {{ d.signedAt | slice:0:10 }}.</p>
-      <p class="muted">Rule version: {{ d.ruleVersionLabel }} · versions hash <code>{{ d.versionsHash | slice:0:16 }}…</code> · {{ d.courseVersionIds.length }} course versions locked.</p>
-      <div class="actions">
-        <button type="button" class="primary" [disabled]="generating()" (click)="generatePdf()">{{ generating() ? 'Generating…' : 'Generate PDF' }}</button>
-        @if (reportUrl(); as url) { <a [href]="url" download>Download PDF</a> }
+<div class="lx-page">
+  <header class="lx-page-header">
+    <div>
+      <h1>Evidence report</h1>
+      @if (context.program(); as p) { <p>{{ p.name }} · catalog year {{ p.catalogYear }}</p> }
+    </div>
+    @if (context.program()) {
+      <div class="lx-report-controls">
+        <span id="jurisdiction-label" class="lx-label">Jurisdiction</span>
+        <p-select [options]="options()" optionLabel="label" optionValue="code" [ngModel]="jurisdiction()"
+                  (ngModelChange)="selectJurisdiction($event)" ariaLabelledBy="jurisdiction-label" appendTo="body" styleClass="lx-report-select" />
       </div>
-    </section>
-  } @else {
-    <section class="stamp draft" aria-label="Draft notice">
-      <h2>Draft. Not a determination.</h2>
-      <p>This report shows proposed findings and review decisions for {{ jurisdiction() }}. It becomes a determination only when a signer signs it.</p>
-    </section>
-  }
-  <table class="table" aria-label="Requirements and evidence">
-    <thead><tr><th scope="col">Ref</th><th scope="col">Requirement</th><th scope="col">Finding</th><th scope="col">Evidence</th><th scope="col">Decision</th></tr></thead>
-    <tbody>
-      @for (m of mappings(); track m.id) {
-        <tr>
-          <th scope="row">{{ m.requirement.ref }}</th>
-          <td><strong>{{ m.requirement.title }}</strong><br /><span class="muted">{{ m.requirement.text }}</span></td>
-          <td><span [class]="'finding ' + m.finding"><span aria-hidden="true">{{ glyph[m.finding] }}</span> {{ findingLabel[m.finding] }}</span></td>
-          <td>
-            @if (m.evidence; as ev) {
-              “{{ ev.quote }}”<br /><span class="muted">{{ ev.filename }} · page {{ ev.pageNumber }}</span>
-            } @else {
-              <span class="muted">{{ m.rationale }}</span>
+    }
+  </header>
+  @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
+  @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
+
+  @if (context.program(); as p) {
+    <article class="lx-document-page" aria-labelledby="report-title">
+      <header class="lx-doc-head">
+        <p class="lx-label">Evidence report</p>
+        <h2 id="report-title">{{ context.jurisdictionName(jurisdiction()) }} <span class="lx-mono">{{ jurisdiction() }}</span></h2>
+        <p class="lx-doc-sub">{{ p.name }} · {{ license(p) }} · catalog year {{ p.catalogYear }}</p>
+      </header>
+
+      @if (signed(); as d) {
+        <section class="lx-stamp lx-stamp-signed" data-testid="stamp" aria-label="Signed determination">
+          <p class="lx-stamp-title"><ng-icon name="phosphorSealCheck" size="20" aria-hidden="true" />Signed determination</p>
+          <dl class="lx-stamp-grid">
+            <div><dt>Outcome</dt><dd><strong>{{ outcomeLabel[d.outcome] }}</strong></dd></div>
+            <div><dt>Signed by</dt><dd>{{ d.signedByName }}</dd></div>
+            <div><dt>Date</dt><dd>{{ d.signedAt | date: 'd MMMM y, HH:mm' }}</dd></div>
+            <div><dt>Rule version</dt><dd>{{ d.ruleVersionLabel }}</dd></div>
+            <div class="lx-stamp-wide"><dt>Versions hash</dt><dd class="lx-mono lx-hash">{{ d.versionsHash }}</dd></div>
+            <div><dt>Course versions locked</dt><dd class="lx-mono">{{ d.courseVersionIds.length }}</dd></div>
+          </dl>
+          <div class="lx-stamp-actions">
+            <button pButton type="button" size="small" [disabled]="generating()" [loading]="generating()" (click)="generatePdf()">
+              <ng-icon name="phosphorFilePdf" size="16" aria-hidden="true" />
+              <span pButtonLabel>{{ generating() ? 'Generating PDF' : 'Generate PDF' }}</span>
+            </button>
+            @if (reportUrl(); as url) {
+              <a pButton size="small" [outlined]="true" [href]="url" download>
+                <ng-icon name="phosphorDownloadSimple" size="16" aria-hidden="true" />
+                <span pButtonLabel>Download PDF</span>
+              </a>
             }
-          </td>
-          <td>{{ m.decision ? decisionLabel[m.decision.kind] : 'Not reviewed' }}@if (m.decision?.note) { <br /><span class="muted">{{ m.decision!.note }}</span> }</td>
-        </tr>
+          </div>
+        </section>
+      } @else {
+        <section class="lx-stamp lx-stamp-draft" data-testid="stamp" aria-label="Draft notice">
+          <p class="lx-stamp-title">Draft. Not a determination.</p>
+          <p>This page shows the proposed findings and the review decisions recorded so far. It becomes a determination only when a signer
+            signs it on the Review screen; the PDF is available after that.</p>
+        </section>
       }
-    </tbody>
-  </table>
-}
+
+      <section aria-labelledby="requirements-title">
+        <h3 id="requirements-title" class="lx-label lx-doc-section">Requirements, findings and evidence</h3>
+        @if (mappings(); as list) {
+          <p-table [value]="list" dataKey="id" [pt]="{ table: { 'aria-label': 'Requirements and evidence' } }" styleClass="lx-table">
+            <ng-template #header>
+              <tr><th scope="col">Requirement</th><th scope="col">Finding</th><th scope="col">Decision</th><th scope="col">Quoted evidence</th></tr>
+            </ng-template>
+            <ng-template #body let-m>
+              <tr>
+                <td class="lx-col-req">
+                  <span class="lx-mono lx-muted">{{ m.requirement.ref }}</span>
+                  <strong class="lx-req-title">{{ m.requirement.title }}</strong>
+                  <span class="lx-req-text">{{ m.requirement.text }}</span>
+                </td>
+                <td><lx-finding [finding]="m.finding" /></td>
+                <td>
+                  <lx-decision-state [decision]="m.decision" [stale]="m.stale" />
+                  @if (m.decision?.note) { <span class="lx-decision-note">{{ m.decision.note }}</span> }
+                </td>
+                <td class="lx-col-evidence">
+                  @if (m.evidence; as ev) {
+                    <blockquote class="lx-cell-quote">{{ ev.quote }}</blockquote>
+                    <span class="lx-cite">{{ ev.filename }} · page <span class="lx-mono">{{ ev.pageNumber }}</span>@if (ev.courseCode) { · {{ ev.courseCode }}{{ ev.courseRequired === false ? ', elective' : '' }} }</span>
+                  } @else {
+                    <span class="lx-muted">{{ m.method === 'RULES_ENGINE' ? 'Checked by the rules engine; no passage to quote.' : 'No passage cited.' }}</span>
+                  }
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        } @else {
+          <div class="lx-skeleton" aria-busy="true" aria-label="Loading requirements">
+            @for (i of [1, 2, 3, 4]; track i) { <p-skeleton height="3.5rem" /> }
+          </div>
+        }
+      </section>
+    </article>
+  } @else if (!context.error()) {
+    <div class="lx-skeleton" aria-busy="true" aria-label="Loading the report">
+      <p-skeleton width="20rem" height="2rem" /><p-skeleton height="8rem" /><p-skeleton height="16rem" />
+    </div>
+  }
+</div>
