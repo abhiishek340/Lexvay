@@ -28,8 +28,12 @@ jobs:
       # only what changed, instead of everything from Maven Central, which rate-limits busy runners (HTTP 429).
       - uses: actions/cache@v6
         with:
-          path: ~/.m2/repository
-          key: maven-${{ runner.os }}-${{ hashFiles('backend/pom.xml') }}
+          # The wrapper's own Maven distribution lives in ~/.m2/wrapper; without it every cold run downloads Maven
+          # from Maven Central first, which has failed under rate limiting.
+          path: |
+            ~/.m2/repository
+            ~/.m2/wrapper
+          key: maven-${{ runner.os }}-${{ hashFiles('backend/pom.xml', 'backend/.mvn/wrapper/maven-wrapper.properties') }}
           restore-keys: maven-${{ runner.os }}-
 
       - uses: actions/setup-node@v7
