@@ -31,87 +31,85 @@
   @if (requirements(); as list) {
     @if (editing()) {
       <form id="requirement-list-form" class="lx-edit" (ngSubmit)="save()" aria-label="Requirement list">
-        <p-table [value]="$any(editor.rows())" [rowTrackBy]="trackRow" [scrollable]="true" [tableStyle]="{ 'min-width': '74rem' }"
-                 [pt]="{ table: { 'aria-label': 'Requirements, editable' }, tableContainer: { tabindex: '0' } }">
+        <p-table [value]="$any(editor.rows())" [rowTrackBy]="trackRow" [pt]="{ table: { 'aria-label': 'Requirements, editable' } }">
           <ng-template #header>
-            <tr>
-              <th scope="col">Ref</th>
-              <th scope="col">Title</th>
-              <th scope="col">Type</th>
-              <th scope="col">Check</th>
-              <th scope="col">Text</th>
-              <th scope="col"><span class="lx-sr-only">Order and removal</span></th>
-            </tr>
+            <tr><th scope="col">Requirements in list order</th></tr>
           </ng-template>
           <ng-template #body let-row let-i="rowIndex">
             @let problems = editor.problems().rows.get(row.key);
             @let described = problems ? 'problems-' + row.key : null;
-            <tr [class.lx-row-invalid]="!!problems">
-              <td class="lx-cell-ref">
-                <input pInputText [id]="controlId(row, 'ref')" class="lx-mono" [ngModel]="row.ref" [ngModelOptions]="{ standalone: true }"
-                       (ngModelChange)="editor.update(row.key, { ref: $event })" [attr.aria-label]="cellLabel(row, 'ref')"
-                       [attr.aria-describedby]="described" [invalid]="!!problems" [fluid]="true" />
-              </td>
-              <td class="lx-cell-title">
-                <input pInputText [ngModel]="row.title" [ngModelOptions]="{ standalone: true }" (ngModelChange)="editor.update(row.key, { title: $event })"
-                       [attr.aria-label]="cellLabel(row, 'title')" [attr.aria-describedby]="described" [fluid]="true" />
-              </td>
-              <td class="lx-cell-type">
-                <p-select [options]="types" optionLabel="label" optionValue="value" [ngModel]="row.type" [ngModelOptions]="{ standalone: true }"
-                          (ngModelChange)="editor.update(row.key, { type: $event })" [ariaLabel]="cellLabel(row, 'type')" placeholder="Choose a type"
-                          appendTo="body" [fluid]="true" />
-              </td>
-              <td class="lx-cell-check">
-                @if (isNumeric(row.type)) {
-                  <div class="lx-check-controls">
-                    <p-select class="lx-check-field" [options]="fields" optionLabel="label" optionValue="value" [ngModel]="row.numericField"
-                              [ngModelOptions]="{ standalone: true }" (ngModelChange)="editor.update(row.key, { numericField: $event })"
-                              [ariaLabel]="cellLabel(row, 'numeric field')" placeholder="Field" appendTo="body" [fluid]="true" />
-                    <p-select class="lx-check-operator" [options]="operators" optionLabel="label" optionValue="value" [ngModel]="row.numericOperator"
-                              [ngModelOptions]="{ standalone: true }" (ngModelChange)="editor.update(row.key, { numericOperator: $event })"
-                              [ariaLabel]="cellLabel(row, 'operator')" placeholder="Op." appendTo="body" />
-                    <p-inputnumber class="lx-check-value" [ngModel]="row.numericValue" [ngModelOptions]="{ standalone: true }"
-                                   (ngModelChange)="editor.update(row.key, { numericValue: $event })" [ariaLabel]="cellLabel(row, 'value')"
-                                   [useGrouping]="false" [minFractionDigits]="0" [maxFractionDigits]="2" [min]="0" inputStyleClass="lx-mono" />
+            <tr class="lx-line-one">
+              <td>
+                <div class="lx-fields">
+                  <div class="lx-f lx-f-ref">
+                    <label class="lx-f-label" [for]="controlId(row, 'ref')">Ref</label>
+                    <input pInputText [id]="controlId(row, 'ref')" class="lx-mono" [ngModel]="row.ref" [ngModelOptions]="{ standalone: true }"
+                           (ngModelChange)="editor.update(row.key, { ref: $event })" [attr.aria-label]="cellLabel(row, 'ref')"
+                           [attr.aria-describedby]="described" [invalid]="!!problems" [fluid]="true" />
                   </div>
-                } @else {
-                  <span class="lx-muted lx-help">No number to check</span>
-                }
-              </td>
-              <td class="lx-cell-text">
-                <textarea pTextarea class="lx-serif-input" rows="3" [ngModel]="row.text" [ngModelOptions]="{ standalone: true }"
-                          (ngModelChange)="editor.update(row.key, { text: $event })" [attr.aria-label]="cellLabel(row, 'text')"
-                          [attr.aria-describedby]="described" [fluid]="true"></textarea>
-              </td>
-              <td class="lx-cell-actions">
-                <button pButton type="button" [text]="true" severity="secondary" size="small" [disabled]="i === 0" (click)="editor.move(row.key, -1)"
-                        [attr.aria-label]="'Move ' + rowLabels().get(row.key) + ' up'">
-                  <ng-icon name="phosphorArrowUp" size="16" aria-hidden="true" />
-                </button>
-                <button pButton type="button" [text]="true" severity="secondary" size="small" [disabled]="i === editor.rows().length - 1"
-                        (click)="editor.move(row.key, 1)" [attr.aria-label]="'Move ' + rowLabels().get(row.key) + ' down'">
-                  <ng-icon name="phosphorArrowDown" size="16" aria-hidden="true" />
-                </button>
-                <button pButton type="button" [text]="true" severity="danger" size="small" (click)="editor.remove(row.key)"
-                        [attr.aria-label]="'Delete ' + rowLabels().get(row.key)">
-                  <ng-icon name="phosphorTrash" size="16" aria-hidden="true" />
-                </button>
+                  <div class="lx-f lx-f-title">
+                    <label class="lx-f-label" [for]="controlId(row, 'title')">Title</label>
+                    <input pInputText [id]="controlId(row, 'title')" [ngModel]="row.title" [ngModelOptions]="{ standalone: true }"
+                           (ngModelChange)="editor.update(row.key, { title: $event })" [attr.aria-label]="cellLabel(row, 'title')"
+                           [attr.aria-describedby]="described" [fluid]="true" />
+                  </div>
+                  <div class="lx-f lx-f-type">
+                    <span class="lx-f-label" aria-hidden="true">Type</span>
+                    <p-select [options]="types" optionLabel="label" optionValue="value" [ngModel]="row.type" [ngModelOptions]="{ standalone: true }"
+                              (ngModelChange)="editor.update(row.key, { type: $event })" [ariaLabel]="cellLabel(row, 'type')" placeholder="Choose a type"
+                              appendTo="body" [fluid]="true" />
+                  </div>
+                  @if (isNumeric(row.type)) {
+                    <div class="lx-f lx-f-check">
+                      <span class="lx-f-label" aria-hidden="true">Check</span>
+                      <div class="lx-check-controls">
+                        <p-select [options]="fields" optionLabel="label" optionValue="value" [ngModel]="row.numericField"
+                                  [ngModelOptions]="{ standalone: true }" (ngModelChange)="editor.update(row.key, { numericField: $event })"
+                                  [ariaLabel]="cellLabel(row, 'numeric field')" placeholder="Field" appendTo="body" [fluid]="true" />
+                        <p-select [options]="operators" optionLabel="label" optionValue="value" [ngModel]="row.numericOperator"
+                                  [ngModelOptions]="{ standalone: true }" (ngModelChange)="editor.update(row.key, { numericOperator: $event })"
+                                  [ariaLabel]="cellLabel(row, 'operator')" placeholder="Op." appendTo="body" [fluid]="true" />
+                        <p-inputnumber class="lx-check-value" [ngModel]="row.numericValue" [ngModelOptions]="{ standalone: true }"
+                                       (ngModelChange)="editor.update(row.key, { numericValue: $event })" [ariaLabel]="cellLabel(row, 'value')"
+                                       [useGrouping]="false" [minFractionDigits]="0" [maxFractionDigits]="2" [min]="0" inputStyleClass="lx-mono" [fluid]="true" />
+                      </div>
+                    </div>
+                  }
+                  <div class="lx-f lx-f-actions">
+                    <button pButton type="button" [text]="true" severity="secondary" size="small" [disabled]="i === 0" (click)="editor.move(row.key, -1)"
+                            [attr.aria-label]="'Move ' + rowLabels().get(row.key) + ' up'">
+                      <ng-icon name="phosphorArrowUp" size="16" aria-hidden="true" />
+                    </button>
+                    <button pButton type="button" [text]="true" severity="secondary" size="small" [disabled]="i === editor.rows().length - 1"
+                            (click)="editor.move(row.key, 1)" [attr.aria-label]="'Move ' + rowLabels().get(row.key) + ' down'">
+                      <ng-icon name="phosphorArrowDown" size="16" aria-hidden="true" />
+                    </button>
+                    <button pButton type="button" [text]="true" severity="danger" size="small" (click)="editor.remove(row.key)"
+                            [attr.aria-label]="'Delete ' + rowLabels().get(row.key)">
+                      <ng-icon name="phosphorTrash" size="16" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
               </td>
             </tr>
-            @if (problems) {
-              <tr class="lx-row-problems">
-                <td colspan="6">
+            <tr class="lx-line-two">
+              <td>
+                <label class="lx-f-label" [for]="controlId(row, 'text')">Text</label>
+                <textarea pTextarea [id]="controlId(row, 'text')" class="lx-serif-input" rows="2" [autoResize]="true" [ngModel]="row.text"
+                          [ngModelOptions]="{ standalone: true }" (ngModelChange)="editor.update(row.key, { text: $event })"
+                          [attr.aria-label]="cellLabel(row, 'text')" [attr.aria-describedby]="described" [fluid]="true"></textarea>
+                @if (problems) {
                   <div [id]="'problems-' + row.key" class="lx-row-problem-list" data-testid="row-problems">
                     @for (p of problems; track $index) {
                       <p class="lx-row-problem"><ng-icon name="phosphorWarningCircle" size="14" aria-hidden="true" />{{ rowLabels().get(row.key) }}: {{ p }}</p>
                     }
                   </div>
-                </td>
-              </tr>
-            }
+                }
+              </td>
+            </tr>
           </ng-template>
           <ng-template #emptymessage>
-            <tr><td colspan="6" class="lx-muted">The list is empty. Add a requirement for each rule the text states.</td></tr>
+            <tr><td class="lx-muted">The list is empty. Add a requirement for each rule the text states.</td></tr>
           </ng-template>
         </p-table>
       </form>
