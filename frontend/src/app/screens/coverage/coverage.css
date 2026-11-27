@@ -101,9 +101,14 @@ thead .lx-req-col, thead .lx-flag-col { padding-bottom: 10px; }
 /* The pointer or keyboard position: its row and its column light up. */
 tr.lx-row-on > th, tr.lx-row-on > td, .lx-matrix td.lx-col-on { background: var(--p-lx-surface-2); }
 
-/* A chosen flag dims the other rows rather than hiding them, so the matrix keeps its shape. */
-.lx-req-col > span, .lx-dot, .lx-engine > span, .lx-flag { transition: opacity var(--lx-t-2) var(--lx-ease-out), background-color var(--lx-t-1) var(--lx-ease-out); }
-tr.lx-dim .lx-req-col > span, tr.lx-dim .lx-dot, tr.lx-dim .lx-engine > span, tr.lx-dim .lx-flag { opacity: .35; }
+/* A chosen flag dims the other rows rather than hiding them, so the matrix keeps its shape. Marks and icons fade to
+   .35; words only step back to the secondary text colour, so every word on the screen still passes AA. */
+.lx-dot, .lx-blank, .lx-matrix ng-icon, .lx-req-title, .lx-engine > span, .lx-flag {
+  transition: opacity var(--lx-t-2) var(--lx-ease-out), color var(--lx-t-2) var(--lx-ease-out), background-color var(--lx-t-2) var(--lx-ease-out), box-shadow var(--lx-t-2) var(--lx-ease-out);
+}
+tr.lx-dim .lx-dot, tr.lx-dim .lx-blank, tr.lx-dim ng-icon { opacity: .35; }
+tr.lx-dim .lx-req-title { color: var(--p-lx-text-2); }
+tr.lx-dim .lx-engine > span, tr.lx-dim .lx-flag { background: transparent; box-shadow: none; color: var(--p-lx-text-2); }
 
 /* First view: the matrix enters column by column, 20 ms apart, and each mark scales in from .6. */
 .lx-enter-col { animation: lx-col-in var(--lx-t-3) var(--lx-ease-out) backwards; animation-delay: calc(var(--lx-c, 0) * 20ms); }
@@ -129,11 +134,18 @@ tr.lx-dim .lx-req-col > span, tr.lx-dim .lx-dot, tr.lx-dim .lx-engine > span, tr
 .lx-skeleton { display: flex; flex-direction: column; gap: 20px; padding: 24px 20px; }
 .lx-skeleton-row { display: flex; align-items: center; gap: 28px; }
 
-/* Under 640 px: the requirement column narrows to two lines and the flag column keeps its icon (the chips above
-   carry the words, and each flag keeps them for assistive technology). */
+/* Under 900 px the pills take a row of their own under the title. */
+@media (max-width: 900px) {
+  .lx-pills { flex-basis: 100%; }
+}
+/* Under 640 px: the chips scroll sideways in one row, the requirement column narrows to two lines and the flag column
+   keeps its icon (the chips above carry the words, and each flag keeps them for assistive technology). */
 @media (max-width: 640px) {
   .lx-coverage { padding: 20px var(--lx-gutter) 40px; }
-  .lx-head { margin-bottom: 16px; }
+  .lx-head { margin-bottom: 12px; gap: 8px; }
+  .lx-toolbar { display: block; margin: 0 calc(-1 * var(--lx-gutter)) 12px; }
+  :host ::ng-deep .lx-chips.p-selectbutton { flex-wrap: nowrap; overflow-x: auto; padding: 2px var(--lx-gutter) 6px; }
+  :host ::ng-deep .lx-chips .p-togglebutton { flex: none; }
   .lx-req-col { min-width: 0; width: 132px; max-width: 132px; padding: 0 8px 0 12px; }
   .lx-ref { display: block; width: auto; padding: 0; }
   .lx-req-title {

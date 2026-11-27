@@ -69,6 +69,8 @@ export class Coverage {
   private readonly card = viewChild<Popover>('card');
   private readonly cardAction = viewChild<ElementRef<HTMLAnchorElement>>('cardAction');
   private focusCardOnShow = false;
+  /** Escape in the card gives the focus back to its cell, which must not open the card again. */
+  private returning = false;
   private showTimer = 0;
   private hideTimer = 0;
 
@@ -201,6 +203,10 @@ export class Coverage {
 
   onFocus(row: number, col: number, el: HTMLElement): void {
     this.stop.set({ row, col });
+    if (this.returning) {
+      this.returning = false;
+      return;
+    }
     this.openCard({ row, col }, el, 0, false);
   }
 
@@ -237,7 +243,10 @@ export class Coverage {
     if (event.key !== 'Escape') { return; }
     const target = this.card()?.target as HTMLElement | null | undefined;
     this.closeCard();
-    target?.focus();
+    if (target) {
+      this.returning = true;
+      target.focus();
+    }
   }
 
   onCardShown(): void {

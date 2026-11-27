@@ -110,9 +110,8 @@ describe('flags', () => {
     expect(view.rows.filter((r) => matchesFlag(r, 'ELECTIVE_ONLY')).map((r) => r.requirement.ref)).toEqual(['UT-4']);
   });
 
-  it('words each flag descriptively, never as a judgement', () => {
+  it('words each flag as where the evidence sits, in chip order', () => {
     expect(FLAG_ORDER.map((f) => FLAGS[f].label)).toEqual(['Rests on an elective', 'Rests on one course', 'Outdated evidence', 'No evidence cited']);
-    for (const f of FLAG_ORDER) { expect(FLAGS[f].label).not.toMatch(/compliant|meets requirements|sufficient|insufficient/i); }
   });
 
   it('rings a pill with the share of requirements that carry no flag', () => {
