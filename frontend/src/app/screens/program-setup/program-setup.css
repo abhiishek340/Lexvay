@@ -18,15 +18,14 @@
 .lx-step:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: 2px; }
 .lx-step:disabled { cursor: not-allowed; }
 .lx-step:disabled .lx-step-title, .lx-step:disabled .lx-step-status { color: var(--p-lx-ink-2); }
-.lx-step-active { background: var(--p-lx-accent-wash); }
-.lx-step-active:hover:not(:disabled) { background: var(--p-lx-accent-wash); }
+.lx-step-active, .lx-step-active:hover:not(:disabled) { background: var(--p-lx-sunken); box-shadow: inset 2px 0 0 var(--p-lx-ink); }
 .lx-step-n {
   width: 28px; height: 28px; border-radius: 50%; flex: none; display: inline-grid; place-items: center;
   background: var(--p-lx-sunken); color: var(--p-lx-ink-2); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
-  transition: background-color var(--lx-t) var(--lx-ease), color var(--lx-t) var(--lx-ease), transform var(--lx-t) var(--lx-ease);
+  transition: background-color var(--lx-t) var(--lx-ease), color var(--lx-t) var(--lx-ease);
 }
 .lx-step-done .lx-step-n { background: var(--p-lx-sunken); color: var(--p-lx-found); }
-.lx-step-active .lx-step-n { background: var(--p-lx-accent); color: var(--p-lx-paper); transform: scale(1.06); }
+.lx-step-active .lx-step-n { background: var(--p-lx-ink); color: var(--p-lx-paper); }
 .lx-step-text { display: flex; flex-direction: column; min-width: 0; }
 .lx-step-title { font-size: 14px; line-height: 20px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lx-step-status { font-size: 12px; line-height: 16px; color: var(--p-lx-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

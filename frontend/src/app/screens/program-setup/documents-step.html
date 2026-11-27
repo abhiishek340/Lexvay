@@ -78,7 +78,7 @@
           <ul class="lx-docs">
             @for (d of section.documents; track d.document.id) {
               @let ds = documentState[d.state];
-              <li class="lx-doc" [attr.data-state]="d.state">
+              <li class="lx-doc-row" [attr.data-state]="d.state">
                 <button type="button" class="lx-doc-open" (click)="open(d.document.id, d.document.filename, $event.target)" [disabled]="d.state !== 'READY'"
                         [attr.aria-label]="'Read ' + d.document.filename">
                   <ng-icon [name]="d.document.filename.toLowerCase().endsWith('.pdf') ? 'phosphorFilePdf' : 'phosphorFileDoc'" size="18" aria-hidden="true" />

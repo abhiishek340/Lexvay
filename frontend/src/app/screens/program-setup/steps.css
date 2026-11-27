@@ -49,7 +49,7 @@
 .lx-section { padding: 14px 16px; border-radius: var(--lx-r-control); background: var(--p-lx-sunken); display: flex; flex-direction: column; gap: 8px; }
 .lx-section-title { display: flex; align-items: baseline; gap: 8px; font-size: 14px; line-height: 20px; font-weight: 600; }
 .lx-docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.lx-doc { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.lx-doc-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
 .lx-doc-open {
   display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px; margin-left: -4px; border: 0; border-radius: 6px; background: transparent;
   color: var(--p-lx-accent); font: inherit; font-weight: 500; cursor: pointer; text-align: left; overflow-wrap: anywhere;

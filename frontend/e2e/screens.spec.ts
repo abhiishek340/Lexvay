@@ -185,6 +185,10 @@ test('UI3-0: the starting point of every other screen', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Rules' })).toBeVisible();
   await shoot(page, 'ui3-0-before-rules');
 
+  await nav(page, 'Program setup').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Program setup' })).toBeVisible();
+  await shoot(page, 'ui3-0-before-program-setup');
+
   await nav(page, 'Evidence report').click();
   await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
   await page.getByRole('option', { name: 'California (CA)' }).click();
