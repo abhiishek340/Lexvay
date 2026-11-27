@@ -7,6 +7,7 @@ import com.lexvay.job.Job;
 import com.lexvay.job.JobHandler;
 import com.lexvay.job.JobType;
 import com.lexvay.job.PermanentJobFailure;
+import com.lexvay.observability.LexvayMetrics;
 import com.lexvay.program.Program;
 import com.lexvay.program.ProgramRepository;
 import com.lexvay.rule.Jurisdiction;
@@ -39,11 +40,13 @@ public class RunAssessmentHandler implements JobHandler {
     private final RuleVersionRepository ruleVersions;
     private final MappingProducer producer;
     private final AuditService audit;
+    private final LexvayMetrics metrics;
     private final TransactionTemplate newTransaction;
 
     public RunAssessmentHandler(AssessmentRepository assessments, MappingRepository mappings, ProgramRepository programs,
                                 JurisdictionRepository jurisdictions, RuleVersionRepository ruleVersions,
-                                MappingProducer producer, AuditService audit, PlatformTransactionManager transactionManager) {
+                                MappingProducer producer, AuditService audit, LexvayMetrics metrics,
+                                PlatformTransactionManager transactionManager) {
         this.assessments = assessments;
         this.mappings = mappings;
         this.programs = programs;
@@ -51,6 +54,7 @@ public class RunAssessmentHandler implements JobHandler {
         this.ruleVersions = ruleVersions;
         this.producer = producer;
         this.audit = audit;
+        this.metrics = metrics;
         this.newTransaction = new TransactionTemplate(transactionManager);
         this.newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -84,12 +88,14 @@ public class RunAssessmentHandler implements JobHandler {
                     if (mappings.exists(assessmentId, requirement.id())) {
                         continue;
                     }
-                    Boolean inserted = newTransaction.execute(s -> {
+                    MappingProducer.Produced stored = newTransaction.execute(s -> {
                         MappingProducer.Produced p = producer.produce(assessmentId, program.id(), requirement, currentFacts, assessment.createdBy());
-                        return mappings.insertIfAbsent(tenantId, assessmentId, requirement.id(), jurisdiction.id(), p.finding(),
+                        boolean inserted = mappings.insertIfAbsent(tenantId, assessmentId, requirement.id(), jurisdiction.id(), p.finding(),
                                 p.method(), p.rationale(), p.evidenceSpanId(), assessment.createdBy());
+                        return inserted ? p : null;
                     });
-                    if (Boolean.TRUE.equals(inserted)) {
+                    if (stored != null) {
+                        metrics.mappingFinding(stored.finding(), stored.method());
                         produced++;
                     }
                 }
