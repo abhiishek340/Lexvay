@@ -37,6 +37,7 @@ describe('audit sentences', () => {
       ['LOGIN_SUCCEEDED', { email: 'dana@x', method: 'oidc' }, 'Dana Whitfield signed in with single sign-on'],
       ['LOGOUT', {}, 'Dana Whitfield signed out'],
       ['PASSWORD_SET', {}, 'Dana Whitfield set a password'],
+      ['PASSWORD_REHASHED', { from: 'bcrypt', to: 'argon2' }, "Dana Whitfield's password hash was upgraded at sign-in"],
       ['TENANT_CREATED', { name: 'Northfield University' }, 'Dana Whitfield created the organization Northfield University'],
       ['USER_CREATED', { email: 'jordan@x', role: 'CONTRIBUTOR' }, 'Dana Whitfield added jordan@x as a contributor'],
       ['USER_CREATED', { email: 'admin@x', role: 'ADMIN' }, 'Dana Whitfield added admin@x as an administrator'],
@@ -96,7 +97,7 @@ describe('audit sentences', () => {
     for (const action of Object.keys(AUDIT_SENTENCES)) {
       for (const detail of [{}, { kind: { nested: true }, jurisdiction: 42, requirementRef: '' }]) {
         const sentence = say(action, detail);
-        expect(sentence, action).toMatch(/^Dana Whitfield /);
+        expect(sentence, action).toMatch(/^Dana Whitfield\b/);
         expect(sentence, action).not.toMatch(/undefined|null|NaN|\[object|[{}[\]]/);
       }
     }
@@ -105,8 +106,8 @@ describe('audit sentences', () => {
   });
 
   it('reads an unknown action by its words and never prints its detail', () => {
-    const sentence = say('PASSWORD_REHASHED', { algorithm: 'argon2id', secret: { a: 1 } });
-    expect(sentence).toBe('Dana Whitfield: Password rehashed');
+    const sentence = say('SOMETHING_NEW_HAPPENED', { algorithm: 'argon2id', secret: { a: 1 } });
+    expect(sentence).toBe('Dana Whitfield: Something new happened');
     expect(actionLabel('SOMETHING_NEW')).toBe('Something new');
   });
 });

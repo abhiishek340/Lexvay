@@ -64,6 +64,7 @@ export const AUDIT_SENTENCES: Record<string, Sentence> = {
   LOGIN_SUCCEEDED: ({ actor, detail }) => (detail['method'] === 'oidc' ? `${actor} signed in with single sign-on` : `${actor} signed in`),
   LOGOUT: ({ actor }) => `${actor} signed out`,
   PASSWORD_SET: ({ actor }) => `${actor} set a password`,
+  PASSWORD_REHASHED: ({ actor }) => `${actor}'s password hash was upgraded at sign-in`,
   TENANT_CREATED: ({ actor, detail }) => `${actor} created the organization${text(detail, 'name') ? ` ${text(detail, 'name')}` : ''}`,
   USER_CREATED: ({ actor, detail }) => `${actor} added ${email(detail)} as ${roleWithArticle(detail['role'])}`,
   USER_SETUP_CODE_ISSUED: ({ actor, detail }) => `${actor} issued a setup code for ${email(detail)}`,
@@ -167,6 +168,7 @@ export const ACTION_LABEL: Record<string, string> = {
   LOGIN_SUCCEEDED: 'Signed in',
   LOGOUT: 'Signed out',
   PASSWORD_SET: 'Password set',
+  PASSWORD_REHASHED: 'Password hash upgraded',
   TENANT_CREATED: 'Organization created',
   USER_CREATED: 'User added',
   USER_SETUP_CODE_ISSUED: 'Setup code issued',
@@ -209,7 +211,7 @@ export function actionLabel(action: string): string {
 }
 
 /**
- * The entry as one sentence. An action this build does not know yet reads "Dana Whitfield: Password rehashed": the
+ * The entry as one sentence. An action this build does not know yet reads "Dana Whitfield: Something new": the
  * action's words, never its detail, so no raw JSON reaches the screen.
  */
 export function auditSentence(action: string, input: SentenceInput): string {
