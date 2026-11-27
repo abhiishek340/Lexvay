@@ -365,6 +365,21 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(row("determinations list: program id is not a UUID", "GET /api/v1/programs/{programId}/determinations", HttpMethod.GET,
                 "/api/v1/programs/" + BAD_ID + "/determinations", null, null, 400));
 
+        // --- determination register (F8) ---
+        for (String path : List.of("/api/v1/determinations/register", "/api/v1/determinations/register.csv")) {
+            String endpoint = "GET " + path;
+            String kind = path.endsWith(".csv") ? "register CSV" : "register";
+            rows.add(row(kind + ": program id is not a UUID", endpoint, HttpMethod.GET, path + "?programId=" + BAD_ID, null, null, 400));
+            rows.add(row(kind + ": unknown outcome", endpoint, HttpMethod.GET, path + "?outcome=COMPLIANT", null, null, 400));
+            rows.add(row(kind + ": jurisdiction is not two capital letters", endpoint, HttpMethod.GET, path + "?jurisdiction=california", null, null, 400));
+            rows.add(row(kind + ": control character in jurisdiction", endpoint, HttpMethod.GET, path + "?jurisdiction=C%00", null, null, 400));
+            rows.add(row(kind + ": current is not a boolean", endpoint, HttpMethod.GET, path + "?current=maybe", null, null, 400));
+        }
+        rows.add(row("determination lists: program id is not a UUID", "GET /api/v1/programs/{programId}/determination-lists", HttpMethod.GET,
+                "/api/v1/programs/" + BAD_ID + "/determination-lists", null, null, 400));
+        rows.add(row("determination lists: unknown program", "GET /api/v1/programs/{programId}/determination-lists", HttpMethod.GET,
+                "/api/v1/programs/" + ID + "/determination-lists", null, null, 404));
+
         // --- evidence requests and responses ---
         Map<String, Object> response = Map.of("documentId", DOCUMENT, "pageNumber", 1, "quote", "Total credits: 60", "comment", "Sent");
         String evidence = "/api/v1/mappings/" + REQUESTED_MAPPING + "/evidence-responses";
