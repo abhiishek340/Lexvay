@@ -131,7 +131,7 @@ nothing. JVM, Tomcat and HikariCP meters come from Spring Boot; Lexvay's are:
 |---|---|---|
 | `lexvay.llm.calls` (`lexvay_llm_calls_total`) | `purpose`, `model`, `outcome` = success, refused, error | model calls |
 | `lexvay.llm.tokens` (`lexvay_llm_tokens_total`) | `direction` = input, output | tokens as reported by the provider |
-| `lexvay.llm.duration` (`lexvay_llm_duration_seconds_*`) | none | wall time of a model call |
+| `lexvay.llm.duration` (`lexvay_llm_duration_seconds_*`) | `purpose` | wall time of a model call |
 | `lexvay.job.duration` (`lexvay_job_duration_seconds_*`) | `type`, `outcome` = done, retried, failed | one job attempt |
 | `lexvay.job.queue.depth` (`lexvay_job_queue_depth`) | none | queued jobs, all tenants (one indexed count at scrape time) |
 | `lexvay.quote.verification` (`lexvay_quote_verification_total`) | `result` = verified, rejected | model quotes checked against page text |
@@ -150,7 +150,7 @@ lexvay_job_duration_seconds_count{outcome="failed",type="RUN_ASSESSMENT"} 1
 lexvay_job_duration_seconds_count{outcome="retried",type="RUN_ASSESSMENT"} 2
 lexvay_job_queue_depth 0.0
 lexvay_llm_calls_total{model="fake-llm",outcome="error",purpose="MATCH_EVIDENCE"} 3.0
-lexvay_llm_duration_seconds_count 3
+lexvay_llm_duration_seconds_count{purpose="MATCH_EVIDENCE"} 3
 ```
 
 ### Cost of one assessment

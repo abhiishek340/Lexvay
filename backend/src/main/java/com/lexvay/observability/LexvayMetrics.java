@@ -41,6 +41,7 @@ public class LexvayMetrics {
                 .tag("purpose", purpose.name()).tag("model", model).tag("outcome", word(outcome))
                 .register(registry).increment();
         Timer.builder("lexvay.llm.duration").description("Wall time of model calls")
+                .tag("purpose", purpose.name())
                 .register(registry).record(duration);
         tokens("input", inputTokens);
         tokens("output", outputTokens);

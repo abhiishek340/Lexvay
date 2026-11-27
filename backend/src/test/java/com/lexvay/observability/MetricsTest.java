@@ -53,7 +53,8 @@ class MetricsTest extends AbstractAssessmentTest {
         double extractCalls = counter("lexvay.llm.calls", "purpose", "EXTRACT_REQUIREMENTS", "model", "fake-llm", "outcome", "success");
         double input = counter("lexvay.llm.tokens", "direction", "input");
         double output = counter("lexvay.llm.tokens", "direction", "output");
-        long durations = timerCount("lexvay.llm.duration");
+        long durations = timerCount("lexvay.llm.duration", "purpose", "MATCH_EVIDENCE");
+        long extractDurations = timerCount("lexvay.llm.duration", "purpose", "EXTRACT_REQUIREMENTS");
         double verified = counter("lexvay.quote.verification", "result", "verified");
         double rejected = counter("lexvay.quote.verification", "result", "rejected");
         double found = counter("lexvay.mapping.finding", "finding", "EVIDENCE_FOUND", "method", "MATCH");
@@ -64,7 +65,8 @@ class MetricsTest extends AbstractAssessmentTest {
 
         assertThat(counter("lexvay.llm.calls", "purpose", "MATCH_EVIDENCE", "model", "fake-llm", "outcome", "success") - calls).isEqualTo(2);
         assertThat(counter("lexvay.llm.calls", "purpose", "EXTRACT_REQUIREMENTS", "model", "fake-llm", "outcome", "success") - extractCalls).isEqualTo(1);
-        assertThat(timerCount("lexvay.llm.duration") - durations).isEqualTo(3);
+        assertThat(timerCount("lexvay.llm.duration", "purpose", "MATCH_EVIDENCE") - durations).isEqualTo(2);
+        assertThat(timerCount("lexvay.llm.duration", "purpose", "EXTRACT_REQUIREMENTS") - extractDurations).isEqualTo(1);
         assertThat(counter("lexvay.llm.tokens", "direction", "input") - input).isGreaterThanOrEqualTo(run.inputTokens());
         assertThat(counter("lexvay.llm.tokens", "direction", "output") - output).isGreaterThanOrEqualTo(run.outputTokens());
         assertThat(counter("lexvay.quote.verification", "result", "verified") - verified).isEqualTo(1);

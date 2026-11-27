@@ -30,7 +30,7 @@ class LlmGatewayTest {
         assertThat(calls("success")).isEqualTo(1);
         assertThat(registry.get("lexvay.llm.tokens").tag("direction", "input").counter().count()).isEqualTo(120);
         assertThat(registry.get("lexvay.llm.tokens").tag("direction", "output").counter().count()).isEqualTo(30);
-        assertThat(registry.get("lexvay.llm.duration").timer().count()).isEqualTo(1);
+        assertThat(registry.get("lexvay.llm.duration").tag("purpose", "MATCH_EVIDENCE").timer().count()).isEqualTo(1);
     }
 
     @Test
@@ -51,7 +51,7 @@ class LlmGatewayTest {
         assertThatThrownBy(() -> gateway.complete(REQUEST)).isInstanceOf(IllegalStateException.class);
 
         assertThat(calls("error")).isEqualTo(1);
-        assertThat(registry.get("lexvay.llm.duration").timer().count()).isEqualTo(1);
+        assertThat(registry.get("lexvay.llm.duration").tag("purpose", "MATCH_EVIDENCE").timer().count()).isEqualTo(1);
     }
 
     @Test
