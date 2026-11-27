@@ -25,14 +25,16 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F9 Curriculum search API | `feat-curriculum-search` | 8 | Sonnet 5.5 | merged (PR #10) |
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | merged (PR #13) |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | merged (PR #18) |
-| FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
+| FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | in progress |
 | F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | merged (PR #21) |
-| F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
+| F2 Program setup workspace | `feat-setup-workspace` | 3 | Opus 5.5 | specified (starts when F4 merges) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | merged (PR #22); review fixes in F3b |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | in progress |
 | F5 Administration and audit tools | `feat-admin-audit` | 5 | Sonnet 5.5 | queued |
 | F7 Retrieval quality (BM25 ranking, excerpts, retrieval metrics) | `retrieval-quality` | 3 | Sonnet 5.5 | merged (PR #17) |
-| F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | in progress |
+| F3b Rule workspace review fixes (edit layout, error text, unsaved-changes guard, viewer reuse) | `feat-rule-workspace-fixes` | 10 | Opus 5.5 | merged (PR #24) |
+| TEST-1 Scripted fake model in the end-to-end backend | `test-scripted-e2e-model` | 11 | Sonnet 5.5 | merged (PR #25) |
+| PERF-FE-1 Icons and theme tokens per chunk | `perf-frontend-chunks` | 6 | Sonnet 5.5 | in progress |
 | F7b Answer stability and prompt caching | `match-stability` | — | Sonnet 5.5 | queued (needs a live model key to measure) |
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | queued (after F7, FIX-1) |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
@@ -246,6 +248,76 @@ the quote; the viewer only shows what was verified). Decisions D-220 to D-229 in
    endpoint (headers, 404 other tenant, 304 on If-None-Match).
 Done when: `LEXVAY_E2E_SLOT=1 make test` green; screenshots of the review screen with the viewer in both themes
 in `docs/screens/`; `DECISIONS.md (F1)` and `PROGRESS.md (F1)` written.
+
+## F2 — Program setup workspace (slot 3; Opus 5.5; frontend with small backend additions; after F4 merges)
+Purpose: today a program can only be created by the seed or by hand through the API. A university's contributor
+must be able to set one up in the product: the program and its target states, its courses and their catalog-year
+versions, the syllabi and other documents, the program facts the rules engine needs (each fact backed by a quote
+selected on its page, product rule 2), a readiness check, and the first assessment with visible progress. The same
+workspace stays the place to add a course version or a document later. Decisions D-285 to D-294 in
+`docs/decisions/F2.md`.
+1. **Routes**: `/programs/new` (CONTRIBUTOR, ADMIN; "New program" button on the Programs home screen and an entry
+   in the program switcher's footer) and `programs/:programId/setup` ("Program setup" in the rail, icon
+   `phosphorWrench`, after Program overview; visible to every role, editable for CONTRIBUTOR and ADMIN, read-only
+   otherwise). Both render the same `SetupWorkspace` with a PrimeNG Stepper: Details → States → Courses → Documents
+   → Program facts → Readiness. Steps are freely navigable once the program exists; on `/programs/new` only Details
+   is enabled until the program is created, then the URL becomes `programs/:id/setup` (replace, no extra history
+   entry). Each step shows a short status in its header (for example "6 courses", "2 documents still being read",
+   "1 fact missing").
+2. **Details and States** (create only): name, license type (Select over the license types the tenant's rule
+   versions use, plus free text), catalog year, and target states (MultiSelect of jurisdictions with code and name,
+   at least one). Submit calls `POST /programs`. After creation both steps are read-only with one sentence: "Name,
+   license type, catalog year and states are fixed once the program exists. Create a new program for a different
+   combination." (Changing targets later touches signed determinations; it is a separate item, not part of F2.)
+3. **Courses**: table of courses (code mono, title, current catalog year, required or elective Tag) from
+   `GET /programs/{id}/courses`; "Add course" Dialog (code, title, catalog year, required ToggleSwitch) calls
+   `POST /programs/{id}/courses` then `POST /courses/{id}/versions`; row action "New catalog year" opens a Dialog
+   (catalog year, required) that posts a version with `supersedesId` = the current version and explains in one line
+   that the change opens a change event for every assessment that cited the old version. Server validation errors
+   appear under the fields.
+4. **Documents**: grouped like F4's picker (course, then "Program documents"), from `GET /programs/{id}/documents`
+   (added by F4). Upload with PrimeNG FileUpload in custom mode (no auto upload of hidden fields): per file a kind
+   Select (SYLLABUS defaults when uploading into a course group; DEGREE_PLAN, HANDBOOK, ACCREDITATION for program
+   documents) and the course version for syllabi; `POST /programs/{id}/documents` per file, sequentially, with a row
+   per file showing Uploading → Reading → Ready (n pages) / Failed (server message). Reading status comes from
+   `GET /documents/{id}` (its ingest status) polled every 2 s while any file is Reading and the tab is visible; a
+   duplicate (409 or the server's duplicate message) is shown as "Already uploaded" with a link to the existing
+   document. Each document row opens the F1 `DocumentViewer` in a Drawer (read-only). Accepted types and the size
+   limit come from the server's messages, not a client copy; the input's `accept` lists `.pdf,.docx,.txt`.
+5. **Program facts**: one row per `NumericField` the approved rules of the program's states use (TOTAL_CREDITS,
+   PRACTICUM_HOURS, INTERNSHIP_HOURS; derive the list from `GET /rule-versions` requirements of approved, current
+   versions for the program's states and license type, computed in one pure function with a Vitest test), each
+   showing the current fact (value, document, page, quote) from `GET /programs/{id}/facts` or "Not recorded".
+   "Record" opens a Drawer: InputNumber for the value, document picker, `DocumentViewer` with `selectable` true; the
+   selected passage must contain the number as written (the server verifies the quote; the screen also shows a
+   warning, not a block, when the selected text does not contain the digits of the value). Submit
+   `POST /programs/{id}/facts`. Facts are immutable records: recording again adds a newer fact; the row shows the
+   newest and a "History" disclosure lists earlier ones.
+6. **Readiness**: a checklist computed in one pure function (`programReadiness(program, courses, documents, facts,
+   ruleVersions)`, Vitest-tested) with one line per check, each with an icon and text, never colour alone:
+   every target state has an approved, current rule version for the license type (list the states that do not,
+   linking to Rules); every course's current version has at least one ready document; no document is still being
+   read; every numeric field used by those rules has a recorded fact. Blocking checks disable "Run assessment";
+   the missing-fact check is a warning (the rules engine then reports those numeric requirements as missing
+   evidence, which is correct behaviour, and the line says so). "Run assessment" (CONTRIBUTOR, ADMIN, REVIEWER)
+   calls `POST /programs/{id}/assessments` and shows progress from `GET /assessments/{id}` polled every 2 s
+   (status, and requirements processed out of total if the view carries them; otherwise status only) until
+   FINISHED or FAILED, then a toast and a link to Review.
+7. **Backend additions** (only if missing on main when you start; each with tests, a row in
+   `InputValidationTableTest`, one connection per read): none are expected beyond F4's documents endpoint. If the
+   assessment view has no progress count, do not add one in F2; show status only and record it as a follow-up.
+8. **Bundle**: the setup workspace is a lazy route chunk; its PrimeNG components that are not already in the shared
+   preset (Stepper, FileUpload, MultiSelect, ToggleSwitch, Drawer if F4 did not add it) register their token sets
+   with the F3b pattern (`updatePreset` on first load, D-246). The initial bundle must stay under 700 kB raw; report
+   before and after.
+9. **Tests**: Vitest for readiness, the numeric-field derivation and the upload queue model; Playwright
+   (`frontend/e2e/setup.spec.ts`, slot 3) creating a program "Demo M.A. School Counseling (fictional)" with two
+   states that have approved rules in the seed, adding two courses, uploading two fictional syllabi from
+   `frontend/e2e/fixtures/` (PDF and DOCX, labelled fictional) and waiting for Ready, recording TOTAL_CREDITS with a
+   keyboard-selected quote, seeing readiness turn green, running the assessment and reaching Review; a read-only
+   pass as a REVIEWER (no edit controls); axe in both themes at 1280 and 400 px; no request leaves localhost.
+Done when: `LEXVAY_E2E_SLOT=3 make test` green; screenshots of every step in both themes in `docs/screens/`;
+`docs/decisions/F2.md` and `docs/progress/F2.md` written.
 
 ## F3 — Rule workspace screens (frontend; slot 10; Opus 5.5; uses F3a, WS-UI)
 Purpose: today a reviewer can approve a requirement list only through the API. The rule workspace is where a
@@ -482,7 +554,7 @@ version share a timestamp, so the order is the text order of the ref ("CO-10" be
 3. Tests: a rule with twelve requirements lists CO-1 … CO-12 in order through the requirements endpoint,
    the mappings endpoint and the diff; replace keeps the submitted order; `Rule5` immutability unchanged.
 
-## FIX-2 — Job entity id column and index (after FIX-1; slot 5; migration `V013__job_entity_id.sql`)
+## FIX-2 — Job entity id column and index (slot 5; migration `V013__job_entity_id.sql`)
 Defect found in review of WS-PERF (D-115): `JobRepository.latest` filters by `payload->>:key`, which scans the
 whole `job` table under row-level security because `jsonb ->>` is not leakproof and jobs are never deleted.
 Every job payload today holds exactly one id (`documentId`, `ruleVersionId`, `assessmentId`, `changeEventId`,
@@ -755,6 +827,29 @@ D-270 to D-279 in `docs/decisions/F8.md`.
 Done when: `LEXVAY_E2E_SLOT=2 make test` green, `make perf` green, screenshots of both tabs in both themes and of the
 print view in `docs/screens/`, `docs/decisions/F8.md` and `docs/progress/F8.md` written.
 
+## PERF-FE-1 — Icons and theme tokens per chunk (frontend; slot 6; Sonnet 5.5; after F8 merges)
+Purpose: the initial bundle sits at the 700 kB raw warning after every screen lands, because `provideIcons(LEXVAY_ICONS)`
+in `app.config.ts` registers every Phosphor icon of every screen in the initial chunk, and the shared preset carries
+token sets for components only some screens render. Shaving each screen by hand does not hold; this makes each lazy
+chunk carry its own icons and tokens. Decisions D-295 to D-299 in `docs/decisions/PERF-FE-1.md`.
+1. **Icons**: `app.config.ts` provides only the icons the shell, sign-in and the home screen render (`SHELL_ICONS` in
+   `theme/icons.ts`). Every routed screen provides its own set with `provideIcons` in the route's `providers` (one
+   `<SCREEN>_ICONS` constant per screen file, next to the screen), and shared components (`DocumentViewer`, the
+   diff and clamp helpers) provide theirs in the component's `viewProviders`. `LEXVAY_ICONS` is deleted. A Vitest
+   test renders each routed screen's template with only its own providers and fails if an `ng-icon` name is not
+   registered (walk the compiled templates or the rendered DOM for `ng-icon[name]`; no runtime warnings allowed).
+2. **Theme tokens**: the shared preset keeps only the token sets of components used by the shell or by two or more
+   screens' first paint (Button, Tag, Message, Toast, Skeleton, Menu, Select, Tabs, Badge, Tooltip, InputText,
+   Password, DataTable); every other component's token set moves to the chunk of the screen that uses it, registered
+   once on first load through one shared helper `registerComponentTokens(sets)` (generalise F3b's `rules-theme.ts`
+   and F8's register equivalent into it; delete their duplicates).
+3. **Budget**: lower the initial budget to 650 kB warning and 750 kB error (raw) once the initial bundle is under
+   640 kB; report the before and after sizes (raw and estimated transfer) and the size of each lazy chunk in
+   `docs/PERF.md` under a new "Frontend bundle" section with the method.
+4. **No visual change**: regenerate every screenshot with `LEXVAY_SCREENSHOTS=1` and confirm in the PR that they are
+   unchanged apart from timestamps; axe stays clean in both themes.
+Done when: `make frontend-test` and `LEXVAY_E2E_SLOT=6 make test` green; budget lowered; `docs/PERF.md` updated.
+
 ## OPS-1 — Image build and smoke in CI (after F6 merges; no slot; Sonnet 5.5)
 Purpose: F6 ships a Dockerfile and `scripts/smoke.sh`; nothing runs them on every change. Decisions D-240 to D-244
 in `DECISIONS.md (OPS-1)`.
@@ -815,6 +910,10 @@ D-259 in `docs/decisions/F7c.md`.
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
 ## Follow-ups recorded from reviews
+- F3b: in the edit grid the title field stays about 7 rem wide even when the row has room; give title the
+  remaining width (`minmax(10rem, 1fr)`) while ref, type and check keep fixed widths. The initial bundle is 698.9 kB
+  raw, 1 kB under the warning: any new component in the shared preset must move another Rules-only or
+  screen-only token set out first (D-246 pattern).
 - Merge round of 2026-11-26 (owner asked for every open PR to be merged): the orchestrator integrated #20, #18, #21,
   #17, #22 and #23 on one tree, ran the full suite (788 backend, 70 frontend unit, 13 end-to-end) and merged them
   in that order with the recorded conflict resolutions. Fixes made in that round: fetched HTML is served as plain

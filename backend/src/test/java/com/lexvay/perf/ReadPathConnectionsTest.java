@@ -59,6 +59,9 @@ class ReadPathConnectionsTest extends AbstractAssessmentTest {
         endpoints.put("requirements", "/api/v1/rule-versions/" + s.ruleVersionId() + "/requirements");
         endpoints.put("change events", "/api/v1/change-events");
         endpoints.put("audit", "/api/v1/audit");
+        endpoints.put("determination register", "/api/v1/determinations/register?current=false");
+        endpoints.put("determination register of a program", "/api/v1/determinations/register?programId=" + s.programId() + "&jurisdiction=CA&outcome=MEETS");
+        endpoints.put("determination lists", program + "/determination-lists");
         endpoints.put("work queue", "/api/v1/work-queue");
         endpoints.put("work queue count", "/api/v1/work-queue/count");
         var source = mvc.post().uri("/api/v1/rule-sources").with(user(t.admin())).with(csrf()).contentType(MediaType.APPLICATION_JSON)

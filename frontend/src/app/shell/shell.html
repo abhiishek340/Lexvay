@@ -55,12 +55,12 @@
     </header>
   }
   <div class="lx-frame">
-    @if (chrome() && programId(); as pid) {
+    @if (railVisible()) {
       <nav class="lx-rail" aria-label="Screens">
         <ul>
           @for (link of links(); track link.id) {
-            <li>
-              <a [routerLink]="['/programs', pid, link.id]" routerLinkActive="lx-active" ariaCurrentWhenActive="page"
+            <li [class.lx-rail-tenant]="link.id === 'register'">
+              <a [routerLink]="link.path" routerLinkActive="lx-active" ariaCurrentWhenActive="page"
                  [attr.aria-describedby]="link.badge > 0 ? 'nav-badge-' + link.id : null">
                 <ng-icon [name]="link.icon" size="18" aria-hidden="true" />
                 <span class="lx-nav-label">{{ link.label }}</span>

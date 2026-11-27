@@ -10,21 +10,33 @@
 .lx-more { padding: 0; margin-top: 2px; }
 .lx-table-skeleton { display: flex; flex-direction: column; gap: 6px; }
 
-/* The edit grid: every cell is a control. */
-.lx-cell-ref { width: 7rem; }
-.lx-cell-title { width: 12rem; }
-.lx-cell-type { width: 11rem; }
-.lx-cell-check { width: 16rem; }
-.lx-cell-actions { width: 7.5rem; white-space: nowrap; }
-.lx-check-controls { display: grid; grid-template-columns: 5.5rem 1fr; gap: 6px; }
-.lx-cell-text { min-width: 18rem; }
-.lx-check-field { grid-column: 1 / -1; }
-:host ::ng-deep .lx-check-value input { width: 100%; }
-:host ::ng-deep .lx-check-value { display: block; }
+/* The edit grid: two lines per requirement (fields, then text), laid out by the width of the pane itself. */
+.lx-edit { container-type: inline-size; }
+.lx-fields {
+  display: grid; gap: 8px; align-items: end;
+  grid-template-columns: 6rem minmax(6rem, 1fr) 8.5rem 17.75rem auto;
+  grid-template-areas: "ref title type check actions";
+}
+.lx-f { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lx-f-ref { grid-area: ref; }
+.lx-f-title { grid-area: title; }
+.lx-f-type { grid-area: type; }
+.lx-f-check { grid-area: check; }
+.lx-f-actions { grid-area: actions; flex-direction: row; gap: 0; }
+.lx-f-label { font-size: 11px; line-height: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--p-lx-text-secondary); }
+.lx-check-controls { display: grid; grid-template-columns: 8.5rem 4.75rem minmax(0, 1fr); gap: 4px; }
+.lx-line-one td { border-bottom: 0; padding-bottom: 6px; }
+.lx-line-two td { padding-top: 0; }
+.lx-line-two .lx-f-label { display: block; margin-bottom: 2px; }
 .lx-serif-input { font-family: var(--lx-font-serif); font-size: 14px; line-height: 20px; }
-.lx-row-invalid td { border-bottom-color: transparent; }
-.lx-row-problems td { padding-top: 0; }
-.lx-row-problem-list { display: flex; flex-direction: column; gap: 2px; }
+@container (max-width: 739px) {
+  .lx-fields { grid-template-columns: 8.5rem minmax(0, 1fr) auto; grid-template-areas: "ref title actions" "type check check"; }
+}
+@container (max-width: 479px) {
+  .lx-fields { grid-template-columns: minmax(0, 1fr); grid-template-areas: "ref" "title" "type" "check" "actions"; }
+  .lx-check-controls { grid-template-columns: minmax(0, 1fr) 4.75rem 5rem; }
+}
+.lx-row-problem-list { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
 .lx-row-problem { display: flex; gap: 6px; align-items: center; color: var(--p-lx-missing); font-size: 12px; line-height: 16px; }
 .lx-row-problem ng-icon { flex: none; }
 

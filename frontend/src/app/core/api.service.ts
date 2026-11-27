@@ -2,9 +2,11 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, DocumentPage, EvidenceRequest, EvidenceResponse, EvidenceResponseBody, Jurisdiction, Mapping,
-  MappingsView, NewRuleVersion, Outcome, Program, ProgramDocument, ProgramOverview, ReportStatusView, RequirementDraft, RequirementsView, RuleVersionDiff, RuleVersionView, SessionView, UserSummary, UserView,
+  AssessmentView, AuditEntry, ChangeEvent, DecisionKind, Determination, DeterminationLists, DocumentPage, EvidenceRequest, EvidenceResponse, EvidenceResponseBody,
+  Jurisdiction, Mapping, MappingsView, NewRuleVersion, Outcome, Program, ProgramDocument, ProgramOverview, RegisterFilter, RegisterRow, ReportStatusView,
+  RequirementDraft, RequirementsView, RuleVersionDiff, RuleVersionView, SessionView, UserSummary, UserView,
 } from './models';
+import { REGISTER_PATH, registerQuery } from './register';
 
 /** Thin, typed wrapper over /api/v1. Holds no business rules. */
 @Injectable({ providedIn: 'root' })
@@ -63,6 +65,11 @@ export class ApiService {
   determinations(programId: string): Observable<Determination[]> { return this.http.get<Determination[]>(`${this.base}/programs/${programId}/determinations`); }
   sign(programId: string, jurisdiction: string, outcome: Outcome): Observable<Determination> {
     return this.http.post<Determination>(`${this.base}/programs/${programId}/determinations`, { jurisdiction, outcome });
+  }
+
+  register(filter: RegisterFilter): Observable<RegisterRow[]> { return this.http.get<RegisterRow[]>(REGISTER_PATH, { params: registerQuery(filter) }); }
+  determinationLists(programId: string): Observable<DeterminationLists> {
+    return this.http.get<DeterminationLists>(`${this.base}/programs/${programId}/determination-lists`);
   }
 
   changeEvents(): Observable<ChangeEvent[]> { return this.http.get<ChangeEvent[]>(`${this.base}/change-events`); }

@@ -28,6 +28,33 @@ export interface Mapping { id: string; assessmentId: string; jurisdictionId: str
 export interface MappingsView { assessmentId: string; jurisdiction: string | null; mappings: Mapping[]; }
 
 export interface Determination { id: string; programId: string; jurisdiction: string; ruleVersionId: string; ruleVersionLabel: string; assessmentId: string; outcome: Outcome; signedBy: string; signedByName: string; signedAt: string; status: 'SIGNED' | 'REOPENED'; versionsHash: string; courseVersionIds: string[]; }
+export type DeterminationStatus = Determination['status'];
+
+/** GET /determinations/register: one signed determination exactly as signed (F8). */
+export interface RegisterRow {
+  determinationId: string; programId: string; programName: string; licenseType: string; catalogYear: string;
+  jurisdictionCode: string; jurisdictionName: string; outcome: Outcome; status: DeterminationStatus;
+  signedBy: string; signedByName: string; signedAt: string; ruleVersionId: string; ruleVersionLabel: string;
+  ruleEffectiveFrom: string; versionsHash: string; assessmentId: string; courseVersionCount: number;
+}
+export interface RegisterFilter { programId: string | null; jurisdiction: string | null; outcome: Outcome | null; includeReopened: boolean; }
+
+export type DisclosureReason = 'SIGNED_NO_DETERMINATION' | 'NO_CURRENT_SIGNATURE';
+/** A target jurisdiction in one of the three lists; the determination fields are null without a current signature. */
+export interface DisclosureEntry {
+  jurisdictionCode: string; jurisdictionName: string; determinationId: string | null; signedBy: string | null;
+  signedByName: string | null; signedAt: string | null; ruleVersionLabel: string | null; versionsHash: string | null;
+  reason: DisclosureReason | null; reopenedDeterminationId: string | null; reopenedAt: string | null;
+}
+/** GET /programs/{id}/determination-lists: every target jurisdiction in exactly one list. */
+export interface DeterminationLists {
+  program: { id: string; name: string; licenseType: string; catalogYear: string };
+  generatedAt: string;
+  determinedToMeet: DisclosureEntry[];
+  determinedNotToMeet: DisclosureEntry[];
+  noDeterminationMade: DisclosureEntry[];
+}
+
 export interface ChangeEvent {
   id: string; kind: 'RULE_VERSION' | 'COURSE_VERSION'; oldId: string; newId: string; status: 'OPEN' | 'HANDLED'; createdAt: string;
   jurisdiction: string | null; oldLabel: string | null; newLabel: string | null; newApproved: boolean;

@@ -38,6 +38,7 @@ lexvay:
     provider: ${LEXVAY_LLM_PROVIDER:fake}     # fake | anthropic
     model: ${LEXVAY_LLM_MODEL:claude-sonnet-5-5}
     effort: ${LEXVAY_LLM_EFFORT:medium}       # low | medium | high | xhigh | max
+    fake-scripts: ${LEXVAY_LLM_FAKE_SCRIPTS:}  # fake provider only: comma-separated fake-llm.yml files scripted at startup (D-280)
     max-output-tokens: 16000
     price:                                    # USD per million tokens; evaluation cost report and GET /assessments/{id}/usage; 0 means not set
       input-per-mtok: ${LEXVAY_LLM_PRICE_INPUT_PER_MTOK:0}

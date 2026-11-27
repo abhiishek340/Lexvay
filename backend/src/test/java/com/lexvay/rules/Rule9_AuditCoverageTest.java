@@ -38,6 +38,14 @@ class Rule9_AuditCoverageTest extends AbstractDatabaseTest {
             "PUT /api/v1/rule-sources/{id}/active"                 // RuleSourceApiTest.onlyAnAdminTurnsMonitoringOffAndOnAndItIsAudited
     );
 
+    /**
+     * Reads that are audited all the same, because they hand signed records out of the system (D-274 in
+     * docs/decisions/F8.md). Endpoint → test that asserts its audit row.
+     */
+    static final Set<String> AUDITED_READ_ENDPOINTS = Set.of(
+            "GET /api/v1/determinations/register.csv"              // RegisterApiTest.theCsvExportIsRfc4180WithLabelsAndIsAudited
+    );
+
     @Autowired @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping;
 
     @Test
@@ -54,5 +62,16 @@ class Rule9_AuditCoverageTest extends AbstractDatabaseTest {
             }
         });
         assertThat(mutating).containsExactlyInAnyOrderElementsOf(AUDITED_MUTATING_ENDPOINTS);
+    }
+
+    @Test
+    void everyAuditedReadEndpointExists() {
+        var reads = new TreeSet<String>();
+        handlerMapping.getHandlerMethods().forEach((info, method) -> {
+            if (info.getMethodsCondition().getMethods().contains(RequestMethod.GET)) {
+                info.getPathPatternsCondition().getPatterns().forEach(p -> reads.add("GET " + p.getPatternString()));
+            }
+        });
+        assertThat(reads).containsAll(AUDITED_READ_ENDPOINTS);
     }
 }

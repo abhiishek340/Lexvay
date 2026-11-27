@@ -10,10 +10,10 @@ import com.lexvay.job.JobRunner;
 import com.lexvay.llm.FakeLlmClient;
 import com.lexvay.llm.LlmClient;
 import com.lexvay.seed.ScriptedFakeModel;
+import com.lexvay.seed.SeedCopy;
 import com.lexvay.seed.SeedLoader;
 import com.lexvay.tenant.AppUserRepository;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,15 +47,7 @@ class RuleVersionDiffSeedTest extends AbstractDatabaseTest {
 
     @BeforeAll
     static void copySeed() throws IOException {
-        Path seed = Path.of("..", "seed").toAbsolutePath().normalize();
-        seedCopy = Files.createTempDirectory("lexvay-seed-");
-        for (String shared : List.of("fake-llm.yml", "rules", "pdf")) {
-            Files.createSymbolicLink(seedCopy.resolve(shared), seed.resolve(shared));
-        }
-        String manifest = Files.readString(seed.resolve("manifest.yml"));
-        manifest = manifest.substring(0, manifest.indexOf("  - name: Westbrook College"))
-                .replace("northfield.example", EMAIL_DOMAIN).replace("Northfield University", "Diff API University");
-        Files.writeString(seedCopy.resolve("manifest.yml"), manifest);
+        seedCopy = SeedCopy.northfield("Diff API University", EMAIL_DOMAIN);
     }
 
     private LexvayUser dana() {

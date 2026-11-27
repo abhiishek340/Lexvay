@@ -1,8 +1,7 @@
 package com.lexvay.audit;
 
+import com.lexvay.common.WhereClause;
 import java.sql.Types;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,23 +39,17 @@ public class AuditRepository {
                 .update();
     }
 
-    /**
-     * Newest first. Only the predicates the filter sets are in the SQL text, so every query shape gets its
-     * own plan instead of one generic plan with {@code :x IS NULL OR} branches.
-     */
+    /** Newest first; only the filters that are set become predicates (WhereClause, D-116). */
     public List<AuditEntry> newestFirst(AuditFilter filter, int limit, int offset) {
-        var where = new ArrayList<String>();
-        var params = new LinkedHashMap<String, Object>();
-        filterBy(where, params, "action = :action", "action", filter.action());
-        filterBy(where, params, "entity_type = :entityType", "entityType", filter.entityType());
-        filterBy(where, params, "entity_id = :entityId", "entityId", filter.entityId());
-        filterBy(where, params, "user_id = :userId", "userId", filter.userId());
-        filterBy(where, params, "created_at >= :from", "from", filter.from());
-        filterBy(where, params, "created_at <= :to", "to", filter.to());
-        var spec = jdbc.sql(SELECT + (where.isEmpty() ? "" : " WHERE " + String.join(" AND ", where))
-                + " ORDER BY created_at DESC, id DESC LIMIT :limit OFFSET :offset");
-        params.forEach(spec::param);
-        return spec.param("limit", limit).param("offset", offset).query(this::map).list();
+        WhereClause where = new WhereClause()
+                .andIfPresent("action = :action", "action", filter.action())
+                .andIfPresent("entity_type = :entityType", "entityType", filter.entityType())
+                .andIfPresent("entity_id = :entityId", "entityId", filter.entityId())
+                .andIfPresent("user_id = :userId", "userId", filter.userId())
+                .andIfPresent("created_at >= :from", "from", filter.from())
+                .andIfPresent("created_at <= :to", "to", filter.to());
+        return where.bind(jdbc.sql(SELECT + where.sql() + " ORDER BY created_at DESC, id DESC LIMIT :limit OFFSET :offset"))
+                .param("limit", limit).param("offset", offset).query(this::map).list();
     }
 
     public List<AuditEntry> forEntity(UUID entityId) {
@@ -64,13 +57,6 @@ public class AuditRepository {
                 .param("entityId", entityId)
                 .query(this::map)
                 .list();
-    }
-
-    private static void filterBy(List<String> where, Map<String, Object> params, String predicate, String name, Object value) {
-        if (value != null) {
-            where.add(predicate);
-            params.put(name, value);
-        }
     }
 
     private AuditEntry map(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {

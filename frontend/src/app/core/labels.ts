@@ -1,5 +1,5 @@
 import type { IconName } from '../theme/icons';
-import { ChangeEvent, DecisionKind, DiffStatus, Finding, NumericField, NumericOperator, Outcome, RequirementType, Role } from './models';
+import { ChangeEvent, DecisionKind, DeterminationStatus, DiffStatus, Finding, NumericField, NumericOperator, Outcome, RequirementType, Role } from './models';
 
 /** Plain wording (spec section 9): the two phrases the spec forbids never appear anywhere in the UI. */
 export const FINDING_LABEL: Record<Finding, string> = {
@@ -31,6 +31,23 @@ export const OUTCOME_LABEL: Record<Outcome, string> = {
   MEETS: 'Determined to meet',
   DOES_NOT_MEET: 'Determined not to meet',
   NOT_DETERMINED: 'No determination made',
+};
+
+/** A distinct shape per signed outcome, so the outcome never depends on colour alone. */
+export const OUTCOME_ICON: Record<Outcome, IconName> = {
+  MEETS: 'phosphorCheckCircle',
+  DOES_NOT_MEET: 'phosphorXCircle',
+  NOT_DETERMINED: 'phosphorMinusCircle',
+};
+
+export const STATUS_LABEL: Record<DeterminationStatus, string> = {
+  SIGNED: 'Signed',
+  REOPENED: 'Reopened',
+};
+
+export const STATUS_ICON: Record<DeterminationStatus, IconName> = {
+  SIGNED: 'phosphorSealCheck',
+  REOPENED: 'phosphorArrowCounterClockwise',
 };
 
 export const ROLE_LABEL: Record<Role, string> = {
@@ -95,6 +112,7 @@ export const ACTION_LABEL: Record<string, string> = {
   EVIDENCE_PROVIDED: 'Evidence provided',
   DETERMINATION_SIGNED: 'Determination signed',
   DETERMINATION_REOPENED: 'Determination reopened',
+  REGISTER_EXPORTED: 'Determination register exported',
   CHANGE_EVENT_CREATED: 'Change recorded',
   CHANGE_RERUN_REQUESTED: 'Re-run requested',
   CHANGE_RERUN: 'Change re-run finished',

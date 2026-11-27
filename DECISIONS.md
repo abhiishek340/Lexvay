@@ -391,7 +391,7 @@ End-to-end stacks are slot-based (`LEXVAY_E2E_SLOT`) so several checkouts can te
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–249, F7c D-250–259, F4 D-260–269, F8 D-270–279. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F13 if needed, V015 F7c. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F13 if needed, V015 F7c. Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -1865,3 +1865,87 @@ reports the same number the smoke script already prints, so one definition is us
 store this is the compressed content size (227 MB locally, matching `docs/OPERATIONS.md`); on a classic store it is
 the unpacked size, so compare numbers from the same environment only. The first CI run's value is recorded in
 `PROGRESS.md (OPS-1)`.
+
+### F3b — Rule workspace review fixes (amends D-213, D-217, D-218; adds D-245, D-246)
+
+**D-213 (amended) — Edit grid as two-line form rows.** Each requirement is two rows of the same PrimeNG Table body:
+line one has ref (mono), title (flexible), type, the numeric check controls when the type is numeric, and the move
+and delete icon buttons; line two has the text Textarea across the full width, with the row's server error directly
+under it. Each control has a visible label and keeps its `aria-label` naming the ref and the column. A container query
+on the form lays line one out by the pane's own width. At 740 px or more it is one line, with a fixed check column
+so the fields of every row line up. From 480 to 739 px it is two lines: ref, title and actions, then type and check.
+Under 480 px each field stacks, which covers every window under 640 px. The table has no `min-width` and no scroll
+container, and the e2e test checks it at 1024, 1280 and 1440 px. In a 1440 px window the pane is about 760 px wide,
+so the title field is the narrowest part (about 7 rem) of a numeric row. Rejected: a horizontally scrolling grid (the
+first review); one cell per column (does not fit the 676 px pane at 1280 px).
+
+**D-217 (amended) — Rule text through DocumentViewer.** The Rule text tab renders `lx-document-viewer` (F1)
+read-only with no highlight, on page 1 of the version's document. F3's own `rule-text.ts` is deleted, so there is
+one way to render a page. Pages come through `DocumentPageCache`.
+
+**D-218 (amended) — Extraction failure in plain words.** The detail header says "Requirement extraction did not
+produce a list. A reviewer can enter the list by hand with Edit list." The stored job error sits in mono inside a
+native `details` element, "Technical detail", collapsed by default. The version list row shows only the
+*Extraction failed* Tag. The option's accessible name never contained the error.
+
+**D-245 — Unsaved-changes guard.** The Rules screen provides a screen-scoped `UnsavedChanges` signal, which the
+Requirements tab sets while it is editing and the list is dirty. The route's `canDeactivate` (`confirmLeave` in
+`app.routes.ts`, typed by a `ConfirmsLeave` interface so the routes do not import the lazy screen) asks the screen.
+`leaveNeedsConfirmation(dirty, currentUrl, nextUrl)` is pure and unit-tested. It asks only when edits are unsaved and
+the path changes. The screen's route serves every version, so choosing another version also goes through the guard.
+The question is a PrimeNG ConfirmDialog: "Discard unsaved changes to this list?", with "Discard changes" (danger,
+outlined) and "Keep editing" (primary, focused by default). ConfirmDialog does not pass `closeAriaLabel` to its
+dialog, so the close button is named "Close and keep editing" through pass-through. When the person keeps editing,
+the Listbox selection goes back to the current version through a `linkedSignal`. `beforeunload` calls
+`preventDefault()` while edits are unsaved, so a reload or tab close gets the browser's own question.
+
+**D-246 — Tokens of Rules-only components load with the Rules chunk.** Accordion, ConfirmDialog, DatePicker and
+Listbox are rendered only by the Rules screen. Their Aura token sets move out of `LexvayPreset` and are merged into
+the active preset with `updatePreset` from `@primeuix/themes` when the Rules component is first constructed
+(`rules-theme.ts`), before any of those components exists. The initial bundle goes from 704.6 kB to 698.9 kB raw,
+under the 700 kB warning (D-083). InputNumber stays in the preset because F1's DocumentViewer uses it on Review too.
+Rejected: `@defer` around the edit grid's dialogs and the new-version dialog. They are already in the lazy `rules`
+chunk, so deferring them does not change the initial bundle; the initial bundle carries the preset, not the dialogs.
+
+### TEST-1 — Scripted fake model in the end-to-end backend (D-280 to D-284)
+
+**D-280 — `lexvay.llm.fake-scripts` loads fake-llm.yml files at startup.** The property is a list of paths, empty by
+default (`LEXVAY_LLM_FAKE_SCRIPTS`, comma-separated, in `.env.example` and `application.yml`). `FakeLlmStartupScripts`
+(a component in `com.lexvay.seed`, `@PostConstruct`) reads the files in order through `ScriptedFakeModel`, the loader
+`SeedRunner` uses: `ScriptedFakeModel.load` now takes a list of files, the seed's single-directory overload delegates
+to it, and `FakeLlmScripts.overriddenBy` merges the files (a key in both takes the later file; a file may hold only
+`extraction` or only `match`). There is no second parser. The loader scripts every extraction at once
+(`scriptAllExtractions`, which calls `beforeExtraction` per label, so `replaceScript` keeps a repeated load from
+queueing an earlier answer). It does not script `match`: a match script names a document by file and needs the
+document's id, which exists only after the seed has uploaded it, so matching at startup stays the seed's job. With any
+provider other than `fake` the property is ignored and one warning is logged (the model's id is in it); an unknown
+provider still fails startup in `LlmConfig`. Nothing sets the property in profile `prod`; it is active there only if an
+operator sets it. A missing file fails startup naming the path.
+
+**D-281 — The e2e backend scripts the seed file and a test-only fixture.** `scripts/e2e.sh` exports
+`LEXVAY_LLM_FAKE_SCRIPTS=seed/fake-llm.yml,frontend/e2e/fixtures/fake-llm.e2e.yml` (the paths are relative to the
+repository root, where the script runs the backend). The seed process inherits the variable too; its own
+`beforeExtraction` replaces each script for its labels, so the result is the same. The fixture holds the extraction for
+"Demo rule set - Nevada (fictional) 2027": NV-1 total credits >= 60 (numeric), NV-2 ethics, NV-3 human growth, NV-4 a
+jurisdiction-specific course (fictional). Its header says it is fictional and test-only.
+
+**D-282 — The rules spec keeps both extraction outcomes.** The contributor test enters the Nevada version and ends with
+it at *Needs approval* and its four requirements listed (contributors see no edit or approve buttons). A separate test
+enters "Demo rule set - Oregon (fictional) 2027", which has no script, and covers *Extracting* then *Extraction failed*,
+the plain-words message and the collapsed technical detail. The reviewer test enters the Oregon list by hand (OR-1,
+OR-2) and approves it. Nevada stays at *Needs approval*, so the navigation badge reads "2 rule versions waiting for
+approval" after the reviewer saves the Oregon list and "1 rule version" after approving it. The *Extracting* state is
+asserted only for Oregon: a scripted extraction can finish within one poll interval, but a failing one retries for
+several seconds. Both axe checks stay (extracting, failed) and one is added for the Nevada *Needs approval* state.
+
+**D-283 — Tests.** `FakeLlmStartupScriptsTest` (no database, no network): two files are scripted in order with the later
+file winning a shared label; loading one file twice answers with the script once; no or blank paths script nothing; a
+missing file fails naming it; an unknown provider fails startup (`ApplicationContextRunner` with `LlmConfig`); a client
+that is not the fake one is never called, the properties are ignored and exactly one warning is logged (`anthropic`
+provider through the same runner, and a stub client that throws if called); `ScriptedFakeModel.load` refuses a client
+that is not the fake one.
+
+**D-284 — Rejected.** Scripting `match` at startup by resolving document names through the database (couples the
+startup path to tenant data; the e2e tests that run an assessment use seeded results). A `lexvay.llm.fake-scripts`
+profile file `application-e2e.yml` instead of an environment variable (the e2e stack is configured by variables in
+`scripts/e2e.sh` everywhere else, and the roadmap's "profile e2e" does not exist in this repository).
