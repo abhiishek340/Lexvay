@@ -17,6 +17,7 @@ import { RULE_STATUS, RuleVersionRow, anyExtracting, groupRuleVersions } from '.
 import { SessionService } from '../../core/session.service';
 import { NewRuleVersionDialog } from './new-rule-version';
 import { Notice, RuleVersionDetail } from './rule-version-detail';
+import { registerRulesTheme } from './rules-theme';
 
 /** While an extraction runs the list is fetched again this often (and never while the tab is hidden). */
 const POLL_MS = 5000;
@@ -64,6 +65,7 @@ export class Rules {
   readonly selected = computed(() => this.context.ruleVersions().find((v) => v.id === this.ruleVersionId()) ?? null);
 
   constructor() {
+    registerRulesTheme();
     effect(() => {
       const id = this.programId();
       untracked(() => this.context.ensure(id));
