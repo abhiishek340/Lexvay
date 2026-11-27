@@ -120,7 +120,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F7c Search terms proposed at extraction | `search-terms` | 3 | Sonnet 5.5 | merged (PR #30); screen cell in UI2-4 |
 | OPS-1 Image build and smoke in CI | `ops-ci-image` | — | Sonnet 5.5 | merged (PR #20) |
 | F8 Determination register | `feat-determination-register` | 2 | Opus 5.5 | merged (PR #26) |
-| F10a Coverage matrix API | `feat-coverage-api` | 8 | Sonnet 5.5 | in progress |
+| F10a Coverage matrix API | `feat-coverage-api` | 8 | Sonnet 5.5 | PR #35 in review (outdated evidence risk) |
 | F10b Coverage matrix screen (v2) | `ui2-coverage` | — | Opus 5.5 | queued (after F10a, UI2-0) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
@@ -1121,6 +1121,8 @@ D-259 in `docs/decisions/F7c.md`.
    scripted terms, the lexical-gap threshold in `make eval`, `ForbiddenWordsTest` green.
 
 ## Follow-ups recorded from reviews
+- F10a: the work queue's `latest` CTE (F13) still has its own copy of the "latest finished assessment" ordering; switch it
+  to `AssessmentRepository.LATEST_FINISHED` with a parity test.
 - F5a security: any ADMIN can issue a setup code for any user, including a SIGNER, and so could sign in as them; the
   actions are audited (`USER_SETUP_CODE_ISSUED`, `PASSWORD_SET`). Without email delivery this is inherent to
   password accounts. Production deployments should use OIDC for SIGNER and ADMIN accounts; `docs/OPERATIONS.md`
