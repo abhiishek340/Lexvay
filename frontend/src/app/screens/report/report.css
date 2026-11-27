@@ -28,7 +28,7 @@
 .lx-wide { grid-column: 1 / -1; }
 .lx-hash { word-break: break-all; }
 
-.lx-section { margin: 40px 0 4px; }
+.lx-requirements-title { margin: 40px 0 4px; }
 
 /* The requirements as a clean list: ref, title and one status, then the quote in Document type. */
 .lx-reqs { list-style: none; margin: 0; padding: 0; }

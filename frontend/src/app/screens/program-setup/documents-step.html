@@ -68,7 +68,7 @@
 @if (sections(); as list) {
   <div class="lx-sections">
     @for (section of list; track section.key; let i = $index) {
-      <section class="lx-section" [attr.aria-labelledby]="'section-' + section.key">
+      <section class="lx-doc-group" [attr.aria-labelledby]="'section-' + section.key">
         <h3 class="lx-section-title" [id]="'section-' + section.key">
           @if (section.code) { <span class="lx-mono">{{ section.code }}</span> }{{ section.label }}
         </h3>

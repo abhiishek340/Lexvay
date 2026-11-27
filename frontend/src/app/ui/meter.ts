@@ -39,7 +39,7 @@ export function meterRuns(segments: readonly MeterSegment[], total: number): { t
     <span class="lx-meter-text">{{ text() }}</span>
   `,
   styles: `
-    :host { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
+    :host { display: flex; width: fit-content; align-items: center; gap: 12px; min-width: 0; }
     .lx-bar {
       flex: none; display: flex; width: var(--lx-meter-width, 120px); height: 4px; background: var(--p-lx-sunken); overflow: hidden;
       transform-origin: left center; animation: lx-meter-in 150ms var(--lx-ease) both;

@@ -50,7 +50,7 @@
         }
 
         <section aria-labelledby="requirements-title">
-          <h3 id="requirements-title" class="lx-section">{{ requirementsTitle() }}</h3>
+          <h3 id="requirements-title" class="lx-requirements-title">{{ requirementsTitle() }}</h3>
           @if (mappings(); as list) {
             <ol class="lx-reqs" aria-labelledby="requirements-title">
               @for (m of list; track m.id) {

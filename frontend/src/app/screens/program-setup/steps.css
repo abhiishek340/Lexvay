@@ -46,7 +46,7 @@
 .lx-queue-row[data-state='READY'] { box-shadow: inset 0 0 0 1px var(--p-lx-line), inset 3px 0 0 var(--p-lx-found); }
 
 .lx-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); gap: 12px; }
-.lx-section { padding: 14px 16px; border-radius: var(--lx-r-control); background: var(--p-lx-sunken); display: flex; flex-direction: column; gap: 8px; }
+.lx-doc-group { padding: 14px 16px; border-radius: var(--lx-r-control); background: var(--p-lx-sunken); display: flex; flex-direction: column; gap: 8px; }
 .lx-section-title { display: flex; align-items: baseline; gap: 8px; font-size: 14px; line-height: 20px; font-weight: 600; }
 .lx-docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .lx-doc-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
