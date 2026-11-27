@@ -66,6 +66,12 @@ header action, signing dialog with outcome cards and the Seal stamp moment. Keep
 region. Tests: existing review e2e updated to the new accessible names only where they change, decision sequence under
 reduced motion (no waiting on animation), axe.
 
+Also in UI2-2: `DocumentViewer` reflows PDF line breaks for reading. A newline whose next character is a lower-case
+letter, a digit or an opening parenthesis, and whose previous character is not sentence-final punctuation, renders as
+a space; other newlines stay. Display-only and one character for one character, so stored offsets, the highlight and
+selection offsets are unchanged (one pure function `softWrap(text)` with Vitest tests proving equal length and that
+selection offsets map back to the stored text exactly).
+
 ### UI2-3 — Changes, audit trail and evidence report (slot 7; after UI2-0; D-340 to D-349)
 Changes as a timeline of cards; audit as a day-grouped timeline with avatar initials and one-sentence entries (the
 sentence built by one pure, tested function per action); evidence report as a sheet with the Seal or Draft stamp and a
