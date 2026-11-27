@@ -53,8 +53,8 @@ class WorkQueueSeedParityTest extends AbstractDatabaseTest {
     }
 
     private LexvayUser loadedUser(String local) {
-        ((FakeLlmClient) llm).reset();
         runner.runPending();
+        ((FakeLlmClient) llm).reset();
         assertThat(loader.load(seedCopy, "demo-pass", ScriptedFakeModel.load(seedCopy, llm, json))).singleElement()
                 .satisfies(r -> assertThat(r.skipped()).isFalse());
         return users.findForLogin(local + "@" + EMAIL_DOMAIN).orElseThrow();

@@ -39,8 +39,8 @@ class EvalModelTest extends AbstractDatabaseTest {
 
     @BeforeEach
     void freshScripts() {
-        ((FakeLlmClient) llm).reset();
         runner.runPending();
+        ((FakeLlmClient) llm).reset();
     }
 
     @Test

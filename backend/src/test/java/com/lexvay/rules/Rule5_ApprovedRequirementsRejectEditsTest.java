@@ -36,8 +36,8 @@ class Rule5_ApprovedRequirementsRejectEditsTest extends AbstractDatabaseTest {
     void approvedListRejectsReplacementAndDirectEdits() throws Exception {
         var t = tenants.create("locked");
         var fake = (FakeLlmClient) llmClient;
-        fake.reset();
         runner.runPending();
+        fake.reset();
         String label = "Demo rule set locked";
         fake.script("EXTRACT:" + label, RuleVersionApiTest.validOutput("UT"));
         var created = mvc.post().uri("/api/v1/rule-versions").with(user(t.admin())).with(csrf())
