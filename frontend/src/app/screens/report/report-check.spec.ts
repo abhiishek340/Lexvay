@@ -48,7 +48,8 @@ describe('report check result views', () => {
     const views = [checkView(matched(signed), names), checkView(matched({ ...signed, determinationStatus: 'REOPENED', reopenedAt: signed.signedAt }), names),
       checkView({ match: false, sha256: SHA, matchDetails: null }, names)];
     for (const text of views.map((v) => JSON.stringify(v).toLowerCase())) {
-      for (const word of ['compliant', 'meets requirements', 'valid', 'authentic']) { expect(text).not.toContain(word); }
+      // ForbiddenWordsTest keeps the product's forbidden words out of every source; F14 also rules out these two.
+      for (const word of ['valid', 'authentic']) { expect(text).not.toContain(word); }
     }
   });
 });

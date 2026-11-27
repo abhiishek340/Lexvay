@@ -2,18 +2,8 @@
 .lx-title { display: flex; align-items: center; gap: 8px; }
 .lx-page-header a[pButton] { gap: 6px; text-decoration: none; }
 
-/* Filters as chips: each a Select drawn as a pill, accent-tint once it holds a value. */
+/* Filters as chips (the lx-chip Select in styles.css). */
 .lx-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 20px; }
-:host ::ng-deep .lx-chip.p-select {
-  border-radius: var(--lx-r-pill); border-color: transparent; background: var(--p-lx-surface); box-shadow: var(--p-lx-e1);
-  max-width: calc(100vw - 32px); transition: background-color var(--lx-t-1) var(--lx-ease-out), box-shadow var(--lx-t-1) var(--lx-ease-out);
-}
-:host ::ng-deep .lx-chip.p-select:not(.p-disabled):hover { border-color: transparent; box-shadow: var(--p-lx-e2); }
-:host ::ng-deep .lx-chip .p-select-label { font-weight: 550; padding-left: 0.875rem; color: var(--p-lx-text); }
-:host ::ng-deep .lx-chip .p-select-label.p-placeholder { color: var(--p-lx-text-2); }
-:host ::ng-deep .lx-chip.lx-chip-on.p-select { background: var(--p-lx-accent-tint); box-shadow: none; }
-:host ::ng-deep .lx-chip.lx-chip-on .p-select-label, :host ::ng-deep .lx-chip.lx-chip-on .p-select-dropdown,
-:host ::ng-deep .lx-chip.lx-chip-on .p-select-clear-icon { color: var(--p-lx-accent); }
 .lx-count { margin-left: auto; font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
 
 /* The timeline sits on one surface; days are its sections. */

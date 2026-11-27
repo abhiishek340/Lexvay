@@ -1,0 +1,58 @@
+<lx-auth-frame>
+  <h1>Choose a password</h1>
+  @if (invalid()) {
+    <div class="lx-invalid" data-testid="message">
+      <p-message severity="error">This setup code is not valid.</p-message>
+      <p class="lx-muted">Ask your administrator for a new link.</p>
+      <a pButton routerLink="/login" [outlined]="true"><span pButtonLabel>Go to sign in</span></a>
+    </div>
+  } @else {
+    <form (ngSubmit)="submit()" novalidate>
+      <div class="lx-auth-field">
+        <label for="new-password">New password</label>
+        <p-iconfield>
+          <input pInputPassword id="new-password" name="password" autocomplete="new-password" required fluid
+                 [(mask)]="masked" [ngModel]="password()" (ngModelChange)="password.set($event)"
+                 aria-describedby="password-strength password-rules" />
+          <p-inputicon>
+            <button type="button" class="lx-reveal" aria-label="Show password" [attr.aria-pressed]="!masked()" (click)="masked.set(!masked())">
+              <ng-icon [name]="masked() ? 'phosphorEye' : 'phosphorEyeSlash'" size="18" aria-hidden="true" />
+            </button>
+          </p-inputicon>
+        </p-iconfield>
+        <div class="lx-strength" id="password-strength">
+          <p-metergroup class="lx-meter" [value]="meter()" aria-label="Password strength" [attr.aria-valuetext]="strength().label || 'None'">
+            <ng-template #label></ng-template>
+          </p-metergroup>
+          <span class="lx-strength-label" [attr.data-level]="strength().level" aria-hidden="true">{{ strength().label }}</span>
+        </div>
+      </div>
+      <div class="lx-auth-field">
+        <label for="repeat-password">Repeat password</label>
+        <p-iconfield>
+          <input pInputPassword id="repeat-password" name="repeat" autocomplete="new-password" required fluid
+                 [(mask)]="repeatMasked" [ngModel]="repeat()" (ngModelChange)="repeat.set($event)" aria-describedby="password-rules" />
+          <p-inputicon>
+            <button type="button" class="lx-reveal" aria-label="Show repeated password" [attr.aria-pressed]="!repeatMasked()"
+                    (click)="repeatMasked.set(!repeatMasked())">
+              <ng-icon [name]="repeatMasked() ? 'phosphorEye' : 'phosphorEyeSlash'" size="18" aria-hidden="true" />
+            </button>
+          </p-inputicon>
+        </p-iconfield>
+      </div>
+
+      <ul class="lx-rules" id="password-rules" aria-label="Password rules">
+        @for (rule of rules(); track rule.id) {
+          <li [class.lx-met]="rule.met">
+            <ng-icon [name]="rule.met ? 'phosphorCheckCircle' : 'phosphorCircle'" size="18" aria-hidden="true" />
+            <span>{{ rule.label }}<span class="lx-sr-only">{{ rule.met ? ', met' : ', not met' }}</span></span>
+          </li>
+        }
+      </ul>
+
+      @if (error(); as e) { <p-message severity="error" size="small" variant="simple" data-testid="message">{{ e }}</p-message> }
+      <p-button type="submit" [label]="wait.remaining() > 0 ? 'Retry in ' + wait.remaining() + ' s' : 'Set password'" [loading]="busy()"
+                [disabled]="wait.remaining() > 0" [fluid]="true" size="large" />
+    </form>
+  }
+</lx-auth-frame>
