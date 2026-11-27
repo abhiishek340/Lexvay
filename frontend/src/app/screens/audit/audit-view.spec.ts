@@ -33,13 +33,20 @@ describe('audit rows', () => {
     ]);
   });
 
-  it('names the account for a sign-out recorded without a user, never "System"', () => {
-    const [out, job] = auditRows([
-      entry('5', 'LOGOUT', 'app_user', at(27, 12), null),
-      entry('6', 'REPORT_GENERATED', 'report', at(27, 12), null),
-    ].map((e, i) => (i === 0 ? { ...e, entityId: 'u1' } : e)), users, names);
-    expect([out.actor, out.actorKind, out.sentence]).toEqual(['Dana Whitfield', 'person', 'Dana Whitfield signed out']);
+  it('names the person on a sign-out, recorded with its actor since FIX-5 or without one before, never "System"', () => {
+    const [recorded, legacy, job] = auditRows([
+      { ...entry('5', 'LOGOUT', 'app_user', at(27, 12), 'u1'), entityId: 'u1' },
+      { ...entry('6', 'LOGOUT', 'app_user', at(26, 12), null), entityId: 'u2' },
+      entry('7', 'REPORT_GENERATED', 'report', at(26, 12), null),
+    ], users, names);
+    expect([recorded.actor, recorded.actorKind, recorded.sentence]).toEqual(['Dana Whitfield', 'person', 'Dana Whitfield signed out']);
+    expect([legacy.actor, legacy.actorKind, legacy.sentence]).toEqual(['Dr. Priya Raman', 'person', 'Dr. Priya Raman signed out']);
     expect(job.actor).toBe('System');
+  });
+
+  it('does not borrow an account for other actions recorded without a user', () => {
+    const [signIn] = auditRows([{ ...entry('8', 'LOGIN_SUCCEEDED', 'app_user', at(27, 12), null), entityId: 'u1' }], users, names);
+    expect([signIn.actor, signIn.actorKind]).toEqual(['System', 'system']);
   });
 
   it('carries one sentence per entry and the record type in words', () => {

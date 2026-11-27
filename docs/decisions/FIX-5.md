@@ -33,15 +33,29 @@ four roles: 18 lines, identical; see `docs/progress/FIX-5.md`). The test compare
 frozen copy of the old ordering, so it stays valid when the ordering is changed on purpose. The READY_TO_SIGN parity test
 (`WorkQueueApiTest.readyToSignAgreesWithTheSigningEndpointForEveryProgramAndJurisdiction`) is unchanged and green.
 
-#### D-413 Older `LOGOUT` entries keep no actor
+#### D-413 Older `LOGOUT` entries keep no actor; the audit view reads them as before, for `LOGOUT` only
 
 The audit log is append-only (rule 5), so entries recorded before this fix keep `user_id = NULL`; nothing back-fills them.
-The audit sentence in the screen (UI2-3's `audit-sentence.ts`, not on `main` when this item was written) still has to name the
-account for those entries, and may drop the workaround for entries that have an actor. That frontend change belongs to
-whichever item brings `audit-sentence.ts` in.
+`audit-view.ts` (UI2-3, D-340 to D-349) attributed an entry without a user to the account it is recorded on for three actions of
+a person on their own account. Only `LOGOUT` ever lacked a user (`LOGIN_SUCCEEDED` and `PASSWORD_SET` are recorded with their
+actor), so the rule is now narrowed to `LOGOUT` and documented as the reading of entries recorded before FIX-5; an entry that
+carries its actor takes the first branch. `audit-view.spec.ts` covers a recorded sign-out, an old one, and that another action
+without a user is still the System. `audit-sentence.ts` needed no change: it takes the actor's name as input.
 
 #### D-414 Signing out without a session records nothing
 
 A request to the logout URL without a session has no `Authentication`, no tenant and no user to name; the entry would have no
 tenant to be recorded in. The handler still answers 204. `LogoutAuditTest.signingOutWithoutASessionRecordsNothing` asserts
 this for a request with no cookie and one with an unknown session id.
+
+#### D-415 Tests drain queued jobs before they clear the fake model
+
+Several test classes began with `fake.reset(); runner.runPending();`. `runPending()` runs every queued job of every tenant,
+including jobs other classes left behind, and each of those calls the fake model after the reset; a class that then asserted
+a global `fake.callCount(...)` (`RuleVersionApiTest.createStoresRuleTextAndExtractsRequirements`: "expected 1 but was 4" in CI)
+failed depending on the order the classes ran in. The two calls are swapped to `runner.runPending(); fake.reset();` in
+`AbstractAssessmentTest` (which the other counting tests extend: `AssessmentApiTest`, `AssessmentUsageApiTest`,
+`RuleVersionChangeTest`, `Rule1_FindingValuesTest`, `Rule3_NoModelCallForNumericTest`, `SearchTermsMatchingTest`),
+`RuleVersionApiTest`, `Rule5_ApprovedRequirementsRejectEditsTest`, `EvalServiceTest`, `EvalModelTest` and the classes that load
+the seed (`SeedLoaderTest`, `CoverageSeedTest`, `RegisterSeedTest`, `RuleVersionDiffSeedTest`, `FindingCountsParityTest`,
+and this item's `WorkQueueSeedParityTest`). Draining first leaves the fake empty when the test starts, whatever ran before.

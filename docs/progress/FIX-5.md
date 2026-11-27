@@ -6,5 +6,6 @@
 - Work queue: `latest` CTE uses `AssessmentRepository.LATEST_FINISHED` (D-411); `WorkQueueSeedParityTest` (D-412).
 - Before/after on the seed (one-off scratch test, not kept): the SIGNER, REVIEWER, CONTRIBUTOR and ADMIN views (kind, program,
   jurisdiction, count, id list lengths; 18 lines) are identical with the old and the new statement.
-- Frontend: not touched. `frontend/src/app/screens/audit/audit-sentence.ts` is not on `main` yet (D-413).
+- Frontend: UI2-3 had merged by the time of the PR; `audit-view.ts` keeps its fallback for `LOGOUT` only, with a spec for recorded and old entries (D-413). `make frontend-test`: 28 files, 282 tests passed.
+- Test order: `runPending()` before `fake.reset()` in 11 test classes (D-415).
 - Not done: `MappingRepository.latestAssessmentsUsing` still has its own copy of the ordering (D-411).
