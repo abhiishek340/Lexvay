@@ -26,7 +26,7 @@ branch, and open a pull request. Status values: `queued`, `in progress`, `in rev
 | F11 OCR for scanned documents | `feat-ocr-ingest` | 6 | Sonnet 5.5 | in progress |
 | FIX-1 Requirement order column | `fix-requirement-ordinal` | 5 | Sonnet 5.5 | queued (after WS-PERF) |
 | FIX-2 Job entity id column and index | `fix-job-entity-index` | 5 | Sonnet 5.5 | queued (after FIX-1) |
-| F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | queued (after WS-UI, WS-PERF) |
+| F1 Evidence viewer with in-context highlight | `feat-evidence-viewer` | 1 | Opus 5.5 | ready (starts when PR #14 merges) |
 | F2 Program setup workspace | `feat-setup-workspace` | 2 | Sonnet 5.5 | queued (after WS-UI) |
 | F3 Rule workspace screens (uses F3a) | `feat-rule-workspace` | 10 | Opus 5.5 | in progress |
 | F4 Evidence request screens (uses F4a) | `feat-evidence-requests` | 4 | Opus 5.5 | queued (after WS-UI, F4a) |
@@ -191,6 +191,58 @@ requirement, before approving the new list and re-running. Slot 5. No migration.
    merged); API tests using the seeded Colorado revision (exactly one CHANGED: CO-5 with `NUMERIC` and
    `TEXT`, eight UNCHANGED), tenant isolation 404, 400 cases. `RuleVersionChangeTest` and
    `CourseVersionChangeTest` must stay green unmodified.
+
+## F1 — Evidence viewer with in-context highlight (slot 1; Opus 5.5; after WS-PERF)
+Purpose: a reviewer must see a quote where it sits on the page, not only the quote. One reusable
+`DocumentViewer` serves the review screen now and the evidence-request and program-setup screens later. The
+quote is highlighted from the stored character offsets; the browser never searches text (the server verified
+the quote; the viewer only shows what was verified). Decisions D-220 to D-229 in `docs/decisions/F1.md`.
+1. **Backend** (small, with tests): `GET /api/v1/documents/{id}/file` streams the original bytes from
+   `FileStore` with `Content-Type` from the stored kind (`application/pdf`, DOCX media type, `text/plain`),
+   `Content-Disposition: inline; filename="<stored filename, RFC 5987 encoded>"`, `Cache-Control: private,
+   max-age=31536000, immutable` and the same ETag scheme as the page endpoint (document sha256); 404 for
+   another tenant; any role; read-only so no audit entry; a row in `InputValidationTableTest`; one
+   statement plus the store read. The `PageView` from WS-PERF is used as is.
+2. **`DocumentViewer`** (`frontend/src/app/shared/document-viewer/`, standalone): inputs `documentId`,
+   `pageNumber`, `highlight: { charStart, charEnd } | null` (page-relative offsets exactly as `Evidence`
+   carries them), `selectable: boolean`. Renders the page text in serif inside the document frame used by
+   the review screen (move that frame's styles into the viewer so there is one copy), with the file name,
+   page `n of N`, previous and next page buttons (PrimeNG Button, icon and text, disabled at the ends), and
+   "Open original" linking to the file endpoint in a new tab (`rel="noopener"`, external icon). The
+   highlight is a single `mark` element wrapping `text.slice(charStart, charEnd)` with the rest as text
+   nodes (never `innerHTML`); after the page renders the mark is scrolled into view (`block: 'center'`)
+   and receives `tabindex="-1"` focus only when the viewer was opened for that quote; `mark` is styled with
+   the warning tint plus a 2 px underline so it does not rely on colour alone. If the offsets fall outside
+   the text (should not happen; the server verified them), the viewer shows the page without a mark and an
+   inline Message "The stored quote position does not match this page".
+3. **Page cache**: `DocumentPageCache` service (one per app) with an LRU of 40 pages keyed by
+   `documentId:pageNumber`, in front of `GET /documents/{id}/pages/{n}`; requests in flight are shared
+   (same observable); the browser cache does the rest (WS-PERF headers). Vitest tests for eviction order and
+   in-flight sharing.
+4. **Selection** (`selectable` true): when the user selects text inside the page element, the viewer emits
+   `selection = { pageNumber, quote, charStart, charEnd }` computed from the DOM Range against the page text
+   (offsets measured within the page `pre`/`p` element, whitespace exactly as stored); a small floating
+   toolbar (PrimeNG Button "Use this passage") appears next to the selection and also emits on click;
+   Escape clears it. Keyboard alternative: a "Select passage by character range" Button opens a Dialog
+   with start and end InputNumber fields that shows the resulting quote live and emits the same event.
+   Vitest tests for the offset computation on a fixture page (selection inside one text node, across the
+   mark boundary, and collapsed selection ignored).
+5. **Review screen**: the Evidence pane keeps its header (file, course, required or elective, page,
+   characters) and replaces the blockquote with `DocumentViewer` showing the cited page with the quote
+   highlighted; the quote stays available above the viewer in a collapsed "Quote only" disclosure for
+   screen readers and small screens (under 1024 px the viewer is collapsed by default behind "Show on
+   page"). The viewer in Review is read-only (`selectable` false).
+6. **Overview**: replace the audit-log route to the latest assessment with WS-PERF's
+   `GET /programs/{id}/overview` (follow-up from WS-UI). Delete the old code path.
+7. **Tests**: Vitest for the cache, the offset computation and the highlight splitting (pure function
+   `splitForHighlight(text, start, end)`); end-to-end (`frontend/e2e/viewer.spec.ts`, slot 1): the cited
+   page opens with the quote marked and scrolled into view (assert the `mark` text equals the evidence quote
+   from the API), next and previous page work and are announced, "Open original" responds 200 with
+   `application/pdf`, keyboard range selection emits the quote (exercised through a test harness route or
+   the first screen that uses `selectable`), axe in both themes at 1280 and 400 px. Backend tests for the file
+   endpoint (headers, 404 other tenant, 304 on If-None-Match).
+Done when: `LEXVAY_E2E_SLOT=1 make test` green; screenshots of the review screen with the viewer in both themes
+in `docs/screens/`; `docs/decisions/F1.md` and `docs/progress/F1.md` written.
 
 ## F3 — Rule workspace screens (frontend; slot 10; Opus 5.5; uses F3a, WS-UI)
 Purpose: today a reviewer can approve a requirement list only through the API. The rule workspace is where a
