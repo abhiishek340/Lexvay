@@ -45,10 +45,12 @@ export class Shell {
   readonly links = computed<NavLink[]>(() => {
     const waiting = this.context.counts()?.waitingForReview ?? 0;
     const open = this.context.openChanges();
+    const rules = this.context.rulesWaiting();
     return [
       { id: 'overview', label: 'Program overview', icon: 'phosphorSquaresFour', badge: 0, badgeText: '' },
       { id: 'review', label: 'Review', icon: 'phosphorListChecks', badge: waiting, badgeText: `${waiting} requirement${waiting === 1 ? '' : 's'} waiting for review` },
       { id: 'changes', label: 'Changes', icon: 'phosphorGitDiff', badge: open, badgeText: `${open} open change${open === 1 ? '' : 's'}` },
+      { id: 'rules', label: 'Rules', icon: 'phosphorScales', badge: rules, badgeText: `${rules} rule version${rules === 1 ? '' : 's'} waiting for approval` },
       { id: 'report', label: 'Evidence report', icon: 'phosphorFileText', badge: 0, badgeText: '' },
       { id: 'audit', label: 'Audit trail', icon: 'phosphorClockCounterClockwise', badge: 0, badgeText: '' },
     ];
@@ -59,21 +61,21 @@ export class Shell {
   private readonly menu = viewChild<Menu>('accountMenu');
 
   constructor() {
-    let previousPath: string | null = null;
+    let previousScreen: string | null = null;
     const sub = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {
       this.url.set(e.urlAfterRedirects);
-      const path = e.urlAfterRedirects.split(/[?#]/)[0];
+      const screen = screenOf(e.urlAfterRedirects);
       const programId = findParam(this.router.routerState.snapshot.root, 'programId');
       this.programId.set(programId);
       if (programId) {
         this.context.ensure(programId);
       }
       // Moving to another screen puts focus on its heading. The first page load keeps the browser's start, and
-      // a query-only change (a jurisdiction tab) keeps focus where the person is working.
-      if (previousPath !== null && path !== previousPath) {
+      // a change within a screen (a jurisdiction tab, a rule version in the list) keeps focus where the person is working.
+      if (previousScreen !== null && screen !== previousScreen) {
         focusHeadingWhenRendered();
       }
-      previousPath = path;
+      previousScreen = screen;
     });
     inject(DestroyRef).onDestroy(() => sub.unsubscribe());
   }
@@ -92,6 +94,11 @@ export class Shell {
     this.context.clear();
     await this.router.navigate(['/login']);
   }
+}
+
+/** "/programs/p1/rules/rv7?x=1" is the screen "/programs/p1/rules": the path up to the screen's own segment. */
+function screenOf(url: string): string {
+  return url.split(/[?#]/)[0].split('/').slice(0, 4).join('/');
 }
 
 function findParam(route: ActivatedRouteSnapshot, name: string): string | null {

@@ -1,0 +1,22 @@
+:host { display: block; }
+.lx-compare { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 12px; }
+.lx-against { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.lx-against-select { min-width: min(26rem, 100%); }
+.lx-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.lx-summary-item { display: inline-flex; align-items: center; gap: 6px; }
+.lx-summary-sep { color: var(--p-lx-text-secondary); }
+.lx-status-cell { white-space: nowrap; }
+.lx-ref-changed { margin-left: 4px; }
+.lx-requirement { display: flex; flex-direction: column; gap: 2px; min-width: 10rem; }
+.lx-req-title { font-weight: 500; }
+.lx-change { display: flex; flex-direction: column; gap: 6px; min-width: 18rem; }
+.lx-change-text { display: block; max-width: 65ch; }
+.lx-aspect { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.lx-aspect-name { font-family: var(--lx-font-sans); font-size: 11px; line-height: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--p-lx-text-secondary); }
+.lx-full-text { display: block; max-width: 75ch; }
+.lx-compare-skeleton { display: flex; flex-direction: column; gap: 8px; }
+:host ::ng-deep .lx-rule-text-diff .p-accordionheader { font-weight: 600; }
+
+@media (max-width: 640px) {
+  .lx-compare { padding: 12px 16px 20px; }
+}

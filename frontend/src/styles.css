@@ -79,7 +79,22 @@ kbd {
 .lx-panel { background: var(--p-lx-card); border: 1px solid var(--p-lx-hairline); border-radius: 4px; }
 .lx-status { color: var(--p-lx-text-secondary); }
 .lx-inline { display: inline-flex; align-items: center; gap: 6px; }
+/* The polite live region under a page header (data-testid="message"). */
+.lx-status-line { min-height: 20px; margin-bottom: var(--lx-space-3); color: var(--p-lx-text-secondary); }
 .lx-help { font-size: 12px; line-height: 16px; color: var(--p-lx-text-secondary); }
+/* An icon that turns while work runs (the Extracting status); reduced motion stops it. */
+.lx-spin { animation: lx-spin 1.2s linear infinite; }
+@keyframes lx-spin { to { transform: rotate(360deg); } }
+/* Three lines until opened (the lxClamp directive). */
+.lx-clamped { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+
+/* A document frame: stored page text or a quoted passage, with its file name and position in mono. */
+.lx-document { margin: 0; background: var(--p-lx-card); border: 1px solid var(--p-lx-hairline); border-radius: 4px; }
+.lx-document-head { padding: 10px 14px; border-bottom: 1px solid var(--p-lx-hairline); display: flex; flex-direction: column; gap: 6px; }
+.lx-document-name { display: flex; gap: 6px; align-items: center; font-weight: 500; word-break: break-word; }
+.lx-document-meta { display: flex; flex-wrap: wrap; gap: 2px 16px; font-size: 12px; line-height: 16px; color: var(--p-lx-text-secondary); }
+.lx-document-meta div { display: flex; gap: 4px; }
+.lx-document-meta dd { color: var(--p-lx-text); }
 
 /* Finding colours always travel with an icon and a word (lx-finding component). */
 .lx-found { color: var(--p-lx-found); }

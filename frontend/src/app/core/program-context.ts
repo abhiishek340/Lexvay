@@ -4,6 +4,7 @@ import { ApiService } from './api.service';
 import { AssessmentView, ChangeEvent, Determination, Jurisdiction, Program, ProgramOverview, RuleVersionView } from './models';
 import { overviewCounts } from './overview';
 import { problemDetail } from './problem';
+import { versionsWaitingForApproval } from './rules';
 
 /**
  * The program every screen works on, loaded once per program and shared, so moving between screens
@@ -30,6 +31,7 @@ export class ProgramContext {
     return program ? overviewCounts(program, this.assessment(), this.determinations()) : null;
   });
   readonly openChanges = computed(() => this.changeEvents().filter((e) => e.status === 'OPEN').length);
+  readonly rulesWaiting = computed(() => versionsWaitingForApproval(this.ruleVersions()));
   private readonly names = computed(() => new Map(this.jurisdictions().map((j) => [j.code, j.name])));
 
   jurisdictionName(code: string): string {
@@ -85,6 +87,11 @@ export class ProgramContext {
     }
   }
 
+  /** After a rule version is entered, corrected or approved, and while an extraction runs. */
+  async refreshRuleVersions(): Promise<void> {
+    this.ruleVersions.set(await firstValueFrom(this.api.ruleVersions()));
+  }
+
   /** After a re-run: change events, determinations and the latest assessment may all have moved. */
   async refreshAfterChange(): Promise<void> {
     const program = this.program();
@@ -115,5 +122,6 @@ export class ProgramContext {
     this.assessment.set(null);
     this.determinations.set([]);
     this.changeEvents.set([]);
+    this.ruleVersions.set([]);
   }
 }
