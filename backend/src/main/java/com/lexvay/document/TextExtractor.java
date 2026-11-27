@@ -13,8 +13,9 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 
 /**
  * Text extraction per page with character offsets. PDFs keep their pages; DOCX and TXT become one page
- * (D-017). Pages are joined by a single newline when offsets are computed (D-041). A document whose
- * pages are all blank (for example a scanned PDF with no text layer) is rejected, and so is one that
+ * (D-017); HTML, which only rule sources fetch, becomes pages of about 4 000 characters split at paragraph
+ * boundaries ({@link HtmlText}). Pages are joined by a single newline when offsets are computed (D-041).
+ * A document whose pages are all blank (for example a scanned PDF with no text layer) is rejected, and so is one that
  * exceeds {@link ContentLimits} (a DOCX that inflates too far, a PDF with too many pages).
  */
 public final class TextExtractor {
@@ -27,6 +28,7 @@ public final class TextExtractor {
             case PDF -> pdfPages(bytes);
             case DOCX -> List.of(docxText(bytes));
             case TXT -> List.of(normalize(new String(bytes, StandardCharsets.UTF_8)));
+            case HTML -> HtmlText.pages(bytes);
         };
         if (pages.stream().allMatch(String::isBlank)) {
             throw new EmptyDocumentException();

@@ -44,7 +44,7 @@ public class JobRepository {
                 .param("tenantId", TenantContext.require())
                 .param("type", type.name())
                 .param("payload", json.writeValueAsString(payload), Types.OTHER)
-                .param("createdBy", CurrentUser.get().map(u -> u.id()).orElse(null))
+                .param("createdBy", CurrentUser.idOrNull())
                 .update();
         return id;
     }

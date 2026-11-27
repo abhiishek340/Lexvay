@@ -1,5 +1,7 @@
 package com.lexvay.common;
 
+import com.lexvay.rule.source.FakeHostResolver;
+import com.lexvay.rule.source.FakeHttpFetcher;
 import java.nio.file.Path;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -26,7 +28,7 @@ import org.testcontainers.utility.MountableFile;
         "lexvay.ratelimit.upload-per-minute=100000"})
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-@Import({TestTenants.class, SchemaFixtures.class})
+@Import({TestTenants.class, SchemaFixtures.class, FakeHttpFetcher.class, FakeHostResolver.class})
 public abstract class AbstractDatabaseTest {
 
     protected static final String DB_NAME = "lexvay";

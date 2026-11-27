@@ -40,9 +40,12 @@ public class ChangeService {
         this.jdbc = jdbc;
     }
 
-    /** Called inside the transaction that creates the superseding rule version. */
+    /**
+     * Called inside the transaction that creates the superseding rule version. That version comes from a person or
+     * from a rule source check; a check has no signed-in user, so the event is then created by the system (null).
+     */
     public UUID onRuleVersionSuperseded(UUID oldRuleVersionId, UUID newRuleVersionId, String newLabel) {
-        UUID actor = CurrentUser.require().id();
+        UUID actor = CurrentUser.idOrNull();
         UUID eventId = changes.insert(TenantContext.require(), ChangeKind.RULE_VERSION, oldRuleVersionId, newRuleVersionId, actor);
         List<UUID> reopened = jdbc.sql("UPDATE determination SET status = 'REOPENED' WHERE rule_version_id = :old AND status = 'SIGNED' RETURNING id")
                 .param("old", oldRuleVersionId).query(UUID.class).list();

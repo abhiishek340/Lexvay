@@ -7,12 +7,8 @@ import com.lexvay.common.ConflictException;
 import com.lexvay.common.NotFoundException;
 import com.lexvay.common.TenantContext;
 import com.lexvay.document.Document;
-import com.lexvay.document.DocumentKind;
 import com.lexvay.document.DocumentRepository;
 import com.lexvay.document.DocumentService;
-import com.lexvay.document.DuplicateDocumentException;
-import com.lexvay.document.ExtractedPage;
-import com.lexvay.document.FileStore;
 import com.lexvay.document.FileType;
 import com.lexvay.document.TextExtractor;
 import com.lexvay.job.JobRepository;
@@ -51,65 +47,74 @@ public class RuleVersionService {
     private final RuleVersionRepository ruleVersions;
     private final JurisdictionRepository jurisdictions;
     private final DocumentRepository documents;
-    private final FileStore files;
+    private final DocumentService documentService;
     private final JobRepository jobs;
     private final AuditService audit;
     private final RequirementListParser parser;
     private final ChangeService changes;
 
     public RuleVersionService(RuleVersionRepository ruleVersions, JurisdictionRepository jurisdictions,
-                              DocumentRepository documents, FileStore files, JobRepository jobs, AuditService audit,
+                              DocumentRepository documents, DocumentService documentService, JobRepository jobs, AuditService audit,
                               RequirementListParser parser, ChangeService changes) {
         this.changes = changes;
         this.ruleVersions = ruleVersions;
         this.jurisdictions = jurisdictions;
         this.documents = documents;
-        this.files = files;
+        this.documentService = documentService;
         this.jobs = jobs;
         this.audit = audit;
         this.parser = parser;
     }
 
+    /** A rule version to create, before its rule text exists as a document. */
+    public record NewVersion(String jurisdiction, String licenseType, String label, String sourceUrl,
+                             java.time.LocalDate effectiveFrom, UUID supersedesId) {
+    }
+
     /** Stores the rule text as a RULE_TEXT document with its page (D-044) and queues extraction. */
     @Transactional
     public CreateResult create(CreateRuleVersionRequest request) {
-        Jurisdiction jurisdiction = jurisdictions.findByCodes(List.of(request.jurisdiction())).stream().findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Unknown jurisdiction code: " + request.jurisdiction()));
-        String licenseType = request.licenseType().trim();
-        if (request.supersedesId() != null) {
-            RuleVersion previous = ruleVersions.findById(request.supersedesId())
+        NewVersion version = new NewVersion(request.jurisdiction(), request.licenseType().trim(), request.label().trim(),
+                request.sourceUrl().trim(), request.effectiveFrom(), request.supersedesId());
+        Jurisdiction jurisdiction = validate(version);
+        byte[] bytes = request.text().getBytes(StandardCharsets.UTF_8);
+        UUID documentId = documentService.storeRuleText(bytes, slug(request.label()) + "." + FileType.TXT.extension(),
+                TextExtractor.extract(FileType.TXT, bytes));
+        return insert(jurisdiction, version, documentId);
+    }
+
+    /**
+     * Creates a rule version for rule text that is already stored (a fetched rule source). Same validation, change
+     * event and extraction job as {@link #create}; the caller may be the system, which has no signed-in user.
+     */
+    @Transactional
+    public CreateResult createFromDocument(NewVersion version, UUID documentId) {
+        return insert(validate(version), version, documentId);
+    }
+
+    private Jurisdiction validate(NewVersion version) {
+        Jurisdiction jurisdiction = jurisdictions.findByCodes(List.of(version.jurisdiction())).stream().findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown jurisdiction code: " + version.jurisdiction()));
+        if (version.supersedesId() != null) {
+            RuleVersion previous = ruleVersions.findById(version.supersedesId())
                     .orElseThrow(() -> new IllegalArgumentException("Superseded rule version not found"));
-            if (!previous.jurisdictionId().equals(jurisdiction.id()) || !previous.licenseType().equals(licenseType)) {
+            if (!previous.jurisdictionId().equals(jurisdiction.id()) || !previous.licenseType().equals(version.licenseType())) {
                 throw new IllegalArgumentException("A rule version may only supersede one for the same jurisdiction and license type");
             }
         }
-        UUID tenantId = TenantContext.require();
-        UUID actor = CurrentUser.require().id();
+        return jurisdiction;
+    }
 
-        byte[] bytes = request.text().getBytes(StandardCharsets.UTF_8);
-        List<ExtractedPage> pages = TextExtractor.extract(FileType.TXT, bytes);
-        String sha256 = DocumentService.sha256(bytes);
-        documents.findDuplicate(null, sha256).ifPresent(existing -> {
-            throw new DuplicateDocumentException(existing.id());
-        });
-        UUID documentId = UUID.randomUUID();
-        String storageKey = tenantId + "/" + documentId;
-        files.put(storageKey, bytes);
-        documents.insert(documentId, tenantId, null, null, slug(request.label()) + ".txt", sha256, storageKey,
-                DocumentKind.RULE_TEXT, actor);
-        for (ExtractedPage page : pages) {
-            documents.insertPage(tenantId, documentId, page, actor);
-        }
-
+    private CreateResult insert(Jurisdiction jurisdiction, NewVersion version, UUID documentId) {
         UUID id = UUID.randomUUID();
-        ruleVersions.insert(id, tenantId, jurisdiction.id(), licenseType, request.label().trim(), request.sourceUrl().trim(),
-                request.effectiveFrom(), request.supersedesId(), documentId, actor);
+        ruleVersions.insert(id, TenantContext.require(), jurisdiction.id(), version.licenseType(), version.label(),
+                version.sourceUrl(), version.effectiveFrom(), version.supersedesId(), documentId, CurrentUser.idOrNull());
         audit.record("RULE_VERSION_CREATED", "rule_version", id, Map.of(
-                "jurisdiction", jurisdiction.code(), "licenseType", licenseType, "label", request.label().trim(),
-                "effectiveFrom", request.effectiveFrom().toString(), "documentId", documentId.toString(),
-                "supersedesId", request.supersedesId() == null ? "" : request.supersedesId().toString()));
-        if (request.supersedesId() != null) {
-            changes.onRuleVersionSuperseded(request.supersedesId(), id, request.label().trim());
+                "jurisdiction", jurisdiction.code(), "licenseType", version.licenseType(), "label", version.label(),
+                "effectiveFrom", version.effectiveFrom().toString(), "documentId", documentId.toString(),
+                "supersedesId", version.supersedesId() == null ? "" : version.supersedesId().toString()));
+        if (version.supersedesId() != null) {
+            changes.onRuleVersionSuperseded(version.supersedesId(), id, version.label());
         }
         UUID jobId = jobs.enqueue(JobType.EXTRACT_REQUIREMENTS, Map.of("ruleVersionId", id.toString()));
         return new CreateResult(id, jobId);
@@ -194,7 +199,7 @@ public class RuleVersionService {
                 "numericValue", r.numericValue() == null ? "" : r.numericValue().toPlainString())).toList();
     }
 
-    static String slug(String label) {
+    public static String slug(String label) {
         String slug = label.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
         return slug.isEmpty() ? "rule-text" : slug;
     }
