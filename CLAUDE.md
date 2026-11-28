@@ -76,7 +76,8 @@ Also: never invent regulatory content (seed data is fictional and labeled), and 
   Slot 0 belongs to the orchestrator. Never use ports 5432, 8080 or 4200 in tests.
 - At most `LEXVAY_STACK_CONCURRENCY` (default 2) isolated stacks (`make e2e`, `make eval`, `make smoke`) run on the machine at
   once; the others print "waiting for a free test stack" until a token frees (give-up after `LEXVAY_STACK_WAIT_MINUTES`,
-  default 60). Never delete tokens by hand: a dead owner's token is reclaimed automatically. `LEXVAY_STACK_CONCURRENCY=0` turns it off.
+  default 60). Tokens live in `LEXVAY_STACK_LOCK_DIR` (default `/tmp/lexvay-stack-tokens-<uid>`, independent of `TMPDIR`, so every process of
+  your user shares the cap). Never delete tokens by hand: a dead owner's token is reclaimed automatically. `LEXVAY_STACK_CONCURRENCY=0` turns it off.
 - In a fresh worktree run `cd frontend && npm ci` once before frontend commands.
 
 ## Stack (pins in DECISIONS.md D-002)

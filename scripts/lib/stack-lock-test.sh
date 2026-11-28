@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Tests the machine-wide stack semaphore in scripts/lib/stack.sh (make test-scripts). No Docker, no network: a fake
-# `docker` first on PATH stands in for the compose calls, and TMPDIR points at a throwaway directory so no real token
+# `docker` first on PATH stands in for the compose calls, and LEXVAY_STACK_LOCK_DIR points at a throwaway directory so no real token
 # is touched. Runs under bash 3.2 (macOS) and finishes in well under 20 seconds.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 REPO=$(pwd)
 
 WORK=$(mktemp -d)
-export TMPDIR="$WORK"
-TOKENS="$WORK/lexvay-stack-tokens"
+export LEXVAY_STACK_LOCK_DIR="$WORK/lexvay-stack-tokens"
+TOKENS="$LEXVAY_STACK_LOCK_DIR"
 mkdir -p "$WORK/bin"
 printf '#!/bin/sh\nexit 0\n' > "$WORK/bin/docker"
 chmod +x "$WORK/bin/docker"

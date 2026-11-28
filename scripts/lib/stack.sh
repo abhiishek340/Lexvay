@@ -6,9 +6,9 @@
 #
 # Machine-wide cap: too many stacks at once overload the machine and make timing-sensitive tests fail, so stack_init
 # first takes one of LEXVAY_STACK_CONCURRENCY tokens (default 2; 0 turns the cap off) and waits up to
-# LEXVAY_STACK_WAIT_MINUTES (default 60) for one. A token is a directory ${TMPDIR:-/tmp}/lexvay-stack-tokens/<n>
+# LEXVAY_STACK_WAIT_MINUTES (default 60) for one. A token is a directory ${LEXVAY_STACK_LOCK_DIR:-/tmp/lexvay-stack-tokens-$(id -u)}/<n>
 # holding its owner's `pid` and `slot`; a token whose pid is gone is reclaimed. Scans happen while holding the
-# short-lived directory .../lexvay-stack-tokens/.mutex. Only mkdir is used for locking, because macOS has no flock.
+# short-lived directory <that directory>/.mutex. Only mkdir is used for locking, because macOS has no flock.
 # stack_cleanup gives the token back on every exit path, including INT and TERM.
 
 STACK_NOTICE_SECONDS=30
@@ -71,7 +71,7 @@ stack_try_token() {
 # Blocks until a token is held (STACK_TOKEN_DIR is set), or exits the script after LEXVAY_STACK_WAIT_MINUTES.
 stack_acquire_token() {
   local max="${LEXVAY_STACK_CONCURRENCY:-2}" wait_minutes="${LEXVAY_STACK_WAIT_MINUTES:-60}"
-  local root="${TMPDIR:-/tmp}/lexvay-stack-tokens"
+  local root="${LEXVAY_STACK_LOCK_DIR:-/tmp/lexvay-stack-tokens-$(id -u)}"
   [ "$max" -gt 0 ] || return 0
   local deadline=$((SECONDS + wait_minutes * 60)) next_notice=$SECONDS
   mkdir -p "$root"
