@@ -56,14 +56,99 @@ public class AssessmentFixtures {
         return UUID.fromString(read(result).get("id").asString());
     }
 
-    /** Returns the course version id. */
+    /**
+     * Returns the course version id. The course has no credits, and the program's pathway stays what V024's backfill
+     * would make of its courses ({@link #backfilledPathway}), so a test about something else need not describe one.
+     */
     public UUID course(TestTenants.TenantWithUsers t, UUID programId, String code, boolean required) {
+        UUID version = courseOnly(t, programId, code, required, null);
+        var active = pathway(t, programId).get("groups");
+        active.forEach(g -> assertThat(retirePathwayGroup(t, UUID.fromString(g.get("id").asString()), "A course was added")).hasStatus(200));
+        backfilledPathway(t, programId);
+        return version;
+    }
+
+    /** Returns the course version id; {@code credits} (semester credits) may be null. The course is in no pathway group. */
+    public UUID courseOnly(TestTenants.TenantWithUsers t, UUID programId, String code, boolean required, String credits) {
+        var body = new HashMap<String, Object>(Map.of("code", code, "title", "Course " + code, "required", required));
+        if (credits != null) {
+            body.put("credits", credits);
+        }
         var result = mvc.post().uri("/api/v1/programs/" + programId + "/courses").with(user(t.contributor())).with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsString(Map.of("code", code, "title", "Course " + code, "required", required)))
-                .exchange();
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)).exchange();
         assertThat(result).hasStatus(201);
         return UUID.fromString(read(result).get("versions").get(0).get("id").asString());
+    }
+
+    /** The current version of a course of the program, by code. */
+    public UUID courseVersionOf(TestTenants.TenantWithUsers t, UUID programId, String code) {
+        var courses = read(mvc.get().uri("/api/v1/programs/" + programId + "/courses").with(user(t.reviewer())).exchange());
+        for (JsonNode c : courses) {
+            if (c.get("code").asString().equals(code)) {
+                return UUID.fromString(c.get("versions").get(c.get("versions").size() - 1).get("id").asString());
+            }
+        }
+        throw new AssertionError("No course " + code);
+    }
+
+    /** The courses of a program by code. */
+    public Map<String, UUID> courseIds(TestTenants.TenantWithUsers t, UUID programId) {
+        var courses = read(mvc.get().uri("/api/v1/programs/" + programId + "/courses").with(user(t.reviewer())).exchange());
+        var ids = new HashMap<String, UUID>();
+        courses.forEach(c -> ids.put(c.get("code").asString(), UUID.fromString(c.get("id").asString())));
+        return ids;
+    }
+
+    /** Adds a pathway group and returns the pathway of its catalog year. */
+    public JsonNode pathwayGroup(TestTenants.TenantWithUsers t, UUID programId, String catalogYear, String label, String kind,
+                                 Integer minCount, String minCredits, List<UUID> courseIds) {
+        var result = pathwayGroupResult(t, programId, catalogYear, label, kind, minCount, minCredits, courseIds, null);
+        assertThat(result).hasStatus(201);
+        return read(result);
+    }
+
+    public MvcTestResult pathwayGroupResult(TestTenants.TenantWithUsers t, UUID programId, String catalogYear, String label, String kind,
+                                            Integer minCount, String minCredits, List<UUID> courseIds, Map<String, Object> citation) {
+        var body = new HashMap<String, Object>(Map.of("catalogYear", catalogYear, "label", label, "kind", kind,
+                "courseIds", courseIds.stream().map(UUID::toString).toList()));
+        if (minCount != null) {
+            body.put("minCount", minCount);
+        }
+        if (minCredits != null) {
+            body.put("minCredits", minCredits);
+        }
+        if (citation != null) {
+            body.put("citation", citation);
+        }
+        return mvc.post().uri("/api/v1/programs/" + programId + "/pathway-groups").with(user(t.contributor())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)).exchange();
+    }
+
+    /** The program's graduation paths for its own catalog year. */
+    public JsonNode pathway(TestTenants.TenantWithUsers t, UUID programId) {
+        return read(mvc.get().uri("/api/v1/programs/" + programId + "/pathway").with(user(t.reviewer())).exchange());
+    }
+
+    public MvcTestResult retirePathwayGroup(TestTenants.TenantWithUsers t, UUID groupId, String reason) {
+        return mvc.post().uri("/api/v1/pathway-groups/" + groupId + "/retire").with(user(t.contributor())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("reason", reason))).exchange();
+    }
+
+    /**
+     * Puts every course of the program in a group the way V024's backfill does: the required ones in "Required courses",
+     * the others in "Electives" with no minimum. For tests that are about something other than the pathway.
+     */
+    public void backfilledPathway(TestTenants.TenantWithUsers t, UUID programId) {
+        var courses = read(mvc.get().uri("/api/v1/programs/" + programId + "/courses").with(user(t.reviewer())).exchange());
+        var required = new java.util.ArrayList<UUID>();
+        var electives = new java.util.ArrayList<UUID>();
+        courses.forEach(c -> (c.get("versions").get(0).get("required").asBoolean() ? required : electives).add(UUID.fromString(c.get("id").asString())));
+        if (!required.isEmpty()) {
+            pathwayGroup(t, programId, "2026-27", "Required courses", "ALL_OF", null, null, required);
+        }
+        if (!electives.isEmpty()) {
+            pathwayGroup(t, programId, "2026-27", "Electives", "CHOOSE_COUNT", null, null, electives);
+        }
     }
 
     /** Uploads a TXT document and runs ingest. Returns the document id. */

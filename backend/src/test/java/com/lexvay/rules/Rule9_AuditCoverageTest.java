@@ -31,6 +31,8 @@ class Rule9_AuditCoverageTest extends AbstractDatabaseTest {
             "POST /api/v1/mappings/{id}/evidence-responses",       // EvidenceRequestApiTest.fullLoopFromRequestToReviewerDecision
             "POST /api/v1/programs/{programId}/determinations",    // DeterminationApiTest.signerSignsWhenEveryMappingIsDecided
             "POST /api/v1/courses/{courseId}/versions",            // CourseVersionChangeTest.newCourseVersionCreatesEventMarksStaleAndReopens
+            "POST /api/v1/programs/{programId}/pathway-groups",    // PathwayApiTest.creatingAGroupIsAuditedWithItsCitationAndTheQuoteIsVerified
+            "POST /api/v1/pathway-groups/{groupId}/retire",        // PathwayApiTest.retiringAGroupIsAuditedAndKeepsItsHistory
             "POST /api/v1/change-events/{id}/rerun",               // RuleVersionChangeTest.rerunCarriesOverUnchangedAndReevaluatesChanged
             "POST /api/v1/determinations/{id}/report",             // ReportTest.signedDeterminationReportIsGeneratedAndDownloadable
             "POST /api/v1/determinations/{id}/package",            // PackageApiTest.aSignedDeterminationIsPackagedAndEveryStepIsAudited
