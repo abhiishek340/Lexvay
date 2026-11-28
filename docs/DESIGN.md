@@ -59,6 +59,7 @@ stylesheet (a unit test scans `frontend/src` for hex, rgb and hsl literals outsi
 | sunken | #F3F3F1 | #1B1C1F | hover rows, selected rows (with the rule), code wells |
 | line | #E6E5E2 | #26272B | hairlines |
 | line-strong | #D2D1CC | #34363B | input and secondary-button borders, column rules |
+| line-control | #8C8F95 | #6E7178 | borders of text inputs, select, multiselect, autocomplete and search (3:1, WCAG 1.4.11; replaces line-strong there) |
 | ink | #141517 | #ECECEE | primary text, primary button fill (light) |
 | ink-2 | #5A5D63 | #A3A6AD | secondary text, meta, table headers, icons |
 | ink-3 | #8C8F95 | #6E7178 | decorative only (rules, disabled); never body text |

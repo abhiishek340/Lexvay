@@ -1,10 +1,10 @@
 import auraChip from '@primeuix/themes/aura/chip';
 import { lexvayTokens as t } from './lexvay-preset';
 
-/** Chips as quiet pills on the inset colour (search terms, chosen states), with the remove icon in secondary text. */
+/** Chips drawn like Labels (ui/label.ts): sunken, 6 px radius, ink text, the remove icon in ink-2 (search terms, chosen states). */
 export const lexvayChip = {
   ...auraChip,
-  root: { ...auraChip.root, borderRadius: '999px', paddingX: '0.625rem', paddingY: '0.1875rem', gap: '0.375rem', background: t.surface2, focusBackground: t.line, color: t.text },
-  icon: { ...auraChip.icon, color: t.text2 },
-  removeIcon: { ...auraChip.removeIcon, color: t.text2, focusRing: { width: '2px', style: 'solid', color: t.accent, offset: '1px', shadow: 'none' } },
+  root: { ...auraChip.root, borderRadius: '6px', paddingX: '0.5rem', paddingY: '0.125rem', gap: '0.375rem', background: t.sunken, focusBackground: t.line, color: t.ink },
+  icon: { ...auraChip.icon, color: t.ink2 },
+  removeIcon: { ...auraChip.removeIcon, color: t.ink2, focusRing: { width: '2px', style: 'solid', color: t.accent, offset: '1px', shadow: 'none' } },
 };

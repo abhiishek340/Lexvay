@@ -2,7 +2,6 @@ import { Component, DestroyRef, ElementRef, afterRenderEffect, computed, effect,
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorGridFourDuotone } from '@ng-icons/phosphor-icons/duotone';
 import { phosphorBook, phosphorCalculator, phosphorCircleDashed, phosphorClock, phosphorWarningCircle } from '@ng-icons/phosphor-icons/regular';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -17,17 +16,22 @@ import { CoverageMatrix } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import { InfoTip } from '../../ui/info-tip';
-import { StatePill, StatePills } from '../../ui/state-pills';
+import { Help, HelpTerm } from '../../ui/help';
+import { StateTab, StateTabs } from '../../ui/state-tabs';
 import { COVERAGE_TOKENS } from './coverage-theme';
 import { Cell, FLAGS, Flag, MoveKey, Position, Row, coverageView, firstCell, flagCounts, matchesFlag, move, unflaggedShare } from './coverage-view';
 
 /** The icons the Coverage screen shows beyond SHELL_ICONS, provided by its route (coverage.routes.ts). */
-export const COVERAGE_ICONS = { phosphorBook, phosphorCalculator, phosphorCircleDashed, phosphorClock, phosphorGridFourDuotone, phosphorWarningCircle };
+export const COVERAGE_ICONS = { phosphorBook, phosphorCalculator, phosphorCircleDashed, phosphorClock, phosphorWarningCircle };
+
+const HELP: readonly HelpTerm[] = [
+  { term: 'Filled mark', definition: "A quote the system verified in the course's documents." },
+  { term: 'Open mark', definition: 'A passage a person provided.' },
+  { term: 'Dashed mark', definition: 'A quote on an older version of the course.' },
+  { term: 'Flags', definition: 'Say where the evidence sits, never whether it is enough. People decide that in Review.' },
+];
 
 const MOVES: Record<string, MoveKey> = { ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', Home: 'Home', End: 'End' };
-/** The matrix enters column by column, 20 ms apart, at most twelve staggered (DESIGN.md motion, F10b point 4). */
-const STAGGER_CAP = 11;
 /** Space left between a revealed cell and the sticky column it was hidden under. */
 const REVEAL_MARGIN = 8;
 
@@ -39,7 +43,7 @@ const REVEAL_MARGIN = 8;
  */
 @Component({
   selector: 'lx-coverage',
-  imports: [FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, Popover, SelectButton, Skeleton, TabPanel, TabPanels, Tabs, Tooltip, InfoTip, StatePills],
+  imports: [FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, Popover, SelectButton, Skeleton, TabPanel, TabPanels, Tabs, Tooltip, Help, StateTabs],
   templateUrl: './coverage.html',
   styleUrl: './coverage.css',
 })
@@ -55,6 +59,7 @@ export class Coverage {
   readonly jurisdictionParam = input<string | undefined>(undefined, { alias: 'jurisdiction' });
 
   readonly flags = FLAGS;
+  readonly help = HELP;
   /** Matrices by state code for the program in `loadedFor`. */
   readonly matrices = signal<ReadonlyMap<string, CoverageMatrix>>(new Map());
   readonly errors = signal<ReadonlyMap<string, string>>(new Map());
@@ -90,7 +95,7 @@ export class Coverage {
     const codes = this.codes();
     return wanted && codes.includes(wanted) ? wanted : (codes[0] ?? '');
   });
-  readonly pills = computed<StatePill[]>(() => this.codes().map((code) => {
+  readonly tabs = computed<StateTab[]>(() => this.codes().map((code) => {
     const m = this.matrices().get(code);
     return { code, name: this.context.jurisdictionName(code), progress: m && m.requirements.length > 0 ? unflaggedShare(m) : null };
   }));
@@ -191,11 +196,6 @@ export class Coverage {
 
   dimmed(row: Row): boolean {
     return !matchesFlag(row, this.filter());
-  }
-
-  /** Column by column: the requirement column first, each course after it, the flag column with the last. */
-  delay(col: number): number {
-    return Math.min(col, STAGGER_CAP);
   }
 
   isStop(row: number, col: number): boolean {

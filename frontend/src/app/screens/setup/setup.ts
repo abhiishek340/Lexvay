@@ -6,7 +6,6 @@ import { NgIcon } from '@ng-icons/core';
 import { phosphorCheckCircle, phosphorCircle, phosphorEye, phosphorEyeSlash } from '@ng-icons/phosphor-icons/regular';
 import auraIconfield from '@primeuix/themes/aura/iconfield';
 import auraInputtext from '@primeuix/themes/aura/inputtext';
-import auraMetergroup from '@primeuix/themes/aura/metergroup';
 import { MessageService } from 'primeng/api';
 import { Button, ButtonDirective, ButtonLabel } from 'primeng/button';
 import { IconField } from 'primeng/iconfield';
@@ -20,6 +19,7 @@ import { BUSY, Countdown, busyRetryAfter } from '../../core/busy';
 import { problemDetail } from '../../core/problem';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
+import { lexvayMetergroup } from '../../theme/metergroup-tokens';
 import { lexvayMessage } from '../../theme/message-tokens';
 import { AuthFrame } from '../../ui/auth-frame';
 import { StrengthLevel, passwordRules, passwordStrength } from './password-rules';
@@ -28,7 +28,7 @@ import { StrengthLevel, passwordRules, passwordStrength } from './password-rules
 export const SETUP_ICONS = { phosphorCheckCircle, phosphorCircle, phosphorEye, phosphorEyeSlash };
 
 const STRENGTH_COLOUR: Record<StrengthLevel, string> = {
-  0: 'var(--p-lx-missing)', 1: 'var(--p-lx-missing)', 2: 'var(--p-lx-ambiguous)', 3: 'var(--p-lx-found)', 4: 'var(--p-lx-found)',
+  0: 'var(--p-lx-missing)', 1: 'var(--p-lx-missing)', 2: 'var(--p-lx-ink-2)', 3: 'var(--p-lx-found)', 4: 'var(--p-lx-found)',
 };
 
 /**
@@ -69,7 +69,7 @@ export class Setup {
   });
 
   constructor() {
-    registerComponentTokens({ iconfield: auraIconfield, inputtext: auraInputtext, message: lexvayMessage, metergroup: auraMetergroup });
+    registerComponentTokens({ iconfield: auraIconfield, inputtext: auraInputtext, message: lexvayMessage, metergroup: lexvayMetergroup });
     this.code = new URLSearchParams(location.hash.slice(1)).get('code') ?? '';
     history.replaceState(history.state, '', '/setup');
     this.invalid.set(this.code === '');

@@ -1,94 +1,50 @@
 import { DANA, PRIYA, expect, expectAccessible, goTo, programIdFromUrl, signIn, test } from './support';
 
 /**
- * The program overview (UI2-1): the map, the three numbers, "Needs you" and the state cards. The seeded program
- * targets Arizona, California, Colorado, Texas and Utah; nothing here decides or signs, so the other specs see the
- * seed as it was. Statuses depend on what ran before, so the action names are matched by pattern.
+ * The program overview (UI3-0, design v3): the title row, the three figures, the States table and "Needs you". The
+ * seeded program targets Arizona, California, Colorado, Texas and Utah; nothing here decides or signs, so the other
+ * specs see the seed as it was. Statuses depend on what ran before, so the action names are matched by pattern.
  */
-const STAGE_ACTION = /^(Review|Sign|View report)$/;
+const STAGE_ACTION = /^(Review|Sign|Report)$/;
 
-test('the map moves between target states with the keyboard, shows each card, and Enter runs its action', async ({ page }) => {
+test('the States table lists every target state with its rules, progress, share found, determination and one action', async ({ page }) => {
   await signIn(page, DANA);
-  const map = page.getByRole('group', { name: 'Target states' });
-  await expect(map.getByRole('button')).toHaveCount(5);
-  // One tab stop: the first target in reading order.
-  await expect(map.locator('button[tabindex="0"]')).toHaveCount(1);
-  const california = map.getByRole('button', { name: /^California, / });
-  await expect(california).toHaveAttribute('tabindex', '0');
-
-  await california.focus();
-  await expect(page.getByRole('dialog', { name: 'California' })).toBeVisible();
-  await page.keyboard.press('ArrowRight');
-  await expect(map.getByRole('button', { name: /^Utah, / })).toBeFocused();
-  const utah = page.getByRole('dialog', { name: 'Utah' });
-  await expect(utah).toBeVisible();
-  await expect(utah.getByRole('link')).toHaveText(STAGE_ACTION);
-  await page.keyboard.press('End');
-  await expect(map.getByRole('button', { name: /^Texas, \d+ of \d+ reviewed, / })).toBeFocused();
-  await page.keyboard.press('Home');
-  await expect(california).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'California' })).toBeHidden();
-
-  await page.keyboard.press('End');
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/programs\/[0-9a-f-]+\/(review|report)\?jurisdiction=TX$/);
-});
-
-test('a tile card\'s action opens the state, and the overview with an open card is accessible', async ({ page }) => {
-  await signIn(page, DANA);
-  const arizona = page.getByRole('group', { name: 'Target states' }).getByRole('button', { name: /^Arizona, / });
-  const card = page.getByRole('dialog', { name: 'Arizona' });
-  // Focus keeps the card open while axe runs (the check parks the pointer, which would close a hover card).
-  await arizona.focus();
-  await expect(card.getByRole('img', { name: /of \d+ reviewed$/ })).toBeVisible();
-  await expectAccessible(page, 'Overview with a map card');
-  await arizona.blur();
-  await expect(card).toBeHidden();
-
-  // The pointer travels from the tile into its card and clicks the one action.
-  await arizona.hover();
-  await expect(card).toBeVisible();
-  await card.getByRole('link').hover();
-  await card.getByRole('link').click();
-  await expect(page).toHaveURL(/\/(review|report)\?jurisdiction=AZ$/);
-});
-
-test('each state card has one action, and Review lands on the state (the shared-element navigation)', async ({ page }) => {
-  await signIn(page, DANA);
-  const cards = page.locator('[data-testid^="state-card-"]');
-  await expect(cards).toHaveCount(5);
-  for (const card of await cards.all()) {
-    await expect(card.getByRole('link')).toHaveCount(1);
-    await expect(card.getByRole('link')).toHaveText(STAGE_ACTION);
-    await expect(card.getByRole('img')).toHaveAttribute('aria-label', /evidence found, \d+ ambiguous, \d+ evidence missing|Not assessed/);
+  const table = page.getByRole('table', { name: 'States' });
+  const rows = table.locator('tbody tr');
+  await expect(rows).toHaveCount(5);
+  await expect(table.getByRole('columnheader')).toHaveText(['State', 'Rules', 'Progress', 'Evidence found', 'Determination', 'Next step']);
+  for (const row of await rows.all()) {
+    await expect(row.getByRole('link')).toHaveCount(1);
+    await expect(row.getByRole('link')).toHaveText(STAGE_ACTION);
+    await expect(row).toContainText(/\d+ of \d+ decided|Not assessed/);
+    await expect(row).toContainText(/Signed by .+, \d+ \w{3}|Not signed|Reopened, not signed/);
   }
-  const texas = page.getByTestId('state-card-TX');
-  await expect(texas).toContainText('Texas');
-  await expect(texas).toContainText(/\d+ to review/);
+  const texas = page.getByTestId('state-row-TX');
+  await expect(texas.getByRole('rowheader')).toHaveText('Texas');
   await texas.getByRole('link', { name: 'Review, Texas' }).click();
   await expect(page).toHaveURL(/\/programs\/[0-9a-f-]+\/review\?jurisdiction=TX$/);
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^TX-/);
 
-  // Back on the overview, the hero states the same numbers the API does.
+  // Back on the overview, the figures state the same numbers the API does.
   await goTo(page, 'Program overview');
   const programId = await programIdFromUrl(page);
   const overview = await (await page.request.get(`/api/v1/programs/${programId}/overview`)).json();
   const summaries = overview.assessment.jurisdictions as { total: number; decided: number }[];
   const toReview = summaries.reduce((n, s) => n + s.total - s.decided, 0);
-  const hero = page.getByRole('region', { name: 'Program at a glance' });
-  await expect(hero.locator('lx-stat').first()).toContainText(new RegExp(`(^|\\D)${toReview}\\s*To review`));
-  await expect(hero.locator('lx-stat').nth(2)).toContainText('of 5');
+  const figures = page.getByRole('group', { name: 'Program at a glance' }).locator('lx-figure');
+  await expect(figures).toHaveCount(3);
+  await expect(figures.first()).toHaveText(`${toReview}To review`);
+  await expect(figures.nth(1)).toHaveText(/^\d+%Evidence found$/);
+  await expect(figures.nth(2)).toHaveText(/^\d+ of 5Signed$/);
 });
 
-test('"Needs you" lists at most three items of this program, each with one action that opens its screen', async ({ page }) => {
+test('"Needs you" lists at most five items of this program, each with one action that opens its screen', async ({ page }) => {
   await signIn(page, DANA);
   const needs = page.getByRole('region', { name: 'Needs you' });
   await expect(needs).toBeVisible();
   const rows = needs.getByRole('listitem');
   expect(await rows.count()).toBeGreaterThan(0);
-  expect(await rows.count()).toBeLessThanOrEqual(3);
+  expect(await rows.count()).toBeLessThanOrEqual(5);
   for (const row of await rows.all()) {
     await expect(row.locator('a, button')).toHaveCount(1);
   }
@@ -99,31 +55,50 @@ test('"Needs you" lists at most three items of this program, each with one actio
   await expect(page).toHaveURL(/\/programs\/[0-9a-f-]+\/(review|changes|requests|rules)/);
 });
 
-test('a reviewer is never offered Sign, and under reduced motion the numbers show their final value at once', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+test('a reviewer is never offered Sign, and the one Help explains the terms', async ({ page }) => {
   await signIn(page, PRIYA);
   await expect(page.getByRole('heading', { level: 1, name: 'M.S. Clinical Mental Health Counseling' })).toBeVisible();
-  await expect(page.locator('[data-testid^="state-card-"]')).toHaveCount(5);
-  await expect(page.locator('[data-testid^="state-card-"]').getByRole('link', { name: /^Sign, / })).toHaveCount(0);
-  const percent = page.getByRole('region', { name: 'Program at a glance' }).locator('lx-stat').nth(1).locator('.lx-number');
-  const first = await percent.textContent();
-  expect(first).toMatch(/^\d+%$/);
-  await page.waitForTimeout(700);
-  expect(await percent.textContent()).toBe(first);
+  await expect(page.getByTestId('state-row-CA')).toBeVisible();
+  await expect(page.getByRole('main').getByRole('link', { name: /^Sign/ })).toHaveCount(0);
+  await expect(page.getByRole('main').getByRole('button', { name: 'Help' })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Help' }).click();
+  await expect(page.getByRole('dialog', { name: 'Help' })).toContainText('Signed for a state by a signer');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Help' })).toBeHidden();
 });
 
 test('the overview is accessible in both themes at 1440 and 400 px without horizontal scroll', async ({ page }) => {
   for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await page.setViewportSize({ width, height });
     await signIn(page, DANA);
-    await expect(page.getByRole('group', { name: 'Target states' })).toBeVisible();
-    await expect(page.locator('[data-testid^="state-card-"]')).toHaveCount(5);
+    await expect(page.getByRole('table', { name: 'States' }).locator('tbody tr')).toHaveCount(5);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
-    await page.getByRole('button', { name: 'About these figures' }).click();
-    await expect(page.getByRole('dialog', { name: 'About these figures' })).toContainText('only a signer signs');
+    await page.getByRole('button', { name: 'Help' }).click();
+    await expect(page.getByRole('dialog', { name: 'Help' })).toBeVisible();
+    await expectAccessible(page, `Overview with Help at ${width} px`);
     await page.keyboard.press('Escape');
     await expectAccessible(page, `Overview at ${width} px`);
     await page.context().clearCookies();
+  }
+});
+
+test('the overview keeps the v3 spacing: 40 px padding, 24 px to the figures, 40 px sections with a hairline, 40 px rows', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await signIn(page, DANA);
+  await expect(page.getByTestId('state-row-CA')).toBeVisible();
+  const box = async (selector: string) => (await page.locator(selector).first().boundingBox())!;
+  const main = await box('main');
+  const title = await box('main h1');
+  expect(title.x - main.x).toBe(40);
+  expect(title.y - main.y).toBe(40);
+  const header = await box('.lx-title-row');
+  const figures = await box('.lx-figures');
+  expect(figures.y - (header.y + header.height)).toBe(24);
+  const states = page.locator('section[aria-labelledby="states-heading"]');
+  expect(await states.evaluate((el) => [getComputedStyle(el).marginTop, getComputedStyle(el).paddingTop, getComputedStyle(el).borderTopWidth]))
+    .toEqual(['40px', '40px', '1px']);
+  for (const row of await page.locator('.lx-states tbody tr').all()) {
+    expect(Math.round((await row.boundingBox())!.height)).toBe(40);
   }
 });

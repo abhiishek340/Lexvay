@@ -1,16 +1,9 @@
-<lx-auth-frame [story]="true">
-  <section lxAuthStory class="lx-story" aria-label="Lexvay" [attr.data-story]="story()">
-    <div class="lx-story-inner">
-      <lx-state-map class="lx-story-map" size="compact" [states]="picture()" [interactive]="false" />
-      <p class="lx-display lx-story-headline">Every requirement, traced to its evidence.</p>
-    </div>
-  </section>
-
+<lx-auth-frame>
   <h1>Sign in</h1>
   @if (session.notice(); as notice) {
     <p-message class="lx-notice" severity="warn" data-testid="message">{{ notice }}</p-message>
   }
-  <form (ngSubmit)="submit()" (input)="stopStory()" novalidate>
+  <form (ngSubmit)="submit()" novalidate>
     <div class="lx-auth-field">
       <label for="email">Email</label>
       <input pInputText id="email" name="email" type="email" autocomplete="username" required [(ngModel)]="email"
@@ -31,17 +24,19 @@
               [disabled]="wait.remaining() > 0" [fluid]="true" size="large" />
   </form>
   @if (demoAccounts.length > 0) {
-    <div class="lx-demo-accounts" role="group" aria-labelledby="demo-accounts-label">
-      <p id="demo-accounts-label" class="lx-demo-label">Demo accounts</p>
-      <div class="lx-demo-chips">
+    <div class="lx-demo" role="group" aria-labelledby="demo-accounts-label">
+      <p id="demo-accounts-label" class="lx-meta">Demo accounts</p>
+      <ul class="lx-demo-list">
         @for (account of demoAccounts; track account.email) {
-          <button pButton type="button" size="small" [rounded]="true" severity="secondary" class="lx-demo-chip"
-                  [attr.aria-label]="roleLabel[account.role] + ', ' + account.name"
-                  (click)="useAccount(account)">
-            <span pButtonLabel>{{ roleLabel[account.role] }}</span>
-          </button>
+          <li>
+            <button type="button" class="lx-demo-account" [attr.aria-label]="roleLabel[account.role] + ', ' + account.name" (click)="useAccount(account)">
+              <span class="lx-demo-role">{{ roleLabel[account.role] }}</span>
+              <span class="lx-demo-name">{{ account.name }}</span>
+            </button>
+          </li>
         }
-      </div>
+      </ul>
     </div>
+    <p class="lx-meta lx-fictional">Fictional demo data.</p>
   }
 </lx-auth-frame>

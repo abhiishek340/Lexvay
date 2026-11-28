@@ -42,9 +42,9 @@ import { NO_TEXT_YET, documentGroups, hasEarlierDocuments } from './document-gro
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-    .lx-picker-group { font-size: 12px; font-weight: 600; color: var(--p-lx-text-2); }
+    .lx-picker-group { font-size: 12px; font-weight: 600; color: var(--p-lx-ink-2); }
     .lx-picker-option { display: flex; flex-direction: column; min-width: 0; }
-    .lx-picker-meta { font-size: 12px; line-height: 16px; color: var(--p-lx-text-2); }
+    .lx-picker-meta { font-size: 12px; line-height: 16px; color: var(--p-lx-ink-2); }
     .lx-picker-earlier { display: flex; align-items: center; gap: 8px; }
     .lx-picker-earlier label { font-size: 13px; }
   `,

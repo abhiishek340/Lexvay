@@ -61,7 +61,6 @@
     <div class="lx-field">
       <span class="lx-label-row">
         <span id="rv-supersedesId-label" class="lx-field-label">Supersedes <span class="lx-muted">(optional)</span></span>
-        <lx-info-tip label="About superseding a version">Choose the version this one replaces; a change event opens when it is approved.</lx-info-tip>
       </span>
       <p-select inputId="rv-supersedesId" ariaLabelledBy="rv-supersedesId-label" [options]="supersedable()" optionLabel="label" optionValue="id"
                 [showClear]="true" [placeholder]="f.jurisdiction ? (supersedable().length ? 'None' : 'No approved version to replace') : 'Choose a jurisdiction first'"
@@ -73,8 +72,6 @@
     <div class="lx-field">
       <span class="lx-label-row">
         <label for="rv-text" class="lx-field-label">Rule text</label>
-        <lx-info-tip label="How a new version is read">The rule text is stored as the version's document. The model then proposes its requirement list, which a
-          reviewer corrects and approves before any assessment uses it.</lx-info-tip>
       </span>
       <textarea pTextarea id="rv-text" class="lx-mono lx-rule-input" rows="10" [ngModel]="f.text" [ngModelOptions]="{ standalone: true }"
                 (ngModelChange)="set('text', $event)" [invalid]="!!p.text" [attr.maxlength]="max" [fluid]="true"

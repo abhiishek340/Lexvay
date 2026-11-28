@@ -52,9 +52,8 @@ describe('ruleVersionStatus', () => {
     expect(ruleVersionStatus(draft, [old, draft])).toBe('EXTRACTING');
   });
 
-  it('every status has its own icon and a word', () => {
-    expect(new Set(Object.values(RULE_STATUS).map((s) => s.icon)).size).toBe(5);
-    for (const s of Object.values(RULE_STATUS)) { expect(s.label.length).toBeGreaterThan(0); }
+  it('every status has its own word', () => {
+    expect(new Set(Object.values(RULE_STATUS).map((s) => s.label)).size).toBe(5);
   });
 });
 

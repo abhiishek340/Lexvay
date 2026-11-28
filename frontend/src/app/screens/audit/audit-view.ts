@@ -23,8 +23,6 @@ export interface AuditRow {
   recordLabel: string;
   entityId: string | null;
   details: DetailRow[];
-  /** Position within the page it was loaded with: the entrance stagger restarts for each page. */
-  enter: number;
 }
 
 /** The record types the backend writes, in plain words. */
@@ -174,7 +172,7 @@ function actorId(e: AuditEntry): string | null {
 /** Entries as the timeline shows them: actor resolved to a name, the sentence, the worded details. */
 export function auditRows(entries: AuditEntry[], users: UserSummary[], names: (code: string) => string): AuditRow[] {
   const people = new Map(users.map((u) => [u.id, u.displayName]));
-  return entries.map((e, index) => {
+  return entries.map((e) => {
     const id = actorId(e);
     const known = id === null ? null : people.get(id);
     const actorKind: ActorKind = id === null ? 'system' : known ? 'person' : 'former';
@@ -192,7 +190,6 @@ export function auditRows(entries: AuditEntry[], users: UserSummary[], names: (c
       recordLabel: recordLabel(e.entityType),
       entityId: e.entityId,
       details: detailRows(e.detail, names),
-      enter: index,
     };
   });
 }

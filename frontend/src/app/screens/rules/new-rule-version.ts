@@ -11,9 +11,8 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
-import { comparableVersions, effectiveText } from '../../core/rules';
-import { InfoTip } from '../../ui/info-tip';
 import { LEGAL_STATUS_LABEL } from '../../core/labels';
+import { comparableVersions, effectiveText } from '../../core/rules';
 import { ENTERABLE_STATUSES, FieldProblems, MAX_RULE_TEXT, RuleVersionField, RuleVersionForm, emptyForm, formProblems, problemField, toNewRuleVersion } from './rule-version-form';
 
 /** The order fields are checked in, which is also the order focus goes to the first one with a problem. */
@@ -22,7 +21,7 @@ const FIELD_ORDER: RuleVersionField[] = ['jurisdiction', 'licenseType', 'label',
 /** "New rule version": a contributor enters the rule text; the server stores it and queues extraction (202). */
 @Component({
   selector: 'lx-new-rule-version',
-  imports: [FormsModule, ButtonDirective, ButtonLabel, DatePicker, Dialog, InputText, Message, Select, Textarea, InfoTip],
+  imports: [FormsModule, ButtonDirective, ButtonLabel, DatePicker, Dialog, InputText, Message, Select, Textarea],
   templateUrl: './new-rule-version.html',
   styleUrl: './new-rule-version.css',
 })
