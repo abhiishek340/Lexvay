@@ -1,9 +1,30 @@
 import { NUMERIC_FIELD_LABEL, NUMERIC_TYPES } from '../../core/labels';
-import { Course, CourseVersion, DocumentView, NumericField, Program, ProgramDocument, ProgramFact, RequirementView, RuleVersionView } from '../../core/models';
+import {
+  Course, CourseVersion, DocumentView, NumericField, Pathway, PathwayGroup, Program, ProgramDocument, ProgramFact, RequirementView, RuleVersionView,
+} from '../../core/models';
 
 /** The version a course is taught under now: the one no other version of the course supersedes. */
 export function currentVersion(course: Course): CourseVersion | null {
   return course.versions.find((v) => !course.versions.some((other) => other.supersedesId === v.id)) ?? null;
+}
+
+/** What a group asks of a graduate, in words: "All of these", "Choose 2 of 3", "Choose 6 credits"; "Minimum not recorded" while unknown. */
+export function groupRule(group: PathwayGroup): string {
+  switch (group.kind) {
+    case 'ALL_OF': return 'All of these';
+    case 'CHOOSE_COUNT': return group.minCount === null ? 'Minimum not recorded' : `Choose ${group.minCount} of ${group.members.length}`;
+    case 'CHOOSE_CREDITS': return group.minCredits === null ? 'Minimum not recorded' : `Choose ${group.minCredits} credits`;
+  }
+}
+
+/** The course codes of a group, in the order the server lists them. */
+export function memberCodes(group: PathwayGroup): string {
+  return group.members.map((m) => m.code).join(', ');
+}
+
+/** "36 semester credits"; null while some minimum or credit is not recorded, because the server then computes nothing. */
+export function minimumCreditsLabel(pathway: Pathway): string | null {
+  return pathway.minimumCredits === null || pathway.minimumCreditsUnit === null ? null : `${pathway.minimumCredits} ${pathway.minimumCreditsUnit.toLowerCase()} credits`;
 }
 
 /** The license types the tenant's rule versions use, for the Details step's choice; the person may also type another. */

@@ -1,6 +1,5 @@
 package com.lexvay.assessment;
 
-import com.lexvay.assessment.rules.RulesEngine;
 import com.lexvay.audit.AuditService;
 import com.lexvay.common.TenantContext;
 import com.lexvay.job.Job;
@@ -12,7 +11,6 @@ import com.lexvay.program.Program;
 import com.lexvay.program.ProgramRepository;
 import com.lexvay.rule.Jurisdiction;
 import com.lexvay.rule.JurisdictionRepository;
-import com.lexvay.rule.NumericField;
 import com.lexvay.rule.Requirement;
 import com.lexvay.rule.RuleVersion;
 import com.lexvay.rule.RuleVersionRepository;
@@ -75,7 +73,7 @@ public class RunAssessmentHandler implements JobHandler {
                 .orElseThrow(() -> new PermanentJobFailure("Program " + assessment.programId() + " not found"));
         newTransaction.executeWithoutResult(s -> assessments.markRunning(assessmentId));
         try {
-            Map<NumericField, RulesEngine.Fact> currentFacts = producer.currentFacts(program.id());
+            MappingProducer.Basis basis = producer.basis(program.id());
             UUID tenantId = TenantContext.require();
             int produced = 0;
             List<Jurisdiction> targets = jurisdictions.findByCodes(program.jurisdictions());
@@ -93,7 +91,7 @@ public class RunAssessmentHandler implements JobHandler {
                         continue;
                     }
                     MappingProducer.Produced stored = newTransaction.execute(s -> {
-                        MappingProducer.Produced p = producer.produce(assessmentId, program.id(), requirement, currentFacts, assessment.createdBy());
+                        MappingProducer.Produced p = producer.produce(assessmentId, program.id(), requirement, basis, assessment.createdBy());
                         boolean inserted = mappings.insertIfAbsent(tenantId, assessmentId, requirement.id(), jurisdiction.id(), p.finding(),
                                 p.method(), p.rationale(), p.evidenceSpanId(), assessment.createdBy());
                         return inserted ? p : null;

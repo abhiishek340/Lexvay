@@ -184,7 +184,7 @@ public class PostgresPassageSearch implements PassageSearch {
                 .query((rs, i) -> {
                     String page = rs.getString("text");
                     return new Passage(rs.getObject("document_id", UUID.class), rs.getString("filename"), rs.getString("kind"),
-                            rs.getObject("course_version_id", UUID.class), rs.getString("course_code"),
+                            rs.getObject("course_version_id", UUID.class), rs.getObject("course_id", UUID.class), rs.getString("course_code"),
                             rs.getObject("course_required", Boolean.class), rs.getInt("page_number"), page,
                             PassageExcerpter.excerpt(page, rs.getString("headline")), rs.getDouble("rank"),
                             TextSource.valueOf(rs.getString("text_source")), rs.getObject("ocr_confidence", Double.class),
@@ -215,7 +215,7 @@ public class PostgresPassageSearch implements PassageSearch {
         return """
                 WITH %1$s
                 scored AS (
-                    SELECT d.id AS document_id, d.filename, d.kind, d.course_version_id, c.code AS course_code,
+                    SELECT d.id AS document_id, d.filename, d.kind, d.course_version_id, c.id AS course_id, c.code AS course_code,
                            cv.required AS course_required, d.created_at, dp.page_number, dp.text,
                            dp.text_source, CAST(dp.ocr_confidence AS double precision) AS ocr_confidence,
                            dp.id AS page_id, %4$s AS rank, %7$s AS matched_via
@@ -231,7 +231,7 @@ public class PostgresPassageSearch implements PassageSearch {
                 ), top AS (
                     SELECT * FROM scored ORDER BY %6$s LIMIT :limit
                 )
-                SELECT h.document_id, h.filename, h.kind, h.course_version_id, h.course_code, h.course_required,
+                SELECT h.document_id, h.filename, h.kind, h.course_version_id, h.course_id, h.course_code, h.course_required,
                        h.page_number, h.rank, h.text_source, h.ocr_confidence, %5$s
                 FROM top h
                 ORDER BY %6$s

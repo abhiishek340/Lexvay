@@ -2,6 +2,8 @@ package com.lexvay.coverage;
 
 import com.lexvay.assessment.AssessmentRepository;
 import com.lexvay.assessment.MappingRepository;
+import com.lexvay.pathway.PathwayGroup;
+import com.lexvay.pathway.PathwayRepository;
 import com.lexvay.program.CourseRepository;
 import java.util.List;
 import java.util.Optional;
@@ -19,29 +21,37 @@ import tools.jackson.databind.ObjectMapper;
 @Repository
 public class CoverageRepository {
 
-    /** The matrix, and whether the jurisdiction is a target of the program (when not, nothing else is read). */
-    public record Found(boolean target, CoverageMatrix matrix) {
+    /**
+     * The matrix, and whether the jurisdiction is a target of the program (when not, nothing else is read). {@code pathway}
+     * is the program's active graduation groups; the risk of a row that cites only current courses is left for
+     * {@link PathwayRisk} to decide from them.
+     */
+    public record Found(boolean target, CoverageMatrix matrix, List<PathwayGroup> pathway) {
     }
 
     /**
      * target: the program (none when it is not visible to the tenant) and the jurisdiction, which may be unknown.
+     * pathway: the program's active graduation groups of its catalog year (PathwayRepository.ACTIVE_GROUPS).
      * latest: the program's latest finished assessment, read only for a target jurisdiction.
      * mappings: its current (D-066) mappings for the jurisdiction with the latest review decision (D-003).
      * courses: the program's current course versions. evidence: the mapping's own verified span (SYSTEM) and every
      * evidence response (PERSON); numeric requirements checked by the rules engine have none, their span is a
      * program fact. cited: the documents of that evidence with their course version and the current version of that
      * course. cell_rows, outdated_rows, program_rows and reach: the cited evidence per mapping, as cells of current
-     * course versions, as cells of superseded ones (D-394), as program-level documents, and counted for the risk flag. Public so the index-usage check can run {@code EXPLAIN} on exactly this text.
+     * course versions, as cells of superseded ones (D-394), as program-level documents, and counted for the risk flag. A row that survives every risk test here cites only current course versions
+     * and has no risk yet: {@link PathwayRisk} gives it one from the pathway. Public so the index-usage check can run {@code EXPLAIN} on exactly this text.
      */
     public static final String MATRIX = """
             WITH target AS (
-                SELECT p.id AS program_id, p.name AS program_name, j.id AS jurisdiction_id, j.code AS jurisdiction_code, j.name AS jurisdiction_name,
+                SELECT p.id AS program_id, p.name AS program_name, p.catalog_year, j.id AS jurisdiction_id, j.code AS jurisdiction_code, j.name AS jurisdiction_name,
                        j.id IS NOT NULL AND EXISTS (SELECT 1 FROM program_jurisdiction pj
                                                     WHERE pj.program_id = p.id AND pj.jurisdiction_id = j.id) AS is_target
                 FROM program p
                 LEFT JOIN jurisdiction j ON j.code = :jurisdiction
                 WHERE p.id = :program
-            ), latest AS (
+            ), pathway_year AS (
+                SELECT catalog_year AS year FROM target
+            ), %5$s, latest AS (
                 SELECT a.id FROM assessment a
                 WHERE a.program_id = :program AND (SELECT is_target FROM target) AND %1$s
             ), mappings AS (
@@ -98,9 +108,7 @@ public class CoverageRepository {
                 FROM (SELECT DISTINCT mapping_id, document_id, filename, kind, source FROM cited WHERE course_version_id IS NULL) x
                 GROUP BY x.mapping_id
             ), reach AS (
-                SELECT mapping_id, count(DISTINCT course_version_id) FILTER (WHERE course_version_id = current_version_id) AS course_count,
-                       count(DISTINCT course_version_id) FILTER (WHERE course_version_id = current_version_id AND required) AS required_count,
-                       count(*) FILTER (WHERE course_version_id IS NULL) AS program_count,
+                SELECT mapping_id, count(*) FILTER (WHERE course_version_id IS NULL) AS program_count,
                        count(*) FILTER (WHERE course_version_id <> current_version_id) AS outdated_count
                 FROM cited GROUP BY mapping_id
             )
@@ -120,20 +128,21 @@ public class CoverageRepository {
                                               WHEN m.stale OR rc.outdated_count > 0 THEN 'OUTDATED_EVIDENCE'
                                               WHEN rc.mapping_id IS NULL THEN 'NO_EVIDENCE'
                                               WHEN rc.program_count > 0 THEN 'NONE'
-                                              WHEN rc.required_count = 0 THEN 'ELECTIVE_ONLY'
-                                              WHEN rc.course_count = 1 THEN 'SINGLE_COURSE'
-                                              ELSE 'NONE' END) ORDER BY m.ordinal)
+                                              END) ORDER BY m.ordinal)
                              FROM mappings m
                              LEFT JOIN cell_rows cr ON cr.mapping_id = m.id
                              LEFT JOIN outdated_rows orr ON orr.mapping_id = m.id
                              LEFT JOIN program_rows pr ON pr.mapping_id = m.id
-                             LEFT JOIN reach rc ON rc.mapping_id = m.id), '[]') AS requirements
+                             LEFT JOIN reach rc ON rc.mapping_id = m.id), '[]') AS requirements,
+                   %6$s AS pathway
             FROM target t
             """.formatted(AssessmentRepository.LATEST_FINISHED, MappingRepository.LATEST_EVENT,
-            MappingRepository.current("= (SELECT id FROM latest)"), CourseRepository.SUPERSEDED);
+            MappingRepository.current("= (SELECT id FROM latest)"), CourseRepository.SUPERSEDED,
+            PathwayRepository.ACTIVE_GROUPS, PathwayRepository.GROUPS_AS_JSON);
 
     private static final TypeReference<List<CoverageMatrix.Course>> COURSES = new TypeReference<>() { };
     private static final TypeReference<List<CoverageMatrix.Requirement>> REQUIREMENTS = new TypeReference<>() { };
+    private static final TypeReference<List<PathwayGroup>> PATHWAY = new TypeReference<>() { };
 
     private final JdbcClient jdbc;
     private final RowMapper<Found> row;
@@ -145,7 +154,8 @@ public class CoverageRepository {
                 new CoverageMatrix.JurisdictionRef(rs.getString("jurisdiction_code"), rs.getString("jurisdiction_name")),
                 rs.getObject("assessment_id", UUID.class),
                 rs.getString("rule_version") == null ? null : json.readValue(rs.getString("rule_version"), CoverageMatrix.RuleVersionRef.class),
-                json.readValue(rs.getString("courses"), COURSES), json.readValue(rs.getString("requirements"), REQUIREMENTS)));
+                json.readValue(rs.getString("courses"), COURSES), json.readValue(rs.getString("requirements"), REQUIREMENTS)),
+                json.readValue(rs.getString("pathway"), PATHWAY));
     }
 
     /** Empty when the program does not exist or belongs to another tenant (row-level security). */

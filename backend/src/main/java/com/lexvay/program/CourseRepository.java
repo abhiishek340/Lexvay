@@ -1,5 +1,6 @@
 package com.lexvay.program;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,7 +19,10 @@ public class CourseRepository {
 
     private static final RowMapper<CourseVersion> VERSION = (rs, i) -> new CourseVersion(
             rs.getObject("id", UUID.class), rs.getObject("course_id", UUID.class), rs.getObject("program_id", UUID.class),
-            rs.getString("catalog_year"), rs.getBoolean("required"), rs.getObject("supersedes_id", UUID.class));
+            rs.getString("catalog_year"), rs.getBoolean("required"), rs.getBigDecimal("credits"),
+            CreditUnit.valueOf(rs.getString("credit_unit")), rs.getObject("supersedes_id", UUID.class));
+
+    private static final String VERSION_COLUMNS = "cv.id, cv.course_id, c.program_id, cv.catalog_year, cv.required, cv.credits, cv.credit_unit, cv.supersedes_id";
 
     private final JdbcClient jdbc;
 
@@ -32,16 +36,17 @@ public class CourseRepository {
                 .param("code", code).param("title", title).param("createdBy", createdBy).update();
     }
 
-    public void insertVersion(UUID id, UUID tenantId, UUID courseId, String catalogYear, boolean required, UUID supersedesId, UUID createdBy) {
-        jdbc.sql("INSERT INTO course_version (id, tenant_id, course_id, catalog_year, required, supersedes_id, created_by) "
-                        + "VALUES (:id, :tenantId, :courseId, :catalogYear, :required, :supersedesId, :createdBy)")
+    public void insertVersion(UUID id, UUID tenantId, UUID courseId, String catalogYear, boolean required, BigDecimal credits,
+                              CreditUnit creditUnit, UUID supersedesId, UUID createdBy) {
+        jdbc.sql("INSERT INTO course_version (id, tenant_id, course_id, catalog_year, required, credits, credit_unit, supersedes_id, created_by) "
+                        + "VALUES (:id, :tenantId, :courseId, :catalogYear, :required, :credits, :creditUnit, :supersedesId, :createdBy)")
                 .param("id", id).param("tenantId", tenantId).param("courseId", courseId).param("catalogYear", catalogYear)
-                .param("required", required).param("supersedesId", supersedesId).param("createdBy", createdBy).update();
+                .param("required", required).param("credits", credits).param("creditUnit", creditUnit.name())
+                .param("supersedesId", supersedesId).param("createdBy", createdBy).update();
     }
 
     public Optional<CourseVersion> findVersion(UUID versionId) {
-        return jdbc.sql("SELECT cv.id, cv.course_id, c.program_id, cv.catalog_year, cv.required, cv.supersedes_id "
-                        + "FROM course_version cv JOIN course c ON c.id = cv.course_id WHERE cv.id = :id")
+        return jdbc.sql("SELECT " + VERSION_COLUMNS + " FROM course_version cv JOIN course c ON c.id = cv.course_id WHERE cv.id = :id")
                 .param("id", versionId).query(VERSION).optional();
     }
 
@@ -63,8 +68,8 @@ public class CourseRepository {
         if (byId.isEmpty()) {
             return List.of();
         }
-        jdbc.sql("SELECT cv.id, cv.course_id, c.program_id, cv.catalog_year, cv.required, cv.supersedes_id "
-                        + "FROM course_version cv JOIN course c ON c.id = cv.course_id WHERE cv.course_id IN (:ids) ORDER BY cv.created_at")
+        jdbc.sql("SELECT " + VERSION_COLUMNS + " FROM course_version cv JOIN course c ON c.id = cv.course_id "
+                        + "WHERE cv.course_id IN (:ids) ORDER BY cv.created_at")
                 .param("ids", List.copyOf(byId.keySet())).query(VERSION).list()
                 .forEach(v -> byId.get(v.courseId()).versions().add(v));
         return List.copyOf(byId.values());

@@ -113,11 +113,11 @@ describe('flags', () => {
   });
 
   it('words each flag as where the evidence sits, in tab order', () => {
-    expect(FLAG_ORDER.map((f) => FLAGS[f].label)).toEqual(['Rests on an elective', 'Rests on one course', 'Outdated evidence', 'No evidence cited']);
+    expect(FLAG_ORDER.map((f) => FLAGS[f].label)).toEqual(['Rests on an elective', 'Graduation paths not fully known', 'Rests on one course', 'Outdated evidence', 'No evidence cited']);
   });
 
   it('gives each flag a distinct mark, coloured only where nothing is cited', () => {
-    expect(FLAG_ORDER.map((f) => FLAGS[f].shape)).toEqual(['half', 'open-square', 'dashed-ring', 'square']);
+    expect(FLAG_ORDER.map((f) => FLAGS[f].shape)).toEqual(['half', 'ring', 'open-square', 'dashed-ring', 'square']);
     expect(FLAG_ORDER.filter((f) => FLAGS[f].tone === 'missing')).toEqual(['NO_EVIDENCE']);
   });
 

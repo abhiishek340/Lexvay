@@ -83,7 +83,7 @@ class RegisterSeedTest extends AbstractDatabaseTest {
         assertThat(register).singleElement().satisfies(row -> {
             assertThat(row.get("jurisdictionCode").asString()).isEqualTo(signedCode);
             assertThat(row.get("signedByName").asString()).isEqualTo("Dana Whitfield");
-            assertThat(row.get("courseVersionCount").asInt()).as("every course of the seeded program").isEqualTo(11);
+            assertThat(row.get("courseVersionCount").asInt()).as("every course of the seeded program").isEqualTo(15);
         });
     }
 }

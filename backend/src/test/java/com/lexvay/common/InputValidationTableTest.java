@@ -340,6 +340,62 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         bodies.post("course version: oversized catalog year", "POST /api/v1/courses/{courseId}/versions", versions,
                 with(version, "catalogYear", "y".repeat(21)));
 
+        // --- credits of a course version ---
+        bodies.post("courses create: credits are negative", "POST /api/v1/programs/{programId}/courses", courses, with(course, "credits", -3));
+        bodies.post("courses create: credits are zero", "POST /api/v1/programs/{programId}/courses", courses, with(course, "credits", 0));
+        bodies.post("courses create: credits have three decimals", "POST /api/v1/programs/{programId}/courses", courses, with(course, "credits", 3.125));
+        bodies.post("courses create: credits are not a number", "POST /api/v1/programs/{programId}/courses", courses, with(course, "credits", "three"));
+        bodies.post("courses create: unknown credit unit", "POST /api/v1/programs/{programId}/courses", courses, with(course, "creditUnit", "TRIMESTER"));
+        bodies.post("course version: credits are negative", "POST /api/v1/courses/{courseId}/versions", versions, with(version, "credits", -1));
+        bodies.post("course version: unknown credit unit", "POST /api/v1/courses/{courseId}/versions", versions, with(version, "creditUnit", "TRIMESTER"));
+
+        // --- graduation paths ---
+        String pathwayRead = "GET /api/v1/programs/{programId}/pathway";
+        rows.add(row("pathway: program id is not a UUID", pathwayRead, HttpMethod.GET, "/api/v1/programs/" + BAD_ID + "/pathway", null, null, 400));
+        rows.add(row("pathway: unknown program is not found", pathwayRead, HttpMethod.GET, "/api/v1/programs/" + ID + "/pathway", null, null, 404));
+        rows.add(row("pathway: oversized catalog year", pathwayRead, HttpMethod.GET,
+                "/api/v1/programs/" + PROGRAM + "/pathway?catalogYear=" + "y".repeat(21), null, null, 400));
+        rows.add(row("pathway: control character in catalog year", pathwayRead, HttpMethod.GET,
+                "/api/v1/programs/" + PROGRAM + "/pathway?catalogYear=a%00b", null, null, 400));
+        rows.add(row("pathway: hostile query parameter is ignored", pathwayRead, HttpMethod.GET,
+                "/api/v1/programs/" + PROGRAM + "/pathway?q=%00%ff", null, null, 200));
+        Map<String, Object> group = Map.of("catalogYear", "2026-27", "label", "Electives", "kind", "CHOOSE_COUNT", "minCount", 1, "courseIds", List.of(ID));
+        String groups = "/api/v1/programs/" + PROGRAM + "/pathway-groups";
+        String postGroup = "POST /api/v1/programs/{programId}/pathway-groups";
+        rows.add(row("pathway group: program id is not a UUID", postGroup, HttpMethod.POST, "/api/v1/programs/" + BAD_ID + "/pathway-groups", json(group), JSON, 400));
+        rows.add(row("pathway group: unknown program is not found", postGroup, HttpMethod.POST, "/api/v1/programs/" + ID + "/pathway-groups", json(group), JSON, 404));
+        rows.add(signerRow("pathway group: a signer is refused", postGroup, HttpMethod.POST, groups, json(group), JSON, 403));
+        bodies.post("pathway group: catalog year missing", postGroup, groups, without(group, "catalogYear"));
+        bodies.post("pathway group: oversized catalog year", postGroup, groups, with(group, "catalogYear", "y".repeat(21)));
+        bodies.post("pathway group: label missing", postGroup, groups, without(group, "label"));
+        bodies.post("pathway group: blank label", postGroup, groups, with(group, "label", "   "));
+        bodies.post("pathway group: oversized label", postGroup, groups, with(group, "label", "l".repeat(101)));
+        bodies.post("pathway group: control character in label", postGroup, groups, with(group, "label", "a\u0000b"));
+        bodies.post("pathway group: kind missing", postGroup, groups, without(group, "kind"));
+        bodies.post("pathway group: unknown kind", postGroup, groups, with(group, "kind", "CHOOSE_ANY"));
+        bodies.post("pathway group: minimum count of zero", postGroup, groups, with(group, "minCount", 0));
+        bodies.post("pathway group: minimum count on an all-of group", postGroup, groups, with(group, "kind", "ALL_OF"));
+        bodies.post("pathway group: minimum credits on a choose-count group", postGroup, groups, with(group, "minCredits", 6));
+        bodies.post("pathway group: negative minimum credits", postGroup, groups,
+                with(with(without(group, "minCount"), "kind", "CHOOSE_CREDITS"), "minCredits", -6));
+        bodies.post("pathway group: no courses", postGroup, groups, with(group, "courseIds", List.of()));
+        bodies.post("pathway group: course id is not a UUID", postGroup, groups, with(group, "courseIds", List.of(BAD_ID)));
+        bodies.post("pathway group: course id is null", postGroup, groups, with(group, "courseIds", java.util.Collections.singletonList(null)));
+        bodies.post("pathway group: a course of no program", postGroup, groups, group);
+        bodies.post("pathway group: citation without a quote", postGroup, groups,
+                with(group, "citation", Map.of("documentId", DOCUMENT, "pageNumber", 1)));
+        bodies.post("pathway group: citation page zero", postGroup, groups,
+                with(group, "citation", Map.of("documentId", DOCUMENT, "pageNumber", 0, "quote", "x")));
+        String retire = "POST /api/v1/pathway-groups/{groupId}/retire";
+        String retireUri = "/api/v1/pathway-groups/" + ID + "/retire";
+        rows.add(row("pathway retire: id is not a UUID", retire, HttpMethod.POST, "/api/v1/pathway-groups/" + BAD_ID + "/retire", json(Map.of("reason", "x")), JSON, 400));
+        rows.add(row("pathway retire: unknown group is not found", retire, HttpMethod.POST, retireUri, json(Map.of("reason", "x")), JSON, 404));
+        rows.add(rawJson("pathway retire: reason missing", retire, HttpMethod.POST, retireUri, "{}", 400));
+        rows.add(rawJson("pathway retire: blank reason", retire, HttpMethod.POST, retireUri, "{\"reason\":\"  \"}", 400));
+        rows.add(rawJson("pathway retire: oversized reason", retire, HttpMethod.POST, retireUri, json(Map.of("reason", "r".repeat(501))), 400));
+        rows.add(rawJson("pathway retire: body is not JSON", retire, HttpMethod.POST, retireUri, "{not json", 400));
+        rows.add(signerRow("pathway retire: a signer is refused", retire, HttpMethod.POST, retireUri, json(Map.of("reason", "x")), JSON, 403));
+
         // --- program facts ---
         Map<String, Object> fact = Map.of("key", "TOTAL_CREDITS", "value", 60, "documentId", DOCUMENT, "pageNumber", 1, "quote", "Total credits: 60");
         String facts = "/api/v1/programs/" + PROGRAM + "/facts";

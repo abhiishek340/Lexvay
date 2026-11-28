@@ -396,6 +396,24 @@ connection. One `make perf` run, milliseconds on loopback:
 Plan (`IndexUsageTest`, `backend/target/perf/coverage-plan.txt`): 0.31 ms execution, no executed
 sequential scan of `mapping`, `evidence_span`, `evidence_response` or `document`.
 
+## Pathway read and coverage with the pathway (AC-1)
+
+`GET /programs/{id}/pathway` (D-595, `docs/decisions/AC-1.md`): one statement, one connection. The coverage statement embeds
+the same common table expression (D-593), so it still makes one round trip. One `make perf` run, milliseconds on loopback
+(load average about 8 from other agents; the first run of the day failed on an unrelated endpoint at 46 ms and the second
+passed):
+
+| Pass | Endpoint | p50 | p95 | p99 | connections per call | wire bytes |
+|---|---|---:|---:|---:|---:|---:|
+| 2 seeded tenants | GET /programs/{id}/pathway | 2.25 | 3.83 | 4.71 | 1.0 | 926 |
+| 2 seeded tenants | GET /programs/{id}/coverage?jurisdiction=CA | 3.53 | 7.28 | 9.65 | 1.0 | 1743 |
+| 62 tenants | GET /programs/{id}/pathway | 4.21 | 6.88 | 12.10 | 1.0 | 926 |
+| 62 tenants | GET /programs/{id}/coverage?jurisdiction=CA | 6.03 | 12.47 | 19.34 | 1.0 | 1743 |
+
+Plan (`IndexUsageTest`, `backend/target/perf/pathway-plan.txt`, 100 renamed copies of the seed): 0.42 ms execution; no
+sequential scan of `pathway_group`, `pathway_group_course` or `course_version` (V026 adds `course_version_course_idx` and
+`pathway_group_program_idx`).
+
 ## Audit trail seal (SEC-3)
 
 `AuditSealPerfTest` (`make perf`, `docs/decisions/SEC-3.md` D-537): 20 000 audit entries of the perf seed's volume are
