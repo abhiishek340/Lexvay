@@ -13,7 +13,8 @@
 }
 :host ::ng-deep .lx-step-list .p-step { flex: none; padding: 0; }
 :host ::ng-deep .lx-step-list .p-stepper-separator { display: none; }
-:host ::ng-deep .p-steppanels { min-width: 0; padding: 24px 0 0 32px; border-left: 1px solid var(--p-lx-line); }
+/* 16 px above the step's 32 px heading row puts its heading on the first step's baseline. */
+:host ::ng-deep .p-steppanels { min-width: 0; padding: 16px 0 0 32px; border-left: 1px solid var(--p-lx-line); }
 :host ::ng-deep .p-steppanel-content { margin-inline-start: 0; min-width: 0; }
 
 .lx-step {
@@ -33,7 +34,8 @@
 .lx-step-status { margin-top: 2px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .lx-step-panel { padding-bottom: 8px; }
-.lx-panel-title { margin-bottom: 16px; }
+/* The same 32 px heading row as the steps that have an action beside their heading (steps.css). */
+.lx-panel-title { padding: 4px 0; margin-bottom: 16px; }
 .lx-panel-skeleton { display: flex; flex-direction: column; gap: 8px; max-width: 40rem; }
 
 .lx-form { display: flex; flex-direction: column; gap: 16px; max-width: 40rem; }
