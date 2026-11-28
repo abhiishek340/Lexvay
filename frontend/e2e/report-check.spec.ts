@@ -103,6 +103,20 @@ test('a downloaded report matches with its facts, a changed copy does not, and b
   await expect(entries.filter({ hasText: 'Dana Whitfield checked a report file: no match' }).first()).toBeVisible();
 });
 
+test('the result heading keeps focus when the answer arrives before the dialog has finished opening', async ({ page }) => {
+  await signIn(page, DANA);
+  const pdf = await downloadCaliforniaReport(page);
+
+  // PrimeNG focuses the dialog's first control when its opening animation ends. A slow animation makes the answer
+  // come first, which under load happens by chance.
+  await page.addStyleTag({ content: '.p-dialog { animation-duration: 1500ms !important; }' });
+  await openCheck(page);
+  await check(page, pdf);
+  await expect(dialog(page).getByTestId('check-result').getByRole('heading', { level: 3 })).toBeFocused();
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+  await expect(dialog(page).getByTestId('check-result').getByRole('heading', { level: 3 })).toBeFocused();
+});
+
 for (const [width, height] of [[1440, 900], [400, 860]] as const) {
   test(`every check result passes axe at ${width} px`, async ({ page }) => {
     await page.setViewportSize({ width, height });

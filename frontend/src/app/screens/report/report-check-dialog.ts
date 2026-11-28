@@ -1,4 +1,4 @@
-import { Component, ElementRef, Injector, afterNextRender, effect, inject, model, signal, untracked, viewChild } from '@angular/core';
+import { Component, ElementRef, afterRenderEffect, effect, inject, model, signal, untracked, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { phosphorCopy } from '@ng-icons/phosphor-icons/regular';
@@ -41,10 +41,11 @@ export class ReportCheckDialog {
   private readonly api = inject(ApiService);
   private readonly context = inject(ProgramContext);
   private readonly toast = inject(MessageService);
-  private readonly injector = inject(Injector);
 
   readonly open = model(false);
   readonly phase = signal<Phase>(CHOOSE);
+  /** True from the dialog's opening animation ending until it closes. PrimeNG moves focus to the first control when the animation ends. */
+  readonly entered = signal(false);
 
   private request: Subscription | null = null;
   private readonly headline = viewChild<ElementRef<HTMLElement>>('headline');
@@ -53,7 +54,17 @@ export class ReportCheckDialog {
     registerComponentTokens({ dialog: lexvayDialog, fileupload: lexvayFileupload, message: lexvayMessage });
     // Every opening starts at the drop zone; closing abandons a check still under way.
     effect(() => {
-      if (!this.open()) { untracked(() => this.reset()); }
+      if (!this.open()) {
+        untracked(() => {
+          this.reset();
+          this.entered.set(false);
+        });
+      }
+    });
+    // The result heading takes focus once it is rendered and the dialog has settled, so the dialog's own focusing when
+    // its animation ends (which can come before or after the answer) never leaves focus on a control behind the heading.
+    afterRenderEffect(() => {
+      if (this.entered() && this.phase().step === 'done') { this.headline()?.nativeElement.focus(); }
     });
   }
 
@@ -68,7 +79,6 @@ export class ReportCheckDialog {
     this.request = this.api.checkReport(file).subscribe({
       next: (answer) => {
         this.phase.set({ step: 'done', view: checkView(answer, (code) => this.context.jurisdictionName(code)) });
-        afterNextRender(() => this.headline()?.nativeElement.focus(), { injector: this.injector });
       },
       error: (e: unknown) => this.phase.set({ step: 'choose', error: checkProblem(e) }),
     });

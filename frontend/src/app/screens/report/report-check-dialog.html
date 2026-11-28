@@ -1,4 +1,4 @@
-<p-dialog header="Check a file" [visible]="open()" (visibleChange)="open.set($event)" [modal]="true" [draggable]="false" [resizable]="false"
+<p-dialog header="Check a file" [visible]="open()" (visibleChange)="open.set($event)" (onShow)="entered.set(true)" [modal]="true" [draggable]="false" [resizable]="false"
           [style]="{ width: '32rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Close file check">
   @let p = phase();
   <div class="lx-check" aria-live="polite">
