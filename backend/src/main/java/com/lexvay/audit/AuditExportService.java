@@ -2,10 +2,13 @@ package com.lexvay.audit;
 
 import com.lexvay.audit.AuditRepository.ExportRow;
 import com.lexvay.common.CsvWriter;
+import com.lexvay.tenant.DataMode;
+import com.lexvay.tenant.TenantRepository;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.springframework.stereotype.Service;
@@ -20,10 +23,12 @@ public class AuditExportService {
 
     private final AuditRepository repository;
     private final AuditService audit;
+    private final TenantRepository tenants;
 
-    public AuditExportService(AuditRepository repository, AuditService audit) {
+    public AuditExportService(AuditRepository repository, AuditService audit, TenantRepository tenants) {
         this.repository = repository;
         this.audit = audit;
+        this.tenants = tenants;
     }
 
     /**
@@ -34,7 +39,7 @@ public class AuditExportService {
      * @throws IOException when the destination cannot be written, for example because the client left
      */
     public void export(AuditFilter filter, Supplier<Writer> destination) throws IOException {
-        Streaming streaming = new Streaming(destination);
+        Streaming streaming = new Streaming(destination, tenants.currentDataMode());
         boolean complete = false;
         try {
             repository.streamForExport(filter, streaming::write);
@@ -52,16 +57,18 @@ public class AuditExportService {
         }
     }
 
-    /** The CSV being written; opens its destination and writes the header with the first line. */
+    /** The CSV being written; opens its destination and writes the header, after the demo notice of a DEMO tenant, with the first line. */
     private static final class Streaming {
 
         private final Supplier<Writer> destination;
+        private final DataMode mode;
         private Writer out;
         private CsvWriter csv;
         private long rows;
 
-        Streaming(Supplier<Writer> destination) {
+        Streaming(Supplier<Writer> destination, DataMode mode) {
             this.destination = destination;
+            this.mode = mode;
         }
 
         void write(ExportRow row) {
@@ -86,7 +93,11 @@ public class AuditExportService {
         private void start() {
             if (csv == null) {
                 out = destination.get();
-                csv = AuditCsv.start(out);
+                CsvWriter writer = CsvWriter.to(out);
+                if (mode == DataMode.DEMO) {
+                    writer.row(List.of(DataMode.DEMO_NOTICE));
+                }
+                csv = AuditCsv.header(writer);
             }
         }
     }
