@@ -74,6 +74,10 @@ Also: never invent regulatory content (seed data is fictional and labeled), and 
 - Several checkouts run end-to-end tests at the same time. Use the slot assigned to your work item:
   `LEXVAY_E2E_SLOT=<n> make e2e` (slot n shifts PostgreSQL 5433+n, backend 8081+n, web 4300+n, management 9091+n).
   Slot 0 belongs to the orchestrator. Never use ports 5432, 8080 or 4200 in tests.
+- At most `LEXVAY_STACK_CONCURRENCY` (default 2) isolated stacks (`make e2e`, `make eval`, `make smoke`) run on the machine at
+  once; the others print "waiting for a free test stack" until a token frees (give-up after `LEXVAY_STACK_WAIT_MINUTES`,
+  default 60). Tokens live in `LEXVAY_STACK_LOCK_DIR` (default `/tmp/lexvay-stack-tokens-<uid>`, independent of `TMPDIR`, so every process of
+  your user shares the cap). Never delete tokens by hand: a dead owner's token is reclaimed automatically. `LEXVAY_STACK_CONCURRENCY=0` turns it off.
 - In a fresh worktree run `cd frontend && npm ci` once before frontend commands.
 
 ## Stack (pins in DECISIONS.md D-002)
