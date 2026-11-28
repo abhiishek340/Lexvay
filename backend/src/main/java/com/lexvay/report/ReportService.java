@@ -17,6 +17,7 @@ import com.lexvay.rule.Jurisdiction;
 import com.lexvay.rule.JurisdictionRepository;
 import com.lexvay.rule.RuleVersion;
 import com.lexvay.rule.RuleVersionRepository;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,7 +87,9 @@ public class ReportService {
         header.add(new String[] {"Outcome", d.outcome().label()});
         header.add(new String[] {"Signed by", d.signedByName() + " on " + DateTimeFormatter.ISO_LOCAL_DATE.format(d.signedAt().toLocalDate())});
         header.add(new String[] {"Status", d.status().name().equals("SIGNED") ? "Signed" : "Reopened by a later change"});
-        header.add(new String[] {"Rule version", ruleVersion.label() + ", effective " + ruleVersion.effectiveFrom() + ", " + ruleVersion.sourceUrl()});
+        LocalDate effectiveFrom = ruleVersion.legal().effectiveFrom();
+        header.add(new String[] {"Rule version", ruleVersion.label() + ", "
+                + (effectiveFrom == null ? "effective date not recorded" : "effective " + effectiveFrom) + ", " + ruleVersion.sourceUrl()});
         header.add(new String[] {"Versions hash", d.versionsHash()});
         header.add(new String[] {"Course versions locked", String.valueOf(d.courseVersionIds().size())});
         header.add(new String[] {"Requirements", String.valueOf(list.size())});

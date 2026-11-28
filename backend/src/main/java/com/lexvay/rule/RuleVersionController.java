@@ -68,4 +68,11 @@ public class RuleVersionController {
     RuleVersionService.RuleVersionView approve(@PathVariable UUID id) {
         return service.approveRequirements(id);
     }
+
+    /** Appends a correction of the legal status and dates; the earlier ones stay (D-552). */
+    @PostMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('REVIEWER', 'ADMIN')")
+    RuleVersionService.RuleVersionView recordStatus(@PathVariable UUID id, @Valid @RequestBody RecordRuleStatusRequest request) {
+        return service.recordStatus(id, request);
+    }
 }

@@ -16,7 +16,6 @@ import com.lexvay.rule.NumericField;
 import com.lexvay.rule.Requirement;
 import com.lexvay.rule.RuleVersion;
 import com.lexvay.rule.RuleVersionRepository;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -79,10 +78,15 @@ public class RunAssessmentHandler implements JobHandler {
             Map<NumericField, RulesEngine.Fact> currentFacts = producer.currentFacts(program.id());
             UUID tenantId = TenantContext.require();
             int produced = 0;
-            for (Jurisdiction jurisdiction : jurisdictions.findByCodes(program.jurisdictions())) {
-                RuleVersion ruleVersion = ruleVersions.findApprovedVersion(jurisdiction.id(), program.licenseType(), LocalDate.now())
-                        .orElseThrow(() -> new PermanentJobFailure("No approved rule version for " + jurisdiction.code()
-                                + " and license type " + program.licenseType()));
+            List<Jurisdiction> targets = jurisdictions.findByCodes(program.jurisdictions());
+            Map<UUID, RuleVersion> inForce = ruleVersions.findInForce(targets.stream().map(Jurisdiction::id).toList(),
+                    program.licenseType(), assessment.assessmentAsOf());
+            for (Jurisdiction jurisdiction : targets) {
+                RuleVersion ruleVersion = inForce.get(jurisdiction.id());
+                if (ruleVersion == null) {
+                    throw new PermanentJobFailure("No rule in force on " + assessment.assessmentAsOf() + " for "
+                            + jurisdiction.code() + " and license type " + program.licenseType());
+                }
                 List<Requirement> requirements = ruleVersions.requirements(ruleVersion.id());
                 for (Requirement requirement : requirements) {
                     if (mappings.exists(assessmentId, requirement.id())) {
