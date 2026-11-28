@@ -109,6 +109,8 @@ class PackageApiTest extends AbstractAssessmentTest {
         assertThat(determination.get("ruleVersion").get("id").asString()).isEqualTo(scenario.ruleVersionId().toString());
         assertThat(determination.get("ruleVersion").get("label").asString()).isEqualTo("Demo rule set California package");
         assertThat(determination.get("ruleVersion").get("effectiveFrom").asString()).matches("\\d{4}-\\d{2}-\\d{2}");
+        assertThat(determination.get("ruleVersion").get("legalStatus").asString()).isEqualTo("IN_FORCE");
+        assertThat(determination.get("ruleVersion").get("datesBasis").asString()).isNotBlank();
         assertThat(determination.get("courseVersions")).extracting(c -> c.get("code").asString()).containsExactly("COUN 605", "COUN 650");
         assertThat(determination.get("courseVersions")).extracting(c -> c.get("id").asString())
                 .containsExactlyInAnyOrder(scenario.course605Version().toString(), scenario.course650Version().toString());

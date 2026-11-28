@@ -1,4 +1,4 @@
-import { DecisionKind, DeterminationStatus, Finding, NumericField, NumericOperator, Outcome, RequirementType, Role } from './models';
+import { DecisionKind, DeterminationStatus, Finding, LegalStatus, NumericField, NumericOperator, Outcome, RequirementType, Role } from './models';
 
 /** Plain wording (spec section 9): the two phrases the spec forbids never appear anywhere in the UI. */
 export const FINDING_LABEL: Record<Finding, string> = {
@@ -54,6 +54,16 @@ export const NUMERIC_OPERATORS: readonly NumericOperator[] = ['>=', '>', '=', '<
 export function numericCheck(r: { numericField: NumericField | null; numericOperator: NumericOperator | null; numericValue: number | null }): string | null {
   return r.numericField && r.numericOperator && r.numericValue !== null ? `${NUMERIC_FIELD_LABEL[r.numericField]} ${r.numericOperator} ${r.numericValue}` : null;
 }
+
+export const LEGAL_STATUS_LABEL: Record<LegalStatus, string> = {
+  PROPOSED: 'Proposed',
+  FINAL_NOT_EFFECTIVE: 'Final, not yet in effect',
+  IN_FORCE: 'In force',
+  SUPERSEDED: 'Superseded in law',
+  REPEALED: 'Repealed',
+  WITHDRAWN: 'Withdrawn',
+  UNKNOWN: 'Status not recorded',
+};
 
 /** "CLINICAL_MENTAL_HEALTH_COUNSELING" becomes "Clinical mental health counseling license". */
 export function licenseLabel(program: { licenseType: string }): string {

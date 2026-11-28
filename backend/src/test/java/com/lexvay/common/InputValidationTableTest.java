@@ -90,7 +90,7 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         UUID document = fx.document(t, scenario.programId(), "plan.txt", "DEGREE_PLAN", null, "Fictional. Prototype data. Total credits: 60");
         var rule = mvc.post().uri("/api/v1/rule-versions").with(user(t.admin())).with(csrf()).contentType(JSON)
                 .content(json(Map.of("jurisdiction", "CA", "licenseType", "L", "label", "Demo rule set validation",
-                        "sourceUrl", "https://example.test/rule", "effectiveFrom", "2026-01-01", "text", "Fictional rule text")))
+                        "sourceUrl", "https://example.test/rule", "effectiveFrom", "2026-01-01", "legalStatus", "IN_FORCE", "datesBasis", "Fictional test data", "text", "Fictional rule text")))
                 .exchange();
         new ReviewFixtures(mvc, json, fx).review(t.reviewer(), scenario.ambiguousMapping(), "EVIDENCE_REQUESTED", "Send the schedule");
         existing = Map.of(PROGRAM, scenario.programId().toString(), DOCUMENT, document.toString(),
@@ -397,6 +397,10 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(anonymousRow("coverage: no session", coverage, HttpMethod.GET, "/api/v1/programs/" + PROGRAM + "/coverage?jurisdiction=CA", 401));
 
         // --- assessments ---
+        rows.add(rawJson("assessment start: date does not exist", "POST /api/v1/programs/{programId}/assessments", HttpMethod.POST,
+                "/api/v1/programs/" + PROGRAM + "/assessments", "{\"asOf\":\"2026-13-45\"}", 400));
+        rows.add(rawJson("assessment start: date is not a string", "POST /api/v1/programs/{programId}/assessments", HttpMethod.POST,
+                "/api/v1/programs/" + PROGRAM + "/assessments", "{\"asOf\":[1]}", 400));
         rows.add(row("assessment start: program id is not a UUID", "POST /api/v1/programs/{programId}/assessments", HttpMethod.POST,
                 "/api/v1/programs/" + BAD_ID + "/assessments", null, null, 400));
         rows.add(row("assessment: id is not a UUID", "GET /api/v1/assessments/{id}", HttpMethod.GET, "/api/v1/assessments/" + BAD_ID, null, null, 400));
@@ -411,7 +415,7 @@ class InputValidationTableTest extends AbstractDatabaseTest {
 
         // --- rule versions ---
         Map<String, Object> rule = Map.of("jurisdiction", "CA", "licenseType", "L", "label", "Demo rule set",
-                "sourceUrl", "https://example.test/rule", "effectiveFrom", "2026-01-01", "text", "Rule text");
+                "sourceUrl", "https://example.test/rule", "effectiveFrom", "2026-01-01", "legalStatus", "IN_FORCE", "datesBasis", "Fictional test data", "text", "Rule text");
         String ruleVersions = "/api/v1/rule-versions";
         bodies.post("rule versions create: text missing", "POST /api/v1/rule-versions", ruleVersions, without(rule, "text"));
         bodies.post("rule versions create: oversized text", "POST /api/v1/rule-versions", ruleVersions, with(rule, "text", "t".repeat(500_001)));
@@ -444,6 +448,24 @@ class InputValidationTableTest extends AbstractDatabaseTest {
                         + "\"numeric_field\":\"TOTAL_CREDITS\",\"numeric_operator\":\">=\",\"numeric_value\":1e400}]}", 400));
         rows.add(rawJson("requirements replace: oversized text", replace, HttpMethod.PUT, requirements,
                 json(Map.of("requirements", List.of(with(requirement, "text", "x".repeat(300_000))))), 400));
+        // The legal status and dates of a rule version (RG-1).
+        Map<String, Object> status = Map.of("legalStatus", "IN_FORCE", "effectiveFrom", "2026-07-01", "datesBasis", "Fictional notice");
+        String recordStatus = "POST /api/v1/rule-versions/{id}/status";
+        String statusUri = "/api/v1/rule-versions/" + RULE + "/status";
+        rows.add(rawJson("rule status: id is not a UUID", recordStatus, HttpMethod.POST, "/api/v1/rule-versions/" + BAD_ID + "/status", json(status), 400));
+        rows.add(rawJson("rule status: unknown id is not found", recordStatus, HttpMethod.POST, "/api/v1/rule-versions/" + ID + "/status", json(status), 404));
+        rows.add(rawJson("rule status: status missing", recordStatus, HttpMethod.POST, statusUri, json(without(status, "legalStatus")), 400));
+        rows.add(rawJson("rule status: unknown status", recordStatus, HttpMethod.POST, statusUri, json(with(status, "legalStatus", "COMPLIANT")), 400));
+        rows.add(rawJson("rule status: status in lower case", recordStatus, HttpMethod.POST, statusUri, json(with(status, "legalStatus", "in_force")), 400));
+        rows.add(rawJson("rule status: body is not an object", recordStatus, HttpMethod.POST, statusUri, "\"text\"", 400));
+        rows.add(rawJson("rule status: date does not exist", recordStatus, HttpMethod.POST, statusUri, json(with(status, "effectiveFrom", "2026-13-45")), 400));
+        rows.add(rawJson("rule status: date is not a string", recordStatus, HttpMethod.POST, statusUri, json(with(status, "effectiveFrom", List.of(1))), 400));
+        rows.add(rawJson("rule status: a date without its basis", recordStatus, HttpMethod.POST, statusUri, json(without(status, "datesBasis")), 400));
+        rows.add(rawJson("rule status: blank basis", recordStatus, HttpMethod.POST, statusUri, json(with(status, "datesBasis", "   ")), 400));
+        rows.add(rawJson("rule status: oversized basis", recordStatus, HttpMethod.POST, statusUri, json(with(status, "datesBasis", "b".repeat(1001))), 400));
+        rows.add(rawJson("rule status: control character in basis", recordStatus, HttpMethod.POST, statusUri, json(with(status, "datesBasis", "a\u0000b")), 400));
+        rows.add(rawJson("rule status: the end is not after the start", recordStatus, HttpMethod.POST, statusUri,
+                json(with(status, "effectiveTo", "2026-07-01")), 400));
         rows.add(row("requirements approve: id is not a UUID", "POST /api/v1/rule-versions/{id}/requirements/approve", HttpMethod.POST,
                 "/api/v1/rule-versions/" + BAD_ID + "/requirements/approve", null, null, 400));
 

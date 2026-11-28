@@ -87,7 +87,7 @@ abstract class AbstractRuleSourceTest extends AbstractAssessmentTest {
 
     /** The label of a rule version a check of {@code sourceBody(jurisdiction, ...)} creates. */
     protected static String fetchedLabel(String jurisdiction) {
-        return "Demo rule source " + jurisdiction + " fetched " + today();
+        return "Demo rule source " + jurisdiction + ", observed " + today();
     }
 
     protected <T> T inTenant(Supplier<T> action) {
@@ -95,7 +95,7 @@ abstract class AbstractRuleSourceTest extends AbstractAssessmentTest {
     }
 
     protected Map<String, Object> latestCheck(UUID sourceId) {
-        return inTenant(() -> jdbc.sql("SELECT outcome, http_status, content_hash, detail, document_id, rule_version_id "
+        return inTenant(() -> jdbc.sql("SELECT outcome, checked_at, http_status, content_hash, detail, document_id, rule_version_id "
                         + "FROM rule_source_check WHERE rule_source_id = :id ORDER BY checked_at DESC, id DESC LIMIT 1")
                 .param("id", sourceId).query().singleRow());
     }
@@ -115,8 +115,8 @@ abstract class AbstractRuleSourceTest extends AbstractAssessmentTest {
     }
 
     protected Map<String, Object> ruleVersion(Object id) {
-        return inTenant(() -> jdbc.sql("SELECT supersedes_id, requirements_approved_at, source_url, label, effective_from, document_id "
-                        + "FROM rule_version WHERE id = :id").param("id", id).query().singleRow());
+        return inTenant(() -> jdbc.sql("SELECT supersedes_id, requirements_approved_at, source_url, label, effective_from, legal_status, "
+                        + "dates_basis, observed_at, document_id FROM rule_version WHERE id = :id").param("id", id).query().singleRow());
     }
 
     protected List<String> auditActions(UUID entityId) {
@@ -132,10 +132,18 @@ abstract class AbstractRuleSourceTest extends AbstractAssessmentTest {
         fake.script("EXTRACT:" + label, fx.requirements("CA", List.of(AssessmentFixtures.subject("Ethics", "coursework in professional ethics"))));
     }
 
-    /** Runs extraction of a version made by a check and has the reviewer approve it, as a person would. */
-    protected void extractAndApprove(UUID ruleVersionId, String label) {
+    /**
+     * Runs extraction of a version made by a check, has the reviewer record that it is in force from {@code effectiveFrom}
+     * (a monitored draft has no dates of its own), and approves it, as a person would.
+     */
+    protected void extractAndApprove(UUID ruleVersionId, String label, LocalDate effectiveFrom) {
         scriptExtraction(label);
         runner.runPending();
+        var recorded = mvc.post().uri("/api/v1/rule-versions/" + ruleVersionId + "/status").with(user(t.reviewer())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("legalStatus", "IN_FORCE",
+                        "effectiveFrom", effectiveFrom.toString(), "datesBasis", "Fictional test data")))
+                .exchange();
+        assertThat(recorded).hasStatus(200);
         var approved = mvc.post().uri("/api/v1/rule-versions/" + ruleVersionId + "/requirements/approve")
                 .with(user(t.reviewer())).with(csrf()).exchange();
         assertThat(approved).hasStatus(200);

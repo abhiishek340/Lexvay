@@ -77,6 +77,6 @@ public class RuleVersionDiffService {
     }
 
     private static VersionRef ref(RuleVersion version) {
-        return new VersionRef(version.id(), version.label(), version.effectiveFrom());
+        return new VersionRef(version.id(), version.label(), version.legal().effectiveFrom());
     }
 }

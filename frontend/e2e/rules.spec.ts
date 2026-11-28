@@ -147,6 +147,9 @@ async function fillVersion(page: Page, version: NewVersion): Promise<void> {
   await dialog.getByRole('combobox', { name: 'Jurisdiction' }).click();
   await page.getByRole('searchbox').fill(version.state);
   await page.getByRole('option', { name: version.option }).click();
+  await dialog.getByRole('combobox', { name: 'Legal status' }).click();
+  await page.getByRole('option', { name: 'In force' }).click();
+  await dialog.getByLabel('Source of the date').fill('Fictional notice 4');
   await dialog.getByLabel('Label').fill(version.label);
   await dialog.getByLabel('Source URL').fill(`https://example.invalid/demo/${version.state.toLowerCase()}`);
   // The date picker reads typed keys (it ignores a value set without them).

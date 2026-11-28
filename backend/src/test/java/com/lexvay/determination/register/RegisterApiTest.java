@@ -92,7 +92,7 @@ class RegisterApiTest extends AbstractAssessmentTest {
         fake.script("EXTRACT:" + label, fx.requirements("CO", List.of(
                 AssessmentFixtures.numeric("NUMERIC", "TOTAL_CREDITS", ">=", 66, "at least 66 semester hours"))));
         Map<String, Object> body = new HashMap<>(Map.of("jurisdiction", "CO", "licenseType", AssessmentFixtures.LICENSE, "label", label,
-                "sourceUrl", "https://example.invalid/CO-r2", "effectiveFrom", LocalDate.of(2027, 1, 1).toString(),
+                "sourceUrl", "https://example.invalid/CO-r2", "effectiveFrom", LocalDate.of(2027, 1, 1).toString(), "legalStatus", "IN_FORCE", "datesBasis", "Fictional test data",
                 "text", "Fictional revised CO rule.", "supersedesId", ruleVersions.get("CO").toString()));
         var created = mvc.post().uri("/api/v1/rule-versions").with(user(t.contributor())).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)).exchange();
