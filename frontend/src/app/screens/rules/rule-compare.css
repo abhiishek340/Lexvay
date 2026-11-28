@@ -19,13 +19,15 @@
 .lx-status-word { font-weight: 500; }
 tr[data-status='UNCHANGED'] .lx-status-word { font-weight: 400; color: var(--p-lx-ink-2); }
 .lx-requirement { width: 24%; min-width: 9rem; font-weight: 400; }
-.lx-ref { display: block; font-weight: 500; font-variant-numeric: tabular-nums; }
+.lx-ref { font-weight: 500; font-variant-numeric: tabular-nums; }
 .lx-req-title { display: block; margin-top: 4px; font-weight: 500; }
 .lx-change > * + * { margin-top: 8px; }
 .lx-change-text { display: block; max-width: 65ch; }
 .lx-aspect { display: grid; grid-template-columns: 96px minmax(0, 1fr); column-gap: 12px; align-items: baseline; }
 .lx-aspect-name { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
-.lx-aspect-value { min-width: 0; }
+/* The old value struck through, then the new one underlined, 8 px apart (Angular drops the space between them). */
+.lx-aspect-value { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.lx-ref { display: flex; flex-wrap: wrap; gap: 0 8px; }
 .lx-term-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .lx-term-list ins, .lx-term-list del { text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .lx-term-list ins { text-decoration-line: underline; color: var(--p-lx-found); }

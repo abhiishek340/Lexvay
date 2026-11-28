@@ -22,6 +22,7 @@
 :host ::ng-deep .lx-requests-table .p-datatable-tbody > tr > td:first-child { padding-left: 0; }
 :host ::ng-deep .lx-requests-table .p-datatable-thead > tr > th:last-child,
 :host ::ng-deep .lx-requests-table .p-datatable-tbody > tr > td:last-child { padding-right: 0; }
+:host ::ng-deep .lx-requests-table .p-datatable-thead > tr > th.lx-num { text-align: right; }
 .lx-toggle-cell { width: 32px; }
 .lx-toggle ng-icon { transition: transform var(--lx-t) var(--lx-ease); }
 .lx-toggle ng-icon.lx-turned { transform: rotate(90deg); }

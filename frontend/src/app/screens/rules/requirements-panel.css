@@ -31,14 +31,14 @@
 /*
  * The edit grid: two lines per requirement (fields; then text and search terms), laid out by the width of the pane
  * itself. The title takes whatever room the fixed ref, type and check columns leave (at least 10 rem, F3b); one line
- * needs 50.25 rem (6 + 10 + 8.5 + 17.75 + 6 for the actions, four 0.5 rem gaps), so a narrower pane uses two lines.
+ * needs 49.75 rem (5 + 10 + 8 + 18.75 + 6 for the actions, four 0.5 rem gaps), so a narrower pane uses two lines.
  */
 .lx-edit { container-type: inline-size; }
 :host ::ng-deep .lx-edit .p-datatable-tbody > tr > td { padding-left: 0; padding-right: 0; }
 :host ::ng-deep .lx-edit .p-datatable-thead > tr > th { padding-left: 0; }
 .lx-fields {
   display: grid; gap: 8px; align-items: end;
-  grid-template-columns: 6rem minmax(10rem, 1fr) 8.5rem 17.75rem 6rem;
+  grid-template-columns: 5rem minmax(10rem, 1fr) 8rem 18.75rem 6rem;
   grid-template-areas: "ref title type check actions";
 }
 .lx-f { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -47,10 +47,12 @@
 .lx-f-type { grid-area: type; }
 .lx-f-check { grid-area: check; }
 .lx-f-actions { grid-area: actions; flex-direction: row; gap: 0; justify-content: flex-end; }
+/* Three 32 px icon buttons: square, so the icons are never squeezed. */
+.lx-f-actions button { flex: none; width: 32px; padding: 0; justify-content: center; }
 .lx-f-label { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
 .lx-term-count { margin-left: 4px; font-variant-numeric: tabular-nums; }
 .lx-ref-input { font-variant-numeric: tabular-nums; }
-.lx-check-controls { display: grid; grid-template-columns: 8.5rem 4.75rem minmax(0, 1fr); gap: 4px; }
+.lx-check-controls { display: grid; grid-template-columns: 9rem 5.25rem minmax(0, 1fr); gap: 4px; }
 :host ::ng-deep .lx-edit .lx-line-one > td { border-bottom: 0; padding-top: 16px; padding-bottom: 8px; }
 :host ::ng-deep .lx-edit .lx-line-two > td { padding-top: 0; padding-bottom: 16px; }
 .lx-line-two-fields { display: grid; gap: 8px 12px; grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr); align-items: start; }
@@ -62,7 +64,7 @@
   height: 20px; box-sizing: border-box; padding: 0 2px 0 6px; gap: 2px; border: 1px solid var(--p-lx-line-strong); border-radius: var(--lx-r-control);
   background: transparent; color: var(--p-lx-ink-2); font-size: 12px; line-height: 16px; font-weight: 500;
 }
-@container (max-width: 50.25rem) {
+@container (max-width: 49.75rem) {
   .lx-fields { grid-template-columns: 8.5rem minmax(10rem, 1fr) auto; grid-template-areas: "ref title actions" "type check check"; }
   .lx-line-two-fields { grid-template-columns: minmax(0, 1fr); }
   .lx-check-controls { grid-template-columns: minmax(9rem, 1fr) 5rem 7rem; }
