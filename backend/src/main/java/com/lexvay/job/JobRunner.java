@@ -25,6 +25,7 @@ import tools.jackson.databind.ObjectMapper;
  * Runs queued jobs one at a time. Each handler runs in its own transaction under the job's tenant.
  * Retryable failures requeue the job until {@code lexvay.jobs.max-attempts}; a
  * {@link PermanentJobFailure} or a model call the product refused ({@link LlmCallBlockedException}) fails it at once.
+ * A {@link JobDeferred} puts the job back to be claimed later, without using up an attempt.
  * Final failures are audited.
  */
 @Component
@@ -96,6 +97,9 @@ public class JobRunner {
             transaction.executeWithoutResult(status -> handler.handle(job, payload));
             jobs.markDone(job.id());
             return JobOutcome.DONE;
+        } catch (JobDeferred e) {
+            jobs.defer(job.id(), e.delay());
+            return JobOutcome.DEFERRED;
         } catch (PermanentJobFailure | LlmCallBlockedException e) {
             fail(job, e.getMessage(), e);
             return JobOutcome.FAILED;

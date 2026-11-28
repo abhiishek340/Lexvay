@@ -3,6 +3,7 @@ package com.lexvay.job;
 import com.lexvay.auth.CurrentUser;
 import com.lexvay.common.TenantContext;
 import java.sql.Types;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -55,8 +56,8 @@ public class JobRepository {
     }
 
     /**
-     * Claims the oldest queued job (or one left RUNNING for over ten minutes) across all tenants. The
-     * worker flag is transaction-local and honoured only by the job table's policies (D-013).
+     * Claims the oldest queued job whose time has come (or one left RUNNING for over ten minutes) across all tenants.
+     * The worker flag is transaction-local and honoured only by the job table's policies (D-013).
      */
     @Transactional
     public Optional<Job> claim() {
@@ -65,7 +66,8 @@ public class JobRepository {
                 UPDATE job SET status = 'RUNNING', locked_at = now(), attempts = attempts + 1
                 WHERE id = (
                     SELECT id FROM job
-                    WHERE status = 'QUEUED' OR (status = 'RUNNING' AND locked_at < now() - interval '10 minutes')
+                    WHERE (status = 'QUEUED' AND run_after <= now())
+                       OR (status = 'RUNNING' AND locked_at < now() - interval '10 minutes')
                     ORDER BY created_at
                     LIMIT 1
                     FOR UPDATE SKIP LOCKED)
@@ -93,6 +95,13 @@ public class JobRepository {
     public void requeue(UUID id, String error) {
         jdbc.sql("UPDATE job SET status = 'QUEUED', locked_at = NULL, error = :error WHERE id = :id")
                 .param("error", error).param("id", id).update();
+    }
+
+    /** Puts a claimed job back to be claimed again after {@code wait}; the claim does not count as an attempt. */
+    public void defer(UUID id, Duration wait) {
+        jdbc.sql("UPDATE job SET status = 'QUEUED', locked_at = NULL, attempts = attempts - 1, "
+                        + "run_after = now() + :seconds * interval '1 second' WHERE id = :id")
+                .param("seconds", Math.max(1, wait.toSeconds())).param("id", id).update();
     }
 
     public Optional<Job> findById(UUID id) {

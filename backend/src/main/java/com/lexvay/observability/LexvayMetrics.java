@@ -23,7 +23,7 @@ public class LexvayMetrics {
 
     public enum LlmOutcome { SUCCESS, REFUSED, ERROR }
 
-    public enum JobOutcome { DONE, RETRIED, FAILED }
+    public enum JobOutcome { DONE, RETRIED, FAILED, DEFERRED }
 
     private final MeterRegistry registry;
 
