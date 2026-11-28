@@ -1,4 +1,4 @@
-import { ADMIN, DANA, JORDAN, SCREENSHOTS, apiPost, citedRequirement, expect, goTo, nav, openRequirement, shoot, signIn, stateTab, test } from './support';
+import { ADMIN, DANA, JORDAN, SCREENSHOTS, apiPost, citedRequirement, expect, goTo, nav, openRequirement, programIdFromUrl, shoot, signIn, stateTab, test } from './support';
 
 /**
  * Screenshots of every screen in both themes for docs/screens. Not part of the regular suite:
@@ -156,8 +156,7 @@ test('screenshots of the v2 shell and sign-in at 1440 and 400 px', async ({ page
  */
 test('UI2-2: Review, a decided requirement, the gap note and the signing dialog at 1440 and 400 px', async ({ page }) => {
   await signIn(page, DANA);
-  await page.waitForURL(/\/programs\/[^/]+\//);
-  const programId = new URL(page.url()).pathname.split('/')[2];
+  const programId = await programIdFromUrl(page);
   const overview = await (await page.request.get(`/api/v1/programs/${programId}/overview`)).json();
   const az = await (await page.request.get(`/api/v1/assessments/${overview.assessment.id}/mappings?jurisdiction=AZ`)).json();
   const decisions = { EVIDENCE_FOUND: 'ACCEPTED', AMBIGUOUS: 'EVIDENCE_REQUESTED', EVIDENCE_MISSING: 'GAP_CONFIRMED' } as const;

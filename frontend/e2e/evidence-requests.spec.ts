@@ -1,13 +1,12 @@
 import { Page } from '@playwright/test';
-import { JORDAN, PRIYA, apiPost, allowConsoleErrors, expect, expectAccessible, goTo, nav, openRequirement, signIn, stateTab, switchUser, test } from './support';
+import { JORDAN, PRIYA, apiPost, allowConsoleErrors, expect, expectAccessible, goTo, nav, openRequirement, programIdFromUrl, signIn, stateTab, switchUser, test } from './support';
 
 const NOTE = 'Please send the passage that covers clinical supervision for this requirement.';
 
 interface ProgramDocument { id: string; filename: string; kind: string; courseCode: string | null; pageCount: number; current: boolean }
 
 async function program(page: Page): Promise<{ programId: string; assessmentId: string }> {
-  await page.waitForURL(/\/programs\/[^/]+\//);
-  const programId = new URL(page.url()).pathname.split('/')[2];
+  const programId = await programIdFromUrl(page);
   const overview = await (await page.request.get(`/api/v1/programs/${programId}/overview`)).json();
   return { programId, assessmentId: overview.assessment.id };
 }

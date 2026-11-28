@@ -78,6 +78,9 @@ describe('audit sentences', () => {
       ['CHANGE_RERUN_REQUESTED', { kind: 'RULE_VERSION' }, 'Dana Whitfield re-ran the assessment for a new rule version'],
       ['CHANGE_RERUN_REQUESTED', { kind: 'COURSE_VERSION' }, 'Dana Whitfield re-ran matching for a new course version'],
       ['REPORT_REQUESTED', { determinationId: 'd' }, 'Dana Whitfield requested an evidence report PDF'],
+      ['PACKAGE_REQUESTED', { determinationId: 'd', jobId: 'j' }, 'Dana Whitfield requested an evidence package'],
+      ['PACKAGE_DOWNLOADED', { determinationId: 'd', bytes: 2048 }, 'Dana Whitfield downloaded an evidence package'],
+      ['JOB_FAILED', { type: 'BUILD_PACKAGE', error: 'too large' }, 'Dana Whitfield could not finish an evidence package'],
       ['REPORT_CHECKED', { match: true, sha256: 'a'.repeat(64) }, 'Dana Whitfield checked a report file: it matches'],
       ['REPORT_CHECKED', { match: false, sha256: 'b'.repeat(64) }, 'Dana Whitfield checked a report file: no match'],
       ['JOB_FAILED', { type: 'RUN_ASSESSMENT', error: 'boom' }, 'Dana Whitfield could not finish an assessment'],
@@ -93,6 +96,7 @@ describe('audit sentences', () => {
     expect(say('CHANGE_RERUN', { kind: 'COURSE_VERSION', courseCode: 'COUN 625', quotesStillPresent: 1, returnedToReview: 2 }, 'System'))
       .toBe('System finished re-running COUN 625: 1 quote still present, 2 back in review');
     expect(say('REPORT_GENERATED', { bytes: 2048 }, 'System')).toBe('System generated an evidence report PDF');
+    expect(say('PACKAGE_READY', { bytes: 4096, sha256: 'a' }, 'System')).toBe('System built an evidence package');
   });
 
   it('falls back to a general noun when a detail is missing, never to "undefined" or raw values', () => {

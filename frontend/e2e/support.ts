@@ -67,6 +67,12 @@ export const test = base.extend<{ thirdPartyGuard: void; iconGuard: void; consol
 });
 export { expect };
 
+/** The id of the program whose screen is open, read once the address is a program's own (the sign-in or the program list may still be showing). */
+export async function programIdFromUrl(page: Page): Promise<string> {
+  await page.waitForURL(/\/programs\/[0-9a-f-]{36}\//);
+  return new URL(page.url()).pathname.split('/')[2];
+}
+
 export async function signIn(page: Page, email: string): Promise<void> {
   await page.goto('/login');
   await page.getByLabel('Email').fill(email);
@@ -158,8 +164,7 @@ export interface Evidence { documentId: string; filename: string; pageNumber: nu
  * evidence is quoted from a syllabus. The seed syllabi have two pages, so the viewer can page through them.
  */
 export async function citedRequirement(page: Page, jurisdiction: string): Promise<{ programId: string; ref: string; evidence: Evidence }> {
-  await page.waitForURL(/\/programs\/[^/]+\//);
-  const programId = new URL(page.url()).pathname.split('/')[2];
+  const programId = await programIdFromUrl(page);
   const overview = await (await page.request.get(`/api/v1/programs/${programId}/overview`)).json();
   const view = await (await page.request.get(`/api/v1/assessments/${overview.assessment.id}/mappings?jurisdiction=${jurisdiction}`)).json();
   const mapping = (view.mappings as { requirement: { ref: string }; evidence: Evidence | null }[])

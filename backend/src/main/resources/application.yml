@@ -65,6 +65,8 @@ lexvay:
     polling-enabled: true
     poll-interval-ms: 1000
     max-attempts: 3
+  package:                                # F15: the evidence package ZIP
+    max-bytes: ${LEXVAY_PACKAGE_MAX_BYTES:536870912}   # a larger package fails its job (512 MB); the build needs this much free temporary space
   rule-sources:                           # F12: fetch the pages where licensing boards publish rules (D-185)
     enabled: ${LEXVAY_RULE_SOURCES_ENABLED:false}
     poll-interval-ms: ${LEXVAY_RULE_SOURCES_POLL_INTERVAL_MS:300000}

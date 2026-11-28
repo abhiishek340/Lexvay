@@ -5,11 +5,8 @@ import com.lexvay.common.CsvWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.io.Writer;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Supplier;
 import org.springframework.stereotype.Service;
 
@@ -20,8 +17,6 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class AuditExportService {
-
-    static final List<String> HEADER = List.of("Time (UTC)", "Actor", "Action", "Record type", "Record ID", "Details");
 
     private final AuditRepository repository;
     private final AuditService audit;
@@ -71,8 +66,7 @@ public class AuditExportService {
 
         void write(ExportRow row) {
             start();
-            csv.row(Arrays.asList(row.time().toString(), row.actor(), row.action(), row.entityType(),
-                    Objects.toString(row.entityId(), null), row.detail()));
+            AuditCsv.write(csv, row);
             rows++;
         }
 
@@ -92,7 +86,7 @@ public class AuditExportService {
         private void start() {
             if (csv == null) {
                 out = destination.get();
-                csv = CsvWriter.to(out).row(HEADER);
+                csv = AuditCsv.start(out);
             }
         }
     }
