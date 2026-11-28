@@ -1,0 +1,17 @@
+# Pre-agreed limits for the evaluation lab (`make eval-lab`, `make eval-holdout`). A limit is agreed before a run and never
+# fitted to one; it applies to the pipeline's point estimate, which the report prints beside its 95 % Wilson interval.
+#
+# A rate between 0 and 1, or `unset`. An `unset` limit is a metric nobody has measured against independent labels yet: it is
+# printed as unset and never passes or fails a run. Setting one is a deliberate change that says who agreed it and why, in the
+# commit message and in docs/OPERATIONS.md.
+#
+# severeFalseAssurance 0.0: an EVIDENCE_FOUND that the key calls missing or not applicable, or that quotes a course not every
+#   student takes for a CRITICAL requirement, is the worst possible error (product rule 4), so no occurrence is acceptable.
+#   Zero in a small key is weak evidence: read the interval.
+limits:
+  severeFalseAssurance: 0.0
+  findingAccuracy: unset
+  abstentionRate: unset
+  evidencePrecision: unset
+  evidenceRecall: unset
+  numericAccuracy: unset

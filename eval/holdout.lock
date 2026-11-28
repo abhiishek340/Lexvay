@@ -1,0 +1,9 @@
+# The frozen held-out answer keys: one line per holdout key, the SHA-256 of its file and its name in eval/keys/.
+#
+#   shasum -a 256 eval/keys/<key-id>.yml
+#
+# `make eval-holdout` refuses to run when a holdout key is missing here, differs from its line, or when a line names a file that
+# is not a holdout key. Changing this file is a deliberate commit of its own, never part of a change to the pipeline.
+#
+# This repository holds no held-out key: the only key is the fictional demo, and a split made from data the system was built on
+# would be no holdout. Real keys come from the domain expert (DOM-1).

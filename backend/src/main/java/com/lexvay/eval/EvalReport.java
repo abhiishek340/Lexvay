@@ -29,6 +29,10 @@ public record EvalReport(Mode mode, String model, String host, LocalDate date, S
             this.description = description;
         }
 
+        public String description() {
+            return description;
+        }
+
         public boolean live() {
             return this != SCRIPTED;
         }
