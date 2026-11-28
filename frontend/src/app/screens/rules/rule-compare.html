@@ -33,7 +33,26 @@
         </tr>
       </thead>
       <tbody>
-        @for (row of rows(); track $index) {
+        @for (row of changedRows(); track $index) {
+          <ng-container *ngTemplateOutlet="diffRow; context: { $implicit: row }" />
+        } @empty {
+          <tr><td colspan="3" class="lx-muted">No requirement changed.</td></tr>
+        }
+      </tbody>
+      <tbody id="compare-unchanged" [hidden]="!showUnchanged()">
+        @if (showUnchanged()) {
+          @for (row of unchangedRows(); track $index) {
+            <ng-container *ngTemplateOutlet="diffRow; context: { $implicit: row }" />
+          }
+        }
+      </tbody>
+    </table>
+    @if (unchangedRows().length > 0) {
+      <button type="button" class="lx-row-action lx-unchanged-toggle" aria-controls="compare-unchanged" [attr.aria-expanded]="showUnchanged()"
+              (click)="showUnchanged.set(!showUnchanged())">{{ showUnchanged() ? 'Hide' : 'Show' }} {{ unchangedRows().length }} unchanged</button>
+    }
+
+    <ng-template #diffRow let-row>
           <tr [attr.data-status]="row.status" data-testid="compare-row">
             <td class="lx-status-cell">
               <span class="lx-status-word">{{ statusOf(row).label }}</span>
@@ -84,9 +103,7 @@
               }
             </td>
           </tr>
-        }
-      </tbody>
-    </table>
+    </ng-template>
 
     <p-accordion class="lx-rule-text-diff">
       <p-accordion-panel value="rule-text">

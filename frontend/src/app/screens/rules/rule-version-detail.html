@@ -10,9 +10,9 @@
     <!-- Approved says who and when in the mark's own words; any other status adds where the approval stands. -->
     <p class="lx-detail-state" data-testid="version-state">
       @if (status() === 'APPROVED' && v.approval) {
-        <lx-status-mark [status]="statusView().mark" [label]="'Approved by ' + approverName() + ' on ' + (v.approval.at | date: 'yyyy-MM-dd')" />
+        <lx-status-mark [status]="statusView().mark" [tone]="statusView().tone ?? null" [label]="'Approved by ' + approverName() + ' on ' + (v.approval.at | date: 'yyyy-MM-dd')" />
       } @else {
-        <lx-status-mark [status]="statusView().mark" [label]="statusView().label" />
+        <lx-status-mark [status]="statusView().mark" [tone]="statusView().tone ?? null" [label]="statusView().label" />
         <span class="lx-muted" aria-hidden="true">·</span>
         @if (v.approval; as a) {
           <span class="lx-muted">Approved by {{ approverName() }} on {{ a.at | date: 'yyyy-MM-dd' }}</span>

@@ -34,6 +34,8 @@ tr[data-status='UNCHANGED'] .lx-status-word { font-weight: 400; color: var(--p-l
 .lx-term-list del { text-decoration-line: line-through; color: var(--p-lx-missing); }
 
 /* The whole rule text, behind one disclosure under a hairline. */
+/* The unchanged requirements' disclosure, 12 px under the changes and on the table's left edge. */
+.lx-unchanged-toggle { align-self: flex-start; margin-top: -12px; }
 .lx-full-text { display: block; max-width: 75ch; }
 .lx-compare-skeleton { display: flex; flex-direction: column; gap: 8px; }
 :host ::ng-deep .lx-rule-text-diff .p-accordionpanel { border: 0; border-top: 1px solid var(--p-lx-line); }

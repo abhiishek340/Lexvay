@@ -38,7 +38,7 @@
               @let s = statusOf(option.row);
               <span class="lx-version">
                 <span class="lx-version-label">{{ v.label }}</span>
-                <span class="lx-version-meta"><lx-status-mark [status]="s.mark" [label]="s.label" /><span aria-hidden="true">·</span><span>{{ v.effectiveFrom }}</span></span>
+                <span class="lx-version-meta"><lx-status-mark [status]="s.mark" [label]="s.label" [tone]="s.tone ?? null" /><span aria-hidden="true">·</span><span>{{ v.effectiveFrom }}</span></span>
               </span>
             </ng-template>
           </p-listbox>

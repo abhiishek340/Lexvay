@@ -32,9 +32,9 @@
 .lx-version-label { font-weight: 500; overflow-wrap: anywhere; }
 .lx-version-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
 
-/* Under 1024 px the versions sit above the version, a hairline between. */
+/* Under 1024 px the versions sit above the version at their full height (no scroll area cutting a row), a hairline between. */
 @media (max-width: 1023px) {
   .lx-rules-columns { grid-template-columns: minmax(0, 1fr); }
-  .lx-versions { position: static; max-height: 20rem; }
+  .lx-versions { position: static; max-height: none; overflow: visible; padding-bottom: 16px; }
   .lx-version-pane, .lx-version-pane.lx-skeleton-list { padding-left: 0; border-left: 0; border-top: 1px solid var(--p-lx-line); }
 }

@@ -96,11 +96,14 @@ test('a reviewer reads the seeded Colorado revision: its list, its rule text and
   await expect(page.getByTestId('page-position')).toHaveText(/Page\s+1\s+of\s+1/);
   await expectAccessible(page, 'Rule text');
 
-  // Compare defaults to the superseded version: exactly one changed requirement, CO-5, number and text.
+  // Compare defaults to the superseded version: exactly one changed requirement, CO-5, number and text. What changed is
+  // listed first; the eight unchanged requirements wait behind one disclosure.
   await page.getByRole('tab', { name: 'Compare' }).click();
   await expect(page.getByTestId('compare-summary')).toHaveText(/1 changed\s*·\s*0 added\s*·\s*0 removed\s*·\s*8 unchanged/);
   const changes = page.getByRole('table', { name: 'Requirement changes' });
-  await expect(changes.locator('tbody tr')).toHaveCount(9);
+  await expect(changes.getByTestId('compare-row')).toHaveCount(1);
+  const unchanged = page.getByRole('button', { name: 'Show 8 unchanged' });
+  await expect(unchanged).toHaveAttribute('aria-expanded', 'false');
   const changed = changes.locator('tr[data-status="CHANGED"]');
   await expect(changed).toHaveCount(1);
   await expect(changed).toContainText('CO-5');
@@ -114,6 +117,13 @@ test('a reviewer reads the seeded Colorado revision: its list, its rule text and
   await expect(ruleTextDiff.locator('ins', { hasText: '700' })).toHaveCount(1);
   await expect(ruleTextDiff.locator('del', { hasText: '600' })).toHaveCount(1);
   await expectAccessible(page, 'Compare');
+  await unchanged.click();
+  await expect(page.getByRole('button', { name: 'Hide 8 unchanged' })).toHaveAttribute('aria-expanded', 'true');
+  await expect(changes.getByTestId('compare-row')).toHaveCount(9);
+  await expect(changes.locator('tr[data-status="UNCHANGED"]')).toHaveCount(8);
+  await expectAccessible(page, 'Compare with the unchanged requirements');
+  await page.getByRole('button', { name: 'Hide 8 unchanged' }).click();
+  await expect(changes.getByTestId('compare-row')).toHaveCount(1);
 
   // The list is a listbox: arrow keys move, Enter opens. The original version supersedes nothing.
   await versions(page).focus();

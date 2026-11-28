@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Accordion, AccordionContent, AccordionHeader, AccordionPanel } from 'primeng/accordion';
@@ -15,6 +16,9 @@ import { DIFF_STATUS } from './diff-status';
 import { TermsDiff, termsDiff } from './search-terms';
 import { Label } from '../../ui/label';
 
+/** Whether the unchanged requirements are shown: remembered for the session, across versions and visits to Compare. */
+const showUnchanged = signal(false);
+
 const SUMMARY_ORDER: { status: DiffStatus; key: keyof RuleVersionDiff['summary'] }[] = [
   { status: 'CHANGED', key: 'changed' }, { status: 'ADDED', key: 'added' }, { status: 'REMOVED', key: 'removed' }, { status: 'UNCHANGED', key: 'unchanged' },
 ];
@@ -22,7 +26,7 @@ const SUMMARY_ORDER: { status: DiffStatus; key: keyof RuleVersionDiff['summary']
 /** The Compare tab: this version against the one it supersedes, or another approved version of the same rule. */
 @Component({
   selector: 'lx-rule-compare',
-  imports: [FormsModule, Accordion, AccordionContent, AccordionHeader, AccordionPanel, Message, Select, Skeleton, Label, DiffText],
+  imports: [FormsModule, NgTemplateOutlet, Accordion, AccordionContent, AccordionHeader, AccordionPanel, Message, Select, Skeleton, Label, DiffText],
   templateUrl: './rule-compare.html',
   styleUrl: './rule-compare.css',
 })
@@ -42,10 +46,14 @@ export class RuleCompare {
     return comparableVersions(this.all(), v.jurisdiction, v.licenseType, v.id).map((o) => ({ id: o.id, label: `${o.label} (effective ${o.effectiveFrom})` }));
   });
   /** Changed rows first, then added, removed and unchanged; the server's list order within each. */
-  readonly rows = computed(() => {
+  /** What changed, first: changed rows, then added and removed; the server's list order within each. */
+  readonly changedRows = computed(() => {
     const d = this.diff();
-    return d ? SUMMARY_ORDER.flatMap(({ status }) => d.requirements.filter((r) => r.status === status)) : [];
+    return d ? SUMMARY_ORDER.filter(({ status }) => status !== 'UNCHANGED').flatMap(({ status }) => d.requirements.filter((r) => r.status === status)) : [];
   });
+  /** The unchanged ones, behind one disclosure under the changes. */
+  readonly unchangedRows = computed(() => this.diff()?.requirements.filter((r) => r.status === 'UNCHANGED') ?? []);
+  readonly showUnchanged = showUnchanged;
   readonly summary = computed(() => {
     const d = this.diff();
     return d ? SUMMARY_ORDER.map(({ status, key }) => ({ status, count: d.summary[key], ...DIFF_STATUS[status] })) : [];
