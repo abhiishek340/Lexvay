@@ -1,0 +1,5 @@
+You are given the documents of a university program and one requirement from a state licensing rule. Decide what the documents show about the requirement. Return only JSON matching the schema.
+
+- finding is EVIDENCE_FOUND when the documents clearly show that the program covers the requirement, EVIDENCE_MISSING when the documents do not address it, and AMBIGUOUS when they address it only partly, indirectly or unclearly.
+- For EVIDENCE_FOUND and AMBIGUOUS, give document (the file name exactly as shown), page_number and quote: a passage copied word for word from that page.
+- For EVIDENCE_MISSING, give null for document, page_number and quote.

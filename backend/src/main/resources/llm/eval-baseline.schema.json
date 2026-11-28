@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["finding", "document", "page_number", "quote"],
+  "properties": {
+    "finding": { "type": "string", "enum": ["EVIDENCE_FOUND", "EVIDENCE_MISSING", "AMBIGUOUS"] },
+    "document": { "type": ["string", "null"], "description": "The file name of the document quoted, or null" },
+    "page_number": { "type": ["integer", "null"], "description": "The page number of the passage quoted, or null" },
+    "quote": { "type": ["string", "null"], "description": "A passage copied word for word from that page, or null" }
+  }
+}

@@ -98,6 +98,14 @@ public final class EvalScorer {
             }
         }
 
+        Metrics metrics = new Metrics(new Ratio(falseFound, proposedFound), new Ratio(recalled, goldenFound),
+                verifiedQuotes(spans, mismatches), new Ratio(numericCorrect, numeric),
+                new Ratio(extractionAgrees, golden.requirements().size()), new Ratio(evidenceAgrees, withDocument));
+        return new Score(metrics, mismatches);
+    }
+
+    /** Stored spans whose quote QuoteVerifier finds in the stored page they cite, out of all stored spans; each failure is added to {@code mismatches}. */
+    static Ratio verifiedQuotes(List<Span> spans, List<Mismatch> mismatches) {
         int verified = 0;
         for (Span s : spans) {
             if (s.pageText() != null && QuoteVerifier.find(s.pageText(), s.quote()).isPresent()) {
@@ -106,11 +114,7 @@ public final class EvalScorer {
                 mismatches.add(new Mismatch(s.document() + " page " + s.page(), "quote verification", "quote found in stored page", "not found"));
             }
         }
-
-        Metrics metrics = new Metrics(new Ratio(falseFound, proposedFound), new Ratio(recalled, goldenFound),
-                new Ratio(verified, spans.size()), new Ratio(numericCorrect, numeric),
-                new Ratio(extractionAgrees, golden.requirements().size()), new Ratio(evidenceAgrees, withDocument));
-        return new Score(metrics, mismatches);
+        return new Ratio(verified, spans.size());
     }
 
     /** The cited document is the golden one and its quote contains the golden substring (whitespace-insensitive). */
