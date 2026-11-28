@@ -257,6 +257,28 @@ downloads no model.
 
    Decisions go in `docs/decisions/EV-1.md`, progress in `docs/progress/EV-1.md`.
 
+### OPS-3 — Performance budget on CI (tooling; no slot; Sonnet 5.5; D-644 to D-646)
+`make perf` (`EndpointLatencyTest`, the p95 under 40 ms budget, and `IndexUsageTest`) only runs on the busy shared
+machine, where unrelated endpoints breach the budget under load. The budget is a CLAUDE.md rule, so it needs a
+quiet, repeatable runner.
+1. **A new job `perf` in `.github/workflows/ci.yml`**, which reuses the test job's Java and Maven cache steps (YAML
+   anchors or a composite action, no copy-paste of the steps) and runs `make perf`. It runs:
+   - on every push to `main`;
+   - nightly (`schedule`, 07:00 UTC);
+   - on `workflow_dispatch`;
+   - on pull requests that change `backend/src/main/**`, `backend/src/main/resources/db/migration/**`,
+     `backend/src/test/java/com/lexvay/perf/**` or `docs/PERF.md`, using `dorny/paths-filter` only if it is already
+     a pinned action in the repository; otherwise a `git diff` step.
+2. **Job summary:** p95 per endpoint, the budget, and the plans of any index failures. `EndpointLatencyTest` already
+   writes its numbers; publish them, do not recompute them.
+3. **Timeouts:** 45 minutes. If the default seed size (100 copies) cannot finish inside that on a standard runner,
+   set a CI size through the existing configuration, keeping it at least the documented minimum in `docs/PERF.md`,
+   and record the number.
+4. **Required check:** the PR job is a required check by convention only (nothing in GitHub settings changes). Main
+   pushes report but never cancel.
+5. **Docs:** `docs/PERF.md` names CI as the arbiter of the budget. Decisions go in `docs/decisions/OPS-3.md`,
+   progress in `docs/progress/OPS-3.md`. Prove it with one real CI run on the PR: a green perf job and its summary.
+
 ## Design system v3 "Ledger" (owner directive 2026-11-27: "not AI slop", professional, human craft)
 The owner reviewed v2 on the running app and rejected it: yellow and orange accents, icon-heavy pills and cards, a
 palette and card art that look generated. `docs/DESIGN.md` is rewritten as v3 and is the contract. Every screen
@@ -449,7 +471,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | merged (#45) |
 | F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | merged (#47) |
 | INFRA-2 Remote state, WAF, flow logs, egress | `infra-hardening` | — | Sonnet 5.5 | merged (#46) |
-| FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | in progress |
+| FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | merged (#48) |
 | UI3-0 Design v3 foundation, shell, sign-in, overview | `ui3-foundation` | 1 | Opus 5.5 | merged (#52) |
 | UI3-1 Review and Coverage in v3 | `ui3-review-coverage` | 1 | Opus 5.5 | in progress |
 | UI3-2 Changes, audit, report, register, people in v3 | `ui3-records` | 4 | Opus 5.5 | in progress |
@@ -460,6 +482,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | merged (#51) |
 | AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | in progress |
 | OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | merged (#54) |
+| OPS-3 Performance budget on CI | `ops-perf-ci` | — | Sonnet 5.5 | in progress |
 | EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | in progress |
 | RG-2, RG-3, AC-2, AC-3, EV-2, UX-1 | see Real-data validation track | — | — | queued |
 | SP-1 SharePoint spike, DOM-1 expert review | — | — | — | blocked (founder) |

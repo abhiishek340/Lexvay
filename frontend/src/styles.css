@@ -191,6 +191,10 @@ a.lx-row-action:not(.p-button) { text-decoration: none; }
 ::view-transition-old(root) { animation: none; }
 ::view-transition-new(root) { animation: lx-rise-in var(--lx-t) var(--lx-ease) both; }
 @keyframes lx-rise-in { from { opacity: 0; transform: translateY(4px); } }
+/* A change within one screen (a tab, a filter) swaps at once; app.config.ts sets the attribute for it. */
+:root[data-transition='none']::view-transition-group(*),
+:root[data-transition='none']::view-transition-old(*),
+:root[data-transition='none']::view-transition-new(*) { animation: none; }
 
 /* PrimeNG refinements that belong to the whole product, not one screen. */
 @layer lexvay {
