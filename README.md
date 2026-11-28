@@ -55,7 +55,9 @@ a second tenant used only by isolation tests. Sign in at http://localhost:4200 w
 
 `make e2e` runs the Playwright end-to-end tests (with axe accessibility checks) against an isolated,
 freshly seeded stack on ports 5433, 8081 and 4300. `make seed-pdfs` regenerates the seed PDFs from
-`seed/docs`.
+`seed/docs`. At most two such stacks (`make e2e`, `make eval`, `make smoke`) run on one machine at a time, so
+concurrent checkouts do not starve each other: the rest wait for a token. `LEXVAY_STACK_CONCURRENCY` sets the cap
+(`0` turns it off) and `LEXVAY_STACK_WAIT_MINUTES` how long to wait; `make test-scripts` tests the mechanism.
 
 Backend tests start their own PostgreSQL container. The Makefile resolves the Docker socket from the
 active Docker context, so Colima and OrbStack work without setting `DOCKER_HOST`.

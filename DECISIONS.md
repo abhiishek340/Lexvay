@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640, OPS-2 D-641–643. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V019 SEC-3, V020 F15, reserved V021 RG-1, V022 MODE-1, V023 RG-2, V024 AC-1, V025 AC-2 (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640, OPS-2 D-641–643. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V020 F15, V022 MODE-1, then by merge order: SEC-3 takes V023 (it was V019 before V020 and V022 merged), RG-1 renumbers from V021 at merge, AC-1 V024, later items take the next free number at merge (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -4496,3 +4496,34 @@ same bytes. The package's `audit.csv` is the shared `AuditCsv` as before; the RE
 **D-565 — One startup line states the money posture.** `SpendGate` logs once when the application starts, for every
 provider including `fake`: the provider, whether paid calls are approved, the monthly budget and the models that have a
 price. It never logs a key or a price list value beyond the model names.
+
+### OPS-2 — Cap concurrent local test stacks (D-641 to D-643)
+
+**D-641 — A machine-wide semaphore of directory tokens in `scripts/lib/stack.sh`.** `stack_init` takes one of
+`LEXVAY_STACK_CONCURRENCY` tokens (default 2) before it creates anything, so `make e2e`, `make eval` and
+`make smoke` share one cap. A token is the directory `<lock dir>/<n>` (n from 1 to the cap) holding `pid` and `slot`.
+The lock dir is `LEXVAY_STACK_LOCK_DIR`, default `/tmp/lexvay-stack-tokens-$(id -u)`, deliberately independent of
+`TMPDIR`: a sandboxed agent that sets its own `TMPDIR` still shares one cap with every other process of the same user. Only `mkdir` is used for locking, because macOS has no `flock`. Waiting
+polls once a second,
+prints "<name>: waiting for a free test stack (n of N in use: slots ...)" at once and every 30 s, and gives up with
+exit 1 after `LEXVAY_STACK_WAIT_MINUTES` (default 60; 0 means a single attempt). `LEXVAY_STACK_CONCURRENCY=0` skips the
+lock. CI runs one stack on a fresh runner, so the default of 2 never makes it wait and CI needs no setting. Both
+settings must be whole numbers; anything else is refused before anything starts.
+
+**D-642 — Scans and reclaims run under a short mutex; owners are judged by `ps -p`.** Reclaiming a stale token with a
+bare `rm` then `mkdir` lets two waiters race: one can delete the token the other has just created. The scan, reclaim
+and creation therefore happen while holding `<lock dir>/.mutex` (another `mkdir`, held for milliseconds).
+A mutex older than a minute belongs to a process that died inside that window and is removed. A token is stale when
+its pid file is missing or empty (the creator died between `mkdir` and writing it) or when `ps -p <pid>` finds no
+process. `ps -p` is used instead of `kill -0` because `kill -0` also fails for a live process owned by another user,
+which would wrongly reclaim that user's token. A reused pid keeps a dead owner's token alive; the wait limit bounds the
+damage, and nothing is reclaimed that a live process might own.
+
+**D-643 — Release on every exit path, and never touch a stack that was not started.** `stack_init` installs
+`trap stack_cleanup EXIT` and turns INT and TERM into `exit 130` and `exit 143`, so the EXIT trap runs for them and
+cleanup has one code path. `stack_cleanup` gives the token back last, after the compose project is down, so the next
+run cannot start a database on the slot's port before this one has gone. A run signalled while still waiting has
+started nothing, so it does not run `compose down -v` (another run on the same slot may own that project) and has no
+token to release. Known limit: bash runs a trap only after the foreground command finishes, so a TERM sent to the
+script alone (not to its process group, as Ctrl-C does) takes effect when Playwright or Maven returns; a holder killed
+with KILL is reclaimed by the dead-pid rule instead.
