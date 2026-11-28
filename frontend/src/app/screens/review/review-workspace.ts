@@ -1,62 +1,61 @@
 import { computed, signal } from '@angular/core';
 import { numericCheck } from '../../core/labels';
 import { DecisionKind, Evidence, EvidenceResponse, Finding, JurisdictionSummary, Mapping } from '../../core/models';
-import type { IconName } from '../../theme/icons';
 import type { MeterSegment } from '../../ui/meter';
 import type { StateProgress } from '../../ui/state-tabs';
 
 export type ReviewFilter = 'ALL' | 'NEEDS_REVIEW' | Finding;
 
 /**
- * The list filter as a segmented icon control (DESIGN.md "Review"). Each segment's words carry the count first
- * ("7 to review", word budget): they are its accessible name and its tooltip, so the icons need no legend.
+ * The list filter as a text tab row with counts (DESIGN.md "Review"): All, To review, Found, Ambiguous, Missing. Each
+ * tab shows its word and its count; its accessible name says both ("To review, 7").
  */
-export const REVIEW_FILTERS: { value: ReviewFilter; icon: IconName; noun: string }[] = [
-  { value: 'ALL', icon: 'phosphorListBullets', noun: 'requirements' },
-  { value: 'NEEDS_REVIEW', icon: 'phosphorCircleDashed', noun: 'to review' },
-  { value: 'EVIDENCE_FOUND', icon: 'phosphorCheckCircle', noun: 'found' },
-  { value: 'AMBIGUOUS', icon: 'phosphorQuestion', noun: 'ambiguous' },
-  { value: 'EVIDENCE_MISSING', icon: 'phosphorXCircle', noun: 'missing' },
+export const REVIEW_FILTERS: readonly { value: ReviewFilter; label: string }[] = [
+  { value: 'ALL', label: 'All' },
+  { value: 'NEEDS_REVIEW', label: 'To review' },
+  { value: 'EVIDENCE_FOUND', label: 'Found' },
+  { value: 'AMBIGUOUS', label: 'Ambiguous' },
+  { value: 'EVIDENCE_MISSING', label: 'Missing' },
 ];
 
-export function filterLabel(filter: ReviewFilter, count: number): string {
-  const noun = REVIEW_FILTERS.find((f) => f.value === filter)!.noun;
-  return `${count} ${count === 1 && filter === 'ALL' ? 'requirement' : noun}`;
-}
+/** One filter tab as the list draws it. */
+export interface FilterTab { readonly value: ReviewFilter; readonly label: string; readonly count: number; readonly name: string }
 
 /**
- * How a finding was reached, in one line beside the finding chip, with the explanation for its InfoTip. The line
- * states facts the record holds (the numeric check, the cited page); the model's own rationale is shown apart.
+ * How a finding was reached, as one plain line under the finding, with the explanation for that line's tooltip (a term).
+ * The line states facts the record holds (the numeric check, the cited page); the model's own rationale is shown apart.
  */
-export interface CheckMethod { icon: IconName; line: string; detail: string }
+export interface CheckMethod { line: string; detail: string }
 
 export function checkMethod(m: Mapping): CheckMethod {
   if (m.method === 'RULES_ENGINE') {
     const check = numericCheck(m.requirement);
     return {
-      icon: 'phosphorCalculator', line: check ? `Rules engine: ${check}` : 'Rules engine calculation',
+      line: check ? `Rules engine: ${check}` : 'Rules engine calculation',
       detail: 'The number recorded for the program was compared with the requirement by code, not by the model. There is no passage to quote.',
     };
   }
   if (!m.evidence) {
     return {
-      icon: 'phosphorMagnifyingGlass', line: 'No passage found',
+      line: 'No passage found',
       detail: 'Candidate passages from the program documents were searched and shown to the model, which proposed no passage that answers this requirement.',
     };
   }
   return {
-    icon: 'phosphorMagnifyingGlass', line: `Quote verified on page ${m.evidence.pageNumber}`,
+    line: `Quote verified on page ${m.evidence.pageNumber}`,
     detail: 'The model proposed this passage. The quote was then verified character for character against the stored page text before it was shown here.',
   };
 }
 
-/** Decided of total requirements per state of the latest assessment: the counts on the state tabs. */
-export function stateProgress(summaries: readonly JurisdictionSummary[]): ReadonlyMap<string, StateProgress> {
-  return new Map(summaries.map((s) => [s.jurisdiction, { value: s.decided, total: s.total, label: `${s.decided} of ${s.total} reviewed` }]));
+/** "3 of 8 decided": the words of every progress count on this screen. */
+export function decidedLabel(decided: number, total: number): string {
+  return `${decided} of ${total} decided`;
 }
 
-/** Which way the requirement card enters: from the right when moving down the list, from the left when moving up. */
-export type Travel = 'forward' | 'back';
+/** Decided of total requirements per state of the latest assessment: the counts on the state tabs. */
+export function stateProgress(summaries: readonly JurisdictionSummary[]): ReadonlyMap<string, StateProgress> {
+  return new Map(summaries.map((s) => [s.jurisdiction, { value: s.decided, total: s.total, label: decidedLabel(s.decided, s.total) }]));
+}
 
 /** A decision counts only while it is current: a change that makes the mapping stale reopens it. */
 export function isDecided(m: Mapping): boolean {
@@ -87,9 +86,9 @@ export const SHORTCUT_HELP: { keys: string; command: ShortcutCommand; descriptio
   { keys: 'J', command: 'next', description: 'Next requirement' },
   { keys: 'K', command: 'previous', description: 'Previous requirement' },
   { keys: 'A', command: 'accept', description: 'Accept evidence' },
-  { keys: 'R', command: 'request', description: 'Request evidence from the program' },
-  { keys: 'G', command: 'gap', description: 'Open the note for a gap, then Confirm gap' },
-  { keys: '?', command: 'help', description: 'Show this list' },
+  { keys: 'R', command: 'request', description: 'Request evidence' },
+  { keys: 'G', command: 'gap', description: 'Note a gap, then Confirm gap' },
+  { keys: '?', command: 'help', description: 'Open this help' },
 ];
 
 /** Single-key shortcuts, never while the person is typing or holding a modifier. */
@@ -137,8 +136,11 @@ export class ReviewWorkspace {
   readonly mappings = signal<Mapping[]>([]);
   readonly filter = signal<ReviewFilter>('ALL');
   readonly selectedId = signal<string | null>(null);
-  /** The direction of the last change of selection, for the card's entrance. */
-  readonly travel = signal<Travel>('forward');
+  /**
+   * The requirement whose decision has just landed: its row's mark fades in over 120 ms as it changes (DESIGN.md
+   * "Motion"). Cleared when the list is loaded or filtered again, so no other mark replays the fade.
+   */
+  readonly landed = signal<string | null>(null);
   /** Evidence responses per mapping id, fetched with the selected mapping and kept for the screen's lifetime. */
   readonly responses = signal<ReadonlyMap<string, readonly EvidenceResponse[]>>(new Map());
 
@@ -151,7 +153,7 @@ export class ReviewWorkspace {
   readonly decided = computed(() => this.mappings().filter(isDecided).length);
   readonly total = computed(() => this.mappings().length);
   readonly allDecided = computed(() => this.total() > 0 && this.decided() === this.total());
-  readonly progressLabel = computed(() => `${this.decided()} of ${this.total()} reviewed`);
+  readonly progressLabel = computed(() => decidedLabel(this.decided(), this.total()));
   /** The header's Meter: the current decisions by kind, in the order DESIGN.md fixes, the undecided rest left empty. */
   readonly meter = computed<MeterSegment[]>(() => {
     const decided = (kind: DecisionKind): number => this.mappings().filter((m) => isDecided(m) && m.decision!.kind === kind).length;
@@ -164,13 +166,17 @@ export class ReviewWorkspace {
     }
     return counts;
   });
-  /** The filter segments with their current words. */
-  readonly filterOptions = computed(() => REVIEW_FILTERS.map((f) => ({ value: f.value, icon: f.icon, label: filterLabel(f.value, this.counts()[f.value]) })));
+  /** The filter tabs with their current counts. */
+  readonly filterTabs = computed<FilterTab[]>(() => REVIEW_FILTERS.map((f) => {
+    const count = this.counts()[f.value];
+    return { ...f, count, name: `${f.label}, ${count}` };
+  }));
 
   /** A new list (a jurisdiction was opened): start at the first requirement that still needs a decision. */
   load(mappings: Mapping[]): void {
     this.mappings.set(mappings);
     this.filter.set('ALL');
+    this.landed.set(null);
     this.selectedId.set((mappings.find((m) => !isDecided(m)) ?? mappings[0])?.id ?? null);
   }
 
@@ -180,16 +186,8 @@ export class ReviewWorkspace {
 
   select(id: string): void {
     if (this.mappings().some((m) => m.id === id)) {
-      this.goTo(id);
+      this.selectedId.set(id);
     }
-  }
-
-  /** Moves the selection, noting the direction by list order (a wrap to the top after a decision still reads forward). */
-  private goTo(id: string, travel?: Travel): void {
-    const all = this.mappings();
-    const from = all.findIndex((m) => m.id === this.selectedId());
-    this.travel.set(travel ?? (all.findIndex((m) => m.id === id) < from ? 'back' : 'forward'));
-    this.selectedId.set(id);
   }
 
   /** J and K: move within the visible list; stays put at either end. */
@@ -198,13 +196,14 @@ export class ReviewWorkspace {
     if (list.length === 0) { return null; }
     const index = list.findIndex((m) => m.id === this.selectedId());
     const next = index === -1 ? list[0] : list[Math.min(list.length - 1, Math.max(0, index + delta))];
-    this.goTo(next.id, delta === 1 ? 'forward' : 'back');
+    this.selectedId.set(next.id);
     return next;
   }
 
   /** Keeps the selection when it is still visible under the new filter, otherwise takes the first visible row. */
   setFilter(filter: ReviewFilter): void {
     this.filter.set(filter);
+    this.landed.set(null);
     const list = this.visible();
     if (!list.some((m) => m.id === this.selectedId())) {
       this.selectedId.set(list[0]?.id ?? null);
@@ -212,18 +211,20 @@ export class ReviewWorkspace {
   }
 
   /**
-   * Records the server's updated mapping and advances to the next visible requirement that still needs
-   * a decision, wrapping around; when there is none it stays on the decided one. Returns the new selection.
+   * Records the server's updated mapping (its row's mark lands) and moves the selection to the next visible requirement
+   * that still needs a decision, wrapping around; when there is none it stays on the decided one. Returns the new
+   * selection.
    */
   applyDecision(updated: Mapping): Mapping | null {
     this.mappings.update((list) => list.map((m) => (m.id === updated.id ? updated : m)));
+    this.landed.set(updated.id);
     const all = this.mappings();
     const start = all.findIndex((m) => m.id === updated.id) + 1;
     const filter = this.filter();
     const next = [...all.slice(start), ...all.slice(0, start)].find((m) => !isDecided(m) && matchesFilter(m, filter));
     const list = this.visible();
     if (next) {
-      this.goTo(next.id, 'forward');
+      this.selectedId.set(next.id);
     } else if (!list.some((m) => m.id === this.selectedId())) {
       this.selectedId.set(list[0]?.id ?? null);
     }
