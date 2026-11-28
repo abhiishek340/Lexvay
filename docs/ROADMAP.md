@@ -279,6 +279,76 @@ quiet, repeatable runner.
 5. **Docs:** `docs/PERF.md` names CI as the arbiter of the budget. Decisions go in `docs/decisions/OPS-3.md`,
    progress in `docs/progress/OPS-3.md`. Prove it with one real CI run on the PR: a green perf job and its summary.
 
+### RG-2 — Source registry governance (backend; slot 6; Sonnet 5.5; next free migration at merge, expected V026; D-566 to D-575)
+Master prompt M3 step 1 to 2 and §4.4: a source is a governed object, not a URL someone typed. Fetching must be polite
+and permitted, and content must be validated before it can become a change candidate. Source health is kept apart
+from legal status. This item extends F12, FIX-4 and RG-1; it adds no new service.
+1. **Governance fields on `rule_source`:**
+
+   | Field | Type and values | Meaning |
+   |---|---|---|
+   | `authority_class` | `STATUTE`, `ADMIN_RULE`, `REGISTER`, `BOARD_GUIDANCE`, `BOARD_FORM`, `OTHER` | what kind of source it is |
+   | `allowed_hosts` | `text[]`, non-empty | the source URL's host must be in it |
+   | `allowed_path_prefixes` | `text[]`, may be empty | when set, every redirect hop and the final URL must match one |
+   | `expected_identifiers` | `text[]` | strings the fetched text must contain, for example `R156-60e` |
+   | `access_status` | `UNREVIEWED`, `PERMITTED`, `RESTRICTED`, `BLOCKED` | default `UNREVIEWED` |
+   | `access_note` | `text` | terms and robots findings, by whom, when |
+   | `owner_user_id` | references `app_user` | who looks after the source |
+   | `last_etag`, `last_modified` | `text` | for conditional GET |
+
+   - Backfill the existing sources with their URL's host, `OTHER` and `UNREVIEWED`.
+   - Governance edits go through `PUT /rule-sources/{id}/governance` (ADMIN), audited as
+     `RULE_SOURCE_GOVERNANCE_CHANGED` with the before and after values in the detail.
+   - Only `PERMITTED` sources are fetched by the scheduler. `UNREVIEWED` sources can be checked by hand ("Check now"),
+     and the check records that the source is unreviewed. `RESTRICTED` and `BLOCKED` sources are never fetched.
+2. **Polite fetching**, all in `JdkHttpFetcher` and `CheckRuleSourceHandler`:
+   - **User-Agent:** `LexvayMonitor/<version> (+<LEXVAY_MONITOR_CONTACT_URL>)`. The contact URL is required for the
+     scheduler to run, so no anonymous crawling.
+   - **Conditional GET:** send `If-None-Match` and `If-Modified-Since`. A 304 is a new outcome, `NOT_MODIFIED`
+     (counts as a success for health and stores no document).
+   - **Per-host throttle:** at least `LEXVAY_SOURCE_MIN_HOST_INTERVAL_SECONDS` (default 30) between requests to one
+     host, across instances. Use a `source_host_fetch(host PK, last_fetch_at)` row updated under `FOR UPDATE`; a job
+     that must wait reschedules itself rather than sleeping in a worker.
+   - **robots.txt:**
+     - Fetched per host at most daily, cached in `source_host_fetch`.
+     - A Disallow matching our agent or `*` for the path makes the outcome `BLOCKED_BY_ROBOTS`; nothing more is fetched.
+     - Parse only User-agent, Disallow and Allow, using longest match.
+     - A robots.txt that fails with 4xx means allowed; one that fails with 5xx means try later.
+   - **Retries:** 429 and 503 honour `Retry-After`. The FIX-4 backoff remains.
+3. **Content validation before a change candidate.** After extraction:
+   - If any `expected_identifier` is missing, or the content looks like a challenge or block page (HTML with a
+     `<form>` and no expected identifier, or a short body in the known shapes listed in one constant), the outcome is
+     `SUSPECT_CONTENT` with the reason. No draft is made and the baseline does not move.
+   - A content type outside the source's format is `SUSPECT_CONTENT` too.
+   - Never bypass CAPTCHAs or log-ins.
+4. **Health, separate from legal status**, computed in the list view and never stored:
+   - `HEALTHY`;
+   - `STALE`: no success within twice the interval;
+   - `FAILING`: three or more consecutive failures;
+   - `BLOCKED`: robots or access status;
+   - `SUSPECT`: the last outcome was `SUSPECT_CONTENT`;
+   - `UNREVIEWED`.
+
+   A program's overview shows a state's rules as "Source stale" when any of that state's sources is not `HEALTHY`.
+   This is the master prompt's "a source outage shows stale coverage, not no change". Add it to RG-1's per-state
+   `rules` entry.
+5. **Tests:** cover the following against a loopback server (no network):
+   - each new outcome;
+   - conditional GET;
+   - the throttle across two jobs;
+   - the robots matrix (allow, disallow, longest match, 4xx, 5xx);
+   - expected identifiers;
+   - a block page;
+   - redirects outside the allowed paths;
+   - the health computation;
+   - the stale flag on the overview;
+   - access-status gating of the scheduler;
+   - RLS on `source_host_fetch` if tenant-scoped. Hosts are global, so it is not tenant data: keep it in a non-RLS
+     table readable only by the worker flag, and record that choice in D-570.
+   - Rule 9 and the input-table rows for the new endpoint and actions.
+6. **Docs:** OPERATIONS gets a "Monitoring etiquette" section: User-Agent, contact, throttle, robots, the access
+   review step, and no circumvention. Decisions go in `docs/decisions/RG-2.md`, progress in `docs/progress/RG-2.md`.
+
 ## Design system v3 "Ledger" (owner directive 2026-11-27: "not AI slop", professional, human craft)
 The owner reviewed v2 on the running app and rejected it: yellow and orange accents, icon-heavy pills and cards, a
 palette and card art that look generated. `docs/DESIGN.md` is rewritten as v3 and is the contract. Every screen
@@ -471,17 +541,18 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | merged (#45) |
 | F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | merged (#47) |
 | INFRA-2 Remote state, WAF, flow logs, egress | `infra-hardening` | — | Sonnet 5.5 | merged (#46) |
-| FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | in progress |
+| FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | merged (#48) |
 | UI3-0 Design v3 foundation, shell, sign-in, overview | `ui3-foundation` | 1 | Opus 5.5 | merged (#52) |
 | UI3-1 Review and Coverage in v3 | `ui3-review-coverage` | 1 | Opus 5.5 | in progress |
 | UI3-2 Changes, audit, report, register, people in v3 | `ui3-records` | 4 | Opus 5.5 | in progress |
 | UI3-3 Rules, requests, setup in v3 | `ui3-rules-requests-setup` | 5 | Opus 5.5 | in progress |
-| SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | PR #53, renumbering to V023 |
+| SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | merged (#53) |
 | F15 Evidence package | `feat-evidence-package` | 5 | Sonnet 5.5 | merged (#49) |
 | RG-1 Legal time and status model (P0) | `rg-legal-time` | 2 | Sonnet 5.5 | in progress |
 | MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | merged (#51) |
 | AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | in progress |
 | OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | merged (#54) |
+| OPS-2b Stack lock race on Ubuntu 26.04 (uutils mkdir) | `ops-stack-lock-fix` | — | Sonnet 5.5 | merged (#60) |
 | OPS-3 Performance budget on CI | `ops-perf-ci` | — | Sonnet 5.5 | in progress |
 | EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | in progress |
 | RG-2, RG-3, AC-2, AC-3, EV-2, UX-1 | see Real-data validation track | — | — | queued |
@@ -1825,7 +1896,7 @@ suite did not notice, because it only guards against unknown icons.
 4. **Record it:** decisions in `docs/decisions/FIX-8.md`, progress in `docs/progress/FIX-8.md`. List every
    `allowConsoleErrors` added, with the reason for each.
 
-## SEC-3 — Tamper-evident audit trail (backend only; slot 6; Sonnet 5.5; migration `V019__audit_seal.sql`; D-530 to D-537)
+## SEC-3 — Tamper-evident audit trail (backend only; slot 6; Sonnet 5.5; migration `V023__audit_seal.sql`, renumbered from V019 by merge order; D-530 to D-537)
 Rule 9 audits every action, and triggers stop UPDATE and DELETE through the application. But a database superuser,
 or a restore from an altered backup, could still change history without trace. Auditors of licensing records ask for
 evidence that the trail is complete and unaltered. Decided design: a per-tenant hash chain built by an asynchronous
@@ -1951,6 +2022,9 @@ self-verifying ZIP built by a job.
    or later, not here.
 
 ## Follow-ups recorded from reviews
+- AC-1 (rule 6): a signed determination does not yet name the pathway groups it was assessed against. Add the active
+  pathway group ids to the determination's dependency snapshot and its versions hash, so a later group change marks it
+  for reassessment like a course or rule change.
 - FIX-5 (rule 9): `LOGOUT` is audited after the session is cleared, so its audit entry has no actor. Capture the
   user before the logout handler clears the context and record `LOGOUT` with that user as actor and `entity_id`;
   `Rule9_AuditCoverageTest` asserts the actor. UI2-3's `audit-sentence.spec.ts` now fails for any new audited action

@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640, OPS-2 D-641–643, OPS-3 D-644–646. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V020 F15, V022 MODE-1, then by merge order: SEC-3 takes V023 (it was V019 before V020 and V022 merged), RG-1 renumbers from V021 at merge, AC-1 V024, later items take the next free number at merge (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640, OPS-2 D-641–643, OPS-3 D-644–646, OPS-2b D-647 (supersedes D-642's mkdir mutex: the mutex is a noclobber file). Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V020 F15, V022 MODE-1, then by merge order: SEC-3 takes V023 (it was V019 before V020 and V022 merged), RG-1 renumbers from V021 at merge, AC-1 V024, later items take the next free number at merge (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -4687,3 +4687,184 @@ menu had opened, and the heading took focus from the menu, so the keys pressed n
 `people.spec.ts` after D-497). A person who opens a menu or starts typing while a screen loads would lose their place
 the same way. `focusHeadingWhenRendered` now records the focused element at navigation and gives up once focus is on
 anything other than that element or the page body; `shell-focus.spec.ts` covers both paths.
+
+### FIX-8 — No console errors (D-471 to D-474)
+
+**D-471 — A view transition is never skipped; its animation is switched off instead.** The roadmap's first design
+attached handlers to `ready`, `finished` and `updateCallbackDone` and ignored `AbortError`. It cannot work: in
+development builds Angular's router already attaches its own `.catch(console.error)` to all three promises
+(`createViewTransition`, guarded by `ngDevMode`) before it calls `onViewTransitionCreated`, so a skipped transition is
+logged whatever the application does with the promises. The error never reached `provideBrowserGlobalErrorListeners`,
+and it is absent from production builds, which is why only a running development app showed it. `app.config.ts` therefore
+no longer calls `skipTransition()`. For a change within one screen (a tab, a filter; `sameScreen`) it sets
+`data-transition="none"` on `<html>`, and `styles.css` sets the `::view-transition-group/old/new(*)` animations to
+`none` under that attribute: the transition runs, finishes and resolves. Every new transition sets or removes the
+attribute itself, so a stale value never reaches the next one (no cleanup on `finished`, which would race with a
+following transition). Reduced motion needs no script: the media query in `styles.css` already sets the same
+animations to `none !important`, so the `MotionPreferences` check in `app.config.ts` was a duplicate and is gone.
+Rejected: wrapping `document.startViewTransition` or `console.error`; a global allowlist for the message.
+
+**D-472 — One user action is one router navigation.** A second transition that starts while the first still runs aborts
+the first ("New ViewTransition started"), which Angular logs. The end-to-end run showed two chains, both removed
+instead of tolerated:
+- Signing in, and any visit to `/`, navigated to `/` and then, once the programs arrived, from the `Home` screen to the
+  overview of the only program. `landingGuard` (`core/auth.guard.ts`, after `authGuard` on the `''` route) now fetches the
+  programs and returns the overview's `UrlTree` for a single program; the redirect resolves inside the same navigation,
+  before any transition is created. With several programs, none, or a failed request the guard lets `Home` render, which
+  lists them or shows the failure from its own request. `Home` no longer navigates.
+- Review and the evidence report wrote their default state into the address (`?jurisdiction=AZ`) right after opening.
+  `needsJurisdictionParam` (`core/navigation.ts`) says whether choosing a state must change the URL: an absent
+  `?jurisdiction=` already means the program's first state, as Coverage always read it, so the default is applied when
+  reading and the URL changes only when the person picks another state.
+
+- Opening Rules without a version in the address (UI2-4) chose the version to open in a component effect and navigated
+  again once the program had loaded, which aborted the first transition. `openingVersionGuard`
+  (`screens/rules/opening-version.guard.ts`) does the same inside the opening navigation: it awaits the program, then
+  redirects the bare address to the version that opens (the query travels along). `ProgramContext.ruleVersionGroups`
+  is the one place the versions are grouped, for the guard and the list.
+
+The rule workspace's `?new=1` (the command palette's "new rule version") is also followed by a navigation that removes
+the parameter; no test overlaps it, so it is left as it is and noted in the pull request.
+
+**D-473 — `consoleGuard` fails any test that logs a console error.** An automatic fixture in `e2e/support.ts`, beside
+`iconGuard`, collects every `console` message of type `error` and every `pageerror` and fails the test if any was
+recorded. A test that deliberately causes an error declares it with `allowConsoleErrors(page, /pattern/)`; the pattern is
+matched against the message text and the URL it came from, so it names one response by status and URL. There is no
+global allowlist.
+
+**D-474 — The eight declared errors.** Chromium logs every 4xx or 5xx response as "Failed to load resource". Eight tests
+cause one on purpose:
+- `review-and-sign.spec.ts` (sign-in page): the wrong password is answered with 401 by `/api/v1/auth/login`.
+- `evidence-requests.spec.ts` (answer drawer): a tampered quote submitted through the screen is answered with 400 by
+  `/api/v1/mappings/<id>/evidence-responses`.
+- `rules.spec.ts` (hand-entered list): the blank title is answered with 400 by
+  `/api/v1/rule-versions/<id>/requirements`.
+- `people.spec.ts` (a used setup link): 400 from `/api/v1/auth/setup`.
+- `people.spec.ts` (own row, last administrator): the stubbed 409 from `/api/v1/users/<id>/role`.
+- `people.spec.ts` (busy sign-in): the stubbed 503 from `/api/v1/auth/login`.
+- `setup.spec.ts` (the same syllabus uploaded twice): the 409 from `/api/v1/programs/<id>/documents?kind=SYLLABUS` that refuses the copy.
+- `report-check.spec.ts` (F14): a text file named `renamed.pdf` is answered with 400 by `/api/v1/reports/check`.
+
+Every other error the suite found was the view-transition `AbortError`; no screen logged anything else.
+
+### SEC-3 — Tamper-evident audit trail (D-530 to D-537)
+
+**D-530 — The chain is built after the fact, and the queue is written by the audit statement itself.**
+`AuditRepository.insert` is one statement, `WITH entry AS (INSERT INTO audit_log ... RETURNING id, tenant_id,
+created_at) INSERT INTO audit_unsealed SELECT ... FROM entry`, so an entry and its place in the sealer's queue commit
+together or not at all and no entry can escape sealing. Chaining inside the business transaction was rejected by the
+spec (a per-tenant lock held until commit by every audited write would serialise the tenant and invite deadlocks) and
+stays rejected. `Rule9_SingleAuditWritePathTest` reads `src/main` and fails if any other file contains
+`INSERT INTO audit_log`, or if that statement stops queueing. V023 backfills `audit_unsealed` from every existing
+`audit_log` row, with row-level security switched off on the two tables for the migration and forced again at its end
+(the pattern of V016), so the sealer's first runs seal the history. `AuditSealBackfillTest` runs the migration's own
+statement against shadow tables, because no test can load rows and then migrate. `audit_seal` has no `created_by`:
+the spec lists its columns and a seal is made by the system.
+
+**D-531 — The canonical form is a contract, written in `docs/OPERATIONS.md`, and checked against hashes computed
+outside the code.** `AuditCanonical` joins the ten fields of the spec with U+001F and hashes the UTF-8 bytes with
+`DocumentService.sha256`, the one SHA-256 of a byte array in the code base (no second digest helper). The time is
+formatted with a fixed six-digit fraction, because `Instant.toString` drops trailing zero groups; PostgreSQL stores
+microseconds, so the form loses nothing. `detail` is read as `jsonb::text` and never re-serialised in Java.
+`AuditCanonicalTest` pins two hashes computed with Python's `hashlib`; `AuditSealerTest` recomputes a whole chain with
+the SQL recipe in the operations guide, and `AuditExportApiTest` recomputes it from the exported CSV alone with
+`AuditCanonical`. A field is not length-prefixed, so a value containing U+001F could in theory be ambiguous; actions
+and record types are constants in the code and `detail` is JSON, where U+001F is always escaped.
+
+**D-532 — Seal order is the order sealed.** An entry that commits late, with an earlier `created_at` than entries
+already sealed, takes the next `seq`; the chain proves the order entries were sealed in, not the order they were
+created in. Within one batch the order is `created_at, audit_id`. `AuditSealerTest.anEntryCommittedLateTakesTheNextNumber...`
+inserts such an entry. The queue's own `created_at` (copied by the statement that writes the entry) is what the sealer
+sorts on, so the read is an index range scan on `audit_unsealed (tenant_id, created_at, audit_id)` and not a sort of
+the tenant's whole backlog.
+
+**D-533 — `AuditSealer` seals, `AuditSealPoller` schedules; the lock is per tenant and per transaction.** The spec puts
+`@Scheduled` on `AuditSealer`. A scheduled bean cannot be switched off in tests while its logic stays callable, so the
+timer is a separate component, as `JobPoller` is to `JobRunner`: `AuditSealPoller` is `@ConditionalOnProperty
+lexvay.audit.sealing-enabled` (default true, off in `AbstractDatabaseTest` and in the seed and eval profiles), runs
+every `lexvay.audit.seal-interval-ms` (default 2000, `LEXVAY_AUDIT_SEAL_INTERVAL_MS`), begins no batch once the context
+is closing, and carries its own `@EnableScheduling` so it works with job polling off. `AuditSealer.sealWhile` finds the
+tenants with queued rows under the worker flag (V023 adds one policy, `worker_queue_select`, a SELECT on
+`audit_unsealed`; D-013), then for each tenant runs batches of 500 in separate transactions as that tenant. A batch takes
+`pg_try_advisory_xact_lock(hashtextextended('audit-seal:' || tenant, 0))` and skips the tenant when it is held, reads
+the head, reads the queue, hashes in Java, inserts the seals in one `unnest` statement, and deletes the queue rows that
+now have a seal in one `DELETE ... USING audit_seal` (no id lists). A tenant whose batch throws is logged with the
+exception class only and left for the next run, so it cannot hold up the others. `AuditSealPollerTest` is the
+shutdown test. The restart test seals one batch, builds a second `AuditSealer` and finishes the queue.
+
+**D-534 — Verification walks the stored seals, stops at the first that does not hold, and says what it cannot see.**
+`AuditVerificationService.verify` is one read-write transaction (it also writes the `AUDIT_VERIFIED` entry): pages of
+1000 seals joined to their entries by keyset on `(tenant_id, seq)`, each checked by `AuditChainCheck` (pure, tested
+without a database) in this order: the next number (a gap names the number that is missing), the link to the previous
+`row_hash` (genesis for the first), and the recomputed hash. `sealed` is the number of seal rows, `pending` the
+queue's length, `lastSealedAt` and `headHash` those of the newest seal. A seal removed from the end of the chain leaves
+no gap and cannot be seen from the database alone; `docs/OPERATIONS.md` says to keep `headHash` and `sealed` outside
+the database administrator's reach, and every `AUDIT_VERIFIED` entry carries them. Deleting a sealed `audit_log` row is
+refused by the foreign key even with its trigger disabled; deleting a seal row with its trigger disabled reports the gap
+(tests as the container's superuser). Over 20 000 sealed entries the walk took 52 to 75 ms on a quiet machine and 139 to 221 ms on a busy one (D-537, budget 2 s).
+
+**D-535 — The export gains four columns, not two.** The spec adds `seq` and `row_hash`. An exported trail cannot be
+recomputed from those alone: the hash covers the entry id and the actor's id, and the export shows the actor's display
+name. So the columns are `Seq`, `Row hash`, `Entry ID` and `Actor ID`, after `Details` (existing columns keep their
+positions), written by `AuditCsv`, which the F15 evidence package's `audit.csv` shares, so both carry them. A pending entry has an empty `Seq` and `Row hash`. The tenant id is not a column (one export is one
+tenant) and is passed to the check; the previous hash is the previous row's, so the recipe needs an export without
+filters. The Python recipe in `docs/OPERATIONS.md` was run against a real export, intact and with one word changed.
+`AuditExportApiTest` fails if the file stops being enough to recompute every hash. The end-to-end header assertion in
+`records.spec.ts` follows. Called out in the pull request as a spec deviation.
+
+**D-536 — `AUDIT_VERIFIED` records the break, and the sentence never claims more than the entry says.** The spec's
+detail is `{intact, sealed, headHash}`; a broken result also records `firstBrokenSeq`, because the audit screen's
+sentence names the entry ("broken at entry N") and the entry list is the only place that sentence can read it from.
+`headHash` is left out when nothing is sealed. The sentence says "intact" only for `intact: true`; an entry with no
+usable detail reads "verified the audit trail" with no verdict. The action is audited as a read that hands out a
+verdict (listed in `Rule9_AuditCoverageTest.AUDITED_READ_ENDPOINTS`, with rows in `InputValidationTableTest`), and is
+ADMIN only like the export.
+
+**D-537 — What the tests and the budget say.** Tests: `AuditCanonicalTest`, `AuditChainCheckTest`,
+`AuditSealPollerTest` (no database); `AuditSealerTest` (contiguous chain, SQL recipe, restart, 1 200 entries over three
+batches, eight writer threads against two competing sealers, late entry, every tamper), `AuditVerificationApiTest`
+(ADMIN only, 401 and 403, the audit entry, pending, broken, another tenant), `AuditSealBackfillTest`,
+`Rule5_AuditSealImmutabilityTest`, `Rule7_AuditSealIsolationTest`, `Rule9_SingleAuditWritePathTest`. Tests that edit or
+delete behind the application connect as the container's superuser, disable the trigger for one statement and enable it
+again in a `finally`. `AuditSealPerfTest` (`make perf`, tag `perf`) queues 20 000 entries of the perf seed's audit
+volume, seals them with the real sealer, times five verifications after a warm-up (budget 2 s) and fails unless the
+queue read uses `audit_unsealed_tenant_idx` with entries fetched by `audit_log_pkey`, and the dequeue finds its rows by
+`audit_unsealed_pkey`; plans are printed in the run.
+
+### OPS-2b — Stack lock race on Ubuntu 26.04 runners (D-647)
+
+**D-647 — The mutex in `scripts/lib/stack.sh` is a file created with the shell's own `O_EXCL` open, not a `mkdir`.**
+D-641 and D-642 used `mkdir` as the lock because macOS has no `flock`. The CI runner image is now Ubuntu 26.04, whose
+`mkdir` is uutils coreutils 0.10.0, and that `mkdir` is not atomic: it first checks that the path is free, then calls
+`mkdirat`, and when `mkdirat` fails with `EEXIST` because another process created the directory in between, it looks
+at the path again, finds a directory and exits 0. Two processes calling `mkdir` on the same new path at the same moment
+can therefore both succeed. `strace` of six racing calls shows the losing one doing `statx = ENOENT`,
+`mkdirat = EEXIST`, `statx = directory`, then exit 0; 16 racing calls produced two winners in about one round in ten
+(GNU `mkdir` on the same image, `gnumkdir`, produced none in 40 rounds).
+
+Effect in `scripts/lib/stack-lock-test.sh`: holders a and b start together and both took the mutex, both scanned an empty
+token directory, both went for token 1 (the second `mkdir "$dir"` failed with "File exists", but `stack_try_token` runs
+as the condition of an `until`, which switches `set -e` off, so nothing stopped it) and both wrote their pid and slot
+into it, the later write winning. Token 2 was
+never created, so the third holder found one live token and one free slot and started at once: "third holder does not
+start while both tokens are held", "says it is waiting" and "exactly two tokens are held again" failed. The same flaw
+would let two real runs share a token, so the cap of D-641 was not enforced either. It passed on macOS and on
+Ubuntu 24.04 (GNU coreutils), and on 26.04 only when the race was not lost (1 failure in 6 runs).
+
+The mutex is now the file `<lock dir>/.mutex`, taken with `( set -C; : > "$STACK_MUTEX" )`. With `noclobber` the shell
+itself opens the file with `O_CREAT|O_EXCL`, one system call that exactly one contender wins, on every kernel and with
+whatever coreutils are installed; bash 3.2 on macOS does the same. The stale-mutex rule is unchanged (older than a
+minute, removed with `rm -f`). Tokens stay directories holding `pid` and `slot`; they are created only while the
+mutex is held, so their `mkdir` never races. Nothing else in the design changes, and D-642's description "another
+`mkdir`" is replaced by this decision.
+
+Test: a new first section puts a `mkdir` that reports success for an existing directory (what uutils does when it loses
+the race, made certain instead of rare) first on `PATH` for the second contender, holds the mutex in the test shell and
+checks that the second contender stays blocked until the mutex is released. It fails on the old code on every run and
+passes on the new. No retry and no longer sleep was added to the existing scenarios: the failure was in the lock, not in
+the test's timing.
+
+Rejected: `flock` (absent on macOS); another coreutils command as the lock (the cause is trusting an external command for
+atomicity, and the shell's own redirection is the one primitive that needs none); making
+the test retry or wait longer (the failure is a shared token, not slowness); pinning the CI runner to `ubuntu-24.04`
+(hides a real defect that also affects 26.04 developer machines).

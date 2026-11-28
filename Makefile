@@ -56,10 +56,11 @@ seed: db-up ## Load the fictional demo tenants (Northfield University, Westbrook
 
 PERF_MVN = ./mvnw test -Dgroups=perf -DexcludedGroups=none -Djacoco.skip=true
 
-perf: ## Read-path latency benchmark and index-usage check (Testcontainers); fails when a read endpoint's p95 exceeds 40 ms. CI is the arbiter (docs/PERF.md)
+perf: ## Read-path latency benchmark, index-usage check and audit seal check (Testcontainers); fails when a read endpoint's p95 exceeds 40 ms. CI is the arbiter (docs/PERF.md)
 	@status=0; \
 	(cd $(BACKEND) && $(PERF_MVN) -Dtest=EndpointLatencyTest) || status=1; \
 	(cd $(BACKEND) && $(PERF_MVN) -Dtest=IndexUsageTest) || status=1; \
+	(cd $(BACKEND) && $(PERF_MVN) -Dtest=AuditSealPerfTest) || status=1; \
 	exit $$status
 
 test-scripts: ## Tests of the stack scripts' machine-wide semaphore (no Docker, under 20 s)

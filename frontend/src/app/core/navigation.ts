@@ -102,3 +102,12 @@ export function screenOf(url: string): string {
 export function sameScreen(from: string, to: string): boolean {
   return screenOf(from) === screenOf(to);
 }
+
+/**
+ * A screen's `?jurisdiction=` names a state other than the program's first one; without it the first state is shown.
+ * Whether choosing `code` has to change the URL, so that opening a screen never navigates a second time to write
+ * the default into its own address.
+ */
+export function needsJurisdictionParam(urlCode: string | null, code: string, first: string | undefined): boolean {
+  return code !== (urlCode ?? first);
+}
