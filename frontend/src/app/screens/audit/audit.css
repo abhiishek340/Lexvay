@@ -1,52 +1,11 @@
-.lx-audit { max-width: 960px; }
+/* One measure for the title row, the filters and the trail, so the times line up under the title row's end. */
+.lx-audit { max-width: calc(880px + 2 * var(--lx-gutter)); }
+.lx-count { min-height: 16px; }
 
-.lx-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 24px; }
-.lx-count { margin-left: auto; font-size: 13px; line-height: 20px; color: var(--p-lx-ink-2); }
+.lx-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--lx-space-2); margin-bottom: var(--lx-space-5); }
 
-.lx-days { transition: opacity var(--lx-t-fast) var(--lx-ease); }
+/* A new filter dims the trail on screen until its answer arrives. */
+.lx-trail { transition: opacity var(--lx-t-fast) var(--lx-ease); }
 .lx-busy { opacity: .6; }
-.lx-day + .lx-day { margin-top: 12px; }
-.lx-day-title { margin: 0 0 12px; }
-:host ::ng-deep .lx-timeline .p-timeline-event-opposite { display: none; }
-:host ::ng-deep .lx-timeline .p-timeline-event-content { min-width: 0; }
-
-.lx-avatar { flex: none; }
-:host ::ng-deep .lx-avatar-quiet.p-avatar { background: var(--p-lx-sunken); color: var(--p-lx-ink-2); }
-
-.lx-entry-head {
-  width: calc(100% + 20px); min-height: 32px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 5px 10px; margin: 0 -10px;
-  border: 0; border-radius: var(--lx-r-control); background: transparent; color: var(--p-lx-ink); font: inherit; text-align: left; cursor: pointer;
-  transition: background-color var(--lx-t-fast) var(--lx-ease);
-}
-.lx-entry-head:hover, .lx-entry-head[aria-expanded='true'] { background: var(--p-lx-sunken); }
-.lx-sentence { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.lx-sentence strong { font-weight: 600; }
-.lx-time { flex: none; font-size: 13px; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums; }
-.lx-caret { flex: none; color: var(--p-lx-ink-2); transition: transform var(--lx-t) var(--lx-ease); }
-.lx-entry-head[aria-expanded='true'] .lx-caret { transform: rotate(180deg); }
-
-/* Details expand in place: an inset under the sentence, rising into view. */
-.lx-details {
-  display: grid; grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr); gap: 6px 20px; margin: 6px 0 4px; padding: 12px 16px;
-  border-radius: var(--lx-r-control); background: var(--p-lx-sunken); font-size: 13px; line-height: 20px;
-}
-.lx-details div { display: contents; }
-.lx-details dt { color: var(--p-lx-ink-2); }
-.lx-details dd { color: var(--p-lx-ink); overflow-wrap: anywhere; }
-.lx-details .lx-mono { line-height: 20px; }
-.lx-id { margin-left: 8px; color: var(--p-lx-ink-2); }
-.lx-reveal { animation: lx-reveal var(--lx-t) var(--lx-ease) both; }
-@keyframes lx-reveal { from { opacity: 0; transform: translateY(-4px); } }
-
-.lx-more { margin: 4px 0 16px 38px; }
-.lx-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 16px 0 24px; color: var(--p-lx-ink-2); }
-
-.lx-skeleton { display: flex; flex-direction: column; gap: 12px; }
-.lx-skeleton-row { display: flex; gap: 16px; align-items: center; }
-:host ::ng-deep .lx-skeleton-card { flex: 1; }
-
-@media (max-width: 640px) {
-  .lx-count { margin-left: 0; flex-basis: 100%; }
-  .lx-details { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .lx-details div + div dt { margin-top: 6px; }
-}
+.lx-id { margin-left: var(--lx-space-2); color: var(--p-lx-ink-2); }
+.lx-more { margin-top: var(--lx-space-4); }

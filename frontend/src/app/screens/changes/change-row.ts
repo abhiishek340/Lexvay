@@ -1,18 +1,17 @@
 import { ChangeEvent, Determination } from '../../core/models';
-import type { IconName } from '../../theme/icons';
 import { CHANGE_KIND } from './change-kind';
 import { rerunBlocker } from './change-rules';
 
-/** One card of the Changes timeline: what changed, from what to what, where it stands and the one action it offers. */
-export interface ChangeCard {
+/** One row of the Changes log: what changed from what to what, in one sentence, where it stands and the one action it offers. */
+export interface ChangeRow {
   id: string;
   event: ChangeEvent;
-  icon: IconName;
-  /** "Colorado rules, revision 2", "COUN 625, new catalog year". */
-  title: string;
-  /** The two pills: the part of each version name that differs ("2026" and "2026 revision 2"). */
-  from: string;
-  to: string;
+  /** The sentence's subject, set in 500: "Colorado rules", "COUN 625". */
+  subject: string;
+  /** The sentence after its subject: " changed from 2026 to 2026 revision 2". */
+  rest: string;
+  /** The change in a few words, for messages and the action's name: "Colorado rules, revision 2", "COUN 625, new catalog year". */
+  name: string;
   /** The whole version names, for the details. */
   fromFull: string;
   toFull: string;
@@ -34,7 +33,7 @@ const LEADING_PUNCTUATION = /^[-–—:,·|]+$/;
  * shared word when one name is the other plus more. "Demo rule set - Colorado (fictional) 2026" and "... 2026
  * revision 2" become "2026" and "2026 revision 2"; `added` is what only the new name has ("revision 2").
  */
-export function versionPills(oldName: string, newName: string): { from: string; to: string; added: string } {
+export function versionDifference(oldName: string, newName: string): { from: string; to: string; added: string } {
   const a = oldName.trim().split(/\s+/);
   const b = newName.trim().split(/\s+/);
   let shared = 0;
@@ -63,26 +62,32 @@ export function affects(ids: string[], jurisdictionName: (code: string) => strin
   return [...names, ...other].join(', ');
 }
 
-/** The card for one change event. `jurisdictionName` turns "CO" into "Colorado". */
-export function changeCard(e: ChangeEvent, jurisdictionName: (code: string) => string, determinations: Determination[]): ChangeCard {
+/** The row for one change event. `jurisdictionName` turns "CO" into "Colorado". */
+export function changeRow(e: ChangeEvent, jurisdictionName: (code: string) => string, determinations: Determination[]): ChangeRow {
   const kind = CHANGE_KIND[e.kind];
   const base = {
-    id: e.id, event: e, icon: kind.icon, open: e.status === 'OPEN', action: kind.action, blocker: rerunBlocker(e),
+    id: e.id, event: e, open: e.status === 'OPEN', action: kind.action, blocker: rerunBlocker(e),
     affects: affects(e.reopenedDeterminationIds, jurisdictionName, determinations), createdAt: e.createdAt,
   };
   if (e.kind === 'RULE_VERSION') {
-    const fromFull = e.oldLabel ?? 'Previous rule version';
-    const toFull = e.newLabel ?? 'New rule version';
-    const pills = versionPills(fromFull, toFull);
-    const where = e.jurisdiction ? jurisdictionName(e.jurisdiction) : 'State';
-    return { ...base, title: `${where} rules, ${pills.added || 'new version'}`, from: pills.from, to: pills.to, fromFull, toFull, versionNoun: 'Rule version' };
+    const subject = `${e.jurisdiction ? jurisdictionName(e.jurisdiction) : 'State'} rules`;
+    const diff = e.oldLabel && e.newLabel ? versionDifference(e.oldLabel, e.newLabel) : null;
+    return {
+      ...base, subject, rest: diff ? ` changed from ${diff.from} to ${diff.to}` : ' have a new version',
+      name: `${subject}, ${diff?.added || 'new version'}`,
+      fromFull: e.oldLabel ?? 'Previous rule version', toFull: e.newLabel ?? 'New rule version', versionNoun: 'Rule version',
+    };
   }
-  const fromFull = e.oldCatalogYear ?? 'Earlier catalog year';
-  const toFull = e.newCatalogYear ?? 'New catalog year';
-  return { ...base, title: `${e.courseCode ?? 'Course'}, new catalog year`, from: fromFull, to: toFull, fromFull, toFull, versionNoun: 'Catalog year' };
+  const subject = e.courseCode ?? 'A course';
+  const years = e.oldCatalogYear && e.newCatalogYear ? { from: e.oldCatalogYear, to: e.newCatalogYear } : null;
+  return {
+    ...base, subject, rest: years ? ` changed from catalog year ${years.from} to ${years.to}` : ' has a new catalog year',
+    name: `${subject}, new catalog year`,
+    fromFull: e.oldCatalogYear ?? 'Earlier catalog year', toFull: e.newCatalogYear ?? 'New catalog year', versionNoun: 'Catalog year',
+  };
 }
 
-/** Newest first: the timeline reads from the latest change down. */
-export function changeCards(events: ChangeEvent[], jurisdictionName: (code: string) => string, determinations: Determination[]): ChangeCard[] {
-  return [...events].sort((x, y) => y.createdAt.localeCompare(x.createdAt)).map((e) => changeCard(e, jurisdictionName, determinations));
+/** Newest first: the log reads from the latest change down. */
+export function changeRows(events: ChangeEvent[], jurisdictionName: (code: string) => string, determinations: Determination[]): ChangeRow[] {
+  return [...events].sort((x, y) => y.createdAt.localeCompare(x.createdAt)).map((e) => changeRow(e, jurisdictionName, determinations));
 }

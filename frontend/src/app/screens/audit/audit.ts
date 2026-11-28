@@ -1,14 +1,9 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NgIcon } from '@ng-icons/core';
-import { phosphorCaretDown, phosphorGear, phosphorUser } from '@ng-icons/phosphor-icons/regular';
-import { Avatar } from 'primeng/avatar';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
-import { Skeleton } from 'primeng/skeleton';
-import { Timeline } from 'primeng/timeline';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { AuditEntry, UserSummary } from '../../core/models';
@@ -16,14 +11,13 @@ import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
+import { groupByDay } from '../../ui/days';
 import { Help, HelpTerm } from '../../ui/help';
+import { SkeletonRows } from '../../ui/skeleton-rows';
 import { AUDIT_TOKENS } from './audit-theme';
 import {
-  ACTION_OPTIONS, AuditQuery, NO_QUERY, PERIOD_OPTIONS, RECORD_TYPE_OPTIONS, auditCsvUrl, auditParams, auditRows, groupByDay, personOptions,
+  ACTION_OPTIONS, AuditQuery, NO_QUERY, PERIOD_OPTIONS, RECORD_TYPE_OPTIONS, auditCsvUrl, auditParams, auditRows, personOptions,
 } from './audit-view';
-
-/** The icons the Audit trail shows beyond SHELL_ICONS, provided by its route (audit.routes.ts). */
-export const AUDIT_ICONS = { phosphorCaretDown, phosphorGear, phosphorUser };
 
 const HELP: readonly HelpTerm[] = [
   { term: 'Audit trail', definition: 'Every action, newest first: who did it, when, what it was and on which record.' },
@@ -35,11 +29,11 @@ const PAGE = 100;
 
 /**
  * The audit trail (DESIGN.md "Audit trail"): the entries the server returns for the filters on screen, newest first,
- * as a timeline grouped by day, each entry one sentence that expands in place to its worded details.
+ * as a log grouped by day, each entry one sentence with its time that opens below itself to its worded details.
  */
 @Component({
   selector: 'lx-audit',
-  imports: [DatePipe, FormsModule, NgIcon, Avatar, ButtonDirective, ButtonLabel, Message, Select, Skeleton, Timeline, Help],
+  imports: [DatePipe, FormsModule, ButtonDirective, ButtonLabel, Message, Select, Help, SkeletonRows],
   templateUrl: './audit.html',
   styleUrl: './audit.css',
 })
@@ -75,7 +69,7 @@ export class Audit {
     const names = (code: string): string => this.context.jurisdictionName(code);
     return pages.flatMap((page) => auditRows(page, users, names));
   });
-  readonly days = computed(() => groupByDay(this.rows() ?? [], this.loadedAt()));
+  readonly days = computed(() => groupByDay(this.rows() ?? [], (row) => row.at, this.loadedAt()));
   readonly filtered = computed(() => Object.values(this.query()).some((v) => v !== null));
   readonly csvUrl = computed(() => auditCsvUrl(this.query(), new Date()));
   readonly summary = computed(() => {

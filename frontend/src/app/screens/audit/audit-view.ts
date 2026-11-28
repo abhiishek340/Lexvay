@@ -1,10 +1,6 @@
 import { DECISION_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, ROLE_LABEL, humanize } from '../../core/labels';
 import { AuditEntry, DecisionKind, NumericField, Outcome, Role, UserSummary } from '../../core/models';
-import { initials } from '../../ui/initials';
 import { ACTION_LABEL, auditSentence, capitalize } from './audit-sentence';
-
-/** Who acted: a person of the tenant, background work (no user), or a user id the tenant no longer lists. */
-export type ActorKind = 'person' | 'system' | 'former';
 
 /** One detail of an entry, worded: "Decision: Gap confirmed". `mono` for ids and hashes. */
 export interface DetailRow { label: string; value: string; mono: boolean }
@@ -13,10 +9,8 @@ export interface AuditRow {
   id: string;
   at: string;
   action: string;
+  /** Who acted: a person of the tenant by name, "System" for background work, "Former user" for an id the tenant no longer lists. */
   actor: string;
-  actorKind: ActorKind;
-  /** "DW" for Dana Whitfield; empty for the system and former users, who get an icon. */
-  initials: string;
   sentence: string;
   /** The sentence after the actor's name, so the name can be set in bold: " accepted CA-3". */
   rest: string;
@@ -161,22 +155,18 @@ function actorId(e: AuditEntry): string | null {
   return e.action === 'LOGOUT' && e.entityType === 'app_user' ? e.entityId : null;
 }
 
-/** Entries as the timeline shows them: actor resolved to a name, the sentence, the worded details. */
+/** Entries as the trail shows them: actor resolved to a name, the sentence, the worded details. */
 export function auditRows(entries: AuditEntry[], users: UserSummary[], names: (code: string) => string): AuditRow[] {
   const people = new Map(users.map((u) => [u.id, u.displayName]));
   return entries.map((e) => {
     const id = actorId(e);
-    const known = id === null ? null : people.get(id);
-    const actorKind: ActorKind = id === null ? 'system' : known ? 'person' : 'former';
-    const actor = actorKind === 'system' ? 'System' : (known ?? 'Former user');
+    const actor = id === null ? 'System' : (people.get(id) ?? 'Former user');
     const sentence = auditSentence(e.action, { actor, detail: e.detail, jurisdictionName: names });
     return {
       id: e.id,
       at: e.createdAt,
       action: e.action,
       actor,
-      actorKind,
-      initials: actorKind === 'person' ? initials(actor) : '',
       sentence,
       rest: sentence.startsWith(actor) ? sentence.slice(actor.length) : ` ${sentence}`,
       recordLabel: recordLabel(e.entityType),
@@ -184,38 +174,6 @@ export function auditRows(entries: AuditEntry[], users: UserSummary[], names: (c
       details: detailRows(e.detail, names),
     };
   });
-}
-
-export interface DayGroup { key: string; label: string; rows: AuditRow[] }
-
-/** "2026-11-27" for the local calendar day of an instant. */
-function dayKey(date: Date): string {
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-/**
- * Rows grouped by local calendar day, in the order given (the server's newest first). Days read "Today",
- * "Yesterday", then "Wednesday 25 November", with the year only when it is not the current one.
- */
-export function groupByDay(rows: AuditRow[], now: Date): DayGroup[] {
-  const today = dayKey(now);
-  const yesterday = dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
-  const groups: DayGroup[] = [];
-  for (const row of rows) {
-    const at = new Date(row.at);
-    const key = dayKey(at);
-    let group = groups.at(-1);
-    if (group?.key !== key) {
-      const sameYear = at.getFullYear() === now.getFullYear();
-      const label = key === today ? 'Today' : key === yesterday ? 'Yesterday'
-        : at.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', ...(sameYear ? {} : { year: 'numeric' }) }).replace(',', '');
-      group = { key, label, rows: [] };
-      groups.push(group);
-    }
-    group.rows.push(row);
-  }
-  return groups;
 }
 
 export type Period = 'today' | 'week' | 'month';

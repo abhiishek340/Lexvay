@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AuditEntry, UserSummary } from '../../core/models';
 import {
-  ACTION_OPTIONS, NO_QUERY, RECORD_TYPE_OPTIONS, auditCsvUrl, auditParams, auditRows, detailRows, groupByDay, periodStart, personOptions,
+  ACTION_OPTIONS, NO_QUERY, RECORD_TYPE_OPTIONS, auditCsvUrl, auditParams, auditRows, detailRows, periodStart, personOptions,
 } from './audit-view';
 
 const users: UserSummary[] = [
@@ -27,10 +27,8 @@ const entries = [
 describe('audit rows', () => {
   const rows = auditRows(entries, users, names);
 
-  it('resolves actors to names with initials; background work is System, unknown ids a former user', () => {
-    expect(rows.map((r) => [r.actor, r.actorKind, r.initials])).toEqual([
-      ['Dana Whitfield', 'person', 'DW'], ['Dr. Priya Raman', 'person', 'PR'], ['System', 'system', ''], ['Former user', 'former', ''],
-    ]);
+  it('resolves actors to names; background work is System, unknown ids a former user', () => {
+    expect(rows.map((r) => r.actor)).toEqual(['Dana Whitfield', 'Dr. Priya Raman', 'System', 'Former user']);
   });
 
   it('names the person on a sign-out, recorded with its actor since FIX-5 or without one before, never "System"', () => {
@@ -39,14 +37,14 @@ describe('audit rows', () => {
       { ...entry('6', 'LOGOUT', 'app_user', at(26, 12), null), entityId: 'u2' },
       entry('7', 'REPORT_GENERATED', 'report', at(26, 12), null),
     ], users, names);
-    expect([recorded.actor, recorded.actorKind, recorded.sentence]).toEqual(['Dana Whitfield', 'person', 'Dana Whitfield signed out']);
-    expect([legacy.actor, legacy.actorKind, legacy.sentence]).toEqual(['Dr. Priya Raman', 'person', 'Dr. Priya Raman signed out']);
+    expect([recorded.actor, recorded.sentence]).toEqual(['Dana Whitfield', 'Dana Whitfield signed out']);
+    expect([legacy.actor, legacy.sentence]).toEqual(['Dr. Priya Raman', 'Dr. Priya Raman signed out']);
     expect(job.actor).toBe('System');
   });
 
   it('does not borrow an account for other actions recorded without a user', () => {
     const [signIn] = auditRows([{ ...entry('8', 'LOGIN_SUCCEEDED', 'app_user', at(27, 12), null), entityId: 'u1' }], users, names);
-    expect([signIn.actor, signIn.actorKind]).toEqual(['System', 'system']);
+    expect(signIn.actor).toBe('System');
   });
 
   it('carries one sentence per entry and the record type in words', () => {
@@ -93,25 +91,6 @@ describe('detail rows', () => {
   it('read roles where a role is stored and dates where a filter is', () => {
     expect(detailRows({ email: 'j@x', from: 'REVIEWER', to: 'SIGNER' }, names).map((r) => r.value)).toEqual(['j@x', 'Reviewer', 'Signer']);
     expect(detailRows({ from: '2026-11-01T00:00:00Z' }, names).map((r) => r.value)).toEqual(['2026-11-01T00:00:00Z']);
-  });
-});
-
-describe('timeline grouping', () => {
-  const rows = auditRows(entries, users, names);
-
-  it('groups by local day in the order given, naming today and yesterday', () => {
-    const groups = groupByDay(rows, new Date(2026, 10, 27, 15, 0));
-    expect(groups.map((g) => [g.key, g.label, g.rows.map((r) => r.id)])).toEqual([
-      ['2026-11-27', 'Today', ['1', '2']],
-      ['2026-11-26', 'Yesterday', ['3']],
-      ['2026-11-20', 'Friday 20 November', ['4']],
-    ]);
-  });
-
-  it('adds the year to a day of another year', () => {
-    const [group] = groupByDay(rows.slice(3), new Date(2027, 0, 2, 9, 0));
-    expect(group.label).toBe('Friday 20 November 2026');
-    expect(groupByDay([], new Date())).toEqual([]);
   });
 });
 

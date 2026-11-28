@@ -2,77 +2,58 @@
   <header class="lx-page-header">
     <div>
       <h1>Changes</h1>
-      @if (context.ready() && cards().length > 0) { <p class="lx-meta">{{ openCount() }} open</p> }
+      @if (context.ready() && rows().length > 0) { <p class="lx-meta">{{ openCount() }} open</p> }
     </div>
     <lx-help [terms]="help" />
   </header>
   @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
   @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
-  <p class="lx-status-line" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
+  <p class="lx-sr-only" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
 
   @if (context.ready()) {
-    @if (cards().length === 0) {
-      <div class="lx-empty">
-        <p>No changes yet.</p>
-        <a pButton size="small" [outlined]="true" routerLink="../rules"><span pButtonLabel>Open rules</span></a>
-      </div>
-    } @else {
-      <p-timeline class="lx-timeline" [value]="cards()" [pt]="{ root: { role: 'list', 'aria-label': 'Change events' }, event: { role: 'listitem' } }">
-        <ng-template #marker let-c>
-          <span class="lx-marker" [class.lx-marker-open]="c.open" aria-hidden="true"><ng-icon [name]="c.icon" size="18" /></span>
-        </ng-template>
-        <ng-template #content let-c>
-          @let busy = running();
-          <article class="lx-change" [attr.aria-labelledby]="'change-' + c.id" [attr.data-status]="c.event.status">
-            <div class="lx-change-head">
-              <h2 [id]="'change-' + c.id">{{ c.title }}</h2>
-              <lx-label>{{ c.open ? 'Open' : 'Handled' }}</lx-label>
-            </div>
-            <p class="lx-versions">
-              <span class="lx-version-old">{{ c.from }}</span>
-              <ng-icon name="phosphorArrowRight" size="14" aria-hidden="true" /><span class="lx-sr-only">to</span>
-              <span class="lx-version-new">{{ c.to }}</span>
-              <time class="lx-when" [attr.datetime]="c.createdAt">{{ c.createdAt | date: 'd MMM y' }}</time>
-            </p>
-
-            <div class="lx-change-foot">
-              @if (busy?.id === c.id) {
-                <span class="lx-running" data-testid="rerun-progress">
-                  <p-progress-spinner strokeWidth="6" [ariaLabel]="busy!.phase" styleClass="lx-spinner" />{{ busy!.phase }}
-                </span>
-              } @else if (c.open && session.canReview()) {
-                <button pButton type="button" size="small" [disabled]="!!c.blocker || busy !== null" (click)="rerun(c)"
-                        [attr.aria-describedby]="c.blocker ? 'blocker-' + c.id : null">
-                  <span pButtonLabel>{{ c.action }}</span>
-                </button>
-                @if (c.blocker) { <span class="lx-help" [id]="'blocker-' + c.id">{{ c.blocker }}</span> }
-              } @else if (c.open) {
-                <span class="lx-help">A reviewer re-runs this change.</span>
+    @for (day of days(); track day.key) {
+      <section class="lx-log-day" [attr.aria-labelledby]="'changes-' + day.key">
+        <h2 class="lx-log-heading" [id]="'changes-' + day.key">{{ day.label }}</h2>
+        <ul class="lx-log-rows" [attr.aria-labelledby]="'changes-' + day.key">
+          @for (r of day.items; track r.id) {
+            @let busy = running();
+            <li class="lx-log-row" [attr.data-status]="r.event.status">
+              <div class="lx-log-line">
+                <button type="button" class="lx-log-toggle" [attr.aria-expanded]="isOpen(r.id)" [attr.aria-controls]="isOpen(r.id) ? 'change-' + r.id : null"
+                        (click)="toggle(r.id)"><strong>{{ r.subject }}</strong>{{ r.rest }}</button>
+                @if (busy?.id === r.id) {
+                  <span class="lx-meta lx-state" data-testid="rerun-progress">{{ busy!.phase }}</span>
+                } @else if (r.open && session.canReview() && !r.blocker) {
+                  <button type="button" class="lx-row-action" [disabled]="busy !== null" [attr.aria-label]="r.action + ', ' + r.name" (click)="rerun(r)">{{ r.action }}</button>
+                } @else if (r.open) {
+                  @let why = r.blocker ?? 'A reviewer re-runs this change.';
+                  <span class="lx-meta lx-state lx-term" tabindex="0" tooltipEvent="both" [pTooltip]="why" tooltipPosition="left"
+                        [attr.aria-description]="why">{{ r.blocker ? 'Blocked' : 'Open' }}</span>
+                } @else {
+                  <span class="lx-meta lx-state">Handled</span>
+                }
+                <time class="lx-log-time" [attr.datetime]="r.createdAt">{{ r.createdAt | date: 'HH:mm' }}</time>
+              </div>
+              @if (isOpen(r.id)) {
+                <dl class="lx-log-details" [id]="'change-' + r.id">
+                  <div><dt>Reopened</dt><dd>{{ r.affects }}</dd></div>
+                  <div><dt>{{ r.versionNoun }}</dt><dd>{{ r.fromFull }}</dd></div>
+                  <div><dt>Replaced by</dt><dd>{{ r.toFull }}</dd></div>
+                  @if (r.event.courseCode) { <div><dt>Course</dt><dd>{{ r.event.courseCode }}</dd></div> }
+                  <div><dt>Recorded</dt><dd>{{ r.createdAt | date: 'd MMM y, HH:mm' }}</dd></div>
+                </dl>
               }
-              <button type="button" class="lx-disclose" [attr.aria-expanded]="isOpen(c.id)" [attr.aria-controls]="isOpen(c.id) ? 'details-' + c.id : null"
-                      (click)="toggle(c.id)">
-                Details<ng-icon name="phosphorCaretDown" size="14" aria-hidden="true" />
-              </button>
-            </div>
-
-            @if (isOpen(c.id)) {
-              <dl class="lx-details" [id]="'details-' + c.id" animate.enter="lx-reveal">
-                <div><dt>Reopened</dt><dd>{{ c.affects }}</dd></div>
-                <div><dt>{{ c.versionNoun }}</dt><dd>{{ c.fromFull }}</dd></div>
-                <div><dt>Replaced by</dt><dd>{{ c.toFull }}</dd></div>
-                @if (c.event.courseCode) { <div><dt>Course</dt><dd>{{ c.event.courseCode }}</dd></div> }
-                <div><dt>Recorded</dt><dd class="lx-mono">{{ c.createdAt | date: 'yyyy-MM-dd HH:mm' }}</dd></div>
-              </dl>
-            }
-          </article>
-        </ng-template>
-      </p-timeline>
+            </li>
+          }
+        </ul>
+      </section>
+    } @empty {
+      <div class="lx-empty-state">
+        <p>No changes yet.</p>
+        <a pButton [outlined]="true" routerLink="../rules"><span pButtonLabel>Open rules</span></a>
+      </div>
     }
   } @else if (!context.error()) {
-    <div class="lx-skeleton" role="status" aria-busy="true" aria-label="Loading changes">
-      @for (i of [1, 2]; track i) {
-        <div class="lx-skeleton-row"><p-skeleton aria-hidden="true" shape="circle" size="2.25rem" /><p-skeleton aria-hidden="true" height="8.5rem" styleClass="lx-skeleton-card" /></div>
-      }
-    </div>
+    <lx-skeleton-rows label="Loading changes" [rows]="3" />
   }
 </div>

@@ -178,6 +178,48 @@ a.lx-row-action:not(.p-button) { text-decoration: none; }
 .lx-row-action:hover, a.lx-row-action:not(.p-button):hover { text-decoration: underline; }
 .lx-row-action:disabled { color: var(--p-lx-ink-2); cursor: default; text-decoration: none; }
 
+/* A log (DESIGN.md "Changes, Audit trail"): entries grouped by day under a meta heading on a line-strong rule, one
+   sentence per 40 px row in Body with the time in meta at the right, the detail opening below its row. The sentence is
+   the row's disclosure button; its hit area covers the whole line, and anything else on the line (a row action) sits
+   above it. No dots, no avatars, no cards.
+     <section class="lx-log-day"><h2 class="lx-log-heading">Today</h2><ul class="lx-log-rows"><li class="lx-log-row">
+       <div class="lx-log-line"><button class="lx-log-toggle">…</button><time class="lx-log-time">19:58</time></div>
+       <dl class="lx-log-details">…</dl></li></ul></section> */
+.lx-log-day + .lx-log-day { margin-top: var(--lx-space-6); }
+.lx-log-heading {
+  height: 40px; box-sizing: border-box; display: flex; align-items: center; border-bottom: 1px solid var(--p-lx-line-strong);
+  font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2);
+}
+.lx-log-rows { list-style: none; margin: 0; padding: 0; }
+.lx-log-row { border-bottom: 1px solid var(--p-lx-line); }
+.lx-log-line {
+  position: relative; display: flex; align-items: baseline; gap: var(--lx-space-4); min-height: 40px; box-sizing: border-box;
+  margin: 0 calc(-1 * var(--lx-space-3)); padding: 10px var(--lx-space-3); transition: background-color var(--lx-t-fast) var(--lx-ease);
+}
+.lx-log-line:hover { background: var(--p-lx-sunken); }
+.lx-log-toggle {
+  flex: 1; min-width: 0; padding: 0; border: 0; background: none; cursor: pointer; text-align: left;
+  font: inherit; font-size: 14px; line-height: 20px; color: var(--p-lx-ink); overflow-wrap: anywhere;
+}
+.lx-log-toggle::after { content: ''; position: absolute; inset: 0; }
+.lx-log-toggle strong { font-weight: 500; }
+.lx-log-line > :not(.lx-log-toggle) { position: relative; flex: none; }
+.lx-log-time { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); white-space: nowrap; }
+.lx-log-details {
+  display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: var(--lx-space-1) var(--lx-space-4); padding: 2px 0 var(--lx-space-4);
+  animation: lx-rise-in var(--lx-t) var(--lx-ease) both;
+}
+.lx-log-details > div { display: contents; }
+.lx-log-details dt { font-size: 12px; line-height: 20px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
+.lx-log-details dd { overflow-wrap: anywhere; }
+.lx-log-details .lx-mono { line-height: 20px; }
+@media (max-width: 640px) {
+  .lx-log-line { flex-wrap: wrap; row-gap: var(--lx-space-1); }
+  .lx-log-toggle { flex-basis: calc(100% - 56px); }
+  .lx-log-details { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .lx-log-details > div + div dt { margin-top: var(--lx-space-2); }
+}
+
 /* Outcome words; they always travel with a mark or a sentence, never colour alone. */
 .lx-found { color: var(--p-lx-found); }
 .lx-missing { color: var(--p-lx-missing); }
