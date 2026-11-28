@@ -170,9 +170,9 @@ public record LabReport(EvalReport.Mode mode, String model, String host, LocalDa
     }
 
     private static String usageLine(String system, EvalReport.Usage usage) {
-        return String.format(Locale.ROOT, "- %s: %d calls, %,d input tokens, %,d output tokens, %.1f s, cost %s USD%n", system, usage.calls(),
+        return String.format(Locale.ROOT, "- %s: %d calls, %,d input tokens, %,d output tokens, %.1f s, cost %s%n", system, usage.calls(),
                 usage.inputTokens(), usage.outputTokens(), usage.wallTime().toMillis() / 1000.0,
-                usage.cost() == null ? "n/a (no price in LEXVAY_LLM_RATES)" : usage.cost().toPlainString());
+                usage.cost() == null ? "n/a (no price in LEXVAY_LLM_RATES)" : usage.cost().toPlainString() + " USD");
     }
 
     private void disagreements(StringBuilder out) {

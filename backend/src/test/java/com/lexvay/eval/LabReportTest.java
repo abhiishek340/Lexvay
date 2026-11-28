@@ -10,6 +10,7 @@ import static com.lexvay.eval.LabFixtures.thresholds;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.lexvay.rule.RequirementType;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
@@ -93,6 +94,7 @@ class LabReportTest {
                 "| Quote verification | 5 / 5, 100.0 % [56.6 %, 100.0 %] | 3 / 5, 60.0 % [23.1 %, 88.2 %] | = 100.0 % | ok |",
                 "### Generic baseline by state", "### Pipeline by state", "Generic baseline: key demo: the model was given 13 of 14 pages",
                 "- Generic baseline: 3 calls, 1,000 input tokens, 200 output tokens, 2.0 s, cost 0 USD",
+                "- Pipeline: 3 calls, 1,000 input tokens, 200 output tokens, 2.0 s, cost 0 USD",
                 "Token counts marked as estimates come from text length");
         JsonNode measured = compared.json(JSON).get("baseline").get("measured");
         assertThat(measured.get("metrics").get("severeFalseAssurance").get("numerator").asInt()).isEqualTo(3);
@@ -109,7 +111,7 @@ class LabReportTest {
     @Test
     void disagreementsAndBreachesAreListedAndTheResultFails() {
         List<LabScorer.Row> rows = eightRows("demo");
-        LabReport failing = new LabReport(EvalReport.Mode.SCRIPTED, "m", null, java.time.LocalDate.of(2026, 11, 28), AnswerKey.Split.dev,
+        LabReport failing = new LabReport(EvalReport.Mode.SCRIPTED, "m", null, LocalDate.of(2026, 11, 28), AnswerKey.Split.dev,
                 List.of(new AnswerKeys.Loaded("demo", "f".repeat(64), FICTIONAL)), measured(rows, new Ratio(1, 1)),
                 LabReport.Baseline.notRequested(), thresholds(0.0), List.of("severe false assurance 37.5 % (3 / 8) breaks the limit <= 0.0 %"));
 

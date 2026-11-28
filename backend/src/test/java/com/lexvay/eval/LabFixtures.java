@@ -1,10 +1,12 @@
 package com.lexvay.eval;
 
 import com.lexvay.assessment.Finding;
+import com.lexvay.rule.NumericField;
 import com.lexvay.rule.RequirementType;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,7 +27,7 @@ final class LabFixtures {
 
     static AnswerKey.Requirement requirement(String jurisdiction, String ref, RequirementType type, AnswerKey.Expected expected,
                                              AnswerKey.Severity severity, AnswerKey.Span... spans) {
-        Golden.Numeric numeric = type.isNumeric() ? new Golden.Numeric(com.lexvay.rule.NumericField.TOTAL_CREDITS, ">=", BigDecimal.valueOf(60)) : null;
+        Golden.Numeric numeric = type.isNumeric() ? new Golden.Numeric(NumericField.TOTAL_CREDITS, ">=", BigDecimal.valueOf(60)) : null;
         return new AnswerKey.Requirement(ref, jurisdiction, "title " + ref, "text of " + ref, type, numeric, List.of(), expected, severity,
                 List.of(spans), null, null);
     }
@@ -80,7 +82,7 @@ final class LabFixtures {
 
     /** Every limit unset except severe false assurance, which is {@code severeMaximum} (null for unset). */
     static LabThresholds thresholds(Double severeMaximum) {
-        var limits = new java.util.LinkedHashMap<String, LabThresholds.Limit>();
+        var limits = new LinkedHashMap<String, LabThresholds.Limit>();
         for (LabMetric metric : LabMetric.values()) {
             limits.put(metric.key(), new LabThresholds.Limit(metric == LabMetric.SEVERE_FALSE_ASSURANCE ? severeMaximum : null));
         }

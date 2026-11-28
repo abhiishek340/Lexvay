@@ -8,14 +8,17 @@ import static org.mockito.Mockito.spy;
 import com.lexvay.assessment.AssessmentService;
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.YamlFile;
+import com.lexvay.document.DocumentService;
 import com.lexvay.job.JobRunner;
 import com.lexvay.llm.FakeLlmClient;
 import com.lexvay.llm.LlmClient;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.List;
+import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -55,7 +58,7 @@ class LabServiceTest extends AbstractDatabaseTest {
         return new AnswerKeys(json, EVAL).dev().get(0);
     }
 
-    private static AnswerKeys.Loaded with(AnswerKeys.Loaded loaded, java.util.function.UnaryOperator<AnswerKey.Requirement> change) {
+    private static AnswerKeys.Loaded with(AnswerKeys.Loaded loaded, UnaryOperator<AnswerKey.Requirement> change) {
         AnswerKey key = loaded.key();
         return new AnswerKeys.Loaded(loaded.id(), loaded.sha256(),
                 new AnswerKey(key.split(), key.provenance(), key.requirements().stream().map(change).toList()));
@@ -139,7 +142,7 @@ class LabServiceTest extends AbstractDatabaseTest {
         String heldOut = Files.readString(EVAL.resolve("keys").resolve("demo-northfield.yml")).replaceFirst("(?m)^split: dev", "split: holdout")
                 .replace("Credit hours", "Held-out secret title");
         Files.writeString(keys.resolve("held-out-secret.yml"), heldOut);
-        Files.writeString(dir.resolve("holdout.lock"), com.lexvay.document.DocumentService.sha256(heldOut.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+        Files.writeString(dir.resolve("holdout.lock"), DocumentService.sha256(heldOut.getBytes(StandardCharsets.UTF_8))
                 + "  held-out-secret.yml\n");
 
         LabReport report = labs.run(SEED, AnswerKey.Split.dev, new AnswerKeys(json, dir).dev(), thresholds, false);
