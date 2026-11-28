@@ -211,6 +211,52 @@ fix: a machine-wide semaphore over isolated stacks, in `scripts/lib/stack.sh` on
 5. **Docs:** a sentence in CLAUDE.md's "Local environment" section, the README or OPERATIONS where `make e2e` is
    described, and `docs/decisions/OPS-2.md` and `docs/progress/OPS-2.md`.
 
+### EV-1 — Local inference adapter and labelled evaluation runs (backend; slot 8; Sonnet 5.5; no migration; D-616 to D-620)
+The master prompt (M5) asks for evaluation on authorized, no-incremental-fee inference, with no untested model
+hard-coded. Llama.cpp's `llama-server`, Ollama, vLLM and LM Studio all expose the OpenAI-compatible
+`/v1/chat/completions` API, so one adapter covers them. Which model to run is the founder's choice, and the agent
+downloads no model.
+1. **Client:** `OpenAiCompatibleLlmClient implements LlmClient` (provider `openai-compatible`).
+   - It uses the JDK `HttpClient`; no new dependency.
+   - Configuration: `LEXVAY_LLM_BASE_URL` (required), `LEXVAY_LLM_MODEL` (required, **no default**),
+     `LEXVAY_LLM_API_KEY` (optional), and `LEXVAY_LLM_TIMEOUT_SECONDS` (default 120).
+   - `LEXVAY_LLM_ALLOWED_HOSTS` (default `localhost,127.0.0.1,::1`): a base URL host outside it fails startup.
+     Remote endpoints need an explicit entry, and the startup line names the host.
+   - `metered()` is false, because local inference has no per-call fee. `scripted()` is false, so LIVE tenants may
+     use it.
+2. **Structured output:** send `response_format: {type: "json_schema", json_schema: {name, schema, strict: true}}`.
+   - If the server rejects it (HTTP 400 naming `response_format`), retry once without it, with the schema in the
+     system message.
+   - Either way, validate with the existing `JsonSchemaValidator`; an invalid answer is the same failure as
+     Anthropic's.
+   - Record `usage.prompt_tokens` and `usage.completion_tokens` when present, and estimate them as the fake
+     provider does when absent, marking the estimate in `llm_call` (reuse the existing field if one exists; check
+     first).
+3. **Evaluation labels:** `EvalReport.Mode` becomes `SCRIPTED` (fake), `LOCAL_LIVE` (openai-compatible) and
+   `PAID_LIVE` (anthropic).
+   - The report header states the mode, model, base URL host and date.
+   - `make eval-live` accepts either live provider.
+   - `eval/thresholds.yml` keeps separate limits for scripted and live. Live limits stay "unmeasured first values"
+     until a measured run sets them; never copy the scripted ones.
+   - A local run's report is written to `eval/runs/<date>-<model-slug>.txt` (gitignored) for the founder to keep.
+4. **Tests**, against an in-process `com.sun.net.httpserver.HttpServer` on loopback (no network):
+   - success with `json_schema`;
+   - the 400 fallback;
+   - an invalid JSON answer;
+   - a timeout;
+   - missing usage (estimated and marked);
+   - a disallowed host failing startup;
+   - a LIVE tenant accepted, and the spend gate not consulted;
+   - the eval header for each mode.
+5. **Docs:** "Local inference" in OPERATIONS, covering:
+   - how to point Lexvay at a local server (with `llama-server --port 8089` and `ollama serve` as examples of
+     servers, not model recommendations);
+   - that a model's licence must be vetted before use;
+   - the memory and latency to measure;
+   - that results from a model nobody has vetted are labelled as such.
+
+   Decisions go in `docs/decisions/EV-1.md`, progress in `docs/progress/EV-1.md`.
+
 ## Design system v3 "Ledger" (owner directive 2026-11-27: "not AI slop", professional, human craft)
 The owner reviewed v2 on the running app and rejected it: yellow and orange accents, icon-heavy pills and cards, a
 palette and card art that look generated. `docs/DESIGN.md` is rewritten as v3 and is the contract. Every screen
@@ -414,7 +460,8 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | merged (#51) |
 | AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | in progress |
 | OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | in progress |
-| RG-2, RG-3, AC-2, AC-3, EV-1, EV-2, UX-1 | see Real-data validation track | — | — | queued |
+| EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | in progress |
+| RG-2, RG-3, AC-2, AC-3, EV-2, UX-1 | see Real-data validation track | — | — | queued |
 | SP-1 SharePoint spike, DOM-1 expert review | — | — | — | blocked (founder) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
