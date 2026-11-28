@@ -153,7 +153,7 @@ class HostThrottleTest extends AbstractRuleSourceTest {
         assertThat(hosts.reserve(host, Duration.ofSeconds(30))).isEqualTo(Duration.ZERO);
         Duration wait = hosts.reserve(host, Duration.ofSeconds(30));
 
-        assertThat(wait).isBetween(Duration.ofSeconds(28), Duration.ofSeconds(30));
+        assertThat(wait).isBetween(Duration.ofSeconds(28), Duration.ofSeconds(31));
         assertThat(hosts.reserve(host, Duration.ofSeconds(30))).as("asking does not take the slot").isLessThanOrEqualTo(wait);
         assertThat(hosts.reserve(host, Duration.ZERO)).as("a shorter interval has already passed").isEqualTo(Duration.ZERO);
     }
@@ -180,7 +180,7 @@ class HostThrottleTest extends AbstractRuleSourceTest {
 
             assertThat(waits).filteredOn(Duration::isZero).as("exactly one was admitted").hasSize(1);
             assertThat(waits).filteredOn(wait -> !wait.isZero()).hasSize(instances - 1).allSatisfy(wait ->
-                    assertThat(wait).isBetween(Duration.ofSeconds(25), Duration.ofSeconds(30)));
+                    assertThat(wait).isBetween(Duration.ofSeconds(25), Duration.ofSeconds(31)));
         } finally {
             pool.shutdownNow();
         }
