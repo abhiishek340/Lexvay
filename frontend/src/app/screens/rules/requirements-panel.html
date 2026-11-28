@@ -3,26 +3,25 @@
     <div class="lx-toolbar">
       @if (editing()) {
         <button pButton type="submit" form="requirement-list-form" [disabled]="busy() || !editor.dirty()" [loading]="busy()">
-          <ng-icon name="phosphorFloppyDisk" size="16" aria-hidden="true" /><span pButtonLabel>Save list</span>
+          <span pButtonLabel>Save list</span>
         </button>
         <button pButton type="button" severity="secondary" [outlined]="true" [disabled]="busy()" (click)="discard()">
-          <ng-icon name="phosphorArrowCounterClockwise" size="16" aria-hidden="true" /><span pButtonLabel>Discard</span>
+          <span pButtonLabel>Discard</span>
         </button>
         <button pButton type="button" severity="secondary" [outlined]="true" [disabled]="busy()" (click)="addRow()">
-          <ng-icon name="phosphorPlus" size="16" aria-hidden="true" /><span pButtonLabel>Add requirement</span>
+          <span pButtonLabel>Add requirement</span>
         </button>
         <span class="lx-edit-state" [class.lx-edit-dirty]="editor.dirty()">
           <span class="lx-edit-dot" aria-hidden="true"></span>{{ editor.dirty() ? 'Unsaved changes' : 'No changes yet' }}
         </span>
-        <lx-info-tip label="About editing the list">The whole list is saved at once, in this order. Approving it afterwards locks it.</lx-info-tip>
       } @else {
         @if (canApprove()) {
           <button pButton type="button" #approveButton (click)="openApprove()">
-            <ng-icon name="phosphorSealCheck" size="16" aria-hidden="true" /><span pButtonLabel>Approve requirements</span>
+            <span pButtonLabel>Approve requirements</span>
           </button>
         }
         <button pButton type="button" severity="secondary" [outlined]="true" (click)="startEditing()">
-          <ng-icon name="phosphorPencilSimple" size="16" aria-hidden="true" /><span pButtonLabel>Edit list</span>
+          <span pButtonLabel>Edit list</span>
         </button>
       }
     </div>
@@ -135,10 +134,8 @@
     } @else if (list.length === 0) {
       <div class="lx-empty-state" data-testid="requirements-empty">
         @if (status() === 'EXTRACTING') {
-          <ng-icon name="phosphorSpinnerDuotone" size="32" class="lx-spin" aria-hidden="true" />
           <p>The model is proposing the list.</p>
         } @else {
-          <ng-icon name="phosphorListChecksDuotone" size="32" aria-hidden="true" />
           <p>No requirements yet.</p>
         }
       </div>
@@ -155,10 +152,10 @@
           </tr>
         </ng-template>
         <ng-template #body let-r let-i="rowIndex">
-          <tr [lxEnter]="i">
+          <tr>
             <td class="lx-mono lx-nowrap">{{ r.ref }}</td>
             <td class="lx-title">{{ r.title }}</td>
-            <td><p-tag severity="secondary" [value]="typeName(r)" /></td>
+            <td><lx-label>{{ typeName(r) }}</lx-label></td>
             <td class="lx-mono lx-nowrap">{{ check(r) ?? '' }}</td>
             <td class="lx-text">
               <p class="lx-requirement-text" lxClamp #clamp="lxClamp" [id]="'text-' + r.id">{{ r.text }}</p>
@@ -183,8 +180,8 @@
       </p-table>
     }
   } @else if (!error()) {
-    <div class="lx-table-skeleton" aria-busy="true" aria-label="Loading requirements">
-      @for (i of [1, 2, 3, 4]; track i) { <p-skeleton height="3.25rem" /> }
+    <div class="lx-table-skeleton" role="status" aria-busy="true" aria-label="Loading requirements">
+      @for (i of [1, 2, 3, 4]; track i) { <p-skeleton aria-hidden="true" height="3.25rem" /> }
     </div>
   }
 </div>
@@ -193,8 +190,8 @@
           [resizable]="false" [style]="{ width: '30rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Cancel approval"
           header="Approve requirements">
   <div class="lx-approve">
-    <span class="lx-approve-icon" aria-hidden="true"><ng-icon name="phosphorSealCheckDuotone" size="32" /></span>
-    <p class="lx-approve-count"><span class="lx-number">{{ requirements()?.length ?? 0 }}</span> requirements for {{ jurisdictionName() }}</p>
+    <span class="lx-approve-icon" aria-hidden="true"></span>
+    <p class="lx-approve-count"><span class="lx-figure">{{ requirements()?.length ?? 0 }}</span> requirements for {{ jurisdictionName() }}</p>
     <p class="lx-dialog-text">
       Approving locks this list. Assessments for {{ jurisdictionName() }} will use these {{ requirements()?.length ?? 0 }} requirements.
       The list can no longer be edited.
@@ -203,7 +200,7 @@
   <ng-template #footer>
     <button pButton type="button" severity="secondary" [outlined]="true" (click)="approveOpen.set(false)"><span pButtonLabel>Cancel</span></button>
     <button pButton type="button" [disabled]="busy()" [loading]="busy()" (click)="approve()">
-      <ng-icon name="phosphorSealCheck" size="16" aria-hidden="true" /><span pButtonLabel>Approve</span>
+      <span pButtonLabel>Approve</span>
     </button>
   </ng-template>
 </p-dialog>

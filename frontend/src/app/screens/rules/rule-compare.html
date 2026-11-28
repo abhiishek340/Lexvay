@@ -1,6 +1,6 @@
 <div class="lx-compare">
   <div class="lx-against">
-    <span id="compare-against-label" class="lx-label">Compare with</span>
+    <span id="compare-against-label" class="lx-meta">Compare with</span>
     @if (options().length > 0) {
       <p-select ariaLabelledBy="compare-against-label" [options]="options()" optionLabel="label" optionValue="id" [ngModel]="against()" (ngModelChange)="choose($event)"
                 placeholder="Choose an approved version" appendTo="body" class="lx-against-select" />
@@ -16,7 +16,7 @@
   } @else if (diff(); as d) {
     <p class="lx-summary" data-testid="compare-summary">
       @for (s of summary(); track s.status; let last = $last; let i = $index) {
-        <span class="lx-summary-item" [attr.data-status]="s.status" [lxEnter]="i"><ng-icon [name]="s.icon" size="16" aria-hidden="true" /><span class="lx-summary-count" [lxCountUp]="s.count"></span> {{ s.label.toLowerCase() }}</span>
+        <span class="lx-summary-item" [attr.data-status]="s.status"><ng-icon [name]="s.icon" size="16" aria-hidden="true" /><span class="lx-summary-count">{{ s.count }}</span> {{ s.label.toLowerCase() }}</span>
         @if (!last) { <span class="lx-summary-sep" aria-hidden="true">·</span> }
       }
     </p>
@@ -38,8 +38,8 @@
         @let s = statusOf(row);
         <tr [attr.data-status]="row.status" data-testid="compare-row">
           <td class="lx-status-cell">
-            <p-tag [severity]="s.severity" [value]="s.label"><ng-template #icon><ng-icon [name]="s.icon" size="14" aria-hidden="true" /></ng-template></p-tag>
-            @if (row.refChanged) { <p-tag class="lx-ref-changed" severity="secondary" value="ref changed" /> }
+            <lx-label>{{ s.label }}</lx-label>
+            @if (row.refChanged) { <lx-label class="lx-ref-changed">ref changed</lx-label> }
           </td>
           <td><div class="lx-requirement">
             @if (row.refChanged) {
@@ -81,10 +81,10 @@
                 </div>
               }
               @if (row.textDiff) {
-                <lx-diff-text class="lx-serif lx-change-text" [segments]="row.textDiff" data-testid="text-diff" />
+                <lx-diff-text class="lx-doc lx-change-text" [segments]="row.textDiff" data-testid="text-diff" />
               }
             } @else {
-              <p class="lx-serif lx-change-text" [class.lx-muted]="row.status === 'UNCHANGED'">{{ text(row) }}</p>
+              <p class="lx-doc lx-change-text" [class.lx-muted]="row.status === 'UNCHANGED'">{{ text(row) }}</p>
             }
           </div></td>
         </tr>
@@ -95,14 +95,14 @@
       <p-accordion-panel value="rule-text">
         <p-accordion-header>Rule text</p-accordion-header>
         <p-accordion-content>
-          <lx-diff-text class="lx-serif lx-full-text" [segments]="d.ruleTextDiff" data-testid="rule-text-diff" />
+          <lx-diff-text class="lx-doc lx-full-text" [segments]="d.ruleTextDiff" data-testid="rule-text-diff" />
         </p-accordion-content>
       </p-accordion-panel>
     </p-accordion>
   } @else if (loading()) {
-    <div aria-busy="true" aria-label="Loading the comparison" class="lx-compare-skeleton">
-      <p-skeleton width="22rem" height="1.25rem" />
-      @for (i of [1, 2, 3]; track i) { <p-skeleton height="2.75rem" /> }
+    <div role="status" aria-busy="true" aria-label="Loading the comparison" class="lx-compare-skeleton">
+      <p-skeleton aria-hidden="true" width="22rem" height="1.25rem" />
+      @for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="2.75rem" /> }
     </div>
   }
 </div>

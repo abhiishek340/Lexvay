@@ -1,72 +1,54 @@
-/* Title: the program in Display type, its license and catalog year as two pills. */
-.lx-overview-header { margin-bottom: 24px; }
-.lx-overview-header h1 { text-wrap: balance; }
-.lx-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+/* The reference screen of v3 (DESIGN.md "Program overview"): title row, figures 24 px below it, then each section 40 px
+   further on, a hairline between. Everything aligns to the page's left edge. */
+.lx-title-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 24px; }
+.lx-title { min-width: 0; }
+.lx-title h1 { text-wrap: balance; }
+.lx-meta-line { margin-top: 4px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
 
-/* The hero: the map is the focal point, the three numbers sit beside it on the same surface. */
-.lx-overview-hero {
-  position: relative; display: grid; grid-template-columns: minmax(0, 572px) minmax(200px, auto); align-items: center; justify-content: center;
-  gap: 40px 88px; padding: 36px 40px 32px;
-}
-.lx-overview-stats { display: flex; flex-direction: column; gap: 32px; }
-.lx-hero-tip { position: absolute; top: 16px; right: 16px; }
-.lx-overview-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; justify-self: center; color: var(--p-lx-text-2); }
-.lx-overview-empty ng-icon { color: var(--p-lx-accent); }
+/* Figures in a row, each after the first set off by a 1 px vertical rule. */
+.lx-figures { display: flex; flex-wrap: wrap; margin-top: 24px; }
+.lx-figures lx-figure { padding: 0 32px; }
+.lx-figures lx-figure:first-child { padding-left: 0; }
+.lx-figures lx-figure + lx-figure { border-left: 1px solid var(--p-lx-line); }
+.lx-empty { margin-top: 24px; color: var(--p-lx-ink-2); }
 
-.lx-section { margin-top: 40px; }
-.lx-section-title { margin-bottom: 12px; }
-.lx-section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 24px; }
+.lx-states { --lx-meter-width: 96px; }
+.lx-states .lx-state-name { font-weight: 500; }
+.lx-rules { color: var(--p-lx-ink-2); }
+.lx-determination { display: inline-flex; align-items: center; gap: 8px; }
+.lx-end { text-align: right; }
 
-/* "Needs you": compact rows in one card, one action each. */
-.lx-needs { list-style: none; margin: 0; padding: 4px; }
-.lx-needs-row { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 8px; }
-.lx-needs-row + .lx-needs-row { margin-top: 2px; }
-.lx-needs-icon {
-  flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
-  background: var(--p-lx-accent-tint); color: var(--p-lx-accent);
-}
-.lx-needs-text { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; }
-.lx-needs-title { font-weight: 600; }
-.lx-needs-detail { color: var(--p-lx-text-2); }
+/* "Needs you": a plain list of 40 px rows, the title, where it is, and one text action at the right. */
+.lx-needs { list-style: none; padding: 0; border-top: 1px solid var(--p-lx-line-strong); }
+.lx-needs-row { display: flex; align-items: center; gap: 12px; min-height: 40px; box-sizing: border-box; padding: 9px 0; border-bottom: 1px solid var(--p-lx-line); }
+.lx-needs-title { font-weight: 500; }
+.lx-needs-detail { color: var(--p-lx-ink-2); }
+.lx-needs-row .lx-row-action { margin-left: auto; }
 
-/* The legend of the rings' colours, once, beside the heading of the cards. */
-.lx-findings-legend { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
-.lx-findings-legend li { display: inline-flex; align-items: center; gap: 8px; }
-.lx-dot { width: 8px; height: 8px; border-radius: 999px; }
-.lx-dot-found { background: var(--p-lx-found); }
-.lx-dot-ambiguous { background: var(--p-lx-ambiguous); }
-.lx-dot-missing { background: var(--p-lx-missing); }
+.lx-overview-skeleton { display: flex; flex-direction: column; gap: 8px; }
+.lx-skeleton-figures { display: flex; gap: 32px; margin: 16px 0 40px; }
+.lx-skeleton-rows { display: flex; flex-direction: column; gap: 1px; }
 
-/* One card per target state. The action's hit area covers the card, so the whole card is one link that lifts. */
-.lx-state-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(208px, 1fr)); gap: 16px; }
-.lx-state-card { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 18px 18px 14px; min-width: 0; }
-.lx-state-card-head { align-self: stretch; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
-.lx-state-card-name { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.lx-state-card-name h3 { font-size: 15px; line-height: 22px; font-weight: 600; letter-spacing: -0.005em; }
-.lx-state-chip[data-tone='seal'] ng-icon { color: var(--p-lx-seal); }
-.lx-state-card-action { position: static; margin-top: auto; gap: 6px; }
-.lx-state-card-action:not(.p-button-text) { align-self: stretch; justify-content: center; }
-.lx-state-card-action.p-button-text { margin-left: -10px; }
-.lx-state-card-action::after { content: ''; position: absolute; inset: 0; border-radius: var(--lx-r-card); }
-.lx-state-card-action ng-icon { transition: transform var(--lx-t-1) var(--lx-ease-out); }
-.lx-state-card:hover .lx-state-card-action ng-icon { transform: translateX(2px); }
-/* The focus ring of the link marks the whole card it stands for. */
-.lx-state-card:has(.lx-state-card-action:focus-visible) { outline: 2px solid var(--p-lx-accent); outline-offset: 2px; }
-.lx-state-card-action:focus-visible { outline: none; }
-
-.lx-overview-skeleton { display: flex; flex-direction: column; gap: 16px; }
-.lx-overview-skeleton .lx-state-cards { margin-top: 24px; }
-
-@media (max-width: 1100px) {
-  .lx-overview-hero { grid-template-columns: minmax(0, 1fr); padding: 28px; }
-  .lx-overview-stats { flex-direction: row; flex-wrap: wrap; justify-self: stretch; justify-content: space-between; gap: 24px 32px; }
+/* Under 720 px each state is a block: its name and action, the meter, the rules and share found, the determination. */
+.lx-found-word { display: none; }
+@media (max-width: 719px) {
+  .lx-states thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .lx-states, .lx-states tbody { display: block; }
+  .lx-states tbody { border-top: 1px solid var(--p-lx-line-strong); }
+  .lx-states tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; padding: 12px 0; border-bottom: 1px solid var(--p-lx-line);
+    grid-template-areas: 'name action' 'progress progress' 'rules found' 'det det';
+  }
+  .lx-states tr > * { height: auto; padding: 0; border: 0; }
+  .lx-states .lx-state-name { grid-area: name; }
+  .lx-states .lx-action { grid-area: action; }
+  .lx-states .lx-progress { grid-area: progress; }
+  .lx-states .lx-rules { grid-area: rules; font-size: 13px; }
+  .lx-states .lx-found-share { grid-area: found; font-size: 13px; color: var(--p-lx-ink-2); }
+  .lx-states .lx-found-word { display: inline; }
+  .lx-states .lx-det { grid-area: det; }
 }
 @media (max-width: 640px) {
-  .lx-overview-hero { padding: 40px 16px 20px; gap: 28px; }
-  .lx-overview-stats { flex-direction: column; gap: 20px; }
-  .lx-hero-tip { top: 10px; right: 10px; }
-  .lx-section { margin-top: 32px; }
-  .lx-needs-row { padding: 10px 8px; gap: 12px; }
-  .lx-state-cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-  .lx-state-card { padding: 14px 14px 10px; }
+  .lx-figures lx-figure { padding: 0 16px; }
+  .lx-needs-row { flex-wrap: wrap; gap: 0 12px; }
 }

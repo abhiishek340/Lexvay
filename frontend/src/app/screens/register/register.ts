@@ -3,7 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorArrowCounterClockwise, phosphorCheckCircle, phosphorCopy, phosphorDownloadSimple, phosphorMinusCircle, phosphorPrinter, phosphorSealCheck, phosphorXCircle } from '@ng-icons/phosphor-icons/regular';
+import { phosphorCopy } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -11,39 +11,35 @@ import { Select } from 'primeng/select';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
-import { Tag } from 'primeng/tag';
 import { ToggleSwitch } from 'primeng/toggleswitch';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { OUTCOME_LABEL, STATUS_LABEL } from '../../core/labels';
-import { DeterminationLists, DeterminationStatus, Jurisdiction, Outcome, Program, RegisterFilter, RegisterRow } from '../../core/models';
+import { DeterminationLists, Jurisdiction, Outcome, Program, RegisterFilter, RegisterRow } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { NO_FILTER, registerCsvUrl } from '../../core/register';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import { IconName } from '../../theme/icons';
-import { Enter } from '../../ui/enter';
-import { InfoTip } from '../../ui/info-tip';
+import { Figure } from '../../ui/figure';
+import { Help, HelpTerm } from '../../ui/help';
 import { Seal } from '../../ui/seal';
-import { Stat } from '../../ui/stat';
-import { StateMap } from '../../ui/state-map/state-map';
 import { REGISTER_TOKENS } from './register-theme';
-import { DISCLOSURE_NOTE, disclosureSections, registerMapStates } from './register-view';
+import { DISCLOSURE_NOTE, disclosureSections } from './register-view';
 
 type TabId = 'register' | 'by-program';
-type Severity = 'success' | 'danger' | 'secondary' | 'warn';
-interface TagView { severity: Severity; label: string; icon: IconName }
 
 const OUTCOMES: Outcome[] = ['MEETS', 'DOES_NOT_MEET', 'NOT_DETERMINED'];
 /** The icons the register shows beyond SHELL_ICONS, provided by its route (register.routes.ts). */
-export const REGISTER_ICONS = { phosphorArrowCounterClockwise, phosphorCheckCircle, phosphorCopy, phosphorDownloadSimple, phosphorMinusCircle, phosphorPrinter, phosphorSealCheck, phosphorXCircle };
+export const REGISTER_ICONS = { phosphorCopy };
 
-/** A distinct shape per signed outcome, so the outcome never depends on colour alone. */
-const OUTCOME_ICON: Record<Outcome, IconName> = { MEETS: 'phosphorCheckCircle', DOES_NOT_MEET: 'phosphorXCircle', NOT_DETERMINED: 'phosphorMinusCircle' };
-const STATUS_ICON: Record<DeterminationStatus, IconName> = { SIGNED: 'phosphorSealCheck', REOPENED: 'phosphorArrowCounterClockwise' };
-const OUTCOME_SEVERITY: Record<Outcome, Severity> = { MEETS: 'success', DOES_NOT_MEET: 'danger', NOT_DETERMINED: 'secondary' };
-const STATUS_SEVERITY: Record<DeterminationStatus, Severity> = { SIGNED: 'success', REOPENED: 'warn' };
+/** An outcome's words take its colour where it has one; the words always say it. */
+const OUTCOME_TONE: Record<Outcome, string> = { MEETS: 'lx-found', DOES_NOT_MEET: 'lx-missing', NOT_DETERMINED: '' };
+
+const HELP: readonly HelpTerm[] = [
+  { term: 'Register', definition: 'Every signed determination in this institution, exactly as it was signed, with the rule and course versions it names.' },
+  { term: 'By program', definition: DISCLOSURE_NOTE },
+];
 
 /**
  * The tenant-wide record of signed determinations (F8): the register of every signature with the versions it names,
@@ -52,7 +48,7 @@ const STATUS_SEVERITY: Record<DeterminationStatus, Severity> = { SIGNED: 'succes
 @Component({
   selector: 'lx-register',
   imports: [DatePipe, FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, Select, Skeleton, TableModule,
-    Tab, TabList, TabPanel, TabPanels, Tabs, Tag, ToggleSwitch, Enter, InfoTip, Seal, Stat, StateMap],
+    Tab, TabList, TabPanel, TabPanels, Tabs, ToggleSwitch, Figure, Help, Seal],
   templateUrl: './register.html',
   styleUrl: './register.css',
 })
@@ -65,6 +61,7 @@ export class Register {
 
   readonly outcomeOptions = OUTCOMES.map((value) => ({ value, label: OUTCOME_LABEL[value] }));
   readonly disclosureNote = DISCLOSURE_NOTE;
+  readonly help = HELP;
 
   readonly tab = signal<TabId>('register');
   readonly programs = signal<Program[] | null>(null);
@@ -75,16 +72,8 @@ export class Register {
   readonly rows = signal<RegisterRow[] | null>(null);
   readonly rowsError = signal<string | null>(null);
   readonly loadedAt = signal<Date | null>(null);
-  /** The last rows that arrived: the map and the count stay in place while a new filter loads. */
-  private readonly mapRows = signal<RegisterRow[] | null>(null);
-  readonly shownCount = computed(() => {
-    const rows = this.mapRows();
-    return rows ? { value: rows.length } : null;
-  });
-  readonly mapStates = computed(() => {
-    const rows = this.mapRows();
-    return rows ? registerMapStates(rows) : null;
-  });
+  /** How many rows last arrived: the count stays in place while a new filter loads. */
+  readonly shownCount = signal<number | null>(null);
   readonly filtered = computed(() => {
     const f = this.filter();
     return f.programId !== null || f.jurisdiction !== null || f.outcome !== null || f.includeReopened;
@@ -132,13 +121,13 @@ export class Register {
     this.loadRows();
   }
 
-  /** Outcome and status as a tag: icon and word as well as colour. */
-  outcomeTag(outcome: Outcome): TagView {
-    return { severity: OUTCOME_SEVERITY[outcome], label: OUTCOME_LABEL[outcome], icon: OUTCOME_ICON[outcome] };
+  /** A row's outcome in words, in its colour where it has one. */
+  outcomeOf(row: RegisterRow): { label: string; tone: string } {
+    return { label: OUTCOME_LABEL[row.outcome], tone: OUTCOME_TONE[row.outcome] };
   }
 
-  statusTag(status: DeterminationStatus): TagView {
-    return { severity: STATUS_SEVERITY[status], label: STATUS_LABEL[status], icon: STATUS_ICON[status] };
+  statusOf(row: RegisterRow): string {
+    return STATUS_LABEL[row.status];
   }
 
   selectTab(value: string | number | undefined): void {
@@ -163,7 +152,7 @@ export class Register {
       const rows = await firstValueFrom(this.api.register(this.filter()));
       if (request === this.request) {
         this.rows.set(rows);
-        this.mapRows.set(rows);
+        this.shownCount.set(rows.length);
         this.loadedAt.set(new Date());
       }
     } catch (e: unknown) {

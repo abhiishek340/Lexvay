@@ -2,8 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorClockCounterClockwiseDuotone } from '@ng-icons/phosphor-icons/duotone';
-import { phosphorCaretDown, phosphorDownloadSimple, phosphorGear, phosphorUser } from '@ng-icons/phosphor-icons/regular';
+import { phosphorCaretDown, phosphorGear, phosphorUser } from '@ng-icons/phosphor-icons/regular';
 import { Avatar } from 'primeng/avatar';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -17,15 +16,19 @@ import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import { Enter } from '../../ui/enter';
-import { InfoTip } from '../../ui/info-tip';
+import { Help, HelpTerm } from '../../ui/help';
 import { AUDIT_TOKENS } from './audit-theme';
 import {
   ACTION_OPTIONS, AuditQuery, NO_QUERY, PERIOD_OPTIONS, RECORD_TYPE_OPTIONS, auditCsvUrl, auditParams, auditRows, groupByDay, personOptions,
 } from './audit-view';
 
 /** The icons the Audit trail shows beyond SHELL_ICONS, provided by its route (audit.routes.ts). */
-export const AUDIT_ICONS = { phosphorCaretDown, phosphorClockCounterClockwiseDuotone, phosphorDownloadSimple, phosphorGear, phosphorUser };
+export const AUDIT_ICONS = { phosphorCaretDown, phosphorGear, phosphorUser };
+
+const HELP: readonly HelpTerm[] = [
+  { term: 'Audit trail', definition: 'Every action, newest first: who did it, when, what it was and on which record.' },
+  { term: 'Append-only', definition: 'Entries are only ever added, never changed or removed.' },
+];
 
 /** Entries per request; "Show older" asks for the next page with the same filters. */
 const PAGE = 100;
@@ -36,11 +39,12 @@ const PAGE = 100;
  */
 @Component({
   selector: 'lx-audit',
-  imports: [DatePipe, FormsModule, NgIcon, Avatar, ButtonDirective, ButtonLabel, Message, Select, Skeleton, Timeline, Enter, InfoTip],
+  imports: [DatePipe, FormsModule, NgIcon, Avatar, ButtonDirective, ButtonLabel, Message, Select, Skeleton, Timeline, Help],
   templateUrl: './audit.html',
   styleUrl: './audit.css',
 })
 export class Audit {
+  readonly help = HELP;
   private readonly api = inject(ApiService);
   readonly session = inject(SessionService);
   private readonly context = inject(ProgramContext);

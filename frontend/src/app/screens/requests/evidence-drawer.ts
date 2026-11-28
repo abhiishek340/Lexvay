@@ -17,7 +17,6 @@ import { DocumentPicker } from '../../shared/document-picker/document-picker';
 import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
 import { Sheet } from '../../shared/sheet/sheet';
 import { PassageSelection } from '../../shared/document-viewer/page-text';
-import { Enter } from '../../ui/enter';
 import { initials } from '../../ui/initials';
 import { COMMENT_MAX, responseBody } from './answer';
 
@@ -28,7 +27,7 @@ import { COMMENT_MAX, responseBody } from './answer';
  */
 @Component({
   selector: 'lx-evidence-drawer',
-  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, Skeleton, Textarea, DocumentPicker, DocumentViewer, Enter, Sheet],
+  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, Skeleton, Textarea, DocumentPicker, DocumentViewer, Sheet],
   templateUrl: './evidence-drawer.html',
   styleUrl: './evidence-drawer.css',
 })

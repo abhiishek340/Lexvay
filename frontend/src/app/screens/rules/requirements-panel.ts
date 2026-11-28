@@ -11,7 +11,6 @@ import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
-import { Tag } from 'primeng/tag';
 import { Textarea } from 'primeng/textarea';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
@@ -21,12 +20,11 @@ import { problemDetail } from '../../core/problem';
 import { RuleVersionStatus } from '../../core/rules';
 import { SessionService } from '../../core/session.service';
 import { Clamp } from '../../ui/clamp';
-import { Enter } from '../../ui/enter';
-import { InfoTip } from '../../ui/info-tip';
 import { EditableRequirement, RequirementListEditor } from './requirement-list-editor';
 import { MAX_TERMS, applyTerms, droppedTerms, sameTerms } from './search-terms';
 import { UnsavedChanges } from './unsaved-changes';
 import type { Notice } from './rule-version-detail';
+import { Label } from '../../ui/label';
 
 /**
  * The Requirements tab: the version's list as a table, and for a reviewer of an unapproved version the same table
@@ -34,7 +32,7 @@ import type { Notice } from './rule-version-detail';
  */
 @Component({
   selector: 'lx-requirements-panel',
-  imports: [FormsModule, NgIcon, AutoComplete, ButtonDirective, ButtonLabel, Dialog, InputNumber, InputText, Message, Select, Skeleton, TableModule, Tag, Textarea, Clamp, Enter, InfoTip],
+  imports: [FormsModule, NgIcon, AutoComplete, ButtonDirective, ButtonLabel, Dialog, InputNumber, InputText, Message, Select, Skeleton, TableModule, Label, Textarea, Clamp],
   templateUrl: './requirements-panel.html',
   styleUrl: './requirements-panel.css',
 })

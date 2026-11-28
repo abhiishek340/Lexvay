@@ -2863,3 +2863,47 @@ application code, no migration.
 
 ## Results
 See the pull request for the command output.
+
+## UI3-0 — Design v3 foundation, shell, sign-in and overview (PR #52)
+
+Branch `ui3-foundation`, decisions D-480 to D-498 in `docs/decisions/UI3-0.md`. Frontend only. `origin/main` with UI2-4
+(Rules, Evidence requests, Program setup) merged into the branch, and those screens moved to the v3 parts as well.
+
+### Spec points
+1. **Tokens and preset v3** (D-480, D-482): the DESIGN.md colour table, radius, elevation, spacing and type scale; every v2
+   token without a v3 equivalent removed; one derived shade (`inkHover`) and the overlay elevation. PrimeNG restyled
+   through the semantic tokens and per-component sets for button, inputs, select, multiselect, dialog, drawer, popover,
+   menu, tabs, datatable, toggleswitch, selectbutton, tooltip, toast, message, skeleton, chip, checkbox, fileupload,
+   metergroup and stepper; the per-chunk `registerComponentTokens` pattern unchanged. `tokens.spec.ts` proves AA over the
+   table, including `line-control` (#8C8F95 / #6E7178), the 3:1 border of text inputs, select, multiselect, autocomplete
+   and search (WCAG 1.4.11); secondary buttons and rules keep `line-strong`.
+2. **Source scan** (D-481): `source-scan.spec.ts` fails on colour literals outside `theme/`, the retired names, unpublished
+   `--p-lx-*` tokens and undeclared `--lx-*` variables.
+3. **Shared components** (D-483 to D-486): `status-mark.ts`, `meter.ts`, `figure.ts`, `label.ts`, `help.ts`, `state-tabs.ts`
+   (replacing `state-pills.ts`); `seal.ts` redrawn as line art; `mark.ts` monochrome. Deleted after moving every caller:
+   `state-map/`, `progress-ring.ts`, `stat.ts`, `count-up.ts`, `status-icon.ts`, `info-tip.ts`, `finding.ts`, `enter.ts`,
+   `state-pills.ts`, the sign-in story. DecisionBar: a footer, no blur, no key chips.
+4. **Shell** (D-487): top bar, rail in two groups with the left rule, counts as tabular meta text, "Demo data" as meta
+   text, the queue dot, the bottom tab bar and More menu; programmatic focus on the title draws no ring.
+5. **Sign in** (D-488): one centred 360 px column; the map story and headline panel gone.
+6. **Program overview** (D-489): title row, Figure row, States table, Needs you; spacing measured by an end-to-end test.
+7. **Motion** (D-490): v3 tokens; staggered entrances, ring sweeps, the seal stamp and the sign-in story deleted; route
+   change a 180 ms fade with a 4 px rise. FIX-8's `data-transition="none"` had not merged when this branch was pushed.
+8. **Tests and evidence** (D-493): unit tests for StatusMark, Meter, the source scan, the overview view model and the
+   review Meter; end-to-end selectors updated for the removed components; axe in both themes on every screen the suite
+   visits; `ui3-0-*` captures and `ui3-0-before-*` starting points in `docs/screens`.
+
+### Bundle
+Initial (main and styles): 611.74 kB raw / 157.27 kB transfer at the branch point; 581.62 kB / 151.38 kB at the head
+(after merging UI2-4, F14 and F15).
+
+### Test results
+`LEXVAY_E2E_SLOT=1 make test` on the head (origin/main with F14 and F15 merged), exit 0:
+- backend: `Tests run: 1133, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`
+- frontend unit: `Test Files 42 passed (42)`, `Tests 374 passed (374)`
+- end-to-end: `56 passed`, `7 skipped` (the screenshot tests, which run only with `LEXVAY_SCREENSHOTS=1`)
+
+Screenshots: `LEXVAY_SCREENSHOTS=1` run of the review-and-sign and UI3-0 screenshot tests on a fresh slot-1 stack, `3 passed`.
+Under heavy machine load, two earlier runs failed `people.spec.ts` (the More menu step, D-497) and once
+`coverage.spec.ts` (a Review request that did not return within 15 s on a loaded machine); the first is fixed, and the
+second passed in every later run.

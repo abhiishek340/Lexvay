@@ -22,7 +22,7 @@
       </section>
     }
     @if (v.providedLoading) {
-      <div class="lx-provided" aria-busy="true" aria-label="Loading the evidence people provided"><p-skeleton width="14rem" height="1rem" /><p-skeleton height="6rem" /></div>
+      <div class="lx-provided" role="status" aria-busy="true" aria-label="Loading the evidence people provided"><p-skeleton aria-hidden="true" width="14rem" height="1rem" /><p-skeleton aria-hidden="true" height="6rem" /></div>
     }
   }
 </section>
@@ -46,12 +46,12 @@
   }
   <details class="lx-quote-only">
     <summary><ng-icon name="phosphorCaretRight" size="14" aria-hidden="true" />Quote only</summary>
-    <blockquote class="lx-serif" [attr.data-testid]="system ? 'evidence-quote' : 'provided-quote'">{{ ev.quote }}</blockquote>
+    <blockquote class="lx-doc" [attr.data-testid]="system ? 'evidence-quote' : 'provided-quote'">{{ ev.quote }}</blockquote>
   </details>
   @if (!wide()) {
     <button pButton type="button" severity="secondary" [outlined]="true" size="small" class="lx-show-on-page"
             [attr.aria-expanded]="showOnPage().has(key)" [attr.aria-controls]="'evidence-page-' + key" (click)="toggleOnPage(key)">
-      <ng-icon name="phosphorEye" size="16" aria-hidden="true" /><span pButtonLabel>Show on page</span>
+      <span pButtonLabel>Show on page</span>
     </button>
   }
   <div [id]="'evidence-page-' + key" class="lx-evidence-page">

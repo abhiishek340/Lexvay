@@ -2,7 +2,7 @@ import { Component, ElementRef, Injector, afterNextRender, afterRenderEffect, co
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { phosphorArrowSquareOut, phosphorCaretLeft, phosphorCaretRight, phosphorCursorText, phosphorQuotes, phosphorWarning } from '@ng-icons/phosphor-icons/regular';
+import { phosphorArrowSquareOut, phosphorCaretLeft, phosphorCaretRight, phosphorWarning } from '@ng-icons/phosphor-icons/regular';
 import auraInputnumber from '@primeuix/themes/aura/inputnumber';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
@@ -20,7 +20,7 @@ import { lexvaySkeleton } from '../../theme/skeleton-tokens';
 import { CharRange, PassageSelection, isRange, ocrNote, rangeOffsets, softWrap, splitForHighlight } from './page-text';
 
 /** The icons the viewer shows beyond SHELL_ICONS; it provides them itself because several screens embed it. */
-export const DOCUMENT_VIEWER_ICONS = { phosphorArrowSquareOut, phosphorCaretLeft, phosphorCaretRight, phosphorCursorText, phosphorQuotes, phosphorWarning };
+export const DOCUMENT_VIEWER_ICONS = { phosphorArrowSquareOut, phosphorCaretLeft, phosphorCaretRight, phosphorWarning };
 
 /** Where the "Use this passage" toolbar sits, relative to the scrolling page body. */
 interface PendingSelection { selection: PassageSelection; top: number; left: number; }
