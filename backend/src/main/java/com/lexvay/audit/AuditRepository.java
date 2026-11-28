@@ -81,13 +81,36 @@ public class AuditRepository {
         WhereClause where = filter.where();
         where.bind(jdbc.sql(exportSql(where)))
                 .withFetchSize(EXPORT_FETCH_SIZE)
-                .query((RowCallbackHandler) rs -> sink.accept(new ExportRow(
-                        rs.getObject("created_at", OffsetDateTime.class).toInstant(),
-                        rs.getString("actor"),
-                        rs.getString("action"),
-                        rs.getString("entity_type"),
-                        rs.getObject("entity_id", UUID.class),
-                        rs.getString("detail"))));
+                .query(exportRow(sink));
+    }
+
+    private static RowCallbackHandler exportRow(Consumer<ExportRow> sink) {
+        return rs -> sink.accept(new ExportRow(
+                rs.getObject("created_at", OffsetDateTime.class).toInstant(),
+                rs.getString("actor"),
+                rs.getString("action"),
+                rs.getString("entity_type"),
+                rs.getObject("entity_id", UUID.class),
+                rs.getString("detail")));
+    }
+
+    /**
+     * The trail behind a determination, newest first, in the shape of the export: the entries about the determination,
+     * about every mapping of its assessment and jurisdiction, about its reports and about the package being built.
+     * The ids are one set, so the planner reaches {@code audit_log_entity_idx} for all four kinds of record.
+     */
+    @Transactional(readOnly = true)
+    public void streamTrailOfDetermination(UUID determinationId, UUID assessmentId, UUID jurisdictionId, UUID packageId,
+                                           Consumer<ExportRow> sink) {
+        jdbc.sql(EXPORT_SELECT + " WHERE audit_log.entity_id IN ("
+                        + "SELECT CAST(:determination AS uuid) UNION ALL SELECT CAST(:package AS uuid) "
+                        + "UNION ALL SELECT id FROM report WHERE determination_id = :determination "
+                        + "UNION ALL SELECT id FROM mapping WHERE assessment_id = :assessment AND jurisdiction_id = :jurisdiction) "
+                        + "ORDER BY audit_log.created_at DESC, audit_log.id DESC")
+                .param("determination", determinationId).param("package", packageId)
+                .param("assessment", assessmentId).param("jurisdiction", jurisdictionId)
+                .withFetchSize(EXPORT_FETCH_SIZE)
+                .query(exportRow(sink));
     }
 
     public List<AuditEntry> forEntity(UUID entityId) {

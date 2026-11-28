@@ -1,13 +1,14 @@
 package com.lexvay.assessment;
 
+import com.lexvay.llm.LlmRates;
 import com.lexvay.llm.LlmUsageRepository;
 import com.lexvay.llm.LlmUsageRepository.PurposeUsage;
+import com.lexvay.llm.TokenPrice;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,31 +16,24 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AssessmentUsageService {
 
-    private static final BigDecimal TOKENS_PER_PRICE_UNIT = BigDecimal.valueOf(1_000_000);
-
-    public record Prices(BigDecimal inputPerMtok, BigDecimal outputPerMtok) {
-    }
-
     /**
      * {@code wallTimeMs} is the assessment's own run time (null until it has finished); {@code modelTimeMs}
-     * is the sum of the model calls' durations. The cost is an estimate, tokens times the configured prices,
-     * and null when no price is configured.
+     * is the sum of the model calls' durations. The cost is an estimate, tokens times the price configured for the
+     * assessment's model in LEXVAY_LLM_RATES, and {@code prices} and the cost are null when that model has none.
      */
     public record UsageView(UUID assessmentId, String model, long calls, long inputTokens, long outputTokens,
-                            long modelTimeMs, Long wallTimeMs, BigDecimal estimatedCostUsd, Prices prices,
+                            long modelTimeMs, Long wallTimeMs, BigDecimal estimatedCostUsd, TokenPrice prices,
                             List<PurposeUsage> byPurpose) {
     }
 
     private final AssessmentService assessments;
     private final LlmUsageRepository usage;
-    private final Prices prices;
+    private final LlmRates rates;
 
-    public AssessmentUsageService(AssessmentService assessments, LlmUsageRepository usage,
-                                  @Value("${lexvay.llm.price.input-per-mtok}") BigDecimal inputPerMtok,
-                                  @Value("${lexvay.llm.price.output-per-mtok}") BigDecimal outputPerMtok) {
+    public AssessmentUsageService(AssessmentService assessments, LlmUsageRepository usage, LlmRates rates) {
         this.assessments = assessments;
         this.usage = usage;
-        this.prices = new Prices(inputPerMtok, outputPerMtok);
+        this.rates = rates;
     }
 
     @Transactional(readOnly = true)
@@ -52,16 +46,8 @@ public class AssessmentUsageService {
         long modelTime = byPurpose.stream().mapToLong(PurposeUsage::durationMs).sum();
         Long wallTime = assessment.startedAt() == null || assessment.finishedAt() == null ? null
                 : Duration.between(assessment.startedAt(), assessment.finishedAt()).toMillis();
+        Optional<TokenPrice> price = rates.priceOf(assessment.llmModel());
         return new UsageView(assessmentId, assessment.llmModel(), calls, input, output, modelTime, wallTime,
-                cost(input, output), prices, byPurpose);
-    }
-
-    private BigDecimal cost(long inputTokens, long outputTokens) {
-        if (prices.inputPerMtok().signum() == 0 && prices.outputPerMtok().signum() == 0) {
-            return null;
-        }
-        return prices.inputPerMtok().multiply(BigDecimal.valueOf(inputTokens))
-                .add(prices.outputPerMtok().multiply(BigDecimal.valueOf(outputTokens)))
-                .divide(TOKENS_PER_PRICE_UNIT, 6, RoundingMode.HALF_UP);
+                price.map(p -> p.cost(input, output)).orElse(null), price.orElse(null), byPurpose);
     }
 }

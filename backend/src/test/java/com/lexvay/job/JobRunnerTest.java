@@ -40,6 +40,9 @@ class JobRunnerTest extends AbstractDatabaseTest {
     /** A handler that records the tenant it ran under and fails a configurable number of times. */
     static class ProbeHandler implements JobHandler {
         final AtomicInteger calls = new AtomicInteger();
+        final AtomicInteger failedForGood = new AtomicInteger();
+        volatile UUID failedEntity;
+        volatile UUID failedUnderTenant;
         volatile UUID seenTenant;
         volatile String seenJobId;
         volatile String failureMessage = "transient failure";
@@ -47,6 +50,12 @@ class JobRunnerTest extends AbstractDatabaseTest {
         volatile boolean permanent;
 
         @Override public JobType type() { return JobType.GENERATE_REPORT; }
+
+        @Override public void onFailed(Job job) {
+            failedForGood.incrementAndGet();
+            failedEntity = job.entityId();
+            failedUnderTenant = TenantContext.require();
+        }
 
         @Override public void handle(Job job, Map<String, Object> payload) {
             calls.incrementAndGet();
@@ -90,6 +99,7 @@ class JobRunnerTest extends AbstractDatabaseTest {
         assertThat(job.status()).isEqualTo(JobStatus.DONE);
         assertThat(job.attempts()).isEqualTo(1);
         assertThat(job.error()).isNull();
+        assertThat(probe.failedForGood.get()).isZero();
     }
 
     @Test
@@ -105,9 +115,12 @@ class JobRunnerTest extends AbstractDatabaseTest {
         assertThat(afterFirst.status()).isEqualTo(JobStatus.QUEUED);
         assertThat(afterFirst.attempts()).isEqualTo(1);
         assertThat(afterFirst.error()).isEqualTo("transient failure");
+        assertThat(probe.failedForGood.get()).as("a retried attempt is not a failure for good").isZero();
 
         assertThat(r.runOne()).isTrue();
+        assertThat(probe.failedForGood.get()).isZero();
         assertThat(r.runOne()).isTrue();
+        assertThat(probe.failedForGood.get()).as("told once, after the last attempt").isEqualTo(1);
         Job finalState = TenantContext.runAs(t.tenantId(), () -> jobs.findById(jobId)).orElseThrow();
         assertThat(finalState.status()).isEqualTo(JobStatus.FAILED);
         assertThat(finalState.attempts()).isEqualTo(3);
@@ -130,6 +143,9 @@ class JobRunnerTest extends AbstractDatabaseTest {
         assertThat(job.status()).isEqualTo(JobStatus.FAILED);
         assertThat(job.attempts()).isEqualTo(1);
         assertThat(job.error()).isEqualTo("bad input");
+        assertThat(probe.failedForGood.get()).isEqualTo(1);
+        assertThat(probe.failedEntity).isEqualTo(job.entityId());
+        assertThat(probe.failedUnderTenant).isEqualTo(t.tenantId());
     }
 
     @Test

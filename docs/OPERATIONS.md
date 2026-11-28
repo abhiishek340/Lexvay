@@ -88,14 +88,14 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 | `LEXVAY_SHUTDOWN_GRACE` | Time a stop waits for open requests and the running job | 30s |
 | `LEXVAY_DB_URL`, `LEXVAY_DB_OWNER_*`, `LEXVAY_DB_APP_*` | PostgreSQL URL and the two roles (D-013, D-034) | see `.env.example` |
 | `LEXVAY_LLM_PROVIDER`, `LEXVAY_LLM_MODEL`, `LEXVAY_LLM_EFFORT`, `ANTHROPIC_API_KEY` | Model (D-033). `fake` is for demos only | `fake` |
-| `LEXVAY_LLM_PAID_APPROVED`, `LEXVAY_LLM_MONTHLY_BUDGET_USD`, `LEXVAY_LLM_RATES` | The spend gate for a metered provider (see "Data mode and the spend gate") | `false`, `0`, empty |
-| `LEXVAY_LLM_PRICE_INPUT_PER_MTOK`, `LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK` | USD per million tokens, for the cost estimate; 0 means not set | 0 |
+| `LEXVAY_LLM_PAID_APPROVED`, `LEXVAY_LLM_MONTHLY_BUDGET_USD`, `LEXVAY_LLM_RATES` | The spend gate for a metered provider and the one price table (see "Data mode and the spend gate"). `LEXVAY_LLM_RATES` replaces `LEXVAY_LLM_PRICE_INPUT_PER_MTOK` and `LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK`, which are no longer read | `false`, `0`, empty |
 | `LEXVAY_FILESTORE`, `LEXVAY_FILESTORE_PATH`, `LEXVAY_S3_BUCKET` | Where documents are stored | image: `/var/lexvay/files` |
 | `SPRING_PROFILES_ACTIVE` (compose: `LEXVAY_PROFILES`) | The image sets `prod` (structured logs); use `prod,oidc` for single sign-on, because setting only `oidc` drops the production log format | `prod` |
 | `LEXVAY_OIDC_ISSUER_URI`, `LEXVAY_OIDC_CLIENT_ID`, `LEXVAY_OIDC_CLIENT_SECRET`, `LEXVAY_OIDC_POST_LOGIN_URL` | Single sign-on (WS-SEC, D-090) | empty |
 | `LEXVAY_COOKIE_SECURE` | `true` when users reach the service over HTTPS | false |
 | `LEXVAY_FORWARD_HEADERS` | `native` behind a reverse proxy or load balancer, so client address and scheme come from the proxy headers; leave `none` when the container is reached directly | none |
 | `LEXVAY_RATELIMIT_LOGIN_PER_MINUTE`, `LEXVAY_RATELIMIT_API_PER_MINUTE`, `LEXVAY_RATELIMIT_UPLOAD_PER_MINUTE`, `LEXVAY_UPLOAD_MAX_MB` | Rate limits and upload size (WS-SEC) | 10, 600, 30, 25 |
+| `LEXVAY_PACKAGE_MAX_BYTES` | Largest evidence package, in bytes; a larger one fails its job with a message and nothing is stored (F15) | 536870912 (512 MB) |
 | `LEXVAY_PASSWORD_HASH_CONCURRENCY` | How many password hashes (sign-in, choosing a password) may run at once, 32 MiB of heap each; a caller that waits 2 seconds gets 503 with `Retry-After: 2` (D-407) | processors, at least 2 |
 
 OCR of scanned PDFs (`LEXVAY_OCR`) checkpoints every page in its own committed transaction (`document_ocr_page`, FIX-6), so a retried ingest resumes after the last page that was read instead of recognising the whole document again.
@@ -179,6 +179,27 @@ The audit log can be exported by an administrator as `GET /api/v1/audit.csv` wit
 streamed from the database, so its size does not matter to the heap, but it reads the whole matching log in one
 transaction; export a time range when a tenant's log is very large (D-377). Every export is itself an audit entry.
 
+## Evidence packages
+
+`POST /api/v1/determinations/{id}/package` builds one ZIP for a signed determination that has a ready report (F15,
+D-540 to D-549): the report PDF, `determination.json`, `requirements.csv`, `quotes.csv`, the original bytes of every
+cited document under `documents/`, `audit.csv`, a `README.txt` and a `manifest.json` that lists every other entry with
+its size and SHA-256. A job builds it; `GET /api/v1/packages/{id}` shows QUEUED, READY or FAILED with the size and the
+SHA-256 of the ZIP, and `GET /api/v1/packages/{id}/file` streams it. Requesting, finishing and downloading are audited
+(`PACKAGE_REQUESTED`, `PACKAGE_READY`, `PACKAGE_DOWNLOADED`).
+
+- The build writes the ZIP to the Java temporary directory (`/var/lexvay/tmp` in the image) before storing it, then
+  deletes it, so that directory needs as much free space as the largest package expected (at most
+  `LEXVAY_PACKAGE_MAX_BYTES`). Nothing is held whole in memory: documents and the audit trail stream through.
+- With the S3 store, a ZIP above 16 MB is uploaded in 16 MB parts and a failed upload is aborted, so no partial object
+  stays. The task role has `s3:AbortMultipartUpload` for that (`infra/iam.tf`), and the bucket's lifecycle rule
+  removes the parts of an upload that was never completed after 7 days.
+- A package that passes the size limit, or whose cited document no longer matches the hash recorded at upload, ends
+  FAILED. `GET /api/v1/packages/{id}` carries the reason in `error`, and the job shows in the audit trail as
+  `JOB_FAILED`. Request a new package after fixing the cause; a finished package is never changed.
+- A package is deterministic for the same inputs: entries in a fixed order with the time of generation as their one
+  timestamp. Anyone can verify one with `unzip` and `sha256sum` against `manifest.json`.
+
 ## Health
 
 | Where | Path | Use |
@@ -247,13 +268,13 @@ lexvay_llm_duration_seconds_count{purpose="MATCH_EVIDENCE"} 3
 ### Cost of one assessment
 
 `GET /api/v1/assessments/{id}/usage` (any signed-in user of the tenant; another tenant's id is a 404). With prices
-set (`2.00` and `10.00` here), for the seeded Northfield assessment:
+set (`fake-llm=2.00:10.00` here), for the seeded Northfield assessment:
 
 ```
 {"assessmentId":"9a3e5aef-0a0f-4c15-a8b0-b32b14703993","model":"fake-llm","calls":31,"inputTokens":49362,"outputTokens":2618,"modelTimeMs":0,"wallTimeMs":150,"estimatedCostUsd":0.124904,"prices":{"inputPerMtok":2.00,"outputPerMtok":10.00},"byPurpose":[{"purpose":"MATCH_EVIDENCE","calls":31,"inputTokens":49362,"outputTokens":2618,"durationMs":0}]}
 ```
 
-`estimatedCostUsd` is tokens times the configured prices and is `null` when no price is configured. Requirement
+`estimatedCostUsd` is the tokens times the price of the assessment's model in `LEXVAY_LLM_RATES` (for this example `LEXVAY_LLM_RATES=fake-llm=2.00:10.00`), rounded up to a millionth of a dollar; it and `prices` are `null` when the model has no price. The evaluation report's cost line uses the same table. Requirement
 extraction calls belong to a rule version, not an assessment, and are not included.
 
 ## Deploy on AWS (Terraform)

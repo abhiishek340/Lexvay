@@ -44,10 +44,7 @@ lexvay:
     # month's recorded cost plus the call's largest possible cost stays within the budget. Defaults refuse everything.
     paid-approved: ${LEXVAY_LLM_PAID_APPROVED:false}
     monthly-budget-usd: ${LEXVAY_LLM_MONTHLY_BUDGET_USD:0}
-    rates: ${LEXVAY_LLM_RATES:}             # model=inputPerMtok:outputPerMtok, comma separated; empty means every cost is unknown
-    price:                                    # USD per million tokens; evaluation cost report and GET /assessments/{id}/usage; 0 means not set
-      input-per-mtok: ${LEXVAY_LLM_PRICE_INPUT_PER_MTOK:0}
-      output-per-mtok: ${LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK:0}
+    rates: ${LEXVAY_LLM_RATES:}             # model=inputPerMtok:outputPerMtok, comma separated; the one price table: this gate, GET /assessments/{id}/usage and the evaluation cost report; empty means every cost is unknown
   ratelimit:                              # per instance, per minute (D-092)
     login-per-minute: ${LEXVAY_RATELIMIT_LOGIN_PER_MINUTE:10}
     api-per-minute: ${LEXVAY_RATELIMIT_API_PER_MINUTE:600}
@@ -70,6 +67,8 @@ lexvay:
     polling-enabled: true
     poll-interval-ms: 1000
     max-attempts: 3
+  package:                                # F15: the evidence package ZIP
+    max-bytes: ${LEXVAY_PACKAGE_MAX_BYTES:536870912}   # a larger package fails its job (512 MB); the build needs this much free temporary space
   rule-sources:                           # F12: fetch the pages where licensing boards publish rules (D-185)
     enabled: ${LEXVAY_RULE_SOURCES_ENABLED:false}
     poll-interval-ms: ${LEXVAY_RULE_SOURCES_POLL_INTERVAL_MS:300000}

@@ -55,9 +55,13 @@ call because a call always costs something).
 - What the gate cannot see: a call that failed at the provider is not stored, and several instances can pass the budget
   together by the calls in flight. The budget is a guard rail; OPERATIONS says to set a spending limit with the
   provider as well.
-- `TokenPrice` holds one price and its cost formula. `AssessmentUsageService` and `EvalService` keep their own
-  single-model display price and formula (their rounding differs); they were left alone to keep this change out of
-  other files, and folding them into `TokenPrice` is a safe follow-up.
+- `LlmRates` and `TokenPrice` are the one price table and the one cost formula. `AssessmentUsageService` (the usage
+  endpoint) and `EvalService` (the evaluation cost line) price the model of the assessment or the configured model from
+  it, and the settings `LEXVAY_LLM_PRICE_INPUT_PER_MTOK` and `LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK` (and the Terraform
+  variables behind them) are gone: set `LEXVAY_LLM_RATES` instead, for example `fake-llm=2.00:10.00` to see an
+  illustrative cost for the scripted model. Two things change in those displays and nothing else: a cost is rounded up to a
+  millionth of a dollar (the evaluation line showed ten-thousandths, rounded to nearest), and `prices` in the usage view is
+  `null` instead of two zeros when the model has no price.
 
 **D-563 — A refused call is an audited, permanent failure that carries no content.** `LlmCallBlockedException` extends
 `LlmRefusedException` with a closed `Reason` (`NO_MODEL_FOR_REAL_DATA`, `PAID_CALLS_NOT_APPROVED`, `COST_UNKNOWN`,
@@ -70,8 +74,10 @@ the configuration), with the message as its error and the usual `JOB_FAILED` ent
 
 **D-564 — A `DEMO` tenant's outputs say so in their header.** The PDF report adds a first header line "Data: Fictional
 demo data". The register CSV and the audit CSV start with one record holding that text, above the column labels. A
-`LIVE` tenant's files are as before. Package files (F15) are not on this branch: F15 must add the same marker with
-`DataMode.DEMO_NOTICE` when it merges, and a test beside its own.
+`LIVE` tenant's files are as before. The evidence package (F15) puts "Fictional demo data." as the first line of
+`README.txt` and `"dataMode": "DEMO"` in `manifest.json`; for a `LIVE` tenant the manifest says `"LIVE"` and the README is
+the text as it is. The mode is read once with the snapshot, so the same inputs and the same `generatedAt` still give the
+same bytes. The package's `audit.csv` is the shared `AuditCsv` as before; the README and manifest carry the marker.
 
 **D-565 — One startup line states the money posture.** `SpendGate` logs once when the application starts, for every
 provider including `fake`: the provider, whether paid calls are approved, the monthly budget and the models that have a

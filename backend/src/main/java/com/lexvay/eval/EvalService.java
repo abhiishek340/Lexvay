@@ -7,19 +7,18 @@ import com.lexvay.assessment.Mapping;
 import com.lexvay.common.TenantContext;
 import com.lexvay.llm.FakeLlmClient;
 import com.lexvay.llm.LlmClient;
+import com.lexvay.llm.LlmRates;
 import com.lexvay.rule.RuleVersionService;
 import com.lexvay.seed.ModelStrategy;
 import com.lexvay.seed.ScriptedFakeModel;
 import com.lexvay.seed.SeedLoader;
 import com.lexvay.seed.SeedManifest;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -31,28 +30,23 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 public class EvalService {
 
-    private static final BigDecimal MILLION = BigDecimal.valueOf(1_000_000);
-
     private final SeedLoader seeds;
     private final AssessmentService assessments;
     private final RuleVersionService ruleVersions;
     private final EvalRepository repository;
     private final LlmClient llm;
     private final ObjectMapper json;
-    private final BigDecimal inputPricePerMtok;
-    private final BigDecimal outputPricePerMtok;
+    private final LlmRates rates;
 
     EvalService(SeedLoader seeds, AssessmentService assessments, RuleVersionService ruleVersions, EvalRepository repository,
-                LlmClient llm, ObjectMapper json, @Value("${lexvay.llm.price.input-per-mtok:0}") BigDecimal inputPricePerMtok,
-                @Value("${lexvay.llm.price.output-per-mtok:0}") BigDecimal outputPricePerMtok) {
+                LlmClient llm, ObjectMapper json, LlmRates rates) {
         this.seeds = seeds;
         this.assessments = assessments;
         this.ruleVersions = ruleVersions;
         this.repository = repository;
         this.llm = llm;
         this.json = json;
-        this.inputPricePerMtok = inputPricePerMtok;
-        this.outputPricePerMtok = outputPricePerMtok;
+        this.rates = rates;
     }
 
     public EvalReport run(Path seedDir, Golden golden, Thresholds thresholds) {
@@ -85,10 +79,7 @@ public class EvalService {
 
     private EvalReport.Usage usage(Assessment assessment) {
         EvalRepository.ModelUse use = repository.modelUse();
-        boolean priced = inputPricePerMtok.signum() > 0 || outputPricePerMtok.signum() > 0;
-        BigDecimal cost = !priced ? null : BigDecimal.valueOf(use.inputTokens()).multiply(inputPricePerMtok)
-                .add(BigDecimal.valueOf(use.outputTokens()).multiply(outputPricePerMtok))
-                .divide(MILLION, 4, RoundingMode.HALF_UP);
+        BigDecimal cost = rates.priceOf(llm.modelId()).map(p -> p.cost(use.inputTokens(), use.outputTokens())).orElse(null);
         Duration wall = assessment.startedAt() == null || assessment.finishedAt() == null ? Duration.ZERO
                 : Duration.between(assessment.startedAt(), assessment.finishedAt());
         return new EvalReport.Usage(use.calls(), use.inputTokens(), use.outputTokens(), cost, wall);

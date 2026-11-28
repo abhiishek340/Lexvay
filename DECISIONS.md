@@ -4323,3 +4323,91 @@ University handbook text is not committed to the repository until its rights are
 
 The design work (UI3) is bounded to restyling built screens.
 
+
+### F15 — Evidence package (D-540 to D-549)
+
+**D-540 — One immutable ZIP per request, built by a job.** `POST /api/v1/determinations/{id}/package` records an
+`evidence_package` row and queues `BUILD_PACKAGE`; the ZIP is stored once and never changed. Every request makes a
+new package (no deduplication): two requests an hour apart give two packages whose manifests differ in `generatedAt`,
+and each one is a statement of what the system held at that time. Requesting, finishing (`PACKAGE_READY`, actor
+null, the job) and downloading (`PACKAGE_DOWNLOADED`) are audited, and the download is on the list of audited reads in
+`Rule9_AuditCoverageTest`. Any role that can read the determination may request and download; no role is added
+(rule 1 is about signing, and a package signs nothing).
+
+**D-541 — V020, with the status finished once by a trigger and a CHECK for the file.** V019 belongs to SEC-3 and was
+not on `main` when this was written; the migration is numbered V020 as the spec says (Flyway accepts the gap, and
+`MigrationsApplyCleanlyTest` counts files, not numbers). `evidence_package_finish_once` allows exactly QUEUED to READY
+or FAILED and changes nothing but `status`, `storage_key`, `content_sha256` and `size_bytes`; `forbid_change` blocks
+deletes. The CHECK `evidence_package_file_iff_ready` makes the file columns all set exactly when the status is READY,
+so a package that is ready always has a file, hash and size, and one that failed has none. The spec said "like
+`report`", but `report` has no trigger in V001 to V017; this is stricter on purpose and `report` is left alone. RLS is
+enabled and forced with the same policy as every tenant table. Index `(determination_id, created_at DESC)`, plus the
+usual `tenant_id` index. `created_by` references `app_user` (the job's rows are created by the person who asked).
+
+**D-542 — `FileStore` streams.** `put(String, Path)` and `open(String)` join the byte-array methods. The local store
+copies into a temporary file beside the target and moves it into place atomically (and now deletes that temporary
+file when the copy fails, for the byte-array `put` too). The S3 store sends a file of at most 16 MiB with one
+`PutObject` and a larger one as a multipart upload in 16 MiB parts, holding one part in memory; any failure aborts the
+upload so no object appears under the key. `open` returns the `GetObject` stream. The task role gets
+`s3:AbortMultipartUpload` (`infra/iam.tf`; Terraform is not available on this machine, so the one-line change was not
+validated here). The S3 tests use the Mockito mock of `S3Client` like the existing ones (D-042).
+
+**D-543 — The same inputs give the same bytes.** Entries go in a fixed order: `README.txt`, `report.pdf`,
+`determination.json`, `requirements.csv`, `quotes.csv`, `audit.csv`, `documents/*` in filename order, `manifest.json`.
+Every entry carries one timestamp, `generatedAt` truncated to whole seconds and read as UTC through
+`ZipEntry.setTimeLocal`, which writes the DOS time without the extended-timestamp field; no comment, no extra field.
+`generatedAt` comes from a `Clock` bean (`ClockConfig`, new) so a test can fix it. The compressed bytes also depend on
+the JVM's zlib, so the guarantee is the one the spec asks for: the same code on the same runtime and the same inputs.
+`content_sha256` is computed while the file is written, over the stored ZIP, and the stored size is its length.
+
+**D-544 — Entry formats.** `requirements.csv` uses the stored codes, not labels (kind = the requirement type, check =
+`RULES_ENGINE` or `MATCH`, finding, decision = `ACCEPTED`, `EVIDENCE_REQUESTED` or `GAP_CONFIRMED`), so a reader can
+filter on exactly what the database holds; a requirement nobody has decided has empty decision fields, which is also
+what the report says ("none recorded"). `quotes.csv` has the seven columns of the spec; the page hash is the SHA-256
+(`DocumentService.sha256`) of the page text as stored, so anyone can recompute it from the stored text without
+trusting the package. `determination.json` adds the outcome label next to the outcome code, and the state's name next
+to its code. The cited documents are listed once each; two different documents with the same filename (the same
+syllabus name in two courses) keep the first and prefix the other with the first eight characters of its id, and
+control characters and path separators in a filename become `_`, so no path leaves `documents/`. `README.txt` is a
+resource (`evidence-package/README.txt`), four plain sentences, and `ForbiddenWordsTest` now scans that folder.
+`manifest.json` lists every other entry with its uncompressed size and SHA-256, plus `packageId`, `determinationId`,
+`generatedAt`, `lexvayVersion` (from `build-info`, which the Maven plugin now generates) and the hash algorithm.
+
+**D-545 — What `audit.csv` holds.** The entries whose record is the determination, any mapping of its assessment and
+jurisdiction (superseded mappings included, because their decisions are part of how the final list was reached), any
+report of the determination, or this package, newest first, in the columns and quoting of the F5a export. The two
+exports share `AuditCsv` (header and row), so they cannot drift. The file holds `PACKAGE_REQUESTED` but never
+`PACKAGE_READY` or `PACKAGE_DOWNLOADED`, which are written after it. SEC-3 (`seq` and `row_hash`) has not merged, so
+those columns are absent; when it does, add them to `AuditCsv` and the one query. Unlike the audit export, a package
+does not write an `AUDIT_EXPORTED` entry: it is audited as a package. The rows stream from a cursor of 500, so the
+size of the log does not matter to the heap.
+
+**D-546 — Failure.** The build writes into a temporary file, stores it with one `put`, marks the package READY and
+deletes the temporary file in a `finally`; a failure at any step leaves no stored object. A package over
+`lexvay.package.max-bytes` (`LEXVAY_PACKAGE_MAX_BYTES`, default 512 MB) fails while it is being written, because
+`StoredFileOutput` refuses the write that would pass the limit, so an oversized ZIP is never finished. A cited
+document whose stored bytes no longer hash to the SHA-256 recorded at upload fails the build the same way: a package
+never vouches for bytes it cannot vouch for. Both are `PermanentJobFailure`: retrying cannot help. The job's
+transaction rolls back on failure, so the package row cannot be marked FAILED from inside it; `JobHandler` gets a
+default `onFailed(Job)` that `JobRunner` calls once, in a transaction of its own under the job's tenant, after the
+job failed for good (a permanent failure, or the last attempt), never for an attempt that will be retried. A failure of
+the hook is logged and does not change the job. `GET /packages/{id}` shows FAILED with the job's message in `error`;
+the audit trail has the existing `JOB_FAILED` entry, so no fourth package action was added.
+
+**D-547 — Preconditions.** Only a SIGNED determination is packaged (a REOPENED one is 409: its signed state no longer
+holds), and a READY report must exist ("Generate the report first"). The report in the package is the newest READY
+one, as `ReportRepository.findLatestReady` defines it; the build reads it again and fails for good if it is gone.
+The request does not wait for a report that is still queued: it is refused with the same 409.
+
+**D-548 — API details.** The request answers 202 with `{packageId, jobId}`. `GET /packages/{id}` returns the status,
+size, SHA-256, creation time and, for FAILED, the error. `GET /packages/{id}/file` is 409 until the package is READY,
+then streams `application/zip` with `Content-Length`, the SHA-256 as the ETag and the filename
+`lexvay-<program-slug>-<state>-<signed-date>.zip`: the program name in lower case with each run of other characters
+as one hyphen ("program" if nothing is left), the state code in lower case, the signing date in UTC. The download
+is audited when it starts, in the request's transaction, before the file is opened, so a download that cannot start
+leaves no entry; one the client abandons does, as with the exports (D-377).
+
+**D-549 — Test support moved, not copied.** The CSV reader of `AuditExportApiTest` is now `TestCsv` and the
+signing of the first current jurisdiction in `RegisterSeedTest` is `SeedSigning`, both shared with the package tests.
+`PackageFixtures` holds the requests and the unzip. The seeded test packages a determination signed on the Northfield
+seed with its real PDFs and checks every manifest hash.

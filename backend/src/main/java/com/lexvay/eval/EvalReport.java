@@ -50,7 +50,7 @@ public record EvalReport(Mode mode, String model, String tenant, int goldenSize,
         out.append(String.format(Locale.ROOT, "%-42s %,d%n", "Input tokens", usage.inputTokens()));
         out.append(String.format(Locale.ROOT, "%-42s %,d%n", "Output tokens", usage.outputTokens()));
         out.append(String.format(Locale.ROOT, "%-42s %s%n", "Cost per assessment (USD)",
-                usage.cost() == null ? "n/a (LEXVAY_LLM_PRICE_*_PER_MTOK not set)" : usage.cost().toPlainString()));
+                usage.cost() == null ? "n/a (no price for the model in LEXVAY_LLM_RATES)" : usage.cost().toPlainString()));
         out.append(String.format(Locale.ROOT, "%-42s %.1f s%n", "Wall time per assessment", usage.wallTime().toMillis() / 1000.0));
         if (termOverlap != null) {
             out.append("\nSearch terms the model proposed, by overlap with the golden terms\n");

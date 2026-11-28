@@ -7,6 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import com.lexvay.auth.LexvayUser;
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
+import com.lexvay.common.TestCsv;
 import com.lexvay.common.TestTenants;
 import com.lexvay.tenant.DataMode;
 import java.time.Instant;
@@ -55,45 +56,9 @@ class AuditExportApiTest extends AbstractDatabaseTest {
         return (as == null ? request : request.with(user(as))).exchange();
     }
 
-    /** RFC 4180: quoted fields, doubled quotes, CRLF between records. */
-    static List<List<String>> parse(String csv) {
-        List<List<String>> records = new ArrayList<>();
-        List<String> record = new ArrayList<>();
-        StringBuilder field = new StringBuilder();
-        boolean quoted = false;
-        for (int i = 0; i < csv.length(); i++) {
-            char c = csv.charAt(i);
-            if (quoted) {
-                if (c == '"' && i + 1 < csv.length() && csv.charAt(i + 1) == '"') {
-                    field.append('"');
-                    i++;
-                } else if (c == '"') {
-                    quoted = false;
-                } else {
-                    field.append(c);
-                }
-            } else if (c == '"') {
-                quoted = true;
-            } else if (c == ',') {
-                record.add(field.toString());
-                field.setLength(0);
-            } else if (c == '\r' && i + 1 < csv.length() && csv.charAt(i + 1) == '\n') {
-                record.add(field.toString());
-                field.setLength(0);
-                records.add(record);
-                record = new ArrayList<>();
-                i++;
-            } else {
-                field.append(c);
-            }
-        }
-        assertThat(field).as("the file ends with a line break").isEmpty();
-        return records;
-    }
-
     private List<List<String>> rows(MvcTestResult result) throws Exception {
         assertThat(result).hasStatus(200);
-        List<List<String>> records = parse(result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        List<List<String>> records = TestCsv.parse(result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
         assertThat(records.get(0)).as("a DEMO tenant's file says first that its data is fictional").containsExactly("Fictional demo data");
         assertThat(records.get(1)).isEqualTo(HEADER);
         return records.subList(2, records.size());
@@ -111,7 +76,7 @@ class AuditExportApiTest extends AbstractDatabaseTest {
         var result = export(live.admin(), "");
 
         assertThat(result).hasStatus(200);
-        List<List<String>> records = parse(result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        List<List<String>> records = TestCsv.parse(result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
         assertThat(records.get(0)).isEqualTo(HEADER);
     }
 

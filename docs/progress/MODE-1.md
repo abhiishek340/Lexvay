@@ -24,10 +24,9 @@ All of the plan. Changes outside the spec's list of files, each small:
 
 ## Deferred and notes
 - Requirement approval in a LIVE tenant is refused until RG-1 records a dates basis (D-561); RG-1 replaces `RealDataApprovalGuard.datesBasis`.
-- Evidence packages (F15) are not on this branch; F15 adds the DEMO marker (D-564).
-- `infra/ecs.tf` sets provider `anthropic` and none of the new variables, so a deployment made from it refuses every paid call until
-  the variables are added there. Nothing was applied (D-562).
-- `AssessmentUsageService` and `EvalService` keep their own display price; folding them into `TokenPrice` is a follow-up (D-562).
+- `infra/ecs.tf` now passes `LEXVAY_LLM_PAID_APPROVED=false`, a budget of 0 and empty rates, from variables with those defaults, so a
+  deployment is visibly fail-closed. Terraform is not installed on this machine, so `make infra-validate` was not run; CI's infra job validates it.
+- `LEXVAY_LLM_PRICE_*_PER_MTOK` and the Terraform variables behind them are removed; `LEXVAY_LLM_RATES` is the one price table (D-562).
 
 ## Test runs
 All with `LEXVAY_E2E_SLOT=8` on 2026-11-27, tree equal to origin/main (7b04d82 plus the docs commit 4eb75fa) plus this branch.

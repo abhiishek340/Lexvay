@@ -115,6 +115,14 @@ public class JobRunner {
         log.error("Job {} failed permanently with {}; the reason is stored on the job", job.type(), rootCause(cause).getClass().getName());
         jobs.markFailed(job.id(), message);
         audit.recordAs(null, "JOB_FAILED", "job", job.id(), Map.of("type", job.type().name(), "error", message));
+        JobHandler handler = handlers.get(job.type());
+        if (handler != null) {
+            try {
+                transaction.executeWithoutResult(status -> handler.onFailed(job));
+            } catch (RuntimeException e) {
+                log.error("Job {} failed permanently and its record could not be marked failed: {}", job.type(), rootCause(e).getClass().getName());
+            }
+        }
     }
 
     private static Throwable rootCause(Throwable t) {
