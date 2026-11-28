@@ -1,4 +1,4 @@
-import { ADMIN, DANA, JORDAN, PRIYA, expect, expectAccessible, goTo, nav, signIn, stateTab, test } from './support';
+import { ADMIN, DANA, JORDAN, PRIYA, expect, expectAccessible, goTo, nav, openAccountMenu, signIn, stateTab, test } from './support';
 
 test('sign-in is one quiet column, accessible in both themes at 1440 and 400 px', async ({ page }) => {
   for (const [width, height] of [[1440, 900], [400, 860]] as const) {
@@ -81,15 +81,14 @@ test('the work queue popover lists what needs the signer, each item opening its 
 test('the theme chosen in the avatar menu persists across a reload, and the menu is accessible at 400 px', async ({ page }) => {
   await signIn(page, PRIYA);
   const html = page.locator('html');
-  const account = page.getByRole('button', { name: /^Account, Dr\. Priya Raman/ });
-  await account.click();
+  await openAccountMenu(page);
   const themes = page.getByRole('group', { name: 'Theme' });
   await themes.getByRole('button', { name: 'Dark' }).click();
   await expect(html).toHaveAttribute('data-theme', 'dark');
   await page.reload();
   await expect(page.getByRole('navigation', { name: 'Screens' })).toBeVisible();
   await expect(html).toHaveAttribute('data-theme', 'dark');
-  await account.click();
+  await openAccountMenu(page);
   await expect(themes.getByRole('button', { name: 'Dark' })).toHaveAttribute('aria-pressed', 'true');
   await themes.getByRole('button', { name: 'Light' }).click();
   await page.reload();
@@ -99,11 +98,9 @@ test('the theme chosen in the avatar menu persists across a reload, and the menu
   // event pass (it fires before the next animation frames), then open the menu until it is there.
   await page.setViewportSize({ width: 400, height: 860 });
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  const menu = page.getByRole('dialog', { name: 'Account' });
-  await expect(async () => {
-    if (!(await menu.isVisible())) { await account.click(); }
-    await expect(menu).toContainText('Reviewer', { timeout: 1000 });
-  }).toPass();
+  await expect(await openAccountMenu(page)).toContainText('Reviewer');
+  // The overview behind the menu has loaded: this test measures the menu, not the skeleton of a slow load.
+  await expect(page.getByTestId('state-row-CA')).toBeVisible();
   await expectAccessible(page, 'Avatar menu at 400 px');
 });
 

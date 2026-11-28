@@ -5,7 +5,7 @@ import { awaitingAnswer } from './evidence-requests';
 import { AssessmentView, ChangeEvent, Determination, EvidenceRequest, Jurisdiction, Program, ProgramOverview, RuleVersionView } from './models';
 import { overviewCounts } from './overview';
 import { problemDetail } from './problem';
-import { versionsWaitingForApproval } from './rules';
+import { groupRuleVersions, versionsWaitingForApproval } from './rules';
 
 /**
  * The program every screen works on, loaded once per program and shared, so moving between screens
@@ -34,6 +34,9 @@ export class ProgramContext {
     return program ? overviewCounts(program, this.assessment(), this.determinations()) : null;
   });
   readonly openChanges = computed(() => this.changeEvents().filter((e) => e.status === 'OPEN').length);
+  /** The rule versions as the Rules screen lists them, grouped by the program's target states. */
+  readonly ruleVersionGroups = computed(() =>
+    groupRuleVersions(this.ruleVersions(), this.program()?.jurisdictions ?? [], (code) => this.jurisdictionName(code)));
   readonly rulesWaiting = computed(() => versionsWaitingForApproval(this.ruleVersions()));
   readonly openRequests = computed(() => awaitingAnswer(this.evidenceRequests()));
   private readonly names = computed(() => new Map(this.jurisdictions().map((j) => [j.code, j.name])));
