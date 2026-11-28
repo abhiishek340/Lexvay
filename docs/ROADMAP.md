@@ -349,6 +349,62 @@ from legal status. This item extends F12, FIX-4 and RG-1; it adds no new service
 6. **Docs:** OPERATIONS gets a "Monitoring etiquette" section: User-Agent, contact, throttle, robots, the access
    review step, and no circumvention. Decisions go in `docs/decisions/RG-2.md`, progress in `docs/progress/RG-2.md`.
 
+### EV-2 — Evaluation lab (backend and tooling; slot 8; Sonnet 5.5; no migration; D-621 to D-630)
+Master prompt §5.5 and M7. Accuracy claims need independent labels, frozen held-out cases, denominators, uncertainty and
+a comparison against a strong generic baseline. `make eval` today is a scripted regression against a single golden file.
+It stays as is; this item adds the lab beside it. No real program or rule text is added here: the demo answer key is
+fictional and says so. Real keys come from DOM-1, the domain expert.
+1. **Answer key format**, `eval/keys/<key-id>.yml`, validated by a JSON schema in `eval/keys/schema.json`:
+   - **Provenance:** `fictional` (true or false), the labellers (role, independent true or false, no names), the
+     date, and the source bundle (rule version labels and dates, program and catalog year, document SHA-256s).
+   - **Per requirement:**
+     - expected finding (`EVIDENCE_FOUND`, `EVIDENCE_MISSING`, `AMBIGUOUS`, `NOT_APPLICABLE`);
+     - acceptable evidence spans (document SHA-256 plus page and character ranges; an overlap of 50 % or more
+       counts as a match);
+     - `severity` (`CRITICAL` or `STANDARD`);
+     - optional `notes`;
+     - an `adjudication` block when two labellers disagreed (both labels and the final one).
+   - Ship `eval/keys/demo-northfield.yml`, built from the seeded fictional program, with `fictional: true`.
+2. **Splits and leakage guard:**
+   - Each key declares `split: dev` or `split: holdout`.
+   - `eval/holdout.lock` lists each holdout key's file SHA-256.
+   - `make eval-lab` runs dev keys only. `make eval-holdout` needs `CONFIRM_HOLDOUT=1` and refuses to run if a
+     holdout key's hash differs from the lock; updating the lock is a deliberate separate commit.
+   - Holdout results are never printed during a dev run.
+3. **Runner:** reuse `EvalRunner` and `EvalService`; add no parallel harness.
+   - It assesses the key's program against the key's rule versions, with whichever provider is configured. EV-1's
+     mode label (`SCRIPTED`, `LOCAL_LIVE` or `PAID_LIVE`) appears on every report.
+   - The spend gate applies as usual.
+4. **Metrics** (pure, unit-tested), each reported as numerator / denominator with a Wilson 95 % interval:
+   - **Severe false assurance:** EVIDENCE_FOUND where the key says MISSING or NOT_APPLICABLE, or a quote from a
+     course that is not on every path for a CRITICAL requirement. This is the headline metric.
+   - Finding accuracy, and abstention rate (AMBIGUOUS when the key is decided).
+   - Evidence precision and recall by span overlap.
+   - Numeric accuracy.
+   - Every metric is also broken down by state, requirement type and severity.
+   - Pre-agreed thresholds live in `eval/lab-thresholds.yml`. Unmeasured thresholds are marked `unset` and never
+     pass or fail a run.
+5. **Generic baseline**, `--baseline`:
+   - The same model, the same approved documents (full text up to a token budget) and one generic prompt asking for
+     the finding per requirement with a quote. No retrieval, validators, rules engine or pathway logic.
+   - Quotes are checked with the same verifier, and the baseline is scored with the same metrics, side by side.
+   - In `SCRIPTED` mode the baseline is reported as `BLOCKED: needs a model`, never invented.
+6. **Reports:**
+   - Markdown and JSON go to `eval/reports/<date>-<mode>-<split>.{md,json}`, gitignored.
+   - The Markdown header states the key's provenance. When `fictional` is true, "fictional, not evidence of accuracy"
+     is on the first line.
+   - The JSON lets two runs be diffed by a small `scripts/eval-diff` command.
+7. **Tests:**
+   - the schema validation;
+   - the lock refusal;
+   - the metrics with hand-computed fixtures, including the Wilson interval;
+   - the baseline BLOCKED path;
+   - a dev run on the demo key in SCRIPTED mode producing a report whose first line says fictional;
+   - no holdout output during dev.
+8. **Docs:** "Evaluation lab" in OPERATIONS, covering what each metric means, how a domain expert writes a key, the
+   two-labeller and adjudication flow, the holdout discipline, and that results without denominators and
+   independent labels are not claims. Decisions go in `docs/decisions/EV-2.md`, progress in `docs/progress/EV-2.md`.
+
 ## Design system v3 "Ledger" (owner directive 2026-11-27: "not AI slop", professional, human craft)
 The owner reviewed v2 on the running app and rejected it: yellow and orange accents, icon-heavy pills and cards, a
 palette and card art that look generated. `docs/DESIGN.md` is rewritten as v3 and is the contract. Every screen
@@ -553,10 +609,11 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | in progress |
 | OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | merged (#54) |
 | OPS-2b Stack lock race on Ubuntu 26.04 (uutils mkdir) | `ops-stack-lock-fix` | — | Sonnet 5.5 | merged (#60) |
-| OPS-3 Performance budget on CI | `ops-perf-ci` | — | Sonnet 5.5 | in progress |
-| EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | in progress |
+| OPS-3 Performance budget on CI | `ops-perf-ci` | — | Sonnet 5.5 | merged (#56) |
+| EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | merged (#59) |
 | RG-2 Source registry governance | `rg-source-governance` | 6 | Sonnet 5.5 | in progress |
-| RG-3, AC-2, AC-3, EV-2, UX-1 | see Real-data validation track | — | — | queued |
+| EV-2 Evaluation lab | `ev-lab` | 8 | Sonnet 5.5 | in progress |
+| RG-3, AC-2, AC-3, UX-1 | see Real-data validation track | — | — | queued |
 | SP-1 SharePoint spike, DOM-1 expert review | — | — | — | blocked (founder) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
@@ -2023,6 +2080,8 @@ self-verifying ZIP built by a job.
    or later, not here.
 
 ## Follow-ups recorded from reviews
+- OPS-3: `AuditSealPerfTest` (SEC-3) writes no `target/perf` file, so its numbers are not in the CI perf summary; have it
+  write `target/perf/audit-seal.md` (verify and seal timings) like the other perf tests.
 - AC-1 (rule 6): a signed determination does not yet name the pathway groups it was assessed against. Add the active
   pathway group ids to the determination's dependency snapshot and its versions hash, so a later group change marks it
   for reassessment like a course or rule change.

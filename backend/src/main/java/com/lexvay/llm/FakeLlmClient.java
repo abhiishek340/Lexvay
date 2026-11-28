@@ -50,7 +50,7 @@ public class FakeLlmClient implements LlmClient {
             throw new IllegalStateException("FakeLlmClient has no scripted response for key '" + request.scriptKey() + "'");
         }
         String text = queue.size() > 1 ? queue.poll() : queue.peek();
-        return new LlmResponse(text, MODEL_ID, request.userPrompt().length() / 4, text.length() / 4, 0);
+        return new LlmResponse(text, MODEL_ID, LlmResponse.estimateInputTokens(request), LlmResponse.estimateOutputTokens(text), 0, true);
     }
 
     @Override

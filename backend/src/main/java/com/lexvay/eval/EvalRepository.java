@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 class EvalRepository {
 
-    record ModelUse(int calls, long inputTokens, long outputTokens) {
+    record ModelUse(int calls, long inputTokens, long outputTokens, boolean tokensEstimated) {
     }
 
     private final JdbcClient jdbc;
@@ -32,8 +32,12 @@ class EvalRepository {
     }
 
     ModelUse modelUse() {
-        return jdbc.sql("SELECT count(*) AS calls, coalesce(sum(input_tokens), 0) AS input, coalesce(sum(output_tokens), 0) AS output FROM llm_call")
-                .query((rs, i) -> new ModelUse(rs.getInt("calls"), rs.getLong("input"), rs.getLong("output")))
+        return jdbc.sql("""
+                SELECT count(*) AS calls, coalesce(sum(input_tokens), 0) AS input, coalesce(sum(output_tokens), 0) AS output,
+                       coalesce(bool_or(request ->> 'tokensEstimated' = 'true'), false) AS estimated
+                FROM llm_call
+                """)
+                .query((rs, i) -> new ModelUse(rs.getInt("calls"), rs.getLong("input"), rs.getLong("output"), rs.getBoolean("estimated")))
                 .single();
     }
 }
