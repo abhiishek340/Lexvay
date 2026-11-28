@@ -1,0 +1,22 @@
+name: Set up the backend toolchain
+description: Java 21 and the cached Maven repository, shared by every job that builds the backend (D-644).
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: "21"
+
+    # The Maven repository is cached with a prefix fallback: a pom.xml change restores the newest cache and downloads
+    # only what changed, instead of everything from Maven Central, which rate-limits busy runners (HTTP 429).
+    - uses: actions/cache@v6
+      with:
+        # The wrapper's own Maven distribution lives in ~/.m2/wrapper; without it every cold run downloads Maven
+        # from Maven Central first, which has failed under rate limiting.
+        path: |
+          ~/.m2/repository
+          ~/.m2/wrapper
+        key: maven-${{ runner.os }}-${{ hashFiles('backend/pom.xml', 'backend/.mvn/wrapper/maven-wrapper.properties') }}
+        restore-keys: maven-${{ runner.os }}-
