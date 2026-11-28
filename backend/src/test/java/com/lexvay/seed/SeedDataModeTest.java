@@ -29,7 +29,7 @@ class SeedDataModeTest extends AbstractDatabaseTest {
         return new SeedManifest.Tenant("Seed mode test " + suffix, true,
                 List.of(new SeedManifest.User("admin-" + suffix + "@seed-mode.example", "Seed Admin", "Administrator", "ADMIN")),
                 new SeedManifest.Program("M.S. Counseling", "CLINICAL_MENTAL_HEALTH_COUNSELING", "2026-27", List.of("UT")),
-                null, null, null, null, null, null);
+                null, null, null, null, null, null, null);
     }
 
     private DataMode modeOf(UUID tenantId) {
