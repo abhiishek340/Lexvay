@@ -347,6 +347,8 @@ test('UI3-1: Review and Coverage in design v3 at 1440 and 400 px', async ({ page
       expect((await apiPost(page, `/api/v1/mappings/${m.id}/reviews`, { kind, note })).status()).toBe(201);
     }
   }
+  // The program's summary was read at sign-in; read it again so the state tabs count the decisions just made.
+  await page.reload();
   const heading = page.getByTestId('requirement-heading');
   // Under 1024 px the page scrolls as one column: bring the requirement to the top of the window for its capture.
   const toRequirement = async (width: number) => {
