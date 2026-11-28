@@ -2,15 +2,13 @@
   <header class="lx-page-header">
     <div>
       <h1>Evidence report</h1>
-      @if (context.program(); as p) {
-        <p class="lx-meta">{{ p.name }}@if (note(); as n) { · <span id="downloads-note">{{ n }}</span> }</p>
-      }
+      <p class="lx-meta lx-downloads-note" id="downloads-note">{{ note() }}</p>
     </div>
     <div class="lx-title-actions">
       @if (context.program()) {
         <button pButton type="button" severity="secondary" [outlined]="true" (click)="checkOpen.set(true)"><span pButtonLabel>Check a file</span></button>
         <button pButton type="button" severity="secondary" [outlined]="true" [disabled]="!reportReady() || preparingPackage()"
-                [attr.aria-busy]="preparingPackage()" [attr.aria-describedby]="reportReady() ? null : 'downloads-note'" (click)="downloadPackage()">
+                [attr.aria-busy]="preparingPackage()" [attr.aria-describedby]="note() ? 'downloads-note' : null" (click)="downloadPackage()">
           <span pButtonLabel>{{ preparingPackage() ? 'Preparing package…' : 'Download evidence package' }}</span>
         </button>
         <button pButton type="button" [disabled]="!signed() || preparingPdf()" [attr.aria-busy]="preparingPdf()"
@@ -37,7 +35,6 @@
               <article class="lx-sheet" aria-labelledby="report-title" [attr.data-state]="signed() ? 'signed' : 'draft'">
                 <header class="lx-sheet-head">
                   <div class="lx-sheet-heading">
-                    <p class="lx-meta">Evidence report</p>
                     <h2 id="report-title">{{ context.jurisdictionName(code) }}</h2>
                     <p class="lx-meta">{{ p.name }} · {{ license(p) }} · Catalog {{ p.catalogYear }}</p>
                   </div>

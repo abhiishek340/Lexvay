@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { ADMIN, DANA, JORDAN, SCREENSHOTS, apiPost, changeRows, citedRequirement, expect, goTo, nav, openRequirement, programIdFromUrl, shoot, signIn, stateTab, switchUser, test } from './support';
 
 /**
@@ -283,6 +284,7 @@ test('UI3-2: changes, audit trail, report, register, people and setup in design 
     const entries = page.getByRole('main').getByRole('listitem');
     await expect(entries.nth(2)).toBeVisible();
     await entries.nth(1).getByRole('button').click();
+    await page.locator('main').evaluate((main) => main.scrollTo(0, 0));
     await shoot(page, `ui3-2-audit-${width}`);
 
     await goTo(page, 'Evidence report');
@@ -295,7 +297,7 @@ test('UI3-2: changes, audit trail, report, register, people and setup in design 
 
     const pdf = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download PDF' }).click();
-    const report = await (await pdf).path();
+    const report = { name: 'report.pdf', mimeType: 'application/pdf', buffer: readFileSync(await (await pdf).path()) };
     let release = (): void => undefined;
     const held = new Promise<void>((resolve) => { release = resolve; });
     await page.route('**/api/v1/packages/*', async (route) => { await held; await route.continue(); });

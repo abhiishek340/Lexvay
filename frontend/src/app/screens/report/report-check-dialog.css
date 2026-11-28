@@ -1,6 +1,7 @@
 /*
- * The dialog is appended to the body; its content keeps this component's scoped attributes, so these rules reach it.
- * Design v3: type and space carry the result; no tints, no rings, no icons beside words.
+ * The dialog is appended to the body: its content keeps this component's scoped attributes, so plain rules reach it,
+ * but nothing there sits inside this component's host, so FileUpload's own parts are reached with unscoped rules on the
+ * dialog's own class. Design v3: type and space carry the result; no tints, no rings, no icons beside words.
  */
 .lx-check { min-height: 192px; display: flex; flex-direction: column; justify-content: center; }
 
@@ -8,15 +9,15 @@
  * The drop zone is FileUpload's content area: a dashed frame that takes the accent edge while a file is over it. The
  * shared token set (program setup's) gives FileUpload an inset fill and padding; this dialog draws its own frame instead.
  */
-:host ::ng-deep .lx-check-upload.p-fileupload { background: transparent; border: 0; }
-:host ::ng-deep .lx-check-upload .p-fileupload-header { display: none; }
-:host ::ng-deep .lx-check-upload .p-fileupload-content { padding: 0; }
+::ng-deep .lx-check-upload.p-fileupload { background: transparent; border: 0; }
+::ng-deep .lx-check-upload .p-fileupload-header { display: none; }
+::ng-deep .lx-check-upload .p-fileupload-content { padding: 0; }
 .lx-drop {
   display: flex; flex-direction: column; align-items: center; gap: var(--lx-space-4); padding: var(--lx-space-7) var(--lx-space-5);
   border: 1px dashed var(--p-lx-line-strong); border-radius: var(--lx-r-control);
   transition: border-color var(--lx-t-fast) var(--lx-ease);
 }
-:host ::ng-deep .p-fileupload-content[data-p-highlight='true'] .lx-drop { border-color: var(--p-lx-accent); }
+::ng-deep .lx-check-upload .p-fileupload-content[data-p-highlight='true'] .lx-drop { border-color: var(--p-lx-accent); }
 .lx-drop-title { color: var(--p-lx-ink-2); }
 .lx-check-error { display: block; margin-top: var(--lx-space-3); }
 

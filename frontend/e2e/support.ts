@@ -123,9 +123,11 @@ export function nav(page: Page, name: string) {
 
 /**
  * Opens a screen from the rail, or, in the bottom tab bar under 640 px where it may not fit, from the "More" menu
- * (shell tabBarOverflow).
+ * (shell tabBarOverflow). Right after a viewport change the shell moves its links on the next frames, so it waits two
+ * frames before asking where the link is.
  */
 export async function goTo(page: Page, name: string): Promise<void> {
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const link = nav(page, name);
   if (await link.isVisible()) {
     await link.click();

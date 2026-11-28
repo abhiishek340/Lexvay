@@ -65,7 +65,7 @@
                        [attr.aria-label]="'Evidence report for ' + r.jurisdictionName + ', ' + r.programName">{{ r.jurisdictionName }}</a>
                   </td>
                   <td>{{ r.programName }} <span class="lx-muted lx-nowrap">{{ r.catalogYear }}</span></td>
-                  <td>
+                  <td class="lx-nowrap">
                     @let o = outcomeOf(r);
                     <span class="lx-outcome">
                       <span [class]="o.tone">{{ o.label }}</span>

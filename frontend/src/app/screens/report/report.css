@@ -1,5 +1,6 @@
 /* The title row, the state tabs and the sheet share one measure: the sheet's 816 px (US Letter at 96 dpi). */
 .lx-report { max-width: calc(816px + 2 * var(--lx-gutter)); }
+.lx-downloads-note { min-height: 16px; }
 .lx-error { display: block; margin-bottom: var(--lx-space-4); }
 .lx-tabs { display: block; margin-bottom: var(--lx-space-5); }
 :host ::ng-deep .lx-panels.p-tabpanels { padding: 0; background: transparent; }
@@ -49,6 +50,7 @@ lx-skeleton-rows { margin-top: var(--lx-space-3); }
 .lx-sheet-skeleton { margin-top: 0; }
 
 @media (max-width: 640px) {
+  .lx-title-actions { justify-content: flex-start; }
   .lx-sheet { padding: var(--lx-space-5) 20px var(--lx-space-6); }
   .lx-sheet-head { flex-direction: column-reverse; gap: var(--lx-space-4); }
   .lx-signature { grid-template-columns: minmax(0, 1fr); }
