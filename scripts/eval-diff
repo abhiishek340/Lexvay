@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Compares two evaluation-lab reports (eval/reports/<date>-<mode>-<split>.json, EV-2): what each metric did, and which
+# requirements were answered differently. Needs jq. Exit status like diff(1): 0 when nothing differs, 1 when something does,
+# 64 when it cannot compare (wrong arguments, a file that is not a lab report, or two reports of different keys or splits).
+#
+#   scripts/eval-diff eval/reports/2026-11-28-scripted-dev.json eval/reports/2026-11-29-local-live-dev.json
+#
+# Two runs are comparable only when they score the same keys (by file SHA-256) in the same split: a metric over different
+# questions says nothing about the change. A difference of mode or model is the point of most comparisons and is shown, not refused.
+set -euo pipefail
+
+usage() { echo "usage: scripts/eval-diff <report-a.json> <report-b.json>" >&2; exit 64; }
+[ $# -eq 2 ] || usage
+command -v jq >/dev/null || { echo "eval-diff: jq is required" >&2; exit 64; }
+for report in "$1" "$2"; do
+  [ -r "$report" ] || { echo "eval-diff: cannot read $report" >&2; exit 64; }
+  jq -e '.format == "lexvay-eval-lab-report/1"' "$report" >/dev/null 2>&1 || { echo "eval-diff: $report is not a lab report (format lexvay-eval-lab-report/1)" >&2; exit 64; }
+done
+if ! jq -e -n --slurpfile a "$1" --slurpfile b "$2" '($a[0].keys | map(.sha256) | sort) == ($b[0].keys | map(.sha256) | sort) and $a[0].split == $b[0].split' >/dev/null; then
+  echo "eval-diff: the two reports score different keys or different splits, so their metrics are not comparable" >&2
+  exit 64
+fi
+
+PROGRAM='
+def pct: if .denominator == 0 then "n/a" else "\((.rate * 1000 | round) / 10) %" end;
+def cell: "\(.numerator) / \(.denominator), \(pct)";
+def rowmap: map({key: "\(.key) \(.requirement)", value: .}) | from_entries;
+def metricLines($x; $y):
+  [ $x.metrics | keys_unsorted[] as $m
+    | "  \($m): \($x.metrics[$m] | cell) -> \($y.metrics[$m] | cell)" + (if $x.metrics[$m] == $y.metrics[$m] then "" else "   CHANGED" end) ]
+  + [ "  quoteVerification: \($x.quoteVerification | cell) -> \($y.quoteVerification | cell)" + (if $x.quoteVerification == $y.quoteVerification then "" else "   CHANGED" end) ];
+def rowLines($x; $y):
+  ($x.rows | rowmap) as $xr | ($y.rows | rowmap) as $yr
+  | [ ($xr + $yr | keys_unsorted[]) as $k
+      | if ($xr[$k] == null) then "  \($k): only in the second report"
+        elif ($yr[$k] == null) then "  \($k): only in the first report"
+        elif ($xr[$k].answered != $yr[$k].answered or $xr[$k].evidenceMatches != $yr[$k].evidenceMatches or $xr[$k].severeFalseAssurance != $yr[$k].severeFalseAssurance)
+        then "  \($k): answered \($xr[$k].answered // "nothing") -> \($yr[$k].answered // "nothing"), evidence match \($xr[$k].evidenceMatches) -> \($yr[$k].evidenceMatches), severe \($xr[$k].severeFalseAssurance) -> \($yr[$k].severeFalseAssurance) (key: \($xr[$k].expected))"
+        else empty end ];
+def system($label; $x; $y):
+  ["", $label] + metricLines($x; $y) + (rowLines($x; $y) as $rows | if ($rows | length) == 0 then ["  no requirement was answered differently"] else ["  requirements answered differently:"] + $rows end);
+def head($r): "\($r.date) \($r.mode) \($r.model) split \($r.split)";
+["A: \(head($a[0]))", "B: \(head($b[0]))"]
++ system("Pipeline"; $a[0].pipeline; $b[0].pipeline)
++ (if $a[0].baseline.status == "MEASURED" and $b[0].baseline.status == "MEASURED" then system("Generic baseline"; $a[0].baseline.measured; $b[0].baseline.measured)
+   else ["", "Generic baseline: \($a[0].baseline.status) -> \($b[0].baseline.status), not compared"] end)
+| .[]
+'
+OUTPUT=$(jq -r -n --slurpfile a "$1" --slurpfile b "$2" "$PROGRAM")
+printf '%s\n' "$OUTPUT"
+if printf '%s\n' "$OUTPUT" | grep -q 'CHANGED\|answered differently:\|only in the'; then
+  exit 1
+fi

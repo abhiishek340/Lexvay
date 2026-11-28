@@ -201,3 +201,4 @@ lexvay:
     dir: ${LEXVAY_SEED_DIR:../seed}
   eval:
     dir: ${LEXVAY_EVAL_DIR:../eval}
+    baseline-token-budget: ${LEXVAY_EVAL_BASELINE_TOKEN_BUDGET:24000}   # the generic baseline is given the documents' text up to this many tokens (a quarter of the characters)
