@@ -180,8 +180,8 @@
       </p-table>
     }
   } @else if (!error()) {
-    <div class="lx-table-skeleton" aria-busy="true" aria-label="Loading requirements">
-      @for (i of [1, 2, 3, 4]; track i) { <p-skeleton height="3.25rem" /> }
+    <div class="lx-table-skeleton" role="status" aria-busy="true" aria-label="Loading requirements">
+      @for (i of [1, 2, 3, 4]; track i) { <p-skeleton aria-hidden="true" height="3.25rem" /> }
     </div>
   }
 </div>

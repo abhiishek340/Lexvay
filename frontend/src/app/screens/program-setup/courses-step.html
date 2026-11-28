@@ -40,7 +40,7 @@
     </p-table>
   }
 } @else {
-  <div class="lx-panel-skeleton" aria-busy="true" aria-label="Loading courses">@for (i of [1, 2, 3]; track i) { <p-skeleton height="3.25rem" /> }</div>
+  <div class="lx-panel-skeleton" role="status" aria-busy="true" aria-label="Loading courses">@for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="3.25rem" /> }</div>
 }
 
 <p-dialog header="Add course" [visible]="addOpen()" (visibleChange)="addOpen.set($event)" (onHide)="addClosed()" [modal]="true" [draggable]="false"

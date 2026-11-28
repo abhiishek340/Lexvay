@@ -55,9 +55,9 @@
       </section>
     </div>
   } @else if (!context.error()) {
-    <div class="lx-rules-skeleton" aria-busy="true" aria-label="Loading rule versions">
-      <div>@for (i of [1, 2, 3, 4, 5]; track i) { <p-skeleton height="3.75rem" /> }</div>
-      <p-skeleton height="24rem" />
+    <div class="lx-rules-skeleton" role="status" aria-busy="true" aria-label="Loading rule versions">
+      <div>@for (i of [1, 2, 3, 4, 5]; track i) { <p-skeleton aria-hidden="true" height="3.75rem" /> }</div>
+      <p-skeleton aria-hidden="true" height="24rem" />
     </div>
   }
 </div>

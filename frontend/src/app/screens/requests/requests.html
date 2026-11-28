@@ -116,9 +116,9 @@
       }
     </section>
   } @else if (!context.error()) {
-    <div class="lx-inbox lx-skeleton" aria-busy="true" aria-label="Loading evidence requests">
-      <p-skeleton width="16rem" height="2.25rem" />
-      @for (i of [1, 2, 3]; track i) { <p-skeleton height="3.25rem" /> }
+    <div class="lx-inbox lx-skeleton" role="status" aria-busy="true" aria-label="Loading evidence requests">
+      <p-skeleton aria-hidden="true" width="16rem" height="2.25rem" />
+      @for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="3.25rem" /> }
     </div>
   }
 </div>

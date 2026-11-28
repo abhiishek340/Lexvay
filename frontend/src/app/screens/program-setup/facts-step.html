@@ -48,7 +48,7 @@
     </ul>
   }
 } @else {
-  <div class="lx-panel-skeleton" aria-busy="true" aria-label="Loading program facts">@for (i of [1, 2]; track i) { <p-skeleton height="5rem" /> }</div>
+  <div class="lx-panel-skeleton" role="status" aria-busy="true" aria-label="Loading program facts">@for (i of [1, 2]; track i) { <p-skeleton aria-hidden="true" height="5rem" /> }</div>
 }
 
 <lx-sheet [heading]="recording() ? 'Record ' + fieldLabel[recording()!].toLowerCase() : 'Record a fact'" headingId="fact-sheet-heading"

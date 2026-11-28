@@ -75,10 +75,10 @@
       }
     </div>
   } @else if (!error()) {
-    <div class="lx-skeleton" aria-busy="true" aria-label="Loading the audit trail">
-      <p-skeleton width="6rem" height="1.25rem" />
+    <div class="lx-skeleton" role="status" aria-busy="true" aria-label="Loading the audit trail">
+      <p-skeleton aria-hidden="true" width="6rem" height="1.25rem" />
       @for (i of [1, 2, 3, 4, 5, 6]; track i) {
-        <div class="lx-skeleton-row"><p-skeleton shape="circle" size="2rem" /><p-skeleton height="2.75rem" styleClass="lx-skeleton-card" /></div>
+        <div class="lx-skeleton-row"><p-skeleton aria-hidden="true" shape="circle" size="2rem" /><p-skeleton aria-hidden="true" height="2.75rem" styleClass="lx-skeleton-card" /></div>
       }
     </div>
   }

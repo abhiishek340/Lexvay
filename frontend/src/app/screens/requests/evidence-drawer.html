@@ -8,7 +8,7 @@
         @if (requirement.value(); as r) {
           <blockquote class="lx-answer-rule">{{ r.text }}</blockquote>
         } @else if (requirement.isLoading()) {
-          <div class="lx-answer-rule" aria-hidden="true"><p-skeleton height="0.875rem" /><p-skeleton width="80%" height="0.875rem" /></div>
+          <div class="lx-answer-rule" aria-hidden="true"><p-skeleton aria-hidden="true" height="0.875rem" /><p-skeleton aria-hidden="true" width="80%" height="0.875rem" /></div>
         }
         <figure class="lx-answer-ask">
           <figcaption class="lx-answer-asker">

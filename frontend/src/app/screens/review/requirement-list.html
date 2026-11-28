@@ -13,7 +13,7 @@
   </div>
   <div class="lx-list-body" #body>
     @if (loading()) {
-      @for (i of [1, 2, 3, 4, 5, 6]; track i) { <div class="lx-row-skeleton"><p-skeleton width="2.5rem" height="0.75rem" /><p-skeleton height="0.875rem" /></div> }
+      @for (i of [1, 2, 3, 4, 5, 6]; track i) { <div class="lx-row-skeleton"><p-skeleton aria-hidden="true" width="2.5rem" height="0.75rem" /><p-skeleton aria-hidden="true" height="0.875rem" /></div> }
     } @else if (w.visible().length === 0) {
       <p class="lx-empty">No requirements match this filter.</p>
     } @else {

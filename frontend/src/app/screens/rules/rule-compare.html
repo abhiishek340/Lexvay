@@ -100,9 +100,9 @@
       </p-accordion-panel>
     </p-accordion>
   } @else if (loading()) {
-    <div aria-busy="true" aria-label="Loading the comparison" class="lx-compare-skeleton">
-      <p-skeleton width="22rem" height="1.25rem" />
-      @for (i of [1, 2, 3]; track i) { <p-skeleton height="2.75rem" /> }
+    <div role="status" aria-busy="true" aria-label="Loading the comparison" class="lx-compare-skeleton">
+      <p-skeleton aria-hidden="true" width="22rem" height="1.25rem" />
+      @for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="2.75rem" /> }
     </div>
   }
 </div>

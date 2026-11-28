@@ -22,7 +22,7 @@
       </section>
     }
     @if (v.providedLoading) {
-      <div class="lx-provided" aria-busy="true" aria-label="Loading the evidence people provided"><p-skeleton width="14rem" height="1rem" /><p-skeleton height="6rem" /></div>
+      <div class="lx-provided" role="status" aria-busy="true" aria-label="Loading the evidence people provided"><p-skeleton aria-hidden="true" width="14rem" height="1rem" /><p-skeleton aria-hidden="true" height="6rem" /></div>
     }
   }
 </section>

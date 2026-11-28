@@ -51,7 +51,7 @@
                   <ng-icon name="phosphorLockSimple" size="16" aria-hidden="true" />Fixed once created
                 </p>
               } @else if (programId()) {
-                <div class="lx-panel-skeleton" aria-busy="true" aria-label="Loading the program"><p-skeleton height="2.5rem" /><p-skeleton height="2.5rem" /></div>
+                <div class="lx-panel-skeleton" role="status" aria-busy="true" aria-label="Loading the program"><p-skeleton aria-hidden="true" height="2.5rem" /><p-skeleton aria-hidden="true" height="2.5rem" /></div>
               } @else {
                 @let f = form();
                 @let p = problems();

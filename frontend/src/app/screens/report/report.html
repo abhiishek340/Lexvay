@@ -76,8 +76,8 @@
               }
             </ol>
           } @else {
-            <div class="lx-skeleton" aria-busy="true" aria-label="Loading requirements">
-              @for (i of [1, 2, 3, 4]; track i) { <p-skeleton height="5.5rem" /> }
+            <div class="lx-skeleton" role="status" aria-busy="true" aria-label="Loading requirements">
+              @for (i of [1, 2, 3, 4]; track i) { <p-skeleton aria-hidden="true" height="5.5rem" /> }
             </div>
           }
         </section>
@@ -85,8 +85,8 @@
 
     </div>
   } @else if (!context.error()) {
-    <div class="lx-skeleton lx-sheet" aria-busy="true" aria-label="Loading the report">
-      <p-skeleton width="16rem" height="2rem" /><p-skeleton height="6rem" /><p-skeleton height="14rem" />
+    <div class="lx-skeleton lx-sheet" role="status" aria-busy="true" aria-label="Loading the report">
+      <p-skeleton aria-hidden="true" width="16rem" height="2rem" /><p-skeleton aria-hidden="true" height="6rem" /><p-skeleton aria-hidden="true" height="14rem" />
     </div>
   }
 </div>

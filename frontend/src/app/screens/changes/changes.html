@@ -69,9 +69,9 @@
       </p-timeline>
     }
   } @else if (!context.error()) {
-    <div class="lx-skeleton" aria-busy="true" aria-label="Loading changes">
+    <div class="lx-skeleton" role="status" aria-busy="true" aria-label="Loading changes">
       @for (i of [1, 2]; track i) {
-        <div class="lx-skeleton-row"><p-skeleton shape="circle" size="2.25rem" /><p-skeleton height="8.5rem" styleClass="lx-skeleton-card" /></div>
+        <div class="lx-skeleton-row"><p-skeleton aria-hidden="true" shape="circle" size="2.25rem" /><p-skeleton aria-hidden="true" height="8.5rem" styleClass="lx-skeleton-card" /></div>
       }
     </div>
   }

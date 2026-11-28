@@ -94,7 +94,7 @@
     }
   </div>
 } @else {
-  <div class="lx-panel-skeleton" aria-busy="true" aria-label="Loading documents">@for (i of [1, 2, 3]; track i) { <p-skeleton height="3rem" /> }</div>
+  <div class="lx-panel-skeleton" role="status" aria-busy="true" aria-label="Loading documents">@for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="3rem" /> }</div>
 }
 
 <lx-sheet [heading]="reading()?.filename ?? 'Document'" headingId="document-sheet-heading" [open]="reading() !== null" (closed)="close()" size="narrow">

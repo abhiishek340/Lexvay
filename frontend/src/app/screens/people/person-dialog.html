@@ -47,8 +47,8 @@
       } @else if (error(); as e) {
         <p-message severity="error" data-testid="message">{{ e }}</p-message>
       } @else {
-        <div class="lx-code-loading" aria-busy="true" aria-label="Issuing a setup code">
-          <p-skeleton width="5rem" height="1rem" /><p-skeleton height="3.5rem" /><p-skeleton width="16rem" height="1rem" />
+        <div class="lx-code-loading" role="status" aria-busy="true" aria-label="Issuing a setup code">
+          <p-skeleton aria-hidden="true" width="5rem" height="1rem" /><p-skeleton aria-hidden="true" height="3.5rem" /><p-skeleton aria-hidden="true" width="16rem" height="1rem" />
         </div>
       }
       @if (link() && error(); as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }

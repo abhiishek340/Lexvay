@@ -3,7 +3,7 @@
     <div class="lx-document-top">
       <p class="lx-document-name">
         <ng-icon name="phosphorFileText" size="16" aria-hidden="true" />
-        @if (loaded(); as p) { <span>{{ p.filename }}</span> } @else { <p-skeleton width="12rem" height="1rem" /> }
+        @if (loaded(); as p) { <span>{{ p.filename }}</span> } @else { <p-skeleton aria-hidden="true" width="12rem" height="1rem" /> }
       </p>
       <a pButton [href]="fileUrl()" target="_blank" rel="noopener" severity="secondary" [text]="true" size="small" class="lx-document-icon"
          pTooltip="Open original" tooltipPosition="bottom" [showDelay]="300">
@@ -49,7 +49,7 @@
         <pre class="lx-document-text" #pageText [class.lx-selectable]="selectable()" (pointerup)="onSelectionEnd()" (keyup)="onSelectionEnd()">@if (parts(); as cut) {{{ cut.before }}<mark #mark tabindex="-1" data-testid="evidence-mark">{{ cut.quote }}</mark>{{ cut.after }}} @else {{{ shown() }}}</pre>
       } @else {
         <div class="lx-document-text" aria-hidden="true">
-          @for (width of ['92%', '100%', '86%', '97%', '64%']; track $index) { <p-skeleton [width]="width" height="0.875rem" /> }
+          @for (width of ['92%', '100%', '86%', '97%', '64%']; track $index) { <p-skeleton aria-hidden="true" [width]="width" height="0.875rem" /> }
         </div>
       }
       @if (pending(); as p) {

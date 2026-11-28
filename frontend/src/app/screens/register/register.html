@@ -118,8 +118,8 @@
           </p-table>
           </div>
         } @else if (!rowsError()) {
-          <div class="lx-skeleton" aria-busy="true" aria-label="Loading the register">
-            @for (i of [1, 2, 3, 4]; track i) { <p-skeleton height="2.75rem" /> }
+          <div class="lx-skeleton" role="status" aria-busy="true" aria-label="Loading the register">
+            @for (i of [1, 2, 3, 4]; track i) { <p-skeleton aria-hidden="true" height="2.75rem" /> }
           </div>
         }
       </p-tabpanel>
@@ -181,8 +181,8 @@
         } @else if (programs()?.length === 0) {
           <p class="lx-muted">No programs yet.</p>
         } @else if (!listsError() && !error()) {
-          <div class="lx-skeleton" aria-busy="true" aria-label="Loading the lists">
-            @for (i of [1, 2, 3]; track i) { <p-skeleton height="5rem" /> }
+          <div class="lx-skeleton" role="status" aria-busy="true" aria-label="Loading the lists">
+            @for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="5rem" /> }
           </div>
         }
       </p-tabpanel>

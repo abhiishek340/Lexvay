@@ -49,7 +49,7 @@
                 } @empty {
                   @if (loading()) {
                     <div class="lx-subject lx-subject-skeleton" aria-hidden="true">
-                      <p-skeleton width="4rem" height="1.25rem" /><p-skeleton width="60%" height="2rem" /><p-skeleton height="7rem" />
+                      <p-skeleton aria-hidden="true" width="4rem" height="1.25rem" /><p-skeleton aria-hidden="true" width="60%" height="2rem" /><p-skeleton aria-hidden="true" height="7rem" />
                     </div>
                   } @else {
                     <p class="lx-subject lx-empty">Select a requirement.</p>
@@ -73,8 +73,8 @@
       }
     </p-tabpanels>
   } @else if (!context.error()) {
-    <div class="lx-body lx-body-skeleton" aria-busy="true" aria-label="Loading the review">
-      <p-skeleton height="24rem" /><p-skeleton height="24rem" /><p-skeleton height="24rem" />
+    <div class="lx-body lx-body-skeleton" role="status" aria-busy="true" aria-label="Loading the review">
+      <p-skeleton aria-hidden="true" height="24rem" /><p-skeleton aria-hidden="true" height="24rem" /><p-skeleton aria-hidden="true" height="24rem" />
     </div>
   }
 </p-tabs>
