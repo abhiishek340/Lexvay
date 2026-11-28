@@ -1,12 +1,13 @@
-# Limits for `make eval` (fake) and `make eval-live` (real model). A run exits non-zero when one is broken.
-# Quote verification is not listed: it must be 100 % (product rule 2) and is fixed in code.
+# Limits for `make eval` (scripted model) and `make eval-live` (a real model, local or billed). A run exits non-zero
+# when one is broken. Quote verification is not listed: it must be 100 % (product rule 2) and is fixed in code.
 #
-# fake: the scripted model must reproduce the golden set exactly, so any drift between seed/fake-llm.yml, the
+# scripted: the scripted model must reproduce the golden set exactly, so any drift between seed/fake-llm.yml, the
 #   pipeline and eval/golden.yml fails the build.
-# live: false EVIDENCE_FOUND stays at zero because it is the worst possible error. Recall and extraction
-#   agreement are first estimates, to be tightened from real runs; numeric accuracy does not depend on the
+# live: unmeasured first values, never a copy of the scripted ones: no real model has been measured yet. A measured
+#   run sets them, and the measuring run's report (eval/runs/ for a local model) is the evidence. False
+#   EVIDENCE_FOUND stays at zero because it is the worst possible error; numeric accuracy does not depend on the
 #   model once the golden requirement list is substituted.
-fake:
+scripted:
   maxFalseEvidenceFoundRate: 0.0
   minRecall: 1.0
   minNumericAccuracy: 1.0
