@@ -388,6 +388,21 @@ connection. One `make perf` run, milliseconds on loopback:
 Plan (`IndexUsageTest`, `backend/target/perf/coverage-plan.txt`): 0.31 ms execution, no executed
 sequential scan of `mapping`, `evidence_span`, `evidence_response` or `document`.
 
+## Audit trail seal (SEC-3)
+
+`AuditSealPerfTest` (`make perf`, `docs/decisions/SEC-3.md` D-537): 20 000 audit entries of the perf seed's volume are
+queued and sealed by the real sealer, then `GET /api/v1/audit/verify`'s service is timed five times after a warm-up.
+Budget: under 2 s. Two runs on this machine (loopback, Testcontainers PostgreSQL 18.7; the second while other builds were running):
+
+| What | Result |
+|---|---|
+| Sealing 20 005 entries, 41 batches of 500 | 513 ms, 1 162 ms |
+| Verifying them (five runs) | 70, 60, 53, 52, 75 ms (median 60 ms); 195, 181, 139, 195, 221 ms (median 195 ms) |
+| Queue read (`AuditSealRepository.QUEUED`) | Index Only Scan `audit_unsealed_tenant_idx`, nested loop to `audit_log_pkey`, `LIMIT 500` stops early |
+| Dequeue (`AuditSealRepository.DEQUEUE`) | Index Scan `audit_seal_tenant_id_seq_key`, then `audit_unsealed_pkey` |
+
+The test fails when either plan scans the queue sequentially.
+
 ## Not covered
 
 - All numbers are loopback. Production adds network latency per round trip, which favours the new design.

@@ -476,7 +476,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI3-1 Review and Coverage in v3 | `ui3-review-coverage` | 1 | Opus 5.5 | in progress |
 | UI3-2 Changes, audit, report, register, people in v3 | `ui3-records` | 4 | Opus 5.5 | in progress |
 | UI3-3 Rules, requests, setup in v3 | `ui3-rules-requests-setup` | 5 | Opus 5.5 | in progress |
-| SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | PR #53, renumbering to V023 |
+| SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | merged (#53) |
 | F15 Evidence package | `feat-evidence-package` | 5 | Sonnet 5.5 | merged (#49) |
 | RG-1 Legal time and status model (P0) | `rg-legal-time` | 2 | Sonnet 5.5 | in progress |
 | MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | merged (#51) |
@@ -1825,7 +1825,7 @@ suite did not notice, because it only guards against unknown icons.
 4. **Record it:** decisions in `docs/decisions/FIX-8.md`, progress in `docs/progress/FIX-8.md`. List every
    `allowConsoleErrors` added, with the reason for each.
 
-## SEC-3 — Tamper-evident audit trail (backend only; slot 6; Sonnet 5.5; migration `V019__audit_seal.sql`; D-530 to D-537)
+## SEC-3 — Tamper-evident audit trail (backend only; slot 6; Sonnet 5.5; migration `V023__audit_seal.sql`, renumbered from V019 by merge order; D-530 to D-537)
 Rule 9 audits every action, and triggers stop UPDATE and DELETE through the application. But a database superuser,
 or a restore from an altered backup, could still change history without trace. Auditors of licensing records ask for
 evidence that the trail is complete and unaltered. Decided design: a per-tenant hash chain built by an asynchronous
