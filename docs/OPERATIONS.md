@@ -87,7 +87,8 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 | `LEXVAY_MANAGEMENT_PORT` | Management port (`/actuator/prometheus`, `/actuator/health`). Keep it off the public network. `-1` turns it off | 8090 |
 | `LEXVAY_SHUTDOWN_GRACE` | Time a stop waits for open requests and the running job | 30s |
 | `LEXVAY_DB_URL`, `LEXVAY_DB_OWNER_*`, `LEXVAY_DB_APP_*` | PostgreSQL URL and the two roles (D-013, D-034) | see `.env.example` |
-| `LEXVAY_LLM_PROVIDER`, `LEXVAY_LLM_MODEL`, `LEXVAY_LLM_EFFORT`, `ANTHROPIC_API_KEY` | Model (D-033). `fake` is for demos only | `fake` |
+| `LEXVAY_LLM_PROVIDER`, `LEXVAY_LLM_MODEL`, `LEXVAY_LLM_EFFORT`, `ANTHROPIC_API_KEY` | Model (D-033). `fake` is for demos only; `anthropic` is billed; `openai-compatible` is a server you run (see "Local inference"). The model is empty for `anthropic` (it then uses its default) and required for `openai-compatible` | `fake` |
+| `LEXVAY_LLM_BASE_URL`, `LEXVAY_LLM_API_KEY`, `LEXVAY_LLM_TIMEOUT_SECONDS`, `LEXVAY_LLM_ALLOWED_HOSTS`, `LEXVAY_LLM_SEED` | The `openai-compatible` provider (EV-1, D-616): the server's base URL (required), an optional bearer token, the seconds a call may take, the hosts the base URL may name, and an optional integer sent as `seed` | empty, empty, `120`, `localhost,127.0.0.1,::1`, empty |
 | `LEXVAY_LLM_PAID_APPROVED`, `LEXVAY_LLM_MONTHLY_BUDGET_USD`, `LEXVAY_LLM_RATES` | The spend gate for a metered provider and the one price table (see "Data mode and the spend gate"). `LEXVAY_LLM_RATES` replaces `LEXVAY_LLM_PRICE_INPUT_PER_MTOK` and `LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK`, which are no longer read | `false`, `0`, empty |
 | `LEXVAY_FILESTORE`, `LEXVAY_FILESTORE_PATH`, `LEXVAY_S3_BUCKET` | Where documents are stored | image: `/var/lexvay/files` |
 | `SPRING_PROFILES_ACTIVE` (compose: `LEXVAY_PROFILES`) | The image sets `prod` (structured logs); use `prod,oidc` for single sign-on, because setting only `oidc` drops the production log format | `prod` |
@@ -151,6 +152,71 @@ A refused call sends nothing, fails its job at once (no retries), logs the reaso
 same moment can together pass the budget by the calls in flight. Treat the budget as a guard rail and also set a
 spending limit with the provider. At startup one log line states the provider, whether paid calls are approved, the
 budget and the priced models. `make eval-live` goes through the same gate.
+
+## Local inference
+
+The `openai-compatible` provider talks to a language model server you run yourself, so no call has a per-call fee and
+the spend gate does not apply to it (D-616). Servers that speak the OpenAI-compatible `/chat/completions` API work:
+llama.cpp's `llama-server`, Ollama, vLLM and LM Studio. Lexvay downloads no model and ships none. The name of the model
+is yours to choose and has no default.
+
+**Point Lexvay at a server.** Start the server first, then set three variables. The base URL ends before
+`/chat/completions`, and the model is the exact name the server serves:
+
+```
+# llama-server started as: llama-server --port 8089 --model <path to the model file you chose>
+LEXVAY_LLM_PROVIDER=openai-compatible
+LEXVAY_LLM_BASE_URL=http://localhost:8089/v1
+LEXVAY_LLM_MODEL=<the name llama-server reports>
+
+# Ollama started as: ollama serve   (the server listens on port 11434)
+LEXVAY_LLM_PROVIDER=openai-compatible
+LEXVAY_LLM_BASE_URL=http://localhost:11434/v1
+LEXVAY_LLM_MODEL=<a model you pulled, as `ollama list` names it>
+```
+
+These two are examples of servers, not recommendations of a model. `LEXVAY_LLM_API_KEY` is sent as a bearer token only
+when set. A call that takes longer than `LEXVAY_LLM_TIMEOUT_SECONDS` (default 120) fails its job, which retries as for
+any provider; a local model on a laptop can be slow, so measure before you lower it.
+
+**The host list.** The base URL's host must be in `LEXVAY_LLM_ALLOWED_HOSTS` (default `localhost,127.0.0.1,::1`), or
+the application does not start and the message names the host. Every prompt carries a university's documents, so a
+remote server needs an explicit entry that you add knowing the prompts will be sent there. The startup log names the
+model and the host. Redirects are never followed. Inside the application container `localhost` is the container: reach
+a server on the host machine through an address you list, for example `host.docker.internal`.
+
+**Structured output.** The adapter sends the JSON schema as `response_format` of type `json_schema`. A server that
+answers HTTP 400 naming `response_format` is asked once more with the schema written into the system message instead.
+Either way the answer is validated against the schema by the same code as for every provider, and an answer that is not
+valid is rejected the same way as for the Claude API. Quotes are still verified against the stored
+page text (product rule 2), so a weak model can lower recall, not produce evidence that is not on the page.
+
+**Before you use a model.** Vet its licence. Some licences limit commercial or institutional use, require attribution
+or forbid certain uses; whether a model may be used on a university's documents is a decision for you and the
+university, and Lexvay cannot make it. Nothing in the repository says a model is acceptable.
+
+**What to measure.** Memory: the model's resident size on the machine that serves it, with the context length you
+configured, and what remains for PostgreSQL and the application. Latency: the wall time of one assessment, which
+`make eval-live` prints with the number of calls, and the slowest single call in the server's own log. Tokens: the
+report prints them; when the server reports no usage the counts are estimates from text length, the report says so
+and the stored call carries `tokensEstimated` in its request. Measure on the machine you will run on, with the context
+length and quantisation you will use; a figure from another machine does not transfer.
+
+**Measuring a model.** Run `make eval-live` with the three variables above in the environment. It scores the model on the
+fictional golden set, prints the report and keeps it in `eval/runs/<date>-<model>.txt` (not committed; keep it
+yourself). The header of every report names the mode, the model, the host and the date: `SCRIPTED` is the scripted
+model, `LOCAL_LIVE` is a model you run, `PAID_LIVE` is a billed provider. A `LOCAL_LIVE` report says that the model has
+not been vetted by Lexvay, and it describes that model, on that day, on that machine, only. The limits for a real model
+in `eval/thresholds.yml` are unmeasured first values until a measured run sets them.
+
+**Repeatable runs.** Every request asks for `temperature: 0`. Set `LEXVAY_LLM_SEED` to an integer and it is sent as
+`seed` too. On the same server, model file and settings that makes a run repeatable, as far as the server honours them:
+some servers ignore `seed`, and a different quantisation, context length or server version changes the answers. The
+report does not record the seed, so note it with the report you keep.
+
+**Local calls and the spend gate.** Each stored call says whether its client costs money (`metered` in the stored
+request). The spend gate adds up only metered calls, so a local model's calls, which have tokens and no price, never
+make a billed call's cost unknown. A call stored before this was recorded has no such entry and counts as metered.
 
 ## Users and sessions
 

@@ -4,7 +4,7 @@ import { jurisdictionRows, overviewCounts } from './overview';
 
 const program: Program = { id: 'p', name: 'P', licenseType: 'L', catalogYear: '2026-27', jurisdictions: ['CA', 'UT'], createdAt: '' };
 const assessment: AssessmentView = {
-  id: 'a', programId: 'p', status: 'FINISHED', startedAt: null, finishedAt: null, llmModel: 'fake', promptVersion: 'match-v1', createdAt: '',
+  id: 'a', programId: 'p', status: 'FINISHED', startedAt: null, finishedAt: null, llmModel: 'fake', promptVersion: 'match-v1', assessmentAsOf: '2026-11-27', createdAt: '',
   jurisdictions: [
     { jurisdiction: 'CA', total: 8, evidenceFound: 5, evidenceMissing: 1, ambiguous: 2, decided: 8 },
     { jurisdiction: 'UT', total: 9, evidenceFound: 7, evidenceMissing: 1, ambiguous: 1, decided: 3 },

@@ -10,6 +10,7 @@ import com.lexvay.rule.source.CheckOutcome;
 import com.lexvay.rule.source.CreateRuleSourceRequest;
 import com.lexvay.rule.source.RuleSourceRepository;
 import com.lexvay.rule.source.RuleSourceService;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,7 @@ class Rule5_RuleSourceImmutabilityTest extends AbstractDatabaseTest {
         tenant = tenants.create("source-immutable");
         TenantContext.runAs(tenant.tenantId(), () -> {
             sourceId = service.register(new CreateRuleSourceRequest("CA", "LICENSE", "Source", "https://rules.example.test/a.pdf", 24));
-            checkId = repository.insertCheck(tenant.tenantId(), sourceId, CheckOutcome.UNCHANGED, 200, "a".repeat(64), null, null, null);
+            checkId = repository.insertCheck(tenant.tenantId(), sourceId, OffsetDateTime.now(), CheckOutcome.UNCHANGED, 200, "a".repeat(64), null, null, null);
         });
     }
 
@@ -72,7 +73,7 @@ class Rule5_RuleSourceImmutabilityTest extends AbstractDatabaseTest {
     @Test
     void onlyAChangedCheckCarriesADocumentAndAVersion() {
         TenantContext.runAs(tenant.tenantId(), () -> {
-            assertThatThrownBy(() -> repository.insertCheck(tenant.tenantId(), sourceId, CheckOutcome.CHANGED, 200, null, null, null, null))
+            assertThatThrownBy(() -> repository.insertCheck(tenant.tenantId(), sourceId, OffsetDateTime.now(), CheckOutcome.CHANGED, 200, null, null, null, null))
                     .hasMessageContaining("rule_source_check_changed_has_both");
         });
     }

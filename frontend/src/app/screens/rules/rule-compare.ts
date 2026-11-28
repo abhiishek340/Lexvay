@@ -11,7 +11,7 @@ import { ApiService } from '../../core/api.service';
 import { REQUIREMENT_TYPE_LABEL, numericCheck } from '../../core/labels';
 import { DiffRow, DiffSegment, DiffStatus, RuleVersionDiff, RuleVersionView } from '../../core/models';
 import { problemDetail } from '../../core/problem';
-import { comparableVersions } from '../../core/rules';
+import { comparableVersions, effectiveText } from '../../core/rules';
 import { DiffText } from '../../ui/diff-text';
 import { DIFF_STATUS } from './diff-status';
 import { TermsDiff, termsDiff } from './search-terms';
@@ -41,7 +41,7 @@ export class RuleCompare {
 
   readonly options = computed(() => {
     const v = this.version();
-    return comparableVersions(this.all(), v.jurisdiction, v.licenseType, v.id).map((o) => ({ id: o.id, label: `${o.label} (effective ${o.effectiveFrom})` }));
+    return comparableVersions(this.all(), v.jurisdiction, v.licenseType, v.id).map((o) => ({ id: o.id, label: `${o.label} (effective ${effectiveText(o)})` }));
   });
   /** Changed rows first, then added, removed and unchanged; the server's list order within each. */
   readonly rows = computed(() => {

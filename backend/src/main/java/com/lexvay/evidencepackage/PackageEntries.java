@@ -3,6 +3,8 @@ package com.lexvay.evidencepackage;
 import com.lexvay.assessment.Mapping;
 import com.lexvay.common.CsvWriter;
 import com.lexvay.evidencepackage.PackageSourceRepository.Quote;
+import com.lexvay.rule.LegalPosition;
+import com.lexvay.rule.RuleVersion;
 import com.lexvay.tenant.DataMode;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -48,7 +50,9 @@ final class PackageEntries {
     record SignerJson(UUID id, String name) {
     }
 
-    record RuleVersionJson(UUID id, String label, String effectiveFrom, String sourceUrl) {
+    /** The rule version with its current legal status and dates and where the dates come from (null when not recorded). */
+    record RuleVersionJson(UUID id, String label, String legalStatus, String effectiveFrom, String effectiveTo, String datesBasis,
+                           String sourceUrl) {
     }
 
     record CourseVersionJson(UUID id, String code, String title, String catalogYear) {
@@ -76,9 +80,14 @@ final class PackageEntries {
                 new ProgramJson(s.program().id(), s.program().name(), s.program().licenseType(), s.program().catalogYear()),
                 new StateJson(s.state().code(), s.state().name()), d.outcome().name(), d.outcome().label(),
                 new SignerJson(d.signedBy(), d.signedByName()), d.signedAt().toInstant(), d.status().name(), d.versionsHash(),
-                new RuleVersionJson(s.ruleVersion().id(), s.ruleVersion().label(), s.ruleVersion().effectiveFrom().toString(),
-                        s.ruleVersion().sourceUrl()),
+                ruleVersion(s.ruleVersion()),
                 s.courseVersions().stream().map(c -> new CourseVersionJson(c.id(), c.code(), c.title(), c.catalogYear())).toList());
+    }
+
+    private static RuleVersionJson ruleVersion(RuleVersion v) {
+        LegalPosition legal = v.legal();
+        return new RuleVersionJson(v.id(), v.label(), legal.status().name(), legal.effectiveFrom() == null ? null : legal.effectiveFrom().toString(),
+                legal.effectiveTo() == null ? null : legal.effectiveTo().toString(), legal.datesBasis(), v.sourceUrl());
     }
 
     /** One row per requirement: the proposed finding and the person's final decision, or empty fields when there is none. */

@@ -43,21 +43,25 @@ public class LlmUsageRepository {
     }
 
     /**
-     * What every tenant has used since the start of the current UTC month, by model, leaving out one model whose calls
-     * cost nothing (the scripted one). The budget belongs to the deployment's one provider account, so this crosses
-     * tenants under the transaction-local spend-gate flag that only the {@code llm_call} SELECT policy honours (V022).
-     * It runs in its own transaction so the flag never outlives this query inside a caller's transaction.
+     * What every tenant has used since the start of the current UTC month, by model, counting only calls that cost
+     * money: those stored with {@code metered: true} in their request ({@link LlmCallRecorder}), and those stored
+     * without the key, which predate it and so count (fail closed). Calls stored with {@code metered: false}, a model the
+     * operator runs, and the scripted model's calls (free, named by {@code scriptedModel}) are left out. The budget
+     * belongs to the deployment's one provider account, so this crosses tenants under the transaction-local spend-gate
+     * flag that only the {@code llm_call} SELECT policy honours (V022). It runs in its own transaction so the flag never
+     * outlives this query inside a caller's transaction.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
-    public List<ModelUsage> thisMonthExcluding(String freeModel) {
+    public List<ModelUsage> meteredThisMonth(String scriptedModel) {
         jdbc.sql(SPEND_GATE_FLAG).query().singleRow();
         return jdbc.sql("""
                 SELECT model, coalesce(sum(input_tokens), 0) AS input_tokens, coalesce(sum(output_tokens), 0) AS output_tokens
                 FROM llm_call
-                WHERE created_at >= date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AND model <> :freeModel
+                WHERE created_at >= date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AND model <> :scriptedModel
+                  AND coalesce(request ->> 'metered', 'true') = 'true'
                 GROUP BY model
                 """)
-                .param("freeModel", freeModel)
+                .param("scriptedModel", scriptedModel)
                 .query((rs, i) -> new ModelUsage(rs.getString("model"), rs.getLong("input_tokens"), rs.getLong("output_tokens")))
                 .list();
     }

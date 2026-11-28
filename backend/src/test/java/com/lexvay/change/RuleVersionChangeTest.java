@@ -30,7 +30,7 @@ class RuleVersionChangeTest extends AbstractAssessmentTest {
     private MvcTestResult createVersion(String label, String jurisdiction, UUID supersedes, String requirementsJson) {
         fake.script("EXTRACT:" + label, requirementsJson);
         var map = new java.util.HashMap<String, Object>(Map.of("jurisdiction", jurisdiction, "licenseType", AssessmentFixtures.LICENSE, "label", label,
-                "sourceUrl", "https://example.invalid/" + label.replace(' ', '-'), "effectiveFrom", LocalDate.of(2027, 1, 1).toString(),
+                "sourceUrl", "https://example.invalid/" + label.replace(' ', '-'), "effectiveFrom", LocalDate.of(2027, 1, 1).toString(), "legalStatus", "IN_FORCE", "datesBasis", "Fictional test data",
                 "text", "Fictional revised rule text for " + label));
         if (supersedes != null) {
             map.put("supersedesId", supersedes.toString());
