@@ -88,7 +88,7 @@ class AuditExportMemoryTest extends AbstractDatabaseTest {
         long growth = peak.get() - baseline;
         System.out.printf("Audit export: %d records, %d MB; live heap before %d MB, highest while serving %d MB, growth %d MB%n",
                 records, bytes >> 20, baseline >> 20, peak.get() >> 20, growth >> 20);
-        assertThat(records).as("header and entries").isEqualTo(ROWS + 1);
+        assertThat(records).as("the demo notice, the header and the entries").isEqualTo(ROWS + 2);
         assertThat(bytes).as("the file really is larger than the budget").isGreaterThan(BUDGET_BYTES);
         assertThat(growth).as("live heap growth while streaming").isLessThan(BUDGET_BYTES);
 

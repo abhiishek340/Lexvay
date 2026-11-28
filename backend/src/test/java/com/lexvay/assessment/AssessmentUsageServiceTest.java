@@ -5,9 +5,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.lexvay.llm.LlmPurpose;
+import com.lexvay.llm.LlmRates;
 import com.lexvay.llm.LlmUsageRepository;
 import com.lexvay.llm.LlmUsageRepository.PurposeUsage;
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -19,18 +19,18 @@ class AssessmentUsageServiceTest {
     private final AssessmentService assessments = mock(AssessmentService.class);
     private final LlmUsageRepository usage = mock(LlmUsageRepository.class);
 
-    private AssessmentUsageService service(String inputPrice, String outputPrice) {
+    private AssessmentUsageService service(String rates) {
         OffsetDateTime start = OffsetDateTime.parse("2026-11-26T10:00:00Z");
         when(assessments.require(id)).thenReturn(new Assessment(id, UUID.randomUUID(), AssessmentStatus.FINISHED, start,
                 start.plusSeconds(3), "model-x", "match-v1", start, null));
         when(usage.forAssessment(id)).thenReturn(List.of(
                 new PurposeUsage(LlmPurpose.MATCH_EVIDENCE, 4, 1_500_000, 250_000, 1200)));
-        return new AssessmentUsageService(assessments, usage, new BigDecimal(inputPrice), new BigDecimal(outputPrice));
+        return new AssessmentUsageService(assessments, usage, LlmRates.parse(rates));
     }
 
     @Test
     void costIsTokensTimesThePricePerMillion() {
-        var view = service("3.00", "15.00").usage(id);
+        var view = service("model-x=3.00:15.00").usage(id);
 
         assertThat(view.estimatedCostUsd()).isEqualByComparingTo("8.250000");
         assertThat(view.wallTimeMs()).isEqualTo(3000);
@@ -39,10 +39,11 @@ class AssessmentUsageServiceTest {
     }
 
     @Test
-    void withNoPriceConfiguredTheCostIsAbsentRatherThanZero() {
-        var view = service("0", "0").usage(id);
+    void withNoPriceConfiguredForTheModelTheCostIsAbsentRatherThanZero() {
+        var view = service("another-model=3.00:15.00").usage(id);
 
         assertThat(view.estimatedCostUsd()).isNull();
+        assertThat(view.prices()).isNull();
         assertThat(view.inputTokens()).isEqualTo(1_500_000);
     }
 }

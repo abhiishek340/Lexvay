@@ -8,6 +8,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class LlmConfig {
 
+    /** The prices the spend gate multiplies tokens by; empty unless LEXVAY_LLM_RATES is set (D-562). */
+    @Bean
+    LlmRates llmRates(@Value("${lexvay.llm.rates:}") String spec) {
+        return LlmRates.parse(spec);
+    }
+
     @Bean
     LlmClient llmClient(@Value("${lexvay.llm.provider:fake}") String provider,
                         @Value("${lexvay.llm.model:claude-sonnet-5-5}") String model,

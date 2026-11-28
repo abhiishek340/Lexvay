@@ -62,14 +62,14 @@ class PackageBuilder {
         try (out; PackageZip zip = new PackageZip(out, stamp)) {
             writeEntries(zip, snapshot, packageId);
             zip.add("manifest.json", json.writerWithDefaultPrettyPrinter().writeValueAsBytes(new ManifestJson(packageId,
-                    snapshot.determination().id(), stamp, lexvayVersion, HASH_ALGORITHM, zip.entries())));
+                    snapshot.determination().id(), snapshot.dataMode(), stamp, lexvayVersion, HASH_ALGORITHM, zip.entries())));
         }
         return new Built(out.sha256(), out.size());
     }
 
     private void writeEntries(PackageZip zip, PackageSnapshot s, UUID packageId) throws IOException {
         List<CitedDocument> documents = PackageEntries.citedDocuments(s.quotes());
-        zip.add("README.txt", readme);
+        zip.add("README.txt", PackageEntries.readme(readme, s.dataMode()));
         try (InputStream pdf = files.open(s.report().storageKey())) {
             zip.add("report.pdf", pdf);
         }

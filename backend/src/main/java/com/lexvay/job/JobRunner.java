@@ -3,6 +3,7 @@ package com.lexvay.job;
 import com.lexvay.audit.AuditService;
 import com.lexvay.common.LogContext;
 import com.lexvay.common.TenantContext;
+import com.lexvay.llm.LlmCallBlockedException;
 import com.lexvay.observability.LexvayMetrics;
 import com.lexvay.observability.LexvayMetrics.JobOutcome;
 import java.time.Duration;
@@ -23,7 +24,8 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Runs queued jobs one at a time. Each handler runs in its own transaction under the job's tenant.
  * Retryable failures requeue the job until {@code lexvay.jobs.max-attempts}; a
- * {@link PermanentJobFailure} fails it at once. Final failures are audited.
+ * {@link PermanentJobFailure} or a model call the product refused ({@link LlmCallBlockedException}) fails it at once.
+ * Final failures are audited.
  */
 @Component
 public class JobRunner {
@@ -94,7 +96,7 @@ public class JobRunner {
             transaction.executeWithoutResult(status -> handler.handle(job, payload));
             jobs.markDone(job.id());
             return JobOutcome.DONE;
-        } catch (PermanentJobFailure e) {
+        } catch (PermanentJobFailure | LlmCallBlockedException e) {
             fail(job, e.getMessage(), e);
             return JobOutcome.FAILED;
         } catch (RuntimeException e) {
