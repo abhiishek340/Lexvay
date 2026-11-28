@@ -1,42 +1,27 @@
 import { ADMIN, DANA, JORDAN, PRIYA, expect, expectAccessible, goTo, nav, openAccountMenu, signIn, stateTab, test } from './support';
 
-const story = (page: import('@playwright/test').Page) => page.locator('[data-story]');
-
-test('the sign-in story plays, stops when the person types, and is accessible in both themes at 1440 and 400 px', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/login');
-  await expect(story(page)).toHaveAttribute('data-story', 'playing');
-  await expectAccessible(page, 'Sign in at 1440 px');
-  await page.getByLabel('Email').fill(PRIYA);
-  await expect(story(page)).toHaveAttribute('data-story', 'stopped');
-  // Nothing moves any more: the picture is the same a second later.
-  const before = await story(page).locator('.lx-tile[data-tile]').evaluateAll((tiles) => tiles.map((t) => t.getAttribute('data-tile')).join());
-  await page.waitForTimeout(1000);
-  const after = await story(page).locator('.lx-tile[data-tile]').evaluateAll((tiles) => tiles.map((t) => t.getAttribute('data-tile')).join());
-  expect(after).toBe(before);
-
-  await page.setViewportSize({ width: 400, height: 860 });
-  await expect(story(page)).toBeHidden();
-  await expectAccessible(page, 'Sign in at 400 px');
+test('sign-in is one quiet column, accessible in both themes at 1440 and 400 px', async ({ page }) => {
+  for (const [width, height] of [[1440, 900], [400, 860]] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto('/login');
+    await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
+    await expect(page.getByText('Fictional demo data.', { exact: true })).toBeVisible();
+    // No art: the mark beside the wordmark is the page's only picture.
+    await expect(page.locator('lx-auth-frame svg')).toHaveCount(1);
+    const column = (await page.locator('.lx-auth-column').boundingBox())!;
+    expect(column.width).toBe(Math.min(360, width - 40));
+    expect(Math.round(column.x + column.width / 2)).toBe(width / 2);
+    await expectAccessible(page, `Sign in at ${width} px`);
+  }
 });
 
-test('a demo account chip fills the email for the fictional tenant', async ({ page }) => {
+test('a demo account fills the email for the fictional tenant and moves on to the password', async ({ page }) => {
   await page.goto('/login');
   const accounts = page.getByRole('group', { name: 'Demo accounts' });
   await expect(accounts.getByRole('button')).toHaveCount(4);
   await accounts.getByRole('button', { name: /^Signer, Dana Whitfield/ }).click();
   await expect(page.getByLabel('Email')).toHaveValue(DANA);
   await expect(page.getByLabel('Password')).toBeFocused();
-  await expect(story(page)).toHaveAttribute('data-story', 'stopped');
-});
-
-test('under reduced motion the sign-in story never plays', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/login');
-  await expect(story(page)).toHaveAttribute('data-story', 'off');
-  // The still picture shows signed and in-review states.
-  await expect(story(page).locator('.lx-tile[data-tile="MEETS"]').first()).toBeVisible();
-  await expect(story(page).locator('.lx-tile[data-tile="IN_REVIEW"]').first()).toBeVisible();
 });
 
 test('the command palette opens with the shortcut and jumps to Review for a state', async ({ page }) => {
@@ -119,10 +104,22 @@ test('the theme chosen in the avatar menu persists across a reload, and the menu
   await expectAccessible(page, 'Avatar menu at 400 px');
 });
 
-test('the overview with the v2 shell is accessible in both themes at 1440 and 400 px, and the rail collapses', async ({ page }) => {
+test('the overview with the v3 shell is accessible in both themes at 1440 and 400 px, and the rail collapses', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await signIn(page, PRIYA);
-  await expect(page.getByTestId('state-card-CA')).toContainText('California');
+  await expect(page.getByTestId('state-row-CA')).toContainText('California');
+  // The rail in two groups; the active screen is marked by its rule and aria-current, counts are plain text.
+  const rail = page.getByRole('navigation', { name: 'Screens' });
+  await expect(rail.getByRole('list', { name: 'Workspace' })).toBeVisible();
+  await expect(rail.getByRole('list', { name: 'Program' })).toBeVisible();
+  await expect(nav(page, 'Program overview')).toHaveAttribute('aria-current', 'page');
+  expect(await nav(page, 'Program overview').evaluate((a) => getComputedStyle(a).boxShadow)).toMatch(/ 2px 0px 0px 0px inset$/);
+  // Focus moves to the page title after a navigation without drawing a ring on it.
+  await nav(page, 'Coverage').click();
+  await nav(page, 'Program overview').click();
+  const title = page.getByRole('heading', { level: 1 });
+  await expect(title).toBeFocused();
+  expect(await title.evaluate((h) => getComputedStyle(h).outlineStyle)).toBe('none');
   await expectAccessible(page, 'Overview at 1440 px');
   await page.getByRole('button', { name: 'Collapse navigation' }).click();
   await expect(page.getByRole('button', { name: 'Expand navigation' })).toBeVisible();

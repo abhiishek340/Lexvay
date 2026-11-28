@@ -3,40 +3,45 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorFilesDuotone, phosphorTrayDuotone } from '@ng-icons/phosphor-icons/duotone';
-import { phosphorCaretRight, phosphorCheckCircle, phosphorEnvelopeOpen, phosphorLockSimple, phosphorPaperPlaneTilt, phosphorQuotes } from '@ng-icons/phosphor-icons/regular';
+import { phosphorCaretRight, phosphorLockSimple } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { SelectButton } from 'primeng/selectbutton';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
-import { Tag } from 'primeng/tag';
+import { Tooltip } from 'primeng/tooltip';
 import { BlockedReason, REQUEST_FILTERS, RequestFilter, RequestState, answersText, blockedReason, canAnswer, matchesRequestFilter, requestCounts, requestState } from '../../core/evidence-requests';
 import { EvidenceRequest, EvidenceResponse } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import type { IconName } from '../../theme/icons';
-import { Enter } from '../../ui/enter';
-import { InfoTip } from '../../ui/info-tip';
 import { initials } from '../../ui/initials';
 import { EvidenceDrawer } from './evidence-drawer';
 import { REQUESTS_TOKENS } from './requests-theme';
+import { Label } from '../../ui/label';
+import { Help, HelpTerm } from '../../ui/help';
+
+/** The inbox's definitions, behind its one Help button. */
+const HELP: readonly HelpTerm[] = [
+  { term: 'Evidence request', definition: 'A reviewer asks the program for evidence from the Review screen.' },
+  { term: 'Answer', definition: "A passage from one of the program's documents; the requirement goes back to the reviewer beside what the system proposed." },
+  { term: 'Blocked', definition: 'A change or a signed determination closed the request; the row says which.' },
+];
 
 /** The icons the inbox and its answer drawer show beyond SHELL_ICONS, provided by its route (requests.routes.ts). */
 export const REQUESTS_ICONS = {
-  phosphorCaretRight, phosphorCheckCircle, phosphorEnvelopeOpen, phosphorLockSimple, phosphorPaperPlaneTilt, phosphorFilesDuotone, phosphorQuotes, phosphorTrayDuotone,
+  phosphorCaretRight, phosphorLockSimple,
 };
 
-/** One word and one shape per state; the Tag colour only repeats them. */
-export const REQUEST_STATE: Record<RequestState, { key: RequestState; label: string; icon: IconName; severity: 'info' | 'success' | 'warn' }> = {
-  OPEN: { key: 'OPEN', label: 'Open', icon: 'phosphorEnvelopeOpen', severity: 'info' },
-  ANSWERED: { key: 'ANSWERED', label: 'Answered', icon: 'phosphorCheckCircle', severity: 'success' },
-  BLOCKED: { key: 'BLOCKED', label: 'Blocked', icon: 'phosphorLockSimple', severity: 'warn' },
+/** Each state in its own word, shown as a Label (ui/label.ts). */
+export const REQUEST_STATE: Record<RequestState, { key: RequestState; label: string }> = {
+  OPEN: { key: 'OPEN', label: 'Open' },
+  ANSWERED: { key: 'ANSWERED', label: 'Answered' },
+  BLOCKED: { key: 'BLOCKED', label: 'Blocked' },
 };
 
-/** Why a blocked request has no answer action: a few words in the row, the sentence behind an InfoTip. */
+/** Why a blocked request has no answer action: a few words in the row, the sentence in their tooltip. */
 export const BLOCKED_TEXT: Record<BlockedReason, { short: string; why: string }> = {
   STALE: { short: 'Waiting for a re-run', why: 'This requirement is waiting for a re-run after a change; answer it after the re-run.' },
   SIGNED: { short: 'Signed', why: 'A signed determination already covers this requirement, so the request can no longer be answered.' },
@@ -49,11 +54,12 @@ export const BLOCKED_TEXT: Record<BlockedReason, { short: string; why: string }>
  */
 @Component({
   selector: 'lx-requests',
-  imports: [DatePipe, FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, SelectButton, Skeleton, TableModule, Tag, Enter, InfoTip, EvidenceDrawer],
+  imports: [DatePipe, FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, SelectButton, Skeleton, TableModule, Tooltip, Help, Label, EvidenceDrawer],
   templateUrl: './requests.html',
   styleUrl: './requests.css',
 })
 export class Requests {
+  readonly help = HELP;
   private readonly toast = inject(MessageService);
   readonly context = inject(ProgramContext);
 

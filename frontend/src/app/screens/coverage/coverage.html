@@ -1,17 +1,8 @@
 <p-tabs class="lx-coverage" [value]="jurisdiction()" (valueChange)="select($event)" [selectOnFocus]="true" [scrollable]="true" [showNavigators]="false">
   <header class="lx-head">
-    <div class="lx-title">
-      <h1>Coverage</h1>
-      <lx-info-tip label="About coverage">
-        <span class="lx-legend">
-          <span><span class="lx-mark" data-kind="SYSTEM" aria-hidden="true"></span>A quote the system verified in the course's documents.</span>
-          <span><span class="lx-mark" data-kind="PERSON" aria-hidden="true"></span>A passage a person provided.</span>
-          <span><span class="lx-mark" data-kind="OUTDATED" aria-hidden="true"></span>A quote on an older version of the course.</span>
-        </span>
-        The flags say where the evidence sits, never whether it is enough. People decide that in Review.
-      </lx-info-tip>
-    </div>
-    @if (pills().length > 0) { <lx-state-pills class="lx-pills" [states]="pills()" [active]="jurisdiction()" /> }
+    <h1>Coverage</h1>
+    <lx-help [terms]="help" />
+    @if (tabs().length > 0) { <lx-state-tabs class="lx-tabs" [states]="tabs()" [active]="jurisdiction()" /> }
     <p class="lx-sr-only" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
   </header>
 
@@ -25,8 +16,7 @@
             <p-message class="lx-error" severity="error">{{ e }}</p-message>
           } @else if (view(); as v) {
             @if (v.rows.length === 0) {
-              <div class="lx-empty lx-card">
-                <ng-icon name="phosphorGridFourDuotone" size="32" aria-hidden="true" />
+              <div class="lx-empty">
                 <p>No finished assessment for {{ context.jurisdictionName(code) }} yet.</p>
                 <a pButton size="small" [outlined]="true" routerLink="../overview"><span pButtonLabel>Open overview</span></a>
               </div>
@@ -53,10 +43,9 @@
                   <colgroup><col /><col /></colgroup>
                   <thead>
                     <tr>
-                      <th scope="col" rowspan="2" class="lx-req-col lx-enter-col" style="--lx-c: 0">Requirement</th>
+                      <th scope="col" rowspan="2" class="lx-req-col">Requirement</th>
                       @for (col of v.columns; track col.key) {
-                        <th scope="col" [attr.rowspan]="col.required === null ? 2 : null" class="lx-col-head lx-enter-col"
-                            [class.lx-col-on]="hover()?.col === col.index" [style.--lx-c]="delay(col.index + 1)">
+                        <th scope="col" [attr.rowspan]="col.required === null ? 2 : null" class="lx-col-head" [class.lx-col-on]="hover()?.col === col.index">
                           @if (col.required === null) {
                             <span class="lx-program-head">{{ col.code }}</span>
                           } @else {
@@ -64,7 +53,7 @@
                           }
                         </th>
                       }
-                      <th scope="col" rowspan="2" class="lx-flag-col lx-enter-col" [style.--lx-c]="delay(v.columns.length + 1)"><span class="lx-flag-head">Flag</span></th>
+                      <th scope="col" rowspan="2" class="lx-flag-col"><span class="lx-flag-head">Flag</span></th>
                     </tr>
                     <tr class="lx-groups">
                       @for (group of v.groups; track $index) {
@@ -77,18 +66,18 @@
                   <tbody>
                     @for (row of v.rows; track row.requirement.mappingId; let r = $index) {
                       <tr [class.lx-dim]="dimmed(row)" [class.lx-row-on]="hover()?.row === r" [attr.data-ref]="row.requirement.ref">
-                        <th scope="row" class="lx-req-col lx-enter-col" style="--lx-c: 0">
+                        <th scope="row" class="lx-req-col">
                           <span class="lx-ref">{{ row.requirement.ref }}</span>
                           <span class="lx-req-title" [attr.data-ref]="row.requirement.ref" [pTooltip]="row.requirement.title"
                                 [tooltipDisabled]="!clipped().has(row.requirement.ref)" tooltipPosition="top">{{ row.requirement.title }}</span>
                         </th>
                         @if (row.rulesEngine) {
-                          <td class="lx-engine lx-enter-col" [attr.colspan]="v.columns.length" style="--lx-c: 1">
+                          <td class="lx-engine" [attr.colspan]="v.columns.length">
                             <span><ng-icon name="phosphorCalculator" size="16" aria-hidden="true" />Checked by the rules engine</span>
                           </td>
                         } @else {
                           @for (cell of row.cells; track $index; let c = $index) {
-                            <td class="lx-cell lx-enter-col" [class.lx-col-on]="hover()?.col === c" [style.--lx-c]="delay(c + 1)">
+                            <td class="lx-cell" [class.lx-col-on]="hover()?.col === c">
                               @if (cell) {
                                 <button #cellEl type="button" class="lx-dot" [attr.data-kind]="cell.kind" [attr.data-pos]="r + '-' + c"
                                         [class.lx-dot-open]="previewed()?.cell === cell" [attr.aria-label]="cell.name" [tabindex]="isStop(r, c) ? 0 : -1"
@@ -103,7 +92,7 @@
                             </td>
                           }
                         }
-                        <td class="lx-flag-col lx-enter-col" [style.--lx-c]="delay(v.columns.length + 1)">
+                        <td class="lx-flag-col">
                           @if (row.flag; as f) {
                             <span class="lx-flag" [attr.data-tone]="flags[f].tone" [attr.data-flag]="f">
                               <ng-icon [name]="flags[f].icon" size="16" aria-hidden="true" /><span class="lx-flag-text">{{ flags[f].label }}</span>
@@ -120,8 +109,8 @@
             <div class="lx-frame lx-skeleton" aria-hidden="true">
               @for (i of [0, 1, 2, 3, 4, 5]; track i) {
                 <div class="lx-skeleton-row">
-                  <p-skeleton width="12rem" height="1rem" />
-                  @for (j of [0, 1, 2, 3, 4, 5, 6, 7]; track j) { <p-skeleton shape="circle" size="20px" /> }
+                  <p-skeleton aria-hidden="true" width="12rem" height="1rem" />
+                  @for (j of [0, 1, 2, 3, 4, 5, 6, 7]; track j) { <p-skeleton aria-hidden="true" shape="circle" size="20px" /> }
                 </div>
               }
             </div>

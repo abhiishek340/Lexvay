@@ -2,7 +2,8 @@ import { computed, signal } from '@angular/core';
 import { numericCheck } from '../../core/labels';
 import { DecisionKind, Evidence, EvidenceResponse, Finding, JurisdictionSummary, Mapping } from '../../core/models';
 import type { IconName } from '../../theme/icons';
-import type { PillProgress } from '../../ui/state-pills';
+import type { MeterSegment } from '../../ui/meter';
+import type { StateProgress } from '../../ui/state-tabs';
 
 export type ReviewFilter = 'ALL' | 'NEEDS_REVIEW' | Finding;
 
@@ -49,8 +50,8 @@ export function checkMethod(m: Mapping): CheckMethod {
   };
 }
 
-/** Decided of total requirements per state of the latest assessment: the mini rings on the state pills. */
-export function stateProgress(summaries: readonly JurisdictionSummary[]): ReadonlyMap<string, PillProgress> {
+/** Decided of total requirements per state of the latest assessment: the counts on the state tabs. */
+export function stateProgress(summaries: readonly JurisdictionSummary[]): ReadonlyMap<string, StateProgress> {
   return new Map(summaries.map((s) => [s.jurisdiction, { value: s.decided, total: s.total, label: `${s.decided} of ${s.total} reviewed` }]));
 }
 
@@ -151,8 +152,11 @@ export class ReviewWorkspace {
   readonly total = computed(() => this.mappings().length);
   readonly allDecided = computed(() => this.total() > 0 && this.decided() === this.total());
   readonly progressLabel = computed(() => `${this.decided()} of ${this.total()} reviewed`);
-  /** The header's figure beside its ring (DESIGN.md: "6 of 8"). */
-  readonly progressShort = computed(() => `${this.decided()} of ${this.total()}`);
+  /** The header's Meter: the current decisions by kind, in the order DESIGN.md fixes, the undecided rest left empty. */
+  readonly meter = computed<MeterSegment[]>(() => {
+    const decided = (kind: DecisionKind): number => this.mappings().filter((m) => isDecided(m) && m.decision!.kind === kind).length;
+    return [{ tone: 'found', value: decided('ACCEPTED') }, { tone: 'ambiguous', value: decided('EVIDENCE_REQUESTED') }, { tone: 'missing', value: decided('GAP_CONFIRMED') }];
+  });
   readonly counts = computed(() => {
     const counts = {} as Record<ReviewFilter, number>;
     for (const f of REVIEW_FILTERS) {

@@ -2,8 +2,8 @@ import { Component, DestroyRef, ElementRef, afterRenderEffect, computed, effect,
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
 import {
-  phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorCheckCircle, phosphorCircleDashed, phosphorEye,
-  phosphorKeyboard, phosphorListBullets, phosphorQuestion, phosphorSeal, phosphorSignature, phosphorUser, phosphorXCircle,
+  phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorCheckCircle, phosphorCircleDashed,
+  phosphorKeyboard, phosphorListBullets, phosphorQuestion, phosphorSeal, phosphorUser, phosphorXCircle,
 } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
@@ -22,10 +22,10 @@ import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
 import { paletteShortcut } from '../../ui/command-palette/shortcut';
 import { DecisionBar } from '../../ui/decision-bar/decision-bar';
-import { InfoTip } from '../../ui/info-tip';
-import { ProgressRing } from '../../ui/progress-ring';
+import { Help, HelpTerm } from '../../ui/help';
+import { Meter } from '../../ui/meter';
 import { Seal } from '../../ui/seal';
-import { StatePill, StatePills } from '../../ui/state-pills';
+import { StateTab, StateTabs } from '../../ui/state-tabs';
 import { EvidencePane } from './evidence-pane';
 import { RequirementCard } from './requirement-card';
 import { RequirementList } from './requirement-list';
@@ -37,21 +37,28 @@ const WIDE = '(min-width: 1024px)';
 
 /** The icons the Review workspace and its own parts show beyond SHELL_ICONS, provided by its route (review.routes.ts). */
 export const REVIEW_ICONS = {
-  phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorCheckCircle, phosphorCircleDashed, phosphorEye,
-  phosphorKeyboard, phosphorListBullets, phosphorQuestion, phosphorSeal, phosphorSignature, phosphorUser, phosphorXCircle,
+  phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorCheckCircle, phosphorCircleDashed,
+  phosphorKeyboard, phosphorListBullets, phosphorQuestion, phosphorSeal, phosphorUser, phosphorXCircle,
 };
 
+/** Review's definitions, behind its one Help button. */
+const HELP: readonly HelpTerm[] = [
+  { term: 'Proposed finding', definition: 'What the documents suggest. A person accepts it, requests evidence, or confirms a gap.' },
+  { term: 'Signing', definition: 'Once every requirement is decided, a signer signs the determination for the state.' },
+  { term: 'Reopened', definition: 'A change reopened the signed determination; it needs a new signature.' },
+  { term: 'View only', definition: 'Your role can read this review but not record decisions.' },
+];
+
 /**
- * Review (DESIGN.md "Review"), the screen people work in for hours. Focus mode: a header with the states as pills
- * (mini rings, the shared-element target of the overview's map tiles), the progress ring and, once every requirement
- * is decided, "Sign <state>"; below it the list rail, the requirement as the hero with the floating DecisionBar, and
- * the evidence on its page. A decision lands visibly (the row's ring draws, the row settles, the next requirement
- * slides in, the rings advance) without ever holding input back; reduced motion removes the motion.
+ * Review (DESIGN.md "Review"), the screen people work in for hours. A header with the states as an underlined tab row,
+ * the Meter and, once every requirement is decided, "Sign <state>"; below it the requirement list, the requirement with
+ * the DecisionBar at its foot, and the evidence on its page. A decision never holds input back; the next requirement
+ * follows at once.
  */
 @Component({
   selector: 'lx-review',
   imports: [NgIcon, ButtonDirective, ButtonLabel, Dialog, Message, Skeleton, TabPanel, TabPanels, Tabs,
-    DecisionBar, InfoTip, ProgressRing, Seal, StatePills, EvidencePane, RequirementCard, RequirementList, SignDialog],
+    DecisionBar, Help, Meter, Seal, StateTabs, EvidencePane, RequirementCard, RequirementList, SignDialog],
   templateUrl: './review.html',
   styleUrl: './review.css',
   host: { '(document:keydown)': 'onKey($event)' },
@@ -73,6 +80,7 @@ export class Review {
   /** The command palette works everywhere; the list names it beside the review keys. */
   readonly paletteKeys = paletteShortcut(typeof navigator === 'undefined' ? '' : navigator.platform);
   readonly outcomeLabel = OUTCOME_LABEL;
+  readonly help = HELP;
 
   readonly jurisdiction = signal<string>('');
   readonly loading = signal(false);
@@ -84,10 +92,8 @@ export class Review {
   readonly busy = signal(false);
   readonly signOpen = signal(false);
   readonly helpOpen = signal(false);
-  /** The determination the signing dialog has just recorded, for its stamp. */
+  /** The determination the signing dialog has just recorded, for its seal. */
   readonly justSigned = signal<Determination | null>(null);
-  /** The mapping whose decision has just landed, for the list's landing motion. */
-  readonly landed = signal<string | null>(null);
   readonly wide = signal(typeof matchMedia === 'function' ? matchMedia(WIDE).matches : true);
 
   /** A jurisdiction asked for before the assessment was known. */
@@ -122,7 +128,7 @@ export class Review {
   /** Mapping ids whose responses are being fetched, so a selection never asks twice. */
   private readonly fetching = new Set<string>();
   readonly stateName = computed(() => this.context.jurisdictionName(this.jurisdiction()));
-  readonly pills = computed<StatePill[]>(() => {
+  readonly tabs = computed<StateTab[]>(() => {
     const progress = stateProgress(this.context.assessment()?.jurisdictions ?? []);
     return (this.context.program()?.jurisdictions ?? []).map((code) => ({ code, name: this.context.jurisdictionName(code), progress: progress.get(code) ?? null }));
   });
@@ -247,7 +253,6 @@ export class Review {
     try {
       const updated = await firstValueFrom(this.api.review(current.id, kind, this.note().trim() || null));
       const next = this.workspace.applyDecision(updated);
-      this.landed.set(updated.id);
       this.resetNote();
       const done = `${updated.requirement.ref}: ${DECISION_LABEL[kind]}.`;
       const then = next && next.id !== updated.id ? ` Now showing ${next.requirement.ref}.` : '';
@@ -273,7 +278,7 @@ export class Review {
     this.busy.set(true);
     try {
       const determination = await firstValueFrom(this.api.sign(this.programId(), this.jurisdiction(), outcome));
-      // The dialog stays open on its stamped seal until the signer closes it.
+      // The dialog stays open on its seal until the signer closes it.
       this.justSigned.set(determination);
       await this.context.refreshDeterminations();
       const text = `Determination for ${determination.jurisdiction} signed by ${determination.signedByName}: ${OUTCOME_LABEL[determination.outcome]}.`;

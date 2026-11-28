@@ -58,7 +58,6 @@ describe('audit rows', () => {
     ]);
     expect(rows[1].rest).toBe(' confirmed a gap on CA-3');
     expect(rows.map((r) => r.recordLabel)).toEqual(['Determination', 'Requirement finding', 'Assessment', 'User']);
-    expect(rows.map((r) => r.enter)).toEqual([0, 1, 2, 3]);
   });
 });
 

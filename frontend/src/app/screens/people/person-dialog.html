@@ -18,16 +18,13 @@
         @if (p.email; as e) { <p-message id="person-email-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
       </div>
       <div class="lx-dialog-field">
-        <span class="lx-role-label">
-          <label id="person-role-label" for="person-role">Role</label>
-          <lx-info-tip label="About roles">
-            <dl class="lx-role-lines">
-              @for (line of roleLines; track line.role) { <div><dt>{{ line.label }}</dt><dd>{{ line.text }}</dd></div> }
-            </dl>
-          </lx-info-tip>
-        </span>
+        <label id="person-role-label" for="person-role">Role</label>
         <p-select inputId="person-role" [options]="roles" optionLabel="label" optionValue="value" [ngModel]="role()" (ngModelChange)="role.set($event)"
-                  name="role" ariaLabelledBy="person-role-label" appendTo="body" [fluid]="true" />
+                  name="role" ariaLabelledBy="person-role-label" appendTo="body" [fluid]="true">
+          <ng-template #item let-option>
+            <span class="lx-role-option"><span>{{ option.label }}</span><span class="lx-meta">{{ describe(option.value) }}</span></span>
+          </ng-template>
+        </p-select>
       </div>
     </form>
   } @else {
@@ -37,22 +34,21 @@
       }
       @if (link(); as url) {
         <div class="lx-link-box" role="group" aria-labelledby="setup-link-label">
-          <span id="setup-link-label" class="lx-label">Setup link</span>
+          <span id="setup-link-label" class="lx-meta">Setup link</span>
           <p class="lx-mono lx-link" data-testid="setup-link">{{ url }}</p>
-          <button pButton #copyButton type="button" size="small" [outlined]="!copied()" (click)="copy()" class="lx-copy">
-            <ng-icon [name]="copied() ? 'phosphorCheck' : 'phosphorCopy'" size="16" aria-hidden="true" />
+          <button pButton #copyButton type="button" [outlined]="!copied()" (click)="copy()" class="lx-copy">
             <span pButtonLabel>{{ copied() ? 'Copied' : 'Copy link' }}</span>
           </button>
         </div>
-        <p class="lx-expiry"><ng-icon name="phosphorClock" size="16" aria-hidden="true" />{{ expiry() }}</p>
+        <p class="lx-expiry">{{ expiry() }}</p>
         <p-message severity="warn">
           Shown once. Copy it now and hand it over yourself.@if (replaced()) { Earlier links stop working. }
         </p-message>
       } @else if (error(); as e) {
         <p-message severity="error" data-testid="message">{{ e }}</p-message>
       } @else {
-        <div class="lx-code-loading" aria-busy="true" aria-label="Issuing a setup code">
-          <p-skeleton width="5rem" height="1rem" /><p-skeleton height="3.5rem" /><p-skeleton width="16rem" height="1rem" />
+        <div class="lx-code-loading" role="status" aria-busy="true" aria-label="Issuing a setup code">
+          <p-skeleton aria-hidden="true" width="5rem" height="1rem" /><p-skeleton aria-hidden="true" height="3.5rem" /><p-skeleton aria-hidden="true" width="16rem" height="1rem" />
         </div>
       }
       @if (link() && error(); as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }

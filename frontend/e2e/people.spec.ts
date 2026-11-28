@@ -250,7 +250,11 @@ test("at 400 px an administrator's bottom bar fits, with the least used screens 
   await expect(more).toHaveAttribute('aria-expanded', 'true');
   await expectAccessible(page, 'More menu at 400 px');
   if (SCREENSHOTS) { await shoot(page, 'f5b-more-menu-400'); }
-  await page.keyboard.press('ArrowDown');
+  // The list takes focus once its overlay has shown; the first item is the one the arrow keys reach first.
+  await expect(async () => {
+    await page.keyboard.press('Home');
+    await expect(menu.getByRole('menuitem', { name: 'People' })).toHaveClass(/p-focus/, { timeout: 500 });
+  }).toPass();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/people$/);
   // The tab shows that the screen open is one of its own.

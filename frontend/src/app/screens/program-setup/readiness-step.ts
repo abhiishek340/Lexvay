@@ -1,12 +1,10 @@
 import { Component, computed, effect, inject, output, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { NgIcon } from '@ng-icons/core';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { problemDetail } from '../../core/problem';
-import type { IconName } from '../../theme/icons';
-import { Enter } from '../../ui/enter';
-import { ProgressRing } from '../../ui/progress-ring';
+import { Meter } from '../../ui/meter';
+import { Status, StatusMark } from '../../ui/status-mark';
 import { CheckId, ReadinessCheck, SetupStep } from './setup-model';
 import { SetupNotice, SetupStore } from './setup-store';
 
@@ -20,7 +18,7 @@ const FIX_STEP: Partial<Record<CheckId, SetupStep>> = { COURSE_DOCUMENTS: 'DOCUM
  */
 @Component({
   selector: 'lx-setup-readiness',
-  imports: [RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, Enter, ProgressRing],
+  imports: [RouterLink, ButtonDirective, ButtonLabel, Message, Meter, StatusMark],
   templateUrl: './readiness-step.html',
   styleUrl: './steps.css',
 })
@@ -54,9 +52,10 @@ export class ReadinessStep {
     });
   }
 
-  icon(check: ReadinessCheck): IconName {
-    if (check.ok) { return 'phosphorCheckCircleFill'; }
-    return check.blocking ? 'phosphorXCircleFill' : 'phosphorWarningCircleFill';
+  /** The check's mark: a filled disc once done, a filled square where it blocks the run, a half disc for a warning. */
+  mark(check: ReadinessCheck): Status {
+    if (check.ok) { return 'ACCEPTED'; }
+    return check.blocking ? 'GAP_CONFIRMED' : 'AMBIGUOUS';
   }
 
   tone(check: ReadinessCheck): 'found' | 'missing' | 'ambiguous' {
@@ -64,7 +63,7 @@ export class ReadinessStep {
     return check.blocking ? 'missing' : 'ambiguous';
   }
 
-  /** The words that say what the icon shows, for a screen reader. */
+  /** The words that say what the mark shows, for a screen reader. */
   verdict(check: ReadinessCheck): string {
     if (check.ok) { return 'Done'; }
     return check.blocking ? 'Blocks the run' : 'Warning';

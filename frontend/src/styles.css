@@ -1,9 +1,9 @@
-/* Lexvay global styles (docs/DESIGN.md v2). Colours and elevation come from the LexvayPreset tokens (--p-lx-*,
-   src/app/theme/tokens.ts and lexvay-preset.ts); PrimeNG sits in its own cascade layer so these rules refine it
-   without !important. */
+/* Lexvay global styles (docs/DESIGN.md v3 "Ledger"). Colours and the overlay elevation come from the LexvayPreset tokens
+   (--p-lx-*, src/app/theme/tokens.ts and lexvay-preset.ts); no colour is written here. PrimeNG sits in its own cascade
+   layer so these rules refine it without !important. */
 @layer primeng, lexvay;
 
-/* IBM Plex Mono for ids, hashes and offsets (latin and latin-ext, D-084). */
+/* IBM Plex Mono for hashes and document offsets (latin and latin-ext, D-084). */
 @import '@fontsource/ibm-plex-mono/latin-400.css';
 @import '@fontsource/ibm-plex-mono/latin-ext-400.css';
 
@@ -44,199 +44,193 @@
   --lx-font-serif: 'Source Serif 4 Variable', 'Source Serif 4 Fallback', Georgia, serif;
   --lx-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-  /* Spacing scale (DESIGN.md): 4 8 12 16 20 24 32 40 56 72. */
-  --lx-space-1: 4px; --lx-space-2: 8px; --lx-space-3: 12px; --lx-space-4: 16px; --lx-space-5: 20px;
-  --lx-space-6: 24px; --lx-space-7: 32px; --lx-space-8: 40px; --lx-space-9: 56px; --lx-space-10: 72px;
-  --lx-gutter: 32px;
-  --lx-content-max: 1280px;
+  /* The 4 px grid (DESIGN.md "Spacing"): 4 8 12 16 24 32 40 56 80. */
+  --lx-space-1: 4px; --lx-space-2: 8px; --lx-space-3: 12px; --lx-space-4: 16px; --lx-space-5: 24px;
+  --lx-space-6: 32px; --lx-space-7: 40px; --lx-space-8: 56px; --lx-space-9: 80px;
+  /* Page padding, and the 1200 px measure content keeps, left aligned under the title. */
+  --lx-gutter: 40px;
+  --lx-content-max: 1200px;
 
-  /* Radius: controls, cards, hero panels, pills and chips. */
-  --lx-r-control: 8px; --lx-r-card: 12px; --lx-r-hero: 16px; --lx-r-pill: 999px;
+  /* Radius (DESIGN.md "Radius"): controls and labels, overlays and the report sheet. Sections and tables have none. */
+  --lx-r-control: 6px; --lx-r-overlay: 8px;
 
-  /* Motion (DESIGN.md "Motion"). Components read durations through these, so reduced motion zeroes them once. */
-  --lx-ease-out: cubic-bezier(.16, 1, .3, 1);
-  --lx-ease-in-out: cubic-bezier(.65, 0, .35, 1);
-  --lx-spring: linear(0, .009, .035 2.1%, .141 4.4%, .723 12.9%, .938 16.7%, 1.017 20.1%, 1.043 23.4%, 1.035 27.4%, .999 37.1%, .995 44.2%, 1);
-  --lx-t-1: 120ms; --lx-t-2: 200ms; --lx-t-3: 320ms; --lx-t-4: 600ms; --lx-t-hero: 1100ms;
+  /* Motion (DESIGN.md "Motion"): hover and press, everything else. Reduced motion zeroes both once. */
+  --lx-ease: cubic-bezier(.2, 0, 0, 1);
+  --lx-t-fast: 120ms; --lx-t: 180ms;
 
-  --lx-topbar: 56px;
+  --lx-topbar: 48px;
 }
 :root[data-theme='light'] { color-scheme: light; }
 :root[data-theme='dark'] { color-scheme: dark; }
 
 html, body { margin: 0; }
+/* Body type (DESIGN.md "Typography"): Inter 14/20 400, its single-storey a (cv11) and open digits (ss01), and tabular
+   figures for every number so they never change width. */
 body {
   font-family: var(--lx-font-sans);
-  font-size: 14px; line-height: 22px; font-weight: 450;
-  /* Inter's single-storey a (cv11) and open digits (ss01); tabular figures everywhere, so numbers never change
-     width (count-ups, tables). */
+  font-size: 14px; line-height: 20px; font-weight: 400;
   font-feature-settings: 'cv11', 'ss01';
   font-variant-numeric: tabular-nums;
-  background: var(--p-lx-ground);
-  color: var(--p-lx-text);
+  background: var(--p-lx-paper);
+  color: var(--p-lx-ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
-h1, h2, h3, p, dl, dd, figure, blockquote { margin: 0; }
-/* Title (page) and Heading (section, card). */
-h1 { font-size: 26px; line-height: 32px; font-weight: 620; letter-spacing: -0.018em; }
-h2 { font-size: 15px; line-height: 22px; font-weight: 600; letter-spacing: -0.005em; }
-h3 { font-size: 14px; line-height: 22px; font-weight: 600; }
-h1:focus { outline: none; }
-h1:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: 2px; border-radius: 4px; }
+h1, h2, h3, p, dl, dd, figure, blockquote, ul, ol { margin: 0; }
+/* Title (page) and Section. A third level reads as Body in 600. */
+h1 { font-size: 24px; line-height: 32px; font-weight: 600; letter-spacing: -0.012em; }
+h2 { font-size: 15px; line-height: 24px; font-weight: 600; letter-spacing: -0.004em; }
+h3 { font-size: 14px; line-height: 20px; font-weight: 600; }
+/* Focus moves to the page title after navigation without drawing a ring; a keyboard user who tabs to it still sees one. */
+:focus:not(:focus-visible) { outline: none; }
+:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: 2px; }
 /* Link buttons (<a pButton>) take their colours from the button, which sits in a cascade layer these rules would beat. */
 a:not(.p-button) { color: var(--p-lx-accent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
-a:not(.p-button):hover { color: var(--p-lx-accent-hover); }
-:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: 2px; }
-::selection { background: var(--p-lx-accent-tint); color: var(--p-lx-text); }
+::selection { background: var(--p-lx-accent-wash); color: var(--p-lx-ink); }
 * { scrollbar-width: thin; scrollbar-color: var(--p-lx-line-strong) transparent; }
+/* A key in running text (the shortcuts list, the command palette's footer); never inside a button. */
 kbd {
-  font-family: var(--lx-font-sans); font-size: 11px; line-height: 16px; font-weight: 550;
-  min-width: 18px; padding: 1px 5px; box-sizing: border-box; display: inline-block; text-align: center;
-  border-radius: 5px; color: var(--p-lx-text-2); background: var(--p-lx-surface-2);
-  box-shadow: inset 0 -1px 0 var(--p-lx-line);
+  font-family: var(--lx-font-sans); font-size: 12px; line-height: 16px; font-weight: 500; font-variant-numeric: tabular-nums;
+  min-width: 20px; padding: 1px 5px; box-sizing: border-box; display: inline-block; text-align: center;
+  border: 1px solid var(--p-lx-line-strong); border-radius: 4px; color: var(--p-lx-ink-2); background: var(--p-lx-surface);
 }
 
-/* Type roles (DESIGN.md "Typography"). */
-.lx-display { font-size: 40px; line-height: 44px; font-weight: 650; letter-spacing: -0.025em; }
-.lx-small { font-size: 13px; line-height: 20px; }
-.lx-number { font-size: 32px; line-height: 36px; font-weight: 600; letter-spacing: -0.02em; }
-.lx-doc { font-family: var(--lx-font-serif); font-size: 17px; line-height: 28px; font-weight: 400; }
+/* Type roles (DESIGN.md "Typography"): no other sizes. */
+.lx-meta { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
+.lx-ui { font-size: 13px; line-height: 20px; font-weight: 500; }
+.lx-figure { font-size: 28px; line-height: 32px; font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.lx-doc { font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; font-weight: 400; }
 .lx-mono { font-family: var(--lx-font-mono); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0; }
-.lx-serif { font-family: var(--lx-font-serif); font-size: 17px; line-height: 28px; }
+.lx-muted { color: var(--p-lx-ink-2); }
 
 /* Shared vocabulary for every screen. */
 .lx-sr-only {
   position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
   clip-path: inset(50%); white-space: nowrap; border: 0;
 }
-.lx-page { padding: var(--lx-space-7) var(--lx-gutter) var(--lx-space-9); max-width: var(--lx-content-max); box-sizing: border-box; }
-.lx-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--lx-space-4); flex-wrap: wrap; margin-bottom: var(--lx-space-6); }
-.lx-page-header p { color: var(--p-lx-text-2); margin-top: var(--lx-space-1); max-width: 72ch; }
-/* A quiet label above a value: sentence case, never an uppercase eyebrow (word budget). */
-.lx-label { font-size: 13px; line-height: 20px; font-weight: 500; color: var(--p-lx-text-2); }
-.lx-muted { color: var(--p-lx-text-2); }
-/* Cards are separated by depth, not lines; an interactive card lifts on hover. */
-.lx-panel, .lx-card { background: var(--p-lx-surface); border-radius: var(--lx-r-card); box-shadow: var(--p-lx-e1); }
-.lx-card-link { transition: transform var(--lx-t-1) var(--lx-ease-out), box-shadow var(--lx-t-1) var(--lx-ease-out); }
-.lx-card-link:hover { transform: translateY(-1px); box-shadow: var(--p-lx-e2); }
-.lx-hero { background: var(--p-lx-surface); border-radius: var(--lx-r-hero); box-shadow: var(--p-lx-e1); }
-.lx-status { color: var(--p-lx-text-2); }
+/* The page: 40 px padding (20 px under 640 px), content up to 1200 px, left aligned. */
+.lx-page { padding: var(--lx-gutter) var(--lx-gutter) var(--lx-space-8); max-width: calc(var(--lx-content-max) + 2 * var(--lx-gutter)); box-sizing: border-box; }
+/* The title row: the title and its meta line on the left, the screen's actions (and its one Help) on the right. */
+.lx-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--lx-space-4); flex-wrap: wrap; margin-bottom: var(--lx-space-5); }
+.lx-page-header p { color: var(--p-lx-ink-2); margin-top: var(--lx-space-1); max-width: 72ch; }
+/* The right end of a title row: the screen's actions, then its one Help. */
+.lx-title-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; flex: 0 1 auto; min-width: 0; }
+/* A section of a page: 40 px from the one before, a hairline between them. */
+.lx-section { margin-top: var(--lx-space-7); padding-top: var(--lx-space-7); border-top: 1px solid var(--p-lx-line); }
+.lx-section > h2 { margin-bottom: var(--lx-space-3); }
 .lx-inline { display: inline-flex; align-items: center; gap: 6px; }
 /* The polite live region under a page header (data-testid="message"). */
-.lx-status-line { min-height: 22px; margin-bottom: var(--lx-space-3); color: var(--p-lx-text-2); }
-.lx-help { font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
-/* A page title with the InfoTip that holds what a paragraph under it used to say (word budget). */
+.lx-status-line { min-height: 20px; margin-bottom: var(--lx-space-3); color: var(--p-lx-ink-2); }
+.lx-help { font-size: 13px; line-height: 20px; color: var(--p-lx-ink-2); }
+/* A page title with the screen's one Help beside it. */
 .lx-title-row { display: flex; align-items: center; gap: var(--lx-space-2); }
-/* Empty state: a 32 px duotone icon in accent, one sentence, at most one action. */
-.lx-empty-state { display: flex; flex-direction: column; align-items: center; gap: var(--lx-space-3); padding: var(--lx-space-8) var(--lx-space-4); text-align: center; color: var(--p-lx-text-2); }
-.lx-empty-state > ng-icon { color: var(--p-lx-accent); }
-/* A numbered part of a form in a sheet (1 Document, 2 Passage, 3 Comment). */
-.lx-numbered { display: flex; align-items: center; gap: 8px; font-size: 15px; line-height: 22px; font-weight: 600; }
-.lx-numbered-n {
-  width: 22px; height: 22px; border-radius: 999px; display: inline-grid; place-items: center; flex: none;
-  background: var(--p-lx-accent-tint); color: var(--p-lx-accent); font-size: 12px; font-weight: 650;
-}
-/* A passage a person selected on a page, in Document type, before it is sent. */
+/* A term inside the page explained in its tooltip (DESIGN.md "Help"): a dotted underline, reachable by keyboard. */
+.lx-term { text-decoration: underline dotted var(--p-lx-ink-3); text-underline-offset: 3px; cursor: help; border-radius: 2px; }
+/* Empty state: one sentence in ink-2 and at most one action, no illustration or icon. */
+.lx-empty-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--lx-space-3); padding: var(--lx-space-5) 0; color: var(--p-lx-ink-2); }
+/* A numbered part of a form in a sheet (1 Document, 2 Passage, 3 Comment): the number in tabular ink-2, no disc. */
+.lx-numbered { display: flex; align-items: baseline; gap: 8px; font-size: 15px; line-height: 24px; font-weight: 600; }
+.lx-numbered-n { flex: none; min-width: 12px; font-size: 13px; font-weight: 500; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums; }
+/* A passage a person selected on a page, in Document type on a left rule, before it is sent. */
 .lx-passage {
-  font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; padding: 12px 16px; border-radius: 10px;
-  background: var(--p-lx-accent-tint); box-shadow: inset 3px 0 0 var(--p-lx-accent); white-space: pre-wrap; overflow-wrap: anywhere;
+  font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; padding-left: 16px; border-left: 2px solid var(--p-lx-accent);
+  white-space: pre-wrap; overflow-wrap: anywhere;
 }
-/* Where a document will appear once one is chosen. */
+/* Where a document will appear once one is chosen: a dashed frame and one sentence. */
 .lx-placeholder {
   min-height: 16rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px;
-  border-radius: var(--lx-r-card); background: var(--p-lx-surface-2); color: var(--p-lx-text-2); text-align: center;
+  border: 1px dashed var(--p-lx-line-strong); border-radius: var(--lx-r-control); color: var(--p-lx-ink-2); text-align: center;
 }
-.lx-placeholder > ng-icon { color: var(--p-lx-accent); }
-/* A state's two-letter code as a small tile, the StateMap's shape in a row. */
-.lx-state-code {
-  display: inline-grid; place-items: center; min-width: 28px; height: 22px; padding: 0 6px; box-sizing: border-box; border-radius: 6px;
-  background: var(--p-lx-accent-tint); color: var(--p-lx-accent); font-size: 11px; line-height: 1; font-weight: 650; letter-spacing: 0.02em;
-}
-/* An icon that turns while work runs (the Extracting status); reduced motion stops it. */
-.lx-spin { animation: lx-spin 1.2s linear infinite; }
-@keyframes lx-spin { to { transform: rotate(360deg); } }
+/* A state's two-letter code beside its name, in tabular meta type. */
+.lx-state-code { display: inline-block; min-width: 20px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.02em; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums; }
 /* Three lines until opened (the lxClamp directive). */
 .lx-clamped { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 
-/* A document frame: stored page text or a quoted passage, with its file name and position in mono. */
-.lx-document { margin: 0; background: var(--p-lx-surface); border-radius: var(--lx-r-card); box-shadow: var(--p-lx-e1); }
-.lx-document-head { padding: 12px 16px; border-bottom: 1px solid var(--p-lx-line); display: flex; flex-direction: column; gap: 6px; }
-.lx-document-name { display: flex; gap: 6px; align-items: center; font-weight: 550; word-break: break-word; }
-.lx-document-meta { display: flex; flex-wrap: wrap; gap: 2px 16px; font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
+/* A document frame: stored page text or a quoted passage, with its file name and position in mono. It is physically a
+   document, so it is the one bordered panel a page may hold. */
+.lx-document { margin: 0; background: var(--p-lx-surface); border: 1px solid var(--p-lx-line); border-radius: var(--lx-r-control); }
+.lx-document-head { padding: 12px 16px; border-bottom: 1px solid var(--p-lx-line); display: flex; flex-direction: column; gap: 4px; }
+.lx-document-name { display: flex; gap: 6px; align-items: center; font-weight: 500; word-break: break-word; }
+.lx-document-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; line-height: 16px; color: var(--p-lx-ink-2); }
 .lx-document-meta div { display: flex; gap: 4px; }
-.lx-document-meta dd { color: var(--p-lx-text); }
+.lx-document-meta dd { color: var(--p-lx-ink); }
 
-/* Finding colours always travel with an icon and a word (lx-finding component). */
+/* A static table (DESIGN.md "Tables") where no sorting or paging is needed: 40 px rows, a line between rows, no outer
+   card, the header in meta type over a line-strong rule, numbers right aligned in tabular figures. Its first and last
+   columns sit on the content's edges. DataTable draws the same rows from its tokens (theme/datatable-tokens.ts). */
+.lx-table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 20px; }
+.lx-table th, .lx-table td { height: 40px; box-sizing: border-box; padding: 0 12px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--p-lx-line); }
+.lx-table thead th {
+  height: 40px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2);
+  border-bottom-color: var(--p-lx-line-strong); white-space: nowrap;
+}
+.lx-table tbody th { font-weight: 500; }
+.lx-table tr > :first-child { padding-left: 0; }
+.lx-table tr > :last-child { padding-right: 0; }
+.lx-table .lx-num, .lx-num { text-align: right; font-variant-numeric: tabular-nums; }
+/* A row's one text action (Review, Sign, Report): accent words, underlined under the pointer. */
+.lx-row-action {
+  padding: 0; border: 0; background: none; cursor: pointer; font: inherit; font-size: 13px; line-height: 20px; font-weight: 500;
+  color: var(--p-lx-accent); text-decoration: none; white-space: nowrap;
+}
+a.lx-row-action:not(.p-button) { text-decoration: none; }
+.lx-row-action:hover, a.lx-row-action:not(.p-button):hover { text-decoration: underline; }
+.lx-row-action:disabled { color: var(--p-lx-ink-2); cursor: default; text-decoration: none; }
+
+/* Outcome words; they always travel with a mark or a sentence, never colour alone. */
 .lx-found { color: var(--p-lx-found); }
-.lx-ambiguous { color: var(--p-lx-ambiguous); }
 .lx-missing { color: var(--p-lx-missing); }
 
-/* A filter chip (audit trail, People): a Select drawn as a pill, accent-tint once it holds a value (lx-chip-on). */
-.lx-chip.p-select {
-  border-radius: var(--lx-r-pill); border-color: transparent; background: var(--p-lx-surface); box-shadow: var(--p-lx-e1);
-  max-width: calc(100vw - 32px); transition: background-color var(--lx-t-1) var(--lx-ease-out), box-shadow var(--lx-t-1) var(--lx-ease-out);
-}
-.lx-chip.p-select:not(.p-disabled):hover { border-color: transparent; box-shadow: var(--p-lx-e2); }
-.lx-chip .p-select-label { font-weight: 550; padding-left: 0.875rem; color: var(--p-lx-text); }
-.lx-chip .p-select-label.p-placeholder { color: var(--p-lx-text-2); }
-.lx-chip.lx-chip-on.p-select { background: var(--p-lx-accent-tint); box-shadow: none; }
-.lx-chip.lx-chip-on .p-select-label, .lx-chip.lx-chip-on .p-select-dropdown, .lx-chip.lx-chip-on .p-select-clear-icon { color: var(--p-lx-accent); }
-
-/* First view of a list or grid: items rise 6 px and fade in, 30 ms apart, at most ten staggered (lxEnter). */
-.lx-enter {
-  animation: lx-enter var(--lx-t-3) var(--lx-ease-out) both;
-  animation-delay: calc(min(var(--lx-i, 0), 9) * 30ms);
-}
-@keyframes lx-enter { from { opacity: 0; transform: translateY(6px); } }
-
-/* Route change (withViewTransitions): the old view fades out in 120 ms, the new one fades in and rises 8 px. */
-::view-transition-old(root) { animation: lx-vt-out var(--lx-t-1) var(--lx-ease-out) both; }
-::view-transition-new(root) { animation: lx-vt-in var(--lx-t-3) var(--lx-ease-out) both; }
-@keyframes lx-vt-out { to { opacity: 0; } }
-@keyframes lx-vt-in { from { opacity: 0; transform: translateY(8px); } }
+/* Route change (withViewTransitions): the new view fades in and rises 4 px over 180 ms; the old one simply goes. */
+::view-transition-old(root) { animation: none; }
+::view-transition-new(root) { animation: lx-rise-in var(--lx-t) var(--lx-ease) both; }
+@keyframes lx-rise-in { from { opacity: 0; transform: translateY(4px); } }
 /* A change within one screen (a tab, a filter) swaps at once; app.config.ts sets the attribute for it. */
 :root[data-transition='none']::view-transition-group(*),
 :root[data-transition='none']::view-transition-old(*),
 :root[data-transition='none']::view-transition-new(*) { animation: none; }
-/* Text that rises into place without fading in: the sign-in headline and form are the largest paint, so they must be
-   visible in the first frame (LCP, D-307). */
-@keyframes lx-rise { from { transform: translateY(12px); } }
 
 /* PrimeNG refinements that belong to the whole product, not one screen. */
 @layer lexvay {
-  .p-datatable-thead > tr > th { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-text-2); }
-  .p-datatable-tbody > tr > td { font-size: 14px; line-height: 20px; vertical-align: top; }
-  .p-datatable-tbody > tr { transition: background-color var(--lx-t-1) var(--lx-ease-out); }
-  .p-button { font-family: var(--lx-font-sans); transition: background-color var(--lx-t-1) var(--lx-ease-out), color var(--lx-t-1), box-shadow var(--lx-t-1), transform 90ms var(--lx-ease-out); }
-  .p-button:not(:disabled):active { transform: scale(.98); }
-  .p-button-label { font-weight: 550; }
+  /* Controls are 32 px (DESIGN.md "Buttons", "Inputs"); the single primary action of a screen is 36 px (size large). */
+  .p-button { font-family: var(--lx-font-sans); min-height: 32px; line-height: 20px; white-space: nowrap; transition: background-color var(--lx-t-fast) var(--lx-ease), color var(--lx-t-fast) var(--lx-ease), border-color var(--lx-t-fast) var(--lx-ease); }
+  .p-button-lg { min-height: 36px; }
+  .p-button-label { font-weight: 500; }
   a.p-button, a.p-button:hover { text-decoration: none; }
-  .p-dialog-title { font-family: var(--lx-font-sans); letter-spacing: -0.01em; }
-  .p-message-text { font-size: 13px; line-height: 20px; }
-  .p-toast-message-content { padding: var(--lx-space-3) var(--lx-space-4); }
-  .p-badge { font-variant-numeric: tabular-nums; }
-  .p-skeleton::after { animation-duration: 1.4s; }
-  /* Overlays fade and scale from .97 (DESIGN.md "Overlays"). */
-  .p-popover, .p-select-overlay, .p-menu-overlay, .p-dialog { transform-origin: top center; }
+  .p-inputtext:not(textarea), .p-select, .p-multiselect, .p-autocomplete-input-multiple, .p-inputnumber-input { min-height: 32px; box-sizing: border-box; line-height: 20px; }
+  .p-select-label, .p-multiselect-label { line-height: 20px; }
+  textarea.p-inputtext { line-height: 20px; }
+  .p-dialog-title { font-family: var(--lx-font-sans); }
+  .p-message-text { line-height: 20px; }
+  /* Tables: the header in meta type, numbers in tabular figures, the selected row's 2 px accent rule on its left. */
+  .p-datatable-thead > tr > th { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; }
+  .p-datatable-tbody > tr > td { font-size: 14px; line-height: 20px; vertical-align: top; }
+  .p-datatable-tbody > tr { transition: background-color var(--lx-t-fast) var(--lx-ease); }
+  .p-datatable-tbody > tr.p-datatable-row-selected > td:first-child { box-shadow: inset 2px 0 0 var(--p-lx-accent); }
+  /* Overlays fade and rise 4 px over 150 ms (DESIGN.md "Motion"). */
+  .p-popover, .p-select-overlay, .p-multiselect-overlay, .p-autocomplete-overlay, .p-menu-overlay, .p-dialog, .p-toast-message {
+    animation: lx-overlay-in 150ms var(--lx-ease) both;
+  }
+  .p-tooltip { font-family: var(--lx-font-sans); line-height: 16px; }
+  /* Tabs are an underlined text row: 24 px between labels, which carry no padding of their own (tabs-tokens.ts). */
+  .p-tablist-content { gap: 24px; }
 }
+@keyframes lx-overlay-in { from { opacity: 0; transform: translateY(4px); } }
 
 @media (max-width: 640px) {
-  :root { --lx-gutter: 16px; }
-  .p-datatable-tbody > tr > td { font-size: 13px; }
-  .lx-page { padding: var(--lx-space-5) var(--lx-gutter) var(--lx-space-8); }
-  .lx-display { font-size: 30px; line-height: 36px; }
+  :root { --lx-gutter: 20px; }
+  .lx-page { padding-bottom: var(--lx-space-7); }
 }
-/* Paper is black on white whatever the screen theme: every token resolves to its light value, and the toast never prints. */
+/* Paper is ink on white whatever the screen theme: every token resolves to its light value, and the toast never prints. */
 @media print {
   :root, :root[data-theme='dark'] { color-scheme: light; }
-  body { background: #fff; color: #000; }
+  body { background: var(--p-lx-surface); }
   .p-toast { display: none; }
 }
-/* Reduced motion: every duration becomes zero, count-ups show the final value and the map appears at once. */
+/* Reduced motion: every duration becomes zero, and route changes and overlays appear at once. */
 @media (prefers-reduced-motion: reduce) {
-  :root { --lx-t-1: 0ms; --lx-t-2: 0ms; --lx-t-3: 0ms; --lx-t-4: 0ms; --lx-t-hero: 0ms; }
+  :root { --lx-t-fast: 0ms; --lx-t: 0ms; }
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; animation-delay: 0s !important; }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
