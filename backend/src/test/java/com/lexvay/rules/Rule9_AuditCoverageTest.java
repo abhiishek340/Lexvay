@@ -41,6 +41,7 @@ class Rule9_AuditCoverageTest extends AbstractDatabaseTest {
             "POST /api/v1/rule-sources",                           // RuleSourceApiTest.createStoresTheSourceQueuesTheFirstCheckAndIsAudited
             "POST /api/v1/rule-sources/{id}/check",                // RuleSourceApiTest.aCheckCanBeRequestedOnceAtATimeAndIsAudited
             "PUT /api/v1/rule-sources/{id}/active",                // RuleSourceApiTest.onlyAnAdminTurnsMonitoringOffAndOnAndItIsAudited
+            "PUT /api/v1/rule-sources/{id}/governance",            // SourceGovernanceApiTest.anAdministratorReplacesTheGovernanceAndTheAuditNamesBeforeAndAfter
             "POST /api/v1/users",                                 // UserAdminApiTest.creatingAUserIsAuditedWithoutTheCode
             "POST /api/v1/users/{id}/setup-code",                 // UserAdminApiTest.aNewCodeClosesTheEarlierOnesAndIsAudited
             "PUT /api/v1/users/{id}/role",                        // UserAdminApiTest.aRoleChangeIsAuditedWithTheOldAndNewRole

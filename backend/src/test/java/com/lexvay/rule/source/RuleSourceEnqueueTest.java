@@ -19,9 +19,13 @@ class RuleSourceEnqueueTest extends AbstractRuleSourceTest {
     @Autowired RuleSourceService service;
     @Autowired ApplicationContext context;
 
+    /** A source whose access a person has permitted, as only such sources are queued by the scheduler. */
     private UUID register(TestTenants.TenantWithUsers tenant, String label, int intervalHours) {
-        return TenantContext.runAs(tenant.tenantId(), () -> service.register(
+        UUID id = TenantContext.runAs(tenant.tenantId(), () -> service.register(
                 new CreateRuleSourceRequest("CA", LICENSE, label, newUrl("html"), intervalHours)));
+        TenantContext.runAs(tenant.tenantId(), () -> jdbc.sql("UPDATE rule_source SET access_status = 'PERMITTED' WHERE id = :id")
+                .param("id", id).update());
+        return id;
     }
 
     /** Pretends the source is next due this many minutes from now (negative: that long ago). */
@@ -68,6 +72,24 @@ class RuleSourceEnqueueTest extends AbstractRuleSourceTest {
         repository.enqueueDue();
         assertThat(jobs(t, neverChecked)).as("no second job while one is queued").isEqualTo(1);
         assertThat(jobs(other, otherTenants)).isEqualTo(1);
+    }
+
+    @Test
+    void onlyPermittedSourcesAreQueuedWhateverTheirScheduleSays() {
+        UUID permitted = register(t, "permitted", 24);
+        UUID unreviewed = register(t, "unreviewed", 24);
+        UUID restricted = register(t, "restricted", 24);
+        UUID blocked = register(t, "blocked", 24);
+        setAccess(unreviewed, "UNREVIEWED");
+        setAccess(restricted, "RESTRICTED");
+        setAccess(blocked, "BLOCKED");
+
+        repository.enqueueDue();
+
+        assertThat(jobs(t, permitted)).isEqualTo(1);
+        assertThat(jobs(t, unreviewed)).as("nobody reviewed whether it may be fetched").isZero();
+        assertThat(jobs(t, restricted)).isZero();
+        assertThat(jobs(t, blocked)).isZero();
     }
 
     @Test

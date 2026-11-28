@@ -97,9 +97,11 @@ final class PerfSeed {
                 """);
         // After the job volume above, which is one row per source and day: these sources have no history of their own.
         admin.execute("""
-                INSERT INTO rule_source (tenant_id, jurisdiction_id, license_type, label, url, check_interval_hours, next_check_at)
+                INSERT INTO rule_source (tenant_id, jurisdiction_id, license_type, label, url, check_interval_hours, next_check_at,
+                                         allowed_hosts, access_status)
                 SELECT rs.tenant_id, rs.jurisdiction_id, rs.license_type, 'Synthetic source ' || g,
-                       'https://example.invalid/rules/' || g, 24, now() + g * interval '1 hour'
+                       'https://example.invalid/rules/' || g, 24, now() + g * interval '1 hour',
+                       ARRAY['example.invalid'], 'PERMITTED'
                 FROM rule_source rs CROSS JOIN generate_series(1, 200) g
                 """);
         admin.execute("""
