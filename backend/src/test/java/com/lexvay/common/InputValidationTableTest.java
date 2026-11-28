@@ -583,6 +583,20 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(row("report request: determination id is not a UUID", "POST /api/v1/determinations/{id}/report", HttpMethod.POST,
                 "/api/v1/determinations/" + BAD_ID + "/report", null, null, 400));
         rows.add(row("report download: id is not a UUID", "GET /api/v1/reports/{id}", HttpMethod.GET, "/api/v1/reports/" + BAD_ID, null, null, 400));
+
+        // --- evidence packages (F15) ---
+        String requestPackage = "POST /api/v1/determinations/{id}/package";
+        rows.add(row("package request: determination id is not a UUID", requestPackage, HttpMethod.POST,
+                "/api/v1/determinations/" + BAD_ID + "/package", null, null, 400));
+        rows.add(row("package request: unknown determination", requestPackage, HttpMethod.POST,
+                "/api/v1/determinations/" + ID + "/package", null, null, 404));
+        rows.add(anonymousRow("package request: no session", requestPackage, HttpMethod.POST, "/api/v1/determinations/" + ID + "/package", 401));
+        rows.add(row("package status: id is not a UUID", "GET /api/v1/packages/{id}", HttpMethod.GET, "/api/v1/packages/" + BAD_ID, null, null, 400));
+        rows.add(row("package status: unknown package", "GET /api/v1/packages/{id}", HttpMethod.GET, "/api/v1/packages/" + ID, null, null, 404));
+        rows.add(row("package file: id is not a UUID", "GET /api/v1/packages/{id}/file", HttpMethod.GET,
+                "/api/v1/packages/" + BAD_ID + "/file", null, null, 400));
+        rows.add(row("package file: unknown package", "GET /api/v1/packages/{id}/file", HttpMethod.GET,
+                "/api/v1/packages/" + ID + "/file", null, null, 404));
         return rows;
     }
 

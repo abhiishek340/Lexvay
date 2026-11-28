@@ -68,6 +68,8 @@ lexvay:
   audit:                                  # SEC-3: the sealer that chains audit entries into a tamper-evident trail
     sealing-enabled: true
     seal-interval-ms: ${LEXVAY_AUDIT_SEAL_INTERVAL_MS:2000}
+  package:                                # F15: the evidence package ZIP
+    max-bytes: ${LEXVAY_PACKAGE_MAX_BYTES:536870912}   # a larger package fails its job (512 MB); the build needs this much free temporary space
   rule-sources:                           # F12: fetch the pages where licensing boards publish rules (D-185)
     enabled: ${LEXVAY_RULE_SOURCES_ENABLED:false}
     poll-interval-ms: ${LEXVAY_RULE_SOURCES_POLL_INTERVAL_MS:300000}

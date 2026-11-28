@@ -5,25 +5,18 @@ import com.lexvay.common.CsvWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.io.Writer;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Supplier;
 import org.springframework.stereotype.Service;
 
 /**
  * The audit log as a CSV file for an auditor (F5a). Rows go from the database cursor through {@link CsvWriter} to the
  * response as they arrive, so the log's size does not matter to the heap (D-377). Handing the log out is an action
- * someone is accountable for, so it is audited like the register export (D-274), after the last row. The last four
- * columns let an auditor recompute the hash chain from the file (SEC-3, D-535); an entry not yet sealed has no Seq or Row hash.
+ * someone is accountable for, so it is audited like the register export (D-274), after the last row.
  */
 @Service
 public class AuditExportService {
-
-    static final List<String> HEADER = List.of("Time (UTC)", "Actor", "Action", "Record type", "Record ID", "Details",
-            "Seq", "Row hash", "Entry ID", "Actor ID");
 
     private final AuditRepository repository;
     private final AuditService audit;
@@ -73,9 +66,7 @@ public class AuditExportService {
 
         void write(ExportRow row) {
             start();
-            csv.row(Arrays.asList(row.time().toString(), row.actor(), row.action(), row.entityType(),
-                    Objects.toString(row.entityId(), null), row.detail(), Objects.toString(row.seq(), null), row.rowHash(),
-                    row.entryId().toString(), Objects.toString(row.actorId(), null)));
+            AuditCsv.write(csv, row);
             rows++;
         }
 
@@ -95,7 +86,7 @@ public class AuditExportService {
         private void start() {
             if (csv == null) {
                 out = destination.get();
-                csv = CsvWriter.to(out).row(HEADER);
+                csv = AuditCsv.start(out);
             }
         }
     }

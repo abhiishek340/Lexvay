@@ -95,6 +95,7 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 | `LEXVAY_COOKIE_SECURE` | `true` when users reach the service over HTTPS | false |
 | `LEXVAY_FORWARD_HEADERS` | `native` behind a reverse proxy or load balancer, so client address and scheme come from the proxy headers; leave `none` when the container is reached directly | none |
 | `LEXVAY_RATELIMIT_LOGIN_PER_MINUTE`, `LEXVAY_RATELIMIT_API_PER_MINUTE`, `LEXVAY_RATELIMIT_UPLOAD_PER_MINUTE`, `LEXVAY_UPLOAD_MAX_MB` | Rate limits and upload size (WS-SEC) | 10, 600, 30, 25 |
+| `LEXVAY_PACKAGE_MAX_BYTES` | Largest evidence package, in bytes; a larger one fails its job with a message and nothing is stored (F15) | 536870912 (512 MB) |
 | `LEXVAY_PASSWORD_HASH_CONCURRENCY` | How many password hashes (sign-in, choosing a password) may run at once, 32 MiB of heap each; a caller that waits 2 seconds gets 503 with `Retry-After: 2` (D-407) | processors, at least 2 |
 | `LEXVAY_AUDIT_SEAL_INTERVAL_MS` | How often the sealer chains new audit entries into the tamper-evident trail (SEC-3, D-533); an entry is sealed within about this time of being written | 2000 |
 
@@ -212,6 +213,27 @@ WHERE s.row_hash <> encode(sha256(convert_to(concat_ws(E'\x1f', s.tenant_id, s.s
       to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'), s.prev_hash), 'UTF8')), 'hex')
 ORDER BY s.seq;
 ```
+
+## Evidence packages
+
+`POST /api/v1/determinations/{id}/package` builds one ZIP for a signed determination that has a ready report (F15,
+D-540 to D-549): the report PDF, `determination.json`, `requirements.csv`, `quotes.csv`, the original bytes of every
+cited document under `documents/`, `audit.csv`, a `README.txt` and a `manifest.json` that lists every other entry with
+its size and SHA-256. A job builds it; `GET /api/v1/packages/{id}` shows QUEUED, READY or FAILED with the size and the
+SHA-256 of the ZIP, and `GET /api/v1/packages/{id}/file` streams it. Requesting, finishing and downloading are audited
+(`PACKAGE_REQUESTED`, `PACKAGE_READY`, `PACKAGE_DOWNLOADED`).
+
+- The build writes the ZIP to the Java temporary directory (`/var/lexvay/tmp` in the image) before storing it, then
+  deletes it, so that directory needs as much free space as the largest package expected (at most
+  `LEXVAY_PACKAGE_MAX_BYTES`). Nothing is held whole in memory: documents and the audit trail stream through.
+- With the S3 store, a ZIP above 16 MB is uploaded in 16 MB parts and a failed upload is aborted, so no partial object
+  stays. The task role has `s3:AbortMultipartUpload` for that (`infra/iam.tf`), and the bucket's lifecycle rule
+  removes the parts of an upload that was never completed after 7 days.
+- A package that passes the size limit, or whose cited document no longer matches the hash recorded at upload, ends
+  FAILED. `GET /api/v1/packages/{id}` carries the reason in `error`, and the job shows in the audit trail as
+  `JOB_FAILED`. Request a new package after fixing the cause; a finished package is never changed.
+- A package is deterministic for the same inputs: entries in a fixed order with the time of generation as their one
+  timestamp. Anyone can verify one with `unzip` and `sha256sum` against `manifest.json`.
 
 ## Health
 

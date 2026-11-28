@@ -320,7 +320,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI3-2 Changes, audit, report, register, people in v3 | `ui3-records` | 3 | Opus 5.5 | queued (after UI3-0, F14) |
 | UI3-3 Rules, requests, setup in v3 | `ui3-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI3-0, UI2-4) |
 | SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | in progress |
-| F15 Evidence package | `feat-evidence-package` | 7 | Sonnet 5.5 | in progress |
+| F15 Evidence package | `feat-evidence-package` | 5 | Sonnet 5.5 | merged (#49) |
 | RG-1 Legal time and status model (P0) | `rg-legal-time` | 2 | Sonnet 5.5 | in progress |
 | MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | in progress |
 | RG-2, RG-3, AC-1, AC-2, AC-3, EV-1, EV-2, UX-1 | see Real-data validation track | — | — | queued |
@@ -1766,7 +1766,7 @@ self-verifying ZIP built by a job.
    - `documents/<filename>`: the original bytes of every document a quote cites, deduplicated, streamed through
      `open`.
    - `audit.csv`: the audit entries whose entity is the determination, its mappings, its report or this package, in
-     the F5a export format. Include `seq` and `row_hash` if SEC-3 has merged.
+     the F5a export format. Include `seq` and `row_hash` if SEC-3 has merged (it had not; SEC-3 adds them to the shared `AuditCsv`).
    - `manifest.json`: every other entry with its size and SHA-256, plus `generatedAt`, the Lexvay version and the
      package id.
    - `README.txt`: four plain sentences on what the package is and how to check `manifest.json`. It contains no

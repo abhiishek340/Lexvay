@@ -33,6 +33,7 @@ class Rule9_AuditCoverageTest extends AbstractDatabaseTest {
             "POST /api/v1/courses/{courseId}/versions",            // CourseVersionChangeTest.newCourseVersionCreatesEventMarksStaleAndReopens
             "POST /api/v1/change-events/{id}/rerun",               // RuleVersionChangeTest.rerunCarriesOverUnchangedAndReevaluatesChanged
             "POST /api/v1/determinations/{id}/report",             // ReportTest.signedDeterminationReportIsGeneratedAndDownloadable
+            "POST /api/v1/determinations/{id}/package",            // PackageApiTest.aSignedDeterminationIsPackagedAndEveryStepIsAudited
             "POST /api/v1/reports/check",                          // ReportCheckTest.theDownloadedFileMatchesItsReportWithEveryFieldAndTheCheckIsAudited
             "POST /api/v1/rule-sources",                           // RuleSourceApiTest.createStoresTheSourceQueuesTheFirstCheckAndIsAudited
             "POST /api/v1/rule-sources/{id}/check",                // RuleSourceApiTest.aCheckCanBeRequestedOnceAtATimeAndIsAudited
@@ -45,13 +46,15 @@ class Rule9_AuditCoverageTest extends AbstractDatabaseTest {
     );
 
     /**
-     * Reads that are audited all the same, because they hand signed records out of the system (D-274 in
-     * docs/decisions/F8.md; the audit export, D-377; the verification of the audit trail, D-534). Endpoint → test that asserts its audit row.
+     * Reads that are audited all the same, because they hand signed records out of the system or report on the trail
+     * (D-274 in docs/decisions/F8.md; the audit export, D-377; the evidence package, D-540; the verification of the audit
+     * trail, D-534). Endpoint → test that asserts its audit row.
      */
     static final Set<String> AUDITED_READ_ENDPOINTS = Set.of(
             "GET /api/v1/determinations/register.csv",             // RegisterApiTest.theCsvExportIsRfc4180WithLabelsAndIsAudited
             "GET /api/v1/audit.csv",                              // AuditExportApiTest.theExportIsAuditedWithItsFiltersAndRowCount
-            "GET /api/v1/audit/verify"                            // AuditVerificationApiTest.aVerificationIsAuditedWithItsOutcome
+            "GET /api/v1/audit/verify",                           // AuditVerificationApiTest.anIntactTrailIsReportedWithItsHeadAndIsAudited
+            "GET /api/v1/packages/{id}/file"                      // PackageApiTest.aSignedDeterminationIsPackagedAndEveryStepIsAudited
     );
 
     @Autowired @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping;

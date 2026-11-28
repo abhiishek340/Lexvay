@@ -62,3 +62,17 @@ A fetched rule text is a proposal like any other: it becomes an unapproved draft
 | Checks are append-only; a source changes only whether and when it is monitored (active flag, last check, hash, next check, failure count) | V011 triggers `forbid_change`, `restrict_update_to_columns` (recreated by V016) | `Rule5_RuleSourceImmutabilityTest` |
 | Sources and checks are tenant-isolated; the scheduler's cross-tenant statement is the only use of the worker flag besides the poller | V011 policies | `Rule7_RuleSourceIsolationTest`, `RuleSourceEnqueueTest` |
 | Every write is audited, including the system's checks | `RuleSourceService`, `CheckRuleSourceHandler` | `Rule9_AuditCoverageTest`, `RuleSourceApiTest`, `CheckRuleSourceTest` |
+
+## Evidence packages (F15, decisions D-540 to D-549)
+
+A package hands over what already exists; it decides nothing (rule 1) and adds no evidence that was not verified (rule 2).
+
+| Control | Enforcement | Tests |
+|---|---|---|
+| Only a SIGNED determination with a ready report is packaged; a reopened one is refused | `PackageService.request` (409) | `PackageApiTest` |
+| A package is finished once (QUEUED to READY or FAILED, setting only the file columns), is never deleted, and is READY only with its file, hash and size | V020 trigger `evidence_package_finish_once`, `forbid_change`, CHECK `evidence_package_file_iff_ready` | `Rule5_EvidencePackageImmutabilityTest` |
+| Another tenant finds no package and cannot request one | V020 policy `tenant_isolation` | `PackageApiTest.anotherTenantFindsNothing` |
+| Every entry is listed in `manifest.json` with its SHA-256; the stored ZIP's hash is recorded; a cited document whose bytes no longer match the hash recorded at upload fails the build | `PackageBuilder` | `PackageApiTest`, `PackageSeedTest` |
+| The same inputs give the same bytes | `PackageZip`, `PackageEntries` | `PackageApiTest.buildingTwiceWithTheSameClockGivesTheSameBytes` |
+| Request, completion and download are audited | `PackageService`, `BuildPackageHandler` | `Rule9_AuditCoverageTest`, `PackageApiTest` |
+| The README inside the package contains no forbidden wording | `evidence-package/README.txt` | `ForbiddenWordsTest` |

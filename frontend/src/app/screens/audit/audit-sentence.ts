@@ -45,6 +45,7 @@ const JOB_NOUN: Record<string, string> = {
   RUN_ASSESSMENT: 'an assessment',
   RERUN_CHANGE: 'a re-run',
   GENERATE_REPORT: 'an evidence report PDF',
+  BUILD_PACKAGE: 'an evidence package',
   CHECK_RULE_SOURCE: 'a rule source check',
 };
 
@@ -167,6 +168,9 @@ export const AUDIT_SENTENCES: Record<string, Sentence> = {
   },
   REPORT_REQUESTED: ({ actor }) => `${actor} requested an evidence report PDF`,
   REPORT_GENERATED: ({ actor }) => `${actor} generated an evidence report PDF`,
+  PACKAGE_REQUESTED: ({ actor }) => `${actor} requested an evidence package`,
+  PACKAGE_READY: ({ actor }) => `${actor} built an evidence package`,
+  PACKAGE_DOWNLOADED: ({ actor }) => `${actor} downloaded an evidence package`,
   REPORT_CHECKED: ({ actor, detail }) => `${actor} checked a report file: ${detail['match'] === true ? 'it matches' : 'no match'}`,
   JOB_FAILED: ({ actor, detail }) => `${actor} could not finish ${JOB_NOUN[String(detail['type'])] ?? 'a background job'}`,
 };
@@ -211,6 +215,9 @@ export const ACTION_LABEL: Record<string, string> = {
   CHANGE_RERUN: 'Re-run finished',
   REPORT_REQUESTED: 'Evidence report requested',
   REPORT_GENERATED: 'Evidence report generated',
+  PACKAGE_REQUESTED: 'Evidence package requested',
+  PACKAGE_READY: 'Evidence package built',
+  PACKAGE_DOWNLOADED: 'Evidence package downloaded',
   REPORT_CHECKED: 'Report file checked',
   JOB_FAILED: 'Background job failed',
 };

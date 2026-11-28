@@ -57,7 +57,7 @@ refused by the foreign key even with its trigger disabled; deleting a seal row w
 **D-535 — The export gains four columns, not two.** The spec adds `seq` and `row_hash`. An exported trail cannot be
 recomputed from those alone: the hash covers the entry id and the actor's id, and the export shows the actor's display
 name. So the columns are `Seq`, `Row hash`, `Entry ID` and `Actor ID`, after `Details` (existing columns keep their
-positions). A pending entry has an empty `Seq` and `Row hash`. The tenant id is not a column (one export is one
+positions), written by `AuditCsv`, which the F15 evidence package's `audit.csv` shares, so both carry them. A pending entry has an empty `Seq` and `Row hash`. The tenant id is not a column (one export is one
 tenant) and is passed to the check; the previous hash is the previous row's, so the recipe needs an export without
 filters. The Python recipe in `docs/OPERATIONS.md` was run against a real export, intact and with one word changed.
 `AuditExportApiTest` fails if the file stops being enough to recompute every hash. The end-to-end header assertion in
