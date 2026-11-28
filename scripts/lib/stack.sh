@@ -8,7 +8,8 @@
 # first takes one of LEXVAY_STACK_CONCURRENCY tokens (default 2; 0 turns the cap off) and waits up to
 # LEXVAY_STACK_WAIT_MINUTES (default 60) for one. A token is a directory ${LEXVAY_STACK_LOCK_DIR:-/tmp/lexvay-stack-tokens-$(id -u)}/<n>
 # holding its owner's `pid` and `slot`; a token whose pid is gone is reclaimed. Scans happen while holding the
-# short-lived directory <that directory>/.mutex. Only mkdir is used for locking, because macOS has no flock.
+# short-lived file <that directory>/.mutex, created by the shell itself with O_EXCL (noclobber). macOS has no flock, and
+# mkdir is not a safe lock everywhere: uutils mkdir, the default on Ubuntu 26.04, reports success when it loses a race.
 # stack_cleanup gives the token back on every exit path, including INT and TERM.
 
 STACK_NOTICE_SECONDS=30
@@ -26,17 +27,18 @@ stack_check_limits() {
 stack_pid_alive() { ps -p "$1" >/dev/null 2>&1; }
 
 # Serialises token scans, so two waiters never reclaim the same stale token or both create one. It is held for
-# milliseconds; a mutex older than a minute belongs to a process that died inside the critical section.
+# milliseconds; a mutex older than a minute belongs to a process that died inside the critical section. The mutex is a
+# file created by the shell's own O_EXCL open (noclobber): exactly one contender wins and no external command decides it.
 stack_mutex_lock() {
   STACK_MUTEX="$1/.mutex"
-  until mkdir "$STACK_MUTEX" 2>/dev/null; do
-    if find "$STACK_MUTEX" -maxdepth 0 -mmin +1 2>/dev/null | grep -q .; then rmdir "$STACK_MUTEX" 2>/dev/null || true; fi
+  until ( set -C; : > "$STACK_MUTEX" ) 2>/dev/null; do
+    if find "$STACK_MUTEX" -maxdepth 0 -mmin +1 2>/dev/null | grep -q .; then rm -f "$STACK_MUTEX"; fi
     sleep 0.05
   done
 }
 
 stack_mutex_unlock() {
-  if [ -n "$STACK_MUTEX" ]; then rmdir "$STACK_MUTEX" 2>/dev/null || true; STACK_MUTEX=""; fi
+  if [ -n "$STACK_MUTEX" ]; then rm -f "$STACK_MUTEX"; STACK_MUTEX=""; fi
 }
 
 # One attempt to take a token under <root>. Returns 0 and sets STACK_TOKEN_DIR on success. Returns 1 and sets
