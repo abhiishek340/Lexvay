@@ -60,7 +60,7 @@ class LiveTenantModelTest extends AbstractDatabaseTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("jurisdiction", "UT", "licenseType", "CLINICAL_MENTAL_HEALTH_COUNSELING",
                         "label", label, "sourceUrl", "https://example.invalid/demo/" + label.replace(' ', '-'),
-                        "effectiveFrom", LocalDate.of(2026, 7, 1).toString(), "text", RuleVersionApiTest.RULE_TEXT + "\nLabel: " + label)))
+                        "legalStatus", "IN_FORCE", "effectiveFrom", LocalDate.of(2026, 7, 1).toString(), "datesBasis", DataMode.DEMO_NOTICE, "text", RuleVersionApiTest.RULE_TEXT + "\nLabel: " + label)))
                 .exchange();
         assertThat(created).hasStatus(202);
         JsonNode body = json.readTree(created.getResponse().getContentAsString());
@@ -138,7 +138,7 @@ class LiveTenantModelTest extends AbstractDatabaseTest {
     }
 
     @Test
-    void requirementsCannotBeApprovedForRealDataFromARuleVersionWithoutARecordedDatesBasis() throws Exception {
+    void requirementsCannotBeApprovedForRealDataFromARuleVersionWhoseDatesAreFictionalDemoData() throws Exception {
         var t = tenants.create("live-approve", DataMode.DEMO);
         Created rule = createRule(t, "Demo rule set to approve");
         runner.runPending();
@@ -148,7 +148,7 @@ class LiveTenantModelTest extends AbstractDatabaseTest {
                 .with(user(t.reviewer())).with(csrf()).exchange();
 
         assertThat(refused).hasStatus(409);
-        assertThat(refused.getResponse().getContentAsString()).contains("basis of the rule version's dates");
+        assertThat(refused.getResponse().getContentAsString()).contains("dates are fictional demo data");
         assertThat(audited(t, "REQUIREMENTS_APPROVED")).isEmpty();
 
         tenants.setDataMode(t.tenantId(), DataMode.DEMO);

@@ -1,6 +1,7 @@
 package com.lexvay.seed;
 
 import java.math.BigDecimal;
+import com.lexvay.rule.LegalStatus;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -40,7 +41,11 @@ public record SeedManifest(boolean fictional, List<Tenant> tenants) {
     public record Fact(String key, BigDecimal value, String document, int page, String quote) {
     }
 
-    public record RuleVersion(String jurisdiction, String label, String sourceUrl, LocalDate effectiveFrom, String text) {
+    public record RuleVersion(String jurisdiction, String label, String sourceUrl, Legal legal, String text) {
+    }
+
+    /** The fictional legal status and dates of a demo rule version; the loader states their basis as fictional demo data. */
+    public record Legal(LegalStatus status, LocalDate adoptedAt, LocalDate publishedAt, LocalDate effectiveFrom) {
     }
 
     /** A monitored rule source, registered inert: no check runs until a person asks for one or the scheduler is enabled. */
@@ -50,7 +55,7 @@ public record SeedManifest(boolean fictional, List<Tenant> tenants) {
     public record Changes(ChangeRuleVersion ruleVersion, ChangeCourseVersion courseVersion) {
     }
 
-    public record ChangeRuleVersion(String jurisdiction, String label, String supersedes, String sourceUrl, LocalDate effectiveFrom, String text) {
+    public record ChangeRuleVersion(String jurisdiction, String label, String supersedes, String sourceUrl, Legal legal, String text) {
     }
 
     public record ChangeCourseVersion(String course, String catalogYear, boolean required, BigDecimal credits, String syllabus) {

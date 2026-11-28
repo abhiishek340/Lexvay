@@ -4,7 +4,7 @@ import { NEEDS_YOU_LIMIT, concernsProgram, needsYou, overviewFigures, primaryAct
 
 const program: Program = { id: 'p1', name: 'M.S. Counseling', licenseType: 'L', catalogYear: '2026-27', jurisdictions: ['CA', 'UT', 'CO', 'TX'], createdAt: '' };
 const assessment: AssessmentView = {
-  id: 'a', programId: 'p1', status: 'FINISHED', startedAt: null, finishedAt: null, llmModel: 'fake', promptVersion: 'match-v1', createdAt: '',
+  id: 'a', programId: 'p1', status: 'FINISHED', startedAt: null, finishedAt: null, llmModel: 'fake', promptVersion: 'match-v1', assessmentAsOf: '2026-11-27', createdAt: '',
   jurisdictions: [
     { jurisdiction: 'CA', total: 8, evidenceFound: 5, evidenceMissing: 1, ambiguous: 2, decided: 8 },
     { jurisdiction: 'UT', total: 9, evidenceFound: 7, evidenceMissing: 1, ambiguous: 1, decided: 9 },
@@ -16,7 +16,7 @@ const determination = (jurisdiction: string, over: Partial<Determination> = {}):
   signedBy: 'u', signedByName: 'Dana Whitfield', signedAt: '2026-11-26T10:00:00Z', status: 'SIGNED', versionsHash: 'h', courseVersionIds: [], ...over,
 });
 const version = (jurisdiction: string, label: string, over: Partial<RuleVersionView> = {}): RuleVersionView => ({
-  id: `${jurisdiction}-${label}`, jurisdiction, licenseType: 'L', label, sourceUrl: '', effectiveFrom: '2026-01-01', supersedesId: null, documentId: 'doc',
+  id: `${jurisdiction}-${label}`, jurisdiction, licenseType: 'L', label, sourceUrl: '', legalStatus: 'IN_FORCE', effectiveFrom: '2026-01-01', effectiveTo: null, publishedAt: null, adoptedAt: null, datesBasis: 'Fictional demo data', observedAt: null, queuedObservations: [], supersedesId: null, documentId: 'doc',
   approval: { by: 'u', at: '2026-01-02T00:00:00Z' }, requirementCount: 8, extraction: null, createdAt: '2026-01-01T00:00:00Z', ...over,
 });
 const versions = [

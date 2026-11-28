@@ -38,7 +38,7 @@
                   <span class="lx-version-status" [attr.data-tone]="s.tone">
                     <ng-icon [name]="s.icon" size="16" aria-hidden="true" />{{ s.label }}
                   </span>
-                  <span class="lx-mono">{{ v.effectiveFrom }}</span>
+                  <span class="lx-mono">{{ v.effectiveFrom ?? 'No date' }}</span>
                 </span>
               </div>
             </ng-template>

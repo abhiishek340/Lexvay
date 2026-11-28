@@ -73,8 +73,8 @@ public class SchemaFixtures {
                     .param("key", tenantId + "/" + ruleDocumentId).param("u", userId).update();
 
             UUID ruleVersionId = UUID.randomUUID();
-            jdbc.sql("INSERT INTO rule_version (id, tenant_id, jurisdiction_id, license_type, label, source_url, effective_from, document_id, created_by) "
-                            + "VALUES (:id, :t, :j, 'FIXTURE_LICENSE', 'Demo rule set (fixture)', 'https://example.invalid/rule', :from, :d, :u)")
+            jdbc.sql("INSERT INTO rule_version (id, tenant_id, jurisdiction_id, license_type, label, source_url, legal_status, effective_from, dates_basis, document_id, created_by) "
+                            + "VALUES (:id, :t, :j, 'FIXTURE_LICENSE', 'Demo rule set (fixture)', 'https://example.invalid/rule', 'IN_FORCE', :from, 'Fictional fixture', :d, :u)")
                     .param("id", ruleVersionId).param("t", tenantId).param("j", jurisdictionId)
                     .param("from", LocalDate.of(2026, 1, 1)).param("d", ruleDocumentId).param("u", userId).update();
 

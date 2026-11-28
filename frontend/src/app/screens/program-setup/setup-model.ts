@@ -33,14 +33,16 @@ export function licenseTypes(versions: readonly RuleVersionView[]): string[] {
 }
 
 /**
- * The approved rule version an assessment started on `today` uses for a state and license type: approved, in effect
- * on that day, the latest effective date first, then the newest entry. The same choice as the server's
- * RuleVersionRepository.findApprovedVersion, so readiness says exactly what the run will find.
+ * The rule version an assessment started on `today` uses for a state and license type: approved, in force or final
+ * and already effective, not ended, the latest effective date first, then the newest entry. The same choice as the
+ * server's RuleVersionRepository.findInForce, so readiness says exactly what the run will find.
  */
 export function assessedVersion(all: readonly RuleVersionView[], jurisdiction: string, licenseType: string, today: string): RuleVersionView | null {
   return all
-    .filter((v) => v.approval && v.jurisdiction === jurisdiction && v.licenseType === licenseType && v.effectiveFrom <= today)
-    .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || b.createdAt.localeCompare(a.createdAt))[0] ?? null;
+    .filter((v) => v.approval && v.jurisdiction === jurisdiction && v.licenseType === licenseType
+      && (v.legalStatus === 'IN_FORCE' || v.legalStatus === 'FINAL_NOT_EFFECTIVE')
+      && v.effectiveFrom !== null && v.effectiveFrom <= today && (v.effectiveTo === null || v.effectiveTo > today))
+    .sort((a, b) => b.effectiveFrom!.localeCompare(a.effectiveFrom!) || b.createdAt.localeCompare(a.createdAt))[0] ?? null;
 }
 
 /** The versions an assessment of the program would use today, one per target state that has one. */

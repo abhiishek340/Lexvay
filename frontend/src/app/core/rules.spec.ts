@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { RULE_STATUS } from '../screens/rules/rule-status';
 import { RuleVersionView } from './models';
-import { anyExtracting, comparableVersions, groupRuleVersions, openingVersion, ruleVersionStatus, versionsWaitingForApproval } from './rules';
+import { anyExtracting, comparableVersions, effectiveText, groupRuleVersions, openingVersion, ruleVersionStatus, versionsWaitingForApproval } from './rules';
 
 let seq = 0;
 function version(patch: Partial<RuleVersionView> = {}): RuleVersionView {
   seq++;
   return {
-    id: `rv-${seq}`, jurisdiction: 'CO', licenseType: 'LPC', label: `Version ${seq}`, sourceUrl: 'https://example.invalid', effectiveFrom: '2026-07-01',
+    id: `rv-${seq}`, jurisdiction: 'CO', licenseType: 'LPC', label: `Version ${seq}`, sourceUrl: 'https://example.invalid',
+    legalStatus: 'IN_FORCE', effectiveFrom: '2026-07-01', effectiveTo: null, publishedAt: null, adoptedAt: null, datesBasis: 'Fictional demo data',
+    observedAt: null, queuedObservations: [],
     supersedesId: null, documentId: `doc-${seq}`, approval: null, requirementCount: 0, extraction: null, createdAt: `2026-11-0${seq % 9 + 1}T00:00:00Z`,
     ...patch,
   };
@@ -126,5 +128,15 @@ describe('comparableVersions', () => {
     const all = [a, b, unapproved, otherState, otherLicense];
     expect(comparableVersions(all, 'CO', 'LPC', b.id).map((v) => v.id)).toEqual([a.id]);
     expect(comparableVersions(all, 'CO', 'LPC', null).map((v) => v.id)).toEqual([b.id, a.id]);
+  });
+});
+
+describe('a version with no recorded effective date', () => {
+  it('is listed before the dated ones, since a person still has to date it, and is named in words', () => {
+    const dated = version({ jurisdiction: 'CO', approval, requirementCount: 9 });
+    const undated = version({ jurisdiction: 'CO', effectiveFrom: null, requirementCount: 3 });
+    expect(groupRuleVersions([dated, undated], ['CO'], (code) => code)[0].rows.map((r) => r.view.id)).toEqual([undated.id, dated.id]);
+    expect(effectiveText(undated)).toBe('date not recorded');
+    expect(effectiveText(dated)).toBe('2026-07-01');
   });
 });

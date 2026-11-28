@@ -18,6 +18,7 @@ import com.lexvay.llm.LlmPurpose;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -83,7 +84,7 @@ public class RuleVersionApiTest extends AbstractDatabaseTest {
         var map = new java.util.HashMap<String, Object>(Map.of(
                 "jurisdiction", jurisdiction, "licenseType", "CLINICAL_MENTAL_HEALTH_COUNSELING", "label", label,
                 "sourceUrl", "https://example.invalid/demo/" + label.replace(' ', '-'),
-                "effectiveFrom", LocalDate.of(2026, 7, 1).toString(), "text", RULE_TEXT + "\nLabel: " + label));
+                "effectiveFrom", LocalDate.of(2026, 7, 1).toString(), "legalStatus", "IN_FORCE", "datesBasis", "Fictional test data", "text", RULE_TEXT + "\nLabel: " + label));
         if (supersedes != null) {
             map.put("supersedesId", supersedes.toString());
         }
@@ -106,6 +107,11 @@ public class RuleVersionApiTest extends AbstractDatabaseTest {
         UUID id = UUID.fromString(read(created).get("ruleVersionId").asString());
         runner.runPending();
         return id;
+    }
+
+    private Optional<RuleVersion> inForce(UUID jurisdictionId, LocalDate asOf) {
+        return Optional.ofNullable(TenantContext.runAs(t.tenantId(), () -> ruleVersions.findInForce(List.of(jurisdictionId),
+                "CLINICAL_MENTAL_HEALTH_COUNSELING", asOf)).get(jurisdictionId));
     }
 
     private MvcTestResult approve(LexvayUser as, UUID id) {
@@ -198,8 +204,7 @@ public class RuleVersionApiTest extends AbstractDatabaseTest {
     void approvalIsAuditedAndHappensOnce() throws Exception {
         UUID id = createAndExtract("Demo rule set Texas", "TX");
         UUID jurisdictionId = jurisdictions.findByCodes(List.of("TX")).get(0).id();
-        assertThat(TenantContext.runAs(t.tenantId(), () -> ruleVersions.findApprovedVersion(jurisdictionId,
-                "CLINICAL_MENTAL_HEALTH_COUNSELING", LocalDate.of(2026, 9, 1)))).as("unapproved: cannot be assessed").isEmpty();
+        assertThat(inForce(jurisdictionId, LocalDate.of(2026, 9, 1))).as("unapproved: cannot be assessed").isEmpty();
 
         var approved = approve(t.reviewer(), id);
         assertThat(approved).hasStatus(200);
@@ -207,10 +212,8 @@ public class RuleVersionApiTest extends AbstractDatabaseTest {
         assertThat(read(mvc.get().uri("/api/v1/rule-versions/" + id + "/requirements").with(user(t.reviewer())).exchange())
                 .get("approved").asBoolean()).isTrue();
 
-        assertThat(TenantContext.runAs(t.tenantId(), () -> ruleVersions.findApprovedVersion(jurisdictionId,
-                "CLINICAL_MENTAL_HEALTH_COUNSELING", LocalDate.of(2026, 9, 1)))).map(RuleVersion::id).contains(id);
-        assertThat(TenantContext.runAs(t.tenantId(), () -> ruleVersions.findApprovedVersion(jurisdictionId,
-                "CLINICAL_MENTAL_HEALTH_COUNSELING", LocalDate.of(2026, 6, 1)))).as("not yet effective").isEmpty();
+        assertThat(inForce(jurisdictionId, LocalDate.of(2026, 9, 1))).map(RuleVersion::id).contains(id);
+        assertThat(inForce(jurisdictionId, LocalDate.of(2026, 6, 1))).as("not yet effective").isEmpty();
 
         assertThat(approve(t.signer(), id)).hasStatus(409);
         var entries = TenantContext.runAs(t.tenantId(), () -> audit.forEntity(id));

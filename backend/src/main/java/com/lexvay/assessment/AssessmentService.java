@@ -13,8 +13,10 @@ import com.lexvay.program.Program;
 import com.lexvay.program.ProgramService;
 import com.lexvay.rule.Jurisdiction;
 import com.lexvay.rule.JurisdictionRepository;
+import com.lexvay.rule.RuleVersion;
 import com.lexvay.rule.RuleVersionRepository;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,7 +38,8 @@ public class AssessmentService {
 
     public record AssessmentView(UUID id, UUID programId, AssessmentStatus status, java.time.OffsetDateTime startedAt,
                                  java.time.OffsetDateTime finishedAt, String llmModel, String promptVersion,
-                                 List<JurisdictionSummary> jurisdictions, java.time.OffsetDateTime createdAt) {
+                                 LocalDate assessmentAsOf, List<JurisdictionSummary> jurisdictions,
+                                 java.time.OffsetDateTime createdAt) {
     }
 
     public record MappingsView(UUID assessmentId, String jurisdiction, List<Mapping> mappings) {
@@ -64,29 +67,32 @@ public class AssessmentService {
         this.audit = audit;
     }
 
-    /** Refuses to start unless every target jurisdiction has an approved rule version (D-050). */
+    /**
+     * Refuses to start unless every target jurisdiction has a rule in force on {@code asOf} (today when null): an approved
+     * version that is in force, or final and already effective, and not ended. It never falls back to the newest
+     * version (D-050, D-556).
+     */
     @Transactional
-    public StartResult start(UUID programId) {
+    public StartResult start(UUID programId, LocalDate asOf) {
         Program program = programs.get(programId);
         if (program.jurisdictions().isEmpty()) {
             throw new ConflictException("The program has no target jurisdictions");
         }
-        List<String> missing = new ArrayList<>();
-        for (Jurisdiction j : jurisdictions.findByCodes(program.jurisdictions())) {
-            if (ruleVersions.findApprovedVersion(j.id(), program.licenseType(), LocalDate.now()).isEmpty()) {
-                missing.add(j.code());
-            }
-        }
+        LocalDate assessmentAsOf = asOf == null ? LocalDate.now(ZoneOffset.UTC) : asOf;
+        List<Jurisdiction> targets = jurisdictions.findByCodes(program.jurisdictions());
+        Map<UUID, RuleVersion> inForce = ruleVersions.findInForce(targets.stream().map(Jurisdiction::id).toList(),
+                program.licenseType(), assessmentAsOf);
+        List<String> missing = targets.stream().filter(j -> !inForce.containsKey(j.id())).map(Jurisdiction::code).toList();
         if (!missing.isEmpty()) {
-            throw new ConflictException("No approved rule version for license type '" + program.licenseType()
-                    + "' in: " + String.join(", ", missing) + ". Approve the requirement lists first");
+            throw new ConflictException("No rule in force on " + assessmentAsOf + " for license type '" + program.licenseType()
+                    + "' in: " + String.join(", ", missing) + ". Approve a requirement list with its legal status and dates first");
         }
         UUID id = UUID.randomUUID();
         UUID actor = CurrentUser.require().id();
-        assessments.insert(id, TenantContext.require(), programId, llm.modelId(), EvidenceMatcher.PROMPT_VERSION, actor);
+        assessments.insert(id, TenantContext.require(), programId, llm.modelId(), EvidenceMatcher.PROMPT_VERSION, assessmentAsOf, actor);
         audit.record("ASSESSMENT_STARTED", "assessment", id, Map.of(
                 "programId", programId.toString(), "jurisdictions", program.jurisdictions(), "llmModel", llm.modelId(),
-                "promptVersion", EvidenceMatcher.PROMPT_VERSION));
+                "promptVersion", EvidenceMatcher.PROMPT_VERSION, "assessmentAsOf", assessmentAsOf.toString()));
         UUID jobId = jobs.enqueue(JobType.RUN_ASSESSMENT, id, Map.of("assessmentId", id.toString()));
         return new StartResult(id, jobId);
     }
@@ -131,7 +137,7 @@ public class AssessmentService {
                         e.getValue()[0], e.getValue()[1], e.getValue()[2], e.getValue()[3]))
                 .toList();
         return new AssessmentView(a.id(), a.programId(), a.status(), a.startedAt(), a.finishedAt(), a.llmModel(),
-                a.promptVersion(), summaries, a.createdAt());
+                a.promptVersion(), a.assessmentAsOf(), summaries, a.createdAt());
     }
 
     @Transactional(readOnly = true)

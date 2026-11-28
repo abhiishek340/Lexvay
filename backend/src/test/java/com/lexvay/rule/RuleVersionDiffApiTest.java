@@ -28,7 +28,7 @@ class RuleVersionDiffApiTest extends AbstractAssessmentTest {
                          String ruleText, String requirementsJson) {
         fake.script("EXTRACT:" + label, requirementsJson);
         Map<String, Object> request = new HashMap<>(Map.of("jurisdiction", jurisdiction, "licenseType", licenseType, "label", label,
-                "sourceUrl", "https://example.invalid/" + label.replace(' ', '-'), "effectiveFrom", LocalDate.of(2027, 1, 1).toString(),
+                "sourceUrl", "https://example.invalid/" + label.replace(' ', '-'), "effectiveFrom", LocalDate.of(2027, 1, 1).toString(), "legalStatus", "IN_FORCE", "datesBasis", "Fictional test data",
                 "text", ruleText));
         if (supersedes != null) {
             request.put("supersedesId", supersedes.toString());

@@ -29,7 +29,7 @@ runs, sandbox, authorized real data or production.
 ### Order and owners (one branch each; migration numbers reserved)
 | ID | Work package | Depends on | Model | Migration | Status |
 |---|---|---|---|---|---|
-| RG-1 | Legal time and status model; fix fetch-date-as-effective-date (P0); keep every observed change (A→B→C) | — | Sonnet 5.5 | V021 | in progress |
+| RG-1 | Legal time and status model; fix fetch-date-as-effective-date (P0); keep every observed change (A→B→C) | — | Sonnet 5.5 | V025 | merged (#55) |
 | MODE-1 | Persisted tenant data mode (DEMO/LIVE) and the spend gate for paid providers | — | Sonnet 5.5 | V022 | merged (#51) |
 | RG-2 | Source registry governance: allowed hosts and paths, authority class, rights and access state, owner, expected identifiers, conditional GET, per-host throttle, robots, block-page detection | RG-1 | Sonnet 5.5 | V023 | queued |
 | RG-3 | Utah official-source adapter (DOPL, R156-60e, Utah Code 58-60-405, State Bulletin), with archived-version replay and an observed-change test | RG-2 | Sonnet 5.5 | — | queued |
@@ -279,7 +279,7 @@ quiet, repeatable runner.
 5. **Docs:** `docs/PERF.md` names CI as the arbiter of the budget. Decisions go in `docs/decisions/OPS-3.md`,
    progress in `docs/progress/OPS-3.md`. Prove it with one real CI run on the PR: a green perf job and its summary.
 
-### RG-2 — Source registry governance (backend; slot 6; Sonnet 5.5; next free migration at merge, expected V026; D-566 to D-575)
+### RG-2 — Source registry governance (backend; slot 6; Sonnet 5.5; next free migration at merge, expected V027; D-566 to D-575)
 Master prompt M3 step 1 to 2 and §4.4: a source is a governed object, not a URL someone typed. Fetching must be polite
 and permitted, and content must be validated before it can become a change candidate. Source health is kept apart
 from legal status. This item extends F12, FIX-4 and RG-1; it adds no new service.
@@ -548,14 +548,15 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI3-3 Rules, requests, setup in v3 | `ui3-rules-requests-setup` | 5 | Opus 5.5 | in progress |
 | SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | merged (#53) |
 | F15 Evidence package | `feat-evidence-package` | 5 | Sonnet 5.5 | merged (#49) |
-| RG-1 Legal time and status model (P0) | `rg-legal-time` | 2 | Sonnet 5.5 | in progress |
+| RG-1 Legal time and status model (P0) | `rg-legal-time` | 2 | Sonnet 5.5 | merged (#55) |
 | MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | merged (#51) |
 | AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | in progress |
 | OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | merged (#54) |
 | OPS-2b Stack lock race on Ubuntu 26.04 (uutils mkdir) | `ops-stack-lock-fix` | — | Sonnet 5.5 | merged (#60) |
 | OPS-3 Performance budget on CI | `ops-perf-ci` | — | Sonnet 5.5 | in progress |
 | EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | in progress |
-| RG-2, RG-3, AC-2, AC-3, EV-2, UX-1 | see Real-data validation track | — | — | queued |
+| RG-2 Source registry governance | `rg-source-governance` | 6 | Sonnet 5.5 | in progress |
+| RG-3, AC-2, AC-3, EV-2, UX-1 | see Real-data validation track | — | — | queued |
 | SP-1 SharePoint spike, DOM-1 expert review | — | — | — | blocked (founder) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |

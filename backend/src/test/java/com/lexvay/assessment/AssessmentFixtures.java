@@ -174,7 +174,7 @@ public class AssessmentFixtures {
         var created = mvc.post().uri("/api/v1/rule-versions").with(user(t.contributor())).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("jurisdiction", jurisdiction, "licenseType", LICENSE, "label", label,
-                        "sourceUrl", "https://example.invalid/" + jurisdiction, "effectiveFrom", LocalDate.of(2026, 1, 1).toString(),
+                        "sourceUrl", "https://example.invalid/" + jurisdiction, "effectiveFrom", LocalDate.of(2026, 1, 1).toString(), "legalStatus", "IN_FORCE", "datesBasis", "Fictional test data",
                         "text", ruleText)))
                 .exchange();
         assertThat(created).hasStatus(202);

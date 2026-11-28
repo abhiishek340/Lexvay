@@ -63,7 +63,7 @@ export interface DocumentView {
 export interface Jurisdiction { id: string; code: string; name: string; }
 
 export interface JurisdictionSummary { jurisdiction: string; total: number; evidenceFound: number; evidenceMissing: number; ambiguous: number; decided: number; }
-export interface AssessmentView { id: string; programId: string; status: 'QUEUED' | 'RUNNING' | 'FINISHED' | 'FAILED'; startedAt: string | null; finishedAt: string | null; llmModel: string; promptVersion: string; jurisdictions: JurisdictionSummary[]; createdAt: string; }
+export interface AssessmentView { id: string; programId: string; status: 'QUEUED' | 'RUNNING' | 'FINISHED' | 'FAILED'; startedAt: string | null; finishedAt: string | null; llmModel: string; promptVersion: string; assessmentAsOf: string; jurisdictions: JurisdictionSummary[]; createdAt: string; }
 
 export type RequirementType = 'NUMERIC' | 'SUBJECT' | 'SUPERVISED_HOURS' | 'ACCREDITATION' | 'JURISDICTION_SPECIFIC';
 export type NumericField = 'TOTAL_CREDITS' | 'PRACTICUM_HOURS' | 'INTERNSHIP_HOURS';
@@ -120,13 +120,23 @@ export interface ReportCheckMatch {
 export interface ReportCheck { match: boolean; sha256: string; matchDetails: ReportCheckMatch | null; }
 export interface AuditEntry { id: string; userId: string | null; action: string; entityType: string; entityId: string | null; detail: Record<string, unknown>; createdAt: string; }
 export type JobStatus = 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED';
+/** Where a rule version stands in law; a person records it with the source of its dates, nothing derives it from a fetch. */
+export type LegalStatus = 'PROPOSED' | 'FINAL_NOT_EFFECTIVE' | 'IN_FORCE' | 'SUPERSEDED' | 'REPEALED' | 'WITHDRAWN' | 'UNKNOWN';
+/** A change a rule source showed while a draft waited for review; its text is stored, behind that draft. */
+export interface QueuedObservation { checkId: string; observedAt: string; documentId: string; contentHash: string; }
+/** The legal status and dates are the current ones; `effectiveFrom` is null until a person records it. `observedAt` is when a monitored text was acquired (null for an upload). */
 export interface RuleVersionView {
-  id: string; jurisdiction: string; licenseType: string; label: string; sourceUrl: string; effectiveFrom: string;
+  id: string; jurisdiction: string; licenseType: string; label: string; sourceUrl: string;
+  legalStatus: LegalStatus; effectiveFrom: string | null; effectiveTo: string | null; publishedAt: string | null; adoptedAt: string | null;
+  datesBasis: string | null; observedAt: string | null; queuedObservations: QueuedObservation[];
   supersedesId: string | null; documentId: string; approval: { by: string; at: string } | null; requirementCount: number;
   extraction: { jobId: string; status: JobStatus; error: string | null } | null; createdAt: string;
 }
 /** POST /rule-versions; the server stores the text as the version's document and queues extraction. */
-export interface NewRuleVersion { jurisdiction: string; licenseType: string; label: string; sourceUrl: string; effectiveFrom: string; supersedesId: string | null; text: string; }
+export interface NewRuleVersion {
+  jurisdiction: string; licenseType: string; label: string; sourceUrl: string; legalStatus: LegalStatus; effectiveFrom: string; datesBasis: string;
+  supersedesId: string | null; text: string;
+}
 export interface RequirementsView { ruleVersionId: string; approved: boolean; requirements: RequirementView[]; }
 /**
  * One requirement in the PUT /rule-versions/{id}/requirements body (the model output schema, snake case). The
@@ -146,10 +156,15 @@ export type DiffStatus = 'ADDED' | 'REMOVED' | 'CHANGED' | 'UNCHANGED';
 export type DiffAspect = 'TITLE' | 'TEXT' | 'TYPE' | 'NUMERIC' | 'SEARCH_TERMS';
 export interface DiffRow { status: DiffStatus; refChanged: boolean; before: RequirementView | null; after: RequirementView | null; changes: DiffAspect[]; textDiff: DiffSegment[] | null; }
 export interface RuleVersionDiff {
-  from: { id: string; label: string; effectiveFrom: string }; to: { id: string; label: string; effectiveFrom: string };
+  from: { id: string; label: string; effectiveFrom: string | null }; to: { id: string; label: string; effectiveFrom: string | null };
   summary: { added: number; removed: number; changed: number; unchanged: number }; requirements: DiffRow[]; ruleTextDiff: DiffSegment[];
 }
-export interface ProgramOverview { program: Program; assessment: AssessmentView | null; determinations: Determination[]; openChangeEvents: ChangeEvent[]; undecidedTotal: number; }
+/** Which rule a target state is assessed against today: the one in force, or the words "No rule in force on <date>"; an upcoming one is named too. */
+export interface RuleStanding {
+  jurisdiction: string; inForce: RuleRef | null; upcoming: RuleRef | null; noRuleInForce: string | null; upcomingNotice: string | null;
+}
+export interface RuleRef { id: string; label: string; effectiveFrom: string; }
+export interface ProgramOverview { program: Program; assessment: AssessmentView | null; determinations: Determination[]; openChangeEvents: ChangeEvent[]; undecidedTotal: number; rules: RuleStanding[]; }
 /** GET /documents/{id}/pages/{n}: one immutable page of extracted text. */
 export interface DocumentPage { documentId: string; filename: string; kind: string; courseCode: string | null; courseRequired: boolean | null; pageNumber: number; pageCount: number; text: string; textSource: TextSource; ocrConfidence: number | null; }
 

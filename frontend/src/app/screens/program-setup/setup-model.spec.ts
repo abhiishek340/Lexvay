@@ -10,7 +10,8 @@ const program: Program = { id: 'p1', name: 'Demo M.A. School Counseling (fiction
 
 function version(id: string, jurisdiction: string, over: Partial<RuleVersionView> = {}): RuleVersionView {
   return {
-    id, jurisdiction, licenseType: 'CMHC', label: id, sourceUrl: 'https://example.invalid', effectiveFrom: '2026-07-01', supersedesId: null, documentId: 'd-' + id,
+    id, jurisdiction, licenseType: 'CMHC', label: id, sourceUrl: 'https://example.invalid', legalStatus: 'IN_FORCE', effectiveFrom: '2026-07-01', effectiveTo: null,
+    publishedAt: null, adoptedAt: null, datesBasis: 'Fictional demo data', observedAt: null, queuedObservations: [], supersedesId: null, documentId: 'd-' + id,
     approval: { by: 'u1', at: '2026-11-01T00:00:00Z' }, requirementCount: 2, extraction: null, createdAt: '2026-11-01T00:00:00Z', ...over,
   };
 }
@@ -45,6 +46,18 @@ describe('the rule version an assessment uses', () => {
     expect(assessedVersion(all, 'AZ', 'CMHC', TODAY)?.id).toBe('az-now-later-entry');
     expect(assessedVersion(all, 'AZ', 'CMHC', '2027-01-01')?.id).toBe('az-next');
     expect(assessedVersion(all, 'CA', 'CMHC', TODAY)).toBeNull();
+  });
+
+  it('is only a version legally in force: final or in force, dated, and not ended', () => {
+    const all = [
+      version('proposed', 'AZ', { legalStatus: 'PROPOSED' }),
+      version('superseded', 'AZ', { legalStatus: 'SUPERSEDED' }),
+      version('undated', 'AZ', { effectiveFrom: null }),
+      version('ended', 'AZ', { effectiveTo: TODAY }),
+    ];
+    expect(assessedVersion(all, 'AZ', 'CMHC', TODAY)).toBeNull();
+    expect(assessedVersion(all, 'AZ', 'CMHC', '2026-11-26')?.id).toBe('ended');
+    expect(assessedVersion([version('final', 'AZ', { legalStatus: 'FINAL_NOT_EFFECTIVE', effectiveFrom: '2026-11-01' })], 'AZ', 'CMHC', TODAY)?.id).toBe('final');
   });
 
   it('offers the license types the tenant uses, once each, sorted', () => {

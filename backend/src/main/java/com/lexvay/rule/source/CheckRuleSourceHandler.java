@@ -14,11 +14,12 @@ import com.lexvay.job.Job;
 import com.lexvay.job.JobHandler;
 import com.lexvay.job.JobType;
 import com.lexvay.job.PermanentJobFailure;
+import com.lexvay.rule.LegalPosition;
 import com.lexvay.rule.RuleVersion;
 import com.lexvay.rule.RuleVersionRepository;
 import com.lexvay.rule.RuleVersionService;
 import java.net.URI;
-import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,7 +31,11 @@ import org.springframework.stereotype.Component;
 /**
  * Fetches one rule source and records what it found (F12, D-184). A changed text becomes a stored document and an
  * UNAPPROVED draft rule version made through {@link RuleVersionService}, so extraction and the change event follow
- * the path an upload takes; this class never approves, edits or replaces anything. A page that cannot be fetched
+ * the path an upload takes; this class never approves, edits or replaces anything. The draft says when the text was
+ * observed and nothing else: its legal status is UNKNOWN and it has no effective date, because a crawler seeing a text
+ * says nothing about when the law takes effect (D-551). A change seen while a draft already waits is stored as well,
+ * as a CHANGED_QUEUED check linked to that draft, so no observation is lost; the baseline stays the drafted text, so
+ * once that draft is approved the next check drafts the page as it then reads (D-555). A page that cannot be fetched
  * or read is a recorded check, not a failed job: the source is checked again after a short, growing delay (D-381).
  */
 @Component
@@ -79,17 +84,18 @@ public class CheckRuleSourceHandler implements JobHandler {
         UUID sourceId = UUID.fromString(String.valueOf(payload.get("ruleSourceId")));
         RuleSource source = sources.findById(sourceId)
                 .orElseThrow(() -> new PermanentJobFailure("Rule source " + sourceId + " not found"));
-        Finding finding = check(source);
+        OffsetDateTime observedAt = OffsetDateTime.now(ZoneOffset.UTC);
+        Finding finding = check(source, observedAt);
 
-        UUID checkId = sources.insertCheck(TenantContext.require(), sourceId, finding.outcome(), finding.httpStatus(),
+        UUID checkId = sources.insertCheck(TenantContext.require(), sourceId, observedAt, finding.outcome(), finding.httpStatus(),
                 finding.contentHash(), finding.detail(), finding.documentId(), finding.ruleVersionId());
-        // Only a recorded change moves the baseline. A refused draft keeps it, so the change is not forgotten.
+        // Only a new draft moves the baseline; a change kept behind a waiting draft is drafted once that one is decided.
         sources.markChecked(sourceId, finding.outcome() == CheckOutcome.CHANGED ? finding.contentHash() : source.lastContentHash(),
                 finding.outcome());
         audit.recordAs(null, "RULE_SOURCE_CHECKED", "rule_source", sourceId, auditDetail(job, checkId, finding));
     }
 
-    private Finding check(RuleSource source) {
+    private Finding check(RuleSource source, OffsetDateTime observedAt) {
         HttpFetcher.Fetched fetched;
         try {
             fetched = fetcher.fetch(URI.create(source.url()));
@@ -115,17 +121,21 @@ public class CheckRuleSourceHandler implements JobHandler {
         Optional<RuleVersion> current = ruleVersions.findCurrentApproved(source.jurisdictionId(), source.licenseType());
         UUID supersedesId = current.map(RuleVersion::id).orElse(null);
         Optional<RuleVersion> draft = ruleVersions.findDraft(source.jurisdictionId(), source.licenseType(), supersedesId);
-        if (draft.isPresent()) {
-            return new Finding(CheckOutcome.DRAFT_EXISTS, fetched.status(), hash,
-                    "Draft rule version \"" + draft.get().label() + "\" (" + draft.get().id() + ") is waiting for review",
-                    null, null);
-        }
 
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        String label = source.label() + " fetched " + today;
+        if (draft.isPresent() && sources.latestQueuedHash(source.id(), draft.get().id()).filter(hash::equals).isPresent()) {
+            return new Finding(CheckOutcome.UNCHANGED, fetched.status(), hash,
+                    "The text is the one already kept behind the waiting draft", null, null);
+        }
+        String label = source.label() + ", observed " + observedAt.toLocalDate();
         UUID documentId = store(fetched.body(), RuleVersionService.slug(label) + "." + type.extension(), pages);
+        if (draft.isPresent()) {
+            return new Finding(CheckOutcome.CHANGED_QUEUED, fetched.status(), hash,
+                    "Kept behind draft rule version \"" + draft.get().label() + "\" (" + draft.get().id() + "), which is waiting for review",
+                    documentId, draft.get().id());
+        }
         UUID ruleVersionId = ruleVersionService.createFromDocument(new RuleVersionService.NewVersion(
-                source.jurisdictionCode(), source.licenseType(), label, source.url(), today, supersedesId), documentId).ruleVersionId();
+                source.jurisdictionCode(), source.licenseType(), label, source.url(), LegalPosition.unknown(), observedAt,
+                supersedesId), documentId).ruleVersionId();
         return new Finding(CheckOutcome.CHANGED, fetched.status(), hash,
                 "Draft rule version \"" + label + "\" created; it is not approved", documentId, ruleVersionId);
     }

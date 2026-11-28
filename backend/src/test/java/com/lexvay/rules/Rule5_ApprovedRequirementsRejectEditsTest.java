@@ -43,7 +43,7 @@ class Rule5_ApprovedRequirementsRejectEditsTest extends AbstractDatabaseTest {
         var created = mvc.post().uri("/api/v1/rule-versions").with(user(t.admin())).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("jurisdiction", "UT", "licenseType", "L", "label", label,
-                        "sourceUrl", "https://example.invalid/locked", "effectiveFrom", LocalDate.of(2026, 1, 1).toString(),
+                        "sourceUrl", "https://example.invalid/locked", "effectiveFrom", LocalDate.of(2026, 1, 1).toString(), "legalStatus", "IN_FORCE", "datesBasis", "Fictional test data",
                         "text", RuleVersionApiTest.RULE_TEXT)))
                 .exchange();
         UUID id = UUID.fromString(json.readTree(created.getResponse().getContentAsString()).get("ruleVersionId").asString());

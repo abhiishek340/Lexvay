@@ -34,7 +34,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -170,7 +169,7 @@ public class SeedLoader {
             int requirementCount = 0;
             for (SeedManifest.RuleVersion rv : t.ruleVersions()) {
                 UUID ruleVersionId = createApprovedRuleVersion(t.program().licenseType(), rv.jurisdiction(), rv.label(), rv.sourceUrl(),
-                        rv.effectiveFrom(), null, readText(seedDir.resolve("rules").resolve(rv.text())), contributor, reviewer, model);
+                        rv.legal(), null, readText(seedDir.resolve("rules").resolve(rv.text())), contributor, reviewer, model);
                 requirementCount += ruleVersions.requirements(ruleVersionId).requirements().size();
             }
             if (t.ruleSources() != null) {
@@ -180,7 +179,7 @@ public class SeedLoader {
                 }
             }
             model.beforeMatching(documentByFile);
-            UUID assessmentId = as(reviewer, () -> assessments.start(programId).assessmentId());
+            UUID assessmentId = as(reviewer, () -> assessments.start(programId, null).assessmentId());
             jobs.runPending();
             if (t.changes() != null) {
                 applyChanges(t, seedDir, model, contributor, reviewer, programId, courseVersionByCode, documentByFile);
@@ -221,7 +220,7 @@ public class SeedLoader {
         if (rv != null) {
             UUID previous = ruleVersions.list().stream().filter(v -> v.label().equals(rv.supersedes())).map(v -> v.id()).findFirst()
                     .orElseThrow(() -> new IllegalStateException("changes.ruleVersion.supersedes not found: " + rv.supersedes()));
-            createApprovedRuleVersion(t.program().licenseType(), rv.jurisdiction(), rv.label(), rv.sourceUrl(), rv.effectiveFrom(),
+            createApprovedRuleVersion(t.program().licenseType(), rv.jurisdiction(), rv.label(), rv.sourceUrl(), rv.legal(),
                     previous, readText(seedDir.resolve("rules").resolve(rv.text())), contributor, reviewer, model);
         }
         SeedManifest.ChangeCourseVersion cv = t.changes().courseVersion();
@@ -237,11 +236,11 @@ public class SeedLoader {
     }
 
     /** Creates a rule version, lets the model extract its requirements, and has the reviewer approve the list. */
-    private UUID createApprovedRuleVersion(String licenseType, String jurisdiction, String label, String sourceUrl, LocalDate effectiveFrom,
+    private UUID createApprovedRuleVersion(String licenseType, String jurisdiction, String label, String sourceUrl, SeedManifest.Legal legal,
                                            UUID supersedesId, String text, LexvayUser contributor, LexvayUser reviewer, ModelStrategy model) {
         model.beforeExtraction(label);
         var created = as(contributor, () -> ruleVersions.create(new CreateRuleVersionRequest(jurisdiction, licenseType, label, sourceUrl,
-                effectiveFrom, supersedesId, text)));
+                legal.status(), legal.effectiveFrom(), null, legal.publishedAt(), legal.adoptedAt(), DataMode.DEMO_NOTICE, supersedesId, text)));
         jobs.runPending();
         as(reviewer, () -> {
             model.afterExtraction(jurisdiction, created.ruleVersionId());
