@@ -279,7 +279,7 @@ quiet, repeatable runner.
 5. **Docs:** `docs/PERF.md` names CI as the arbiter of the budget. Decisions go in `docs/decisions/OPS-3.md`,
    progress in `docs/progress/OPS-3.md`. Prove it with one real CI run on the PR: a green perf job and its summary.
 
-### RG-2 — Source registry governance (backend; slot 6; Sonnet 5.5; next free migration at merge, expected V026; D-566 to D-575)
+### RG-2 — Source registry governance (backend; slot 6; Sonnet 5.5; next free migration at merge, expected V027; D-566 to D-575)
 Master prompt M3 step 1 to 2 and §4.4: a source is a governed object, not a URL someone typed. Fetching must be polite
 and permitted, and content must be validated before it can become a change candidate. Source health is kept apart
 from legal status. This item extends F12, FIX-4 and RG-1; it adds no new service.
@@ -555,7 +555,8 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | OPS-2b Stack lock race on Ubuntu 26.04 (uutils mkdir) | `ops-stack-lock-fix` | — | Sonnet 5.5 | merged (#60) |
 | OPS-3 Performance budget on CI | `ops-perf-ci` | — | Sonnet 5.5 | in progress |
 | EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | in progress |
-| RG-2, RG-3, AC-2, AC-3, EV-2, UX-1 | see Real-data validation track | — | — | queued |
+| RG-2 Source registry governance | `rg-source-governance` | 6 | Sonnet 5.5 | in progress |
+| RG-3, AC-2, AC-3, EV-2, UX-1 | see Real-data validation track | — | — | queued |
 | SP-1 SharePoint spike, DOM-1 expert review | — | — | — | blocked (founder) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
