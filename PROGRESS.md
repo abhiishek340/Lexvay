@@ -2985,3 +2985,88 @@ at once. Reproduced in `ubuntu:26.04` (1 failure in 6 runs of the unchanged test
 
 ## Results
 See the pull request for the command output.
+
+## RG-1 — Legal time and status model (PR #55)
+
+Branch `rg-legal-time`, merged with `origin/main` (MODE-1 included) before the final run. Evidence
+class: fixtures (fictional data, `FakeLlmClient`, no network). Decisions: `docs/decisions/RG-1.md` (D-551 to D-559).
+
+## Done
+- V025: legal status, dates and `dates_basis` on `rule_version`; append-only `rule_version_status` with forced RLS;
+  view `rule_version_current`; `CHANGED_QUEUED` checks; `assessment.assessment_as_of`.
+- Monitor: a changed source makes a draft with no effective date, status `UNKNOWN` and `observed_at`; every change seen
+  while a draft waits is stored and listed behind it, oldest first.
+- Approval needs a recorded final status and effective date (409 otherwise) and pins it as a status row.
+- `POST /rule-versions/{id}/status` (REVIEWER, ADMIN), audited `RULE_STATUS_RECORDED`.
+- Assessments select the rule in force on `assessment_as_of` (settable per request); "No rule in force on <date>" stops
+  the start; the overview API reports the rule in force and any upcoming one per target state.
+- Seed: fictional dates, status and basis. Frontend: plain-text status, dates and kept changes; entry form fields;
+  readiness mirrors the server; audit sentences.
+
+## Tests
+New: `LegalTimeApiTest` (16), `Rule5_RuleVersionStatusImmutabilityTest`, `Rule7_RuleVersionStatusIsolationTest`, the
+A, B, C case in `CheckRuleSourceTest`, rows in `InputValidationTableTest`, `Rule9_AuditCoverageTest`, frontend specs.
+Existing tests were updated for the new request fields and outcome names; none was weakened.
+
+`LiveTenantApprovalTest`: the MODE-1 guard now refuses a LIVE approval whose dates basis is fictional demo data.
+
+## Remaining unknowns
+- No screen records a status for a monitored draft, so such a draft cannot be approved from the interface until UX-1;
+  the API does it.
+- After a waiting draft is decided, the queued observations behind it are not drafted one by one (D-555).
+- No qualified licensure expert has reviewed any status or date; seed data is fictional.
+
+## EV-1 — Local inference adapter and labelled evaluation runs (PR #59)
+
+Branch `ev-local-inference`, no migration, slot 8. Decisions D-616 to D-620 are in `docs/decisions/EV-1.md`.
+
+## Plan (written before building)
+1. `OpenAiCompatibleLlmClient` (JDK `HttpClient`), `LlmConfig` provider `openai-compatible`, settings in `application.yml`.
+2. Structured output with the 400 fallback; usage recorded or estimated and marked; the mark stored with the call.
+3. Evaluation labels: `SCRIPTED`, `LOCAL_LIVE`, `PAID_LIVE`; header with mode, model, host and date; `thresholds.yml` keys;
+   a local run's report kept under `eval/runs/`; `make eval-live` for either provider.
+4. Tests against a loopback `HttpServer`; no model, no network.
+5. OPERATIONS "Local inference", `.env.example`, compose.
+
+## Done
+All of the plan. Files outside the spec's list, each small:
+- `FakeLlmClient`, `LlmResponse`, `LlmCallRecorder`, `LlmClient`: the shared token estimate, its mark and `endpointHost()`.
+- `EvalRepository`, `EvalService`, `EvalRunner`, `Thresholds`, `GoldenFileTest`, `TermOverlapTest`: the new mode names and header fields.
+- `docker-compose.yml`: passes the new variables; the model default is empty.
+- `.gitignore`: `eval/runs/`.
+
+After review (D-620): `LlmCallRecorder` stores `metered` in the request and takes the `LlmClient`; `SpendGate` sums metered calls
+only (`LlmUsageRepository.meteredThisMonth`, renamed from `thisMonthExcluding`; `SpendGateTest` and `SpendGateDatabaseTest` follow);
+every local request sends `temperature: 0` and `seed` when `LEXVAY_LLM_SEED` is set.
+
+## Tests
+See the PR for the commands and results.
+
+## OPS-3 — Performance budget on CI (PR #56)
+
+Branch `ops-perf-ci` from `origin/main` at `b9753c1`. Decisions: `docs/decisions/OPS-3.md` (D-644 to D-646). Evidence class:
+fixtures, on a GitHub-hosted runner (`ubuntu-latest`).
+
+## Done
+- `perf` job in `.github/workflows/ci.yml`: push to `main`, nightly 07:00 UTC, `workflow_dispatch`, and pull requests that
+  change the code, the migrations, the perf tests or `docs/PERF.md`; 45 minute timeout; job summary and `perf-reports`
+  artifact.
+- Composite action `.github/actions/setup-backend` for the Java and Maven cache steps, used by `test` and `perf`.
+- `make perf` runs both tests and fails if either does. `docs/PERF.md` names CI as the arbiter.
+
+## First real run (pull request 56, run 46119041008, job `perf`)
+- The `perf` job passed. `make perf` took 3 minutes 8 seconds in total: `EndpointLatencyTest` 79 s, `IndexUsageTest` 78 s at
+  the default 100 copies. So the default seed size fits the 45 minute timeout many times over and no CI size was needed.
+- Every endpoint was under the 40 ms budget on both tables. Examples, p95 in ms (seed only, then 62 tenants):
+  `GET /jurisdictions` 4.48 and 1.15, `GET /rule-versions` 2.47 and 1.81, `GET /programs/{id}/overview` 3.08 and 2.78.
+
+## Remaining unknowns
+- The `test` job of the same run failed in `make test-scripts` (`stack-lock-test.sh`: "exactly two tokens are held again"),
+  and `main` at `b9753c1` failed the same way. That is OPS-2's script test, not this change; it passed on `main` at
+  `f0f3106`, so it looks timing dependent on a runner.
+- RG-1 (pull request 55) was not merged when the first run happened. To read its effect early I ran the same job once on a
+  throwaway pull request that merged RG-1 into this branch (closed afterwards): run 46119371657, `perf` passed in 4 minutes
+  22 seconds, both tests green at the default size. p95 in ms, seed only then 62 tenants, against the run above without
+  RG-1: `GET /rule-versions` 3.85 and 2.11 (was 2.47 and 1.81), `GET /programs/{id}/overview` 4.51 and 4.74 (was 3.08 and
+  2.78), `GET /rule-versions/{id}/requirements` 5.60 and 2.10. All far under 40 ms, one connection per call. The check on
+  the merged RG-1 itself (the first `perf` run on `main` after the merge) is still to be read.

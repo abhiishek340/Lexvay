@@ -4,9 +4,18 @@
     <h2 id="version-heading" class="lx-detail-title" tabindex="-1">{{ v.label }}</h2>
     <p class="lx-meta lx-detail-meta">
       <span>{{ jurisdictionName() }}</span><span aria-hidden="true">·</span><span>{{ license() }}</span><span aria-hidden="true">·</span>
-      <span>Effective {{ v.effectiveFrom }}</span><span aria-hidden="true">·</span>
+      <span>{{ legalStatus() }}</span><span aria-hidden="true">·</span>
+      <span>{{ v.effectiveFrom ? 'Effective ' + v.effectiveFrom : 'Effective date not recorded' }}</span><span aria-hidden="true">·</span>
       <a [href]="v.sourceUrl" target="_blank" rel="noopener noreferrer">Source<span class="lx-sr-only"> (opens in a new tab)</span></a>
     </p>
+    <!-- RG-1's provenance of the dates and text, as plain meta text; nothing when none is recorded. -->
+    @if (v.datesBasis || v.observedAt || v.queuedObservations.length > 0) {
+      <p class="lx-meta" data-testid="version-legal">
+        @if (v.datesBasis) { Dates from {{ v.datesBasis }}. }
+        @if (v.observedAt) { Text observed {{ v.observedAt | date: 'yyyy-MM-dd' }}. }
+        @if (v.queuedObservations.length > 0) { {{ v.queuedObservations.length }} later {{ v.queuedObservations.length === 1 ? 'change' : 'changes' }} kept behind this draft. }
+      </p>
+    }
     <!-- Approved says who and when in the mark's own words; any other status adds where the approval stands. -->
     <p class="lx-detail-state" data-testid="version-state">
       @if (status() === 'APPROVED' && v.approval) {

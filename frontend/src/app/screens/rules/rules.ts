@@ -13,7 +13,7 @@ import { ApiService } from '../../core/api.service';
 import { UserSummary } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
-import { RuleVersionRow, anyExtracting } from '../../core/rules';
+import { RuleVersionRow, anyExtracting, effectiveText } from '../../core/rules';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
 import { NewRuleVersionDialog } from './new-rule-version';
@@ -80,7 +80,7 @@ export class Rules {
     label: `${g.name} (${g.code})`,
     items: g.rows.map((row) => ({
       id: row.view.id,
-      name: `${row.view.jurisdiction}, ${row.view.label}, effective ${row.view.effectiveFrom}, ${RULE_STATUS[row.status].label}`,
+      name: `${row.view.jurisdiction}, ${row.view.label}, effective ${effectiveText(row.view)}, ${RULE_STATUS[row.status].label}`,
       row,
     })),
   })));

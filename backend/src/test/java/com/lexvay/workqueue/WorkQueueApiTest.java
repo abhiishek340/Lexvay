@@ -119,7 +119,7 @@ class WorkQueueApiTest extends AbstractAssessmentTest {
         var created = mvc.post().uri("/api/v1/rule-versions").with(user(t.contributor())).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("jurisdiction", jurisdiction, "licenseType", AssessmentFixtures.LICENSE,
-                        "label", label, "sourceUrl", "https://example.invalid/" + jurisdiction, "effectiveFrom", "2027-01-01",
+                        "label", label, "sourceUrl", "https://example.invalid/" + jurisdiction, "effectiveFrom", "2027-01-01", "legalStatus", "IN_FORCE", "datesBasis", "Fictional test data",
                         "text", "Fictional rule text for " + label)))
                 .exchange();
         assertThat(created).hasStatus(202);

@@ -30,7 +30,7 @@ class SpendGateTest {
     }
 
     private void recorded(ModelUsage... used) {
-        when(usage.thisMonthExcluding(FakeLlmClient.MODEL_ID)).thenReturn(List.of(used));
+        when(usage.meteredThisMonth(FakeLlmClient.MODEL_ID)).thenReturn(List.of(used));
     }
 
     private static void assertRefused(SpendGate gate, Reason reason) {
@@ -70,7 +70,7 @@ class SpendGateTest {
         recorded();
 
         assertThatCode(() -> gate(true, "1.00", RATES).check(REQUEST, MODEL)).doesNotThrowAnyException();
-        verify(usage).thisMonthExcluding(FakeLlmClient.MODEL_ID);
+        verify(usage).meteredThisMonth(FakeLlmClient.MODEL_ID);
     }
 
     @Test

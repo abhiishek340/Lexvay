@@ -21,7 +21,7 @@
           @if (!last) { <span class="lx-muted" aria-hidden="true">·</span> }
         }
       </p>
-      <p class="lx-meta">From {{ d.from.label }}, effective {{ d.from.effectiveFrom }}, to {{ d.to.label }}, effective {{ d.to.effectiveFrom }}</p>
+      <p class="lx-meta">From {{ d.from.label }}, effective {{ effective(d.from) }}, to {{ d.to.label }}, effective {{ effective(d.to) }}</p>
     </div>
 
     <table class="lx-table lx-changes" aria-label="Requirement changes">

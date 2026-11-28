@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class AssessmentRepository {
 
-    private static final String COLUMNS = "id, program_id, status, started_at, finished_at, llm_model, prompt_version, created_at, created_by";
+    private static final String COLUMNS = "id, program_id, status, started_at, finished_at, llm_model, prompt_version, assessment_as_of, created_at, created_by";
 
     /**
      * The tail of "the program's latest finished assessment" over {@code assessment a}: the newest finish, then the
@@ -22,7 +22,8 @@ public class AssessmentRepository {
     private static final RowMapper<Assessment> ROW = (rs, i) -> new Assessment(
             rs.getObject("id", UUID.class), rs.getObject("program_id", UUID.class), AssessmentStatus.valueOf(rs.getString("status")),
             rs.getObject("started_at", java.time.OffsetDateTime.class), rs.getObject("finished_at", java.time.OffsetDateTime.class),
-            rs.getString("llm_model"), rs.getString("prompt_version"), rs.getObject("created_at", java.time.OffsetDateTime.class),
+            rs.getString("llm_model"), rs.getString("prompt_version"), rs.getObject("assessment_as_of", java.time.LocalDate.class),
+            rs.getObject("created_at", java.time.OffsetDateTime.class),
             rs.getObject("created_by", UUID.class));
 
     private final JdbcClient jdbc;
@@ -31,11 +32,12 @@ public class AssessmentRepository {
         this.jdbc = jdbc;
     }
 
-    public void insert(UUID id, UUID tenantId, UUID programId, String llmModel, String promptVersion, UUID createdBy) {
-        jdbc.sql("INSERT INTO assessment (id, tenant_id, program_id, status, llm_model, prompt_version, created_by) "
-                        + "VALUES (:id, :tenantId, :programId, 'QUEUED', :llmModel, :promptVersion, :createdBy)")
+    public void insert(UUID id, UUID tenantId, UUID programId, String llmModel, String promptVersion,
+                       java.time.LocalDate assessmentAsOf, UUID createdBy) {
+        jdbc.sql("INSERT INTO assessment (id, tenant_id, program_id, status, llm_model, prompt_version, assessment_as_of, created_by) "
+                        + "VALUES (:id, :tenantId, :programId, 'QUEUED', :llmModel, :promptVersion, :assessmentAsOf, :createdBy)")
                 .param("id", id).param("tenantId", tenantId).param("programId", programId).param("llmModel", llmModel)
-                .param("promptVersion", promptVersion).param("createdBy", createdBy).update();
+                .param("promptVersion", promptVersion).param("assessmentAsOf", assessmentAsOf).param("createdBy", createdBy).update();
     }
 
     public Optional<Assessment> findById(UUID id) {

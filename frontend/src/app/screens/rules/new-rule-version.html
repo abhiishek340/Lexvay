@@ -13,6 +13,14 @@
       @if (p.jurisdiction; as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
     </div>
 
+    <div class="lx-field">
+      <span id="rv-legalStatus-label" class="lx-field-label">Legal status</span>
+      <p-select inputId="rv-legalStatus" ariaLabelledBy="rv-legalStatus-label" [options]="legalStatuses" optionLabel="label" optionValue="value"
+                placeholder="Choose where the rule stands" [ngModel]="f.legalStatus" [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="set('legalStatus', $event)" [invalid]="!!p.legalStatus" appendTo="body" [fluid]="true" />
+      @if (p.legalStatus; as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
+    </div>
+
     <div class="lx-field-row">
       <div class="lx-field">
         <label for="rv-licenseType" class="lx-field-label">License type</label>
@@ -27,6 +35,13 @@
                       />
         @if (p.effectiveFrom; as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
       </div>
+    </div>
+
+    <div class="lx-field">
+      <label for="rv-datesBasis" class="lx-field-label">Source of the date</label>
+      <input pInputText id="rv-datesBasis" [ngModel]="f.datesBasis" [ngModelOptions]="{ standalone: true }" (ngModelChange)="set('datesBasis', $event)"
+             [invalid]="!!p.datesBasis" [attr.aria-describedby]="p.datesBasis ? 'rv-datesBasis-error' : null" [fluid]="true" />
+      @if (p.datesBasis; as e) { <p-message id="rv-datesBasis-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
     </div>
 
     <div class="lx-field">

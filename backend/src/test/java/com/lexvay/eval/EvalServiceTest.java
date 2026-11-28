@@ -51,7 +51,11 @@ class EvalServiceTest extends AbstractDatabaseTest {
         assertThat(report.usage().calls()).as("one extraction per rule set plus a match per non-numeric requirement").isPositive();
         assertThat(report.usage().inputTokens()).isPositive();
         assertThat(report.usage().outputTokens()).isPositive();
-        assertThat(report.render()).contains("False EVIDENCE_FOUND rate", "Recall on golden EVIDENCE_FOUND", "Quote verification",
+        assertThat(report.mode()).isEqualTo(EvalReport.Mode.SCRIPTED);
+        assertThat(report.host()).as("the scripted model has no endpoint").isNull();
+        assertThat(report.usage().tokensEstimated()).as("the scripted model's token counts are estimates, and the stored calls say so").isTrue();
+        assertThat(report.render()).contains("mode    SCRIPTED", "model   " + FakeLlmClient.MODEL_ID, "date    " + report.date(),
+                "token counts are estimates", "False EVIDENCE_FOUND rate", "Recall on golden EVIDENCE_FOUND", "Quote verification",
                 "Numeric accuracy", "Requirement extraction agreement", "Input tokens", "Output tokens", "Cost per assessment",
                 "Wall time per assessment", "RESULT: pass");
         assertThat(report.termOverlap()).as("the scripted model's terms are the seed's, not a measurement").isNull();
