@@ -8,6 +8,9 @@ import com.lexvay.common.YamlFile;
 import com.lexvay.document.DocumentKind;
 import com.lexvay.document.DocumentService;
 import com.lexvay.job.JobRunner;
+import com.lexvay.pathway.CreatePathwayGroupRequest;
+import com.lexvay.pathway.GroupKind;
+import com.lexvay.pathway.PathwayService;
 import com.lexvay.program.AddCourseVersionRequest;
 import com.lexvay.program.CourseService;
 import com.lexvay.program.CreateCourseRequest;
@@ -59,6 +62,7 @@ public class SeedLoader {
     private final AppUserRepository users;
     private final ProgramService programs;
     private final CourseService courses;
+    private final PathwayService pathways;
     private final DocumentService documents;
     private final ProgramFactService facts;
     private final RuleVersionService ruleVersions;
@@ -67,12 +71,13 @@ public class SeedLoader {
     private final JobRunner jobs;
 
     public SeedLoader(TenantBootstrapService tenants, AppUserRepository users, ProgramService programs, CourseService courses,
-                      DocumentService documents, ProgramFactService facts, RuleVersionService ruleVersions,
+                      PathwayService pathways, DocumentService documents, ProgramFactService facts, RuleVersionService ruleVersions,
                       RuleSourceService ruleSources, AssessmentService assessments, JobRunner jobs) {
         this.tenants = tenants;
         this.users = users;
         this.programs = programs;
         this.courses = courses;
+        this.pathways = pathways;
         this.documents = documents;
         this.facts = facts;
         this.ruleVersions = ruleVersions;
@@ -124,9 +129,20 @@ public class SeedLoader {
                 return new Result(t.name(), false, tenantId, programId, null, 0, 0);
             }
             Map<String, UUID> courseVersionByCode = new LinkedHashMap<>();
+            Map<String, UUID> courseByCode = new LinkedHashMap<>();
             for (SeedManifest.Course c : t.courses()) {
-                var course = as(contributor, () -> courses.create(programId, new CreateCourseRequest(c.code(), c.title(), c.required())));
+                var course = as(contributor, () -> courses.create(programId, new CreateCourseRequest(c.code(), c.title(), c.required(),
+                        c.credits(), null)));
                 courseVersionByCode.put(c.code(), course.versions().get(0).id());
+                courseByCode.put(c.code(), course.id());
+            }
+            for (SeedManifest.PathwayGroup g : t.pathwayGroups()) {
+                as(contributor, () -> pathways.create(programId, new CreatePathwayGroupRequest(t.program().catalogYear(), g.label(),
+                        GroupKind.valueOf(g.kind()), g.minCount(), g.minCredits(),
+                        g.courses().stream().map(courseByCode::get).toList(), null)));
+            }
+            if (t.ruleVersions() == null) {
+                return new Result(t.name(), false, tenantId, programId, null, 0, 0);
             }
             Map<String, UUID> documentByFile = new LinkedHashMap<>();
             for (SeedManifest.Course c : t.courses()) {
@@ -197,7 +213,7 @@ public class SeedLoader {
             UUID courseVersionId = courseVersionByCode.get(cv.course());
             UUID courseId = courses.list(programId).stream().filter(c -> c.code().equals(cv.course())).map(c -> c.id()).findFirst()
                     .orElseThrow(() -> new IllegalStateException("changes.courseVersion.course not found: " + cv.course()));
-            var course = as(contributor, () -> courses.addVersion(courseId, new AddCourseVersionRequest(cv.catalogYear(), cv.required(), courseVersionId)));
+            var course = as(contributor, () -> courses.addVersion(courseId, new AddCourseVersionRequest(cv.catalogYear(), cv.required(), cv.credits(), null, courseVersionId)));
             UUID newVersionId = course.versions().get(course.versions().size() - 1).id();
             documentByFile.put(cv.syllabus(), upload(contributor, programId, pdf(seedDir, cv.syllabus()), DocumentKind.SYLLABUS, newVersionId));
             jobs.runPending();

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.lexvay.assessment.Finding;
 import com.lexvay.common.YamlFile;
 import com.lexvay.document.QuoteVerifier;
+import com.lexvay.rule.NumericField;
 import com.lexvay.rule.SearchTerms;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,11 +29,12 @@ class GoldenFileTest {
         assertThat(golden.requirements()).hasSize(42);
         assertThat(golden.requirements().stream().map(Golden.Entry::key)).doesNotHaveDuplicates();
         Map<Finding, Long> byFinding = golden.requirements().stream().collect(Collectors.groupingBy(Golden.Entry::finding, Collectors.counting()));
-        assertThat(byFinding).containsEntry(Finding.EVIDENCE_FOUND, 33L).containsEntry(Finding.AMBIGUOUS, 6L)
+        assertThat(byFinding).containsEntry(Finding.EVIDENCE_FOUND, 28L).containsEntry(Finding.AMBIGUOUS, 11L)
                 .containsEntry(Finding.EVIDENCE_MISSING, 3L);
         assertThat(golden.requirements().stream().filter(e -> e.type().isNumeric())).hasSize(11).allSatisfy(e -> {
             assertThat(e.numeric()).as(e.key()).isNotNull();
-            assertThat(e.finding()).as(e.key()).isEqualTo(Finding.EVIDENCE_FOUND);
+            // The credit hours disagree with the fewest credits of the seeded graduation paths (AC-1, D-590).
+            assertThat(e.finding()).as(e.key()).isEqualTo(e.numeric().field() == NumericField.TOTAL_CREDITS ? Finding.AMBIGUOUS : Finding.EVIDENCE_FOUND);
         });
     }
 
