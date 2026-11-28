@@ -75,6 +75,8 @@ lexvay:
   rule-sources:                           # F12: fetch the pages where licensing boards publish rules (D-185)
     enabled: ${LEXVAY_RULE_SOURCES_ENABLED:false}
     poll-interval-ms: ${LEXVAY_RULE_SOURCES_POLL_INTERVAL_MS:300000}
+    contact-url: ${LEXVAY_MONITOR_CONTACT_URL:}                                     # RG-2: the User-Agent's contact; required for the scheduler to start (D-566)
+    min-host-interval-seconds: ${LEXVAY_SOURCE_MIN_HOST_INTERVAL_SECONDS:30}        # RG-2: least time between two requests to one host, across instances (D-569)
 
 server:
   port: ${LEXVAY_PORT:8080}

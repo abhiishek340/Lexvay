@@ -64,4 +64,11 @@ public class RuleSourceController {
     RuleSourceService.Activation setActive(@PathVariable UUID id, @Valid @RequestBody ActiveRequest request) {
         return service.setActive(id, request.active());
     }
+
+    /** Replaces the governance of the source: its class, where it may be fetched from, its identifiers, access and owner. */
+    @PutMapping("/{id}/governance")
+    @PreAuthorize("hasRole('ADMIN')")
+    SourceGovernance setGovernance(@PathVariable UUID id, @Valid @RequestBody GovernanceRequest request) {
+        return service.updateGovernance(id, request);
+    }
 }
