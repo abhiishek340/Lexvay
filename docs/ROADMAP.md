@@ -474,6 +474,21 @@ upload. No student data, ever (rule 8). Decided design:
    institution sets up the drop or SFTP, and the no-student-data rule. Decisions go in `docs/decisions/AC-2.md`,
    progress in `docs/progress/AC-2.md`.
 
+### FIX-9 — Report-check focus flake and audit-seal perf summary (slot 7; Sonnet 5.5; no migration; D-648 to D-650)
+1. **The flake:** `frontend/e2e/report-check.spec.ts` (around line 57/58) intermittently fails a `toBeFocused` assertion on the
+   result heading, within 15 s, under load. Three agents saw it independently, and no root cause was found.
+   - Reproduce it under CPU load on one stack, for example with `--repeat-each=20` and a CPU hog. Find the cause in
+     the dialog's focus management: when focus moves to the result heading relative to the dialog's open animation,
+     the PrimeNG focus trap and the deferred chunk.
+   - Fix the application. A result heading that should receive focus must receive it deterministically, for
+     example after the view has rendered. Do not lengthen the timeout or add retries.
+   - Prove it with 20 repeated passes under load.
+2. **The perf summary:** `AuditSealPerfTest` (SEC-3) writes nothing under `target/perf`, so the OPS-3 CI summary
+   omits it. Make it write `target/perf/audit-seal.md` with the verify and seal timings (median, p95) and entry
+   counts, in the format of `latency.md`. The CI summary step publishes every `target/perf/*.md`, so check that it
+   picks the file up, or extend it to glob.
+3. **Docs:** decisions in `docs/decisions/FIX-9.md`, progress in `docs/progress/FIX-9.md`, and the PERF.md line.
+
 ## Design system v3 "Ledger" (owner directive 2026-11-27: "not AI slop", professional, human craft)
 The owner reviewed v2 on the running app and rejected it: yellow and orange accents, icon-heavy pills and cards, a
 palette and card art that look generated. `docs/DESIGN.md` is rewritten as v3 and is the contract. Every screen
@@ -668,7 +683,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | INFRA-2 Remote state, WAF, flow logs, egress | `infra-hardening` | — | Sonnet 5.5 | merged (#46) |
 | FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | merged (#48) |
 | UI3-0 Design v3 foundation, shell, sign-in, overview | `ui3-foundation` | 1 | Opus 5.5 | merged (#52) |
-| UI3-1 Review and Coverage in v3 | `ui3-review-coverage` | 1 | Opus 5.5 | in progress |
+| UI3-1 Review and Coverage in v3 | `ui3-review-coverage` | 1 | Opus 5.5 | merged (#58) |
 | UI3-2 Changes, audit, report, register, people in v3 | `ui3-records` | 4 | Opus 5.5 | in progress |
 | UI3-3 Rules, requests, setup in v3 | `ui3-rules-requests-setup` | 5 | Opus 5.5 | merged (#62) |
 | SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | merged (#53) |
@@ -679,6 +694,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | merged (#54) |
 | OPS-2b Stack lock race on Ubuntu 26.04 (uutils mkdir) | `ops-stack-lock-fix` | — | Sonnet 5.5 | merged (#60) |
 | OPS-3 Performance budget on CI | `ops-perf-ci` | — | Sonnet 5.5 | merged (#56) |
+| FIX-9 Report-check focus flake, audit-seal perf summary | `fix-focus-perf-summary` | 7 | Sonnet 5.5 | in progress |
 | EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | merged (#59) |
 | RG-2 Source registry governance | `rg-source-governance` | 6 | Sonnet 5.5 | in progress |
 | EV-2 Evaluation lab | `ev-lab` | 8 | Sonnet 5.5 | in progress |
@@ -2149,8 +2165,7 @@ self-verifying ZIP built by a job.
    or later, not here.
 
 ## Follow-ups recorded from reviews
-- OPS-3: `AuditSealPerfTest` (SEC-3) writes no `target/perf` file, so its numbers are not in the CI perf summary; have it
-  write `target/perf/audit-seal.md` (verify and seal timings) like the other perf tests.
+- OPS-3: `AuditSealPerfTest` publishing its numbers is scheduled as FIX-9.
 - AC-1 (rule 6): a signed determination does not yet name the pathway groups it was assessed against. Add the active
   pathway group ids to the determination's dependency snapshot and its versions hash, so a later group change marks it
   for reassessment like a course or rule change.

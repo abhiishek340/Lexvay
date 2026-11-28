@@ -1,13 +1,9 @@
+import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, ElementRef, afterRenderEffect, computed, effect, inject, input, linkedSignal, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { NgIcon } from '@ng-icons/core';
-import {
-  phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorCheckCircle, phosphorCircleDashed,
-  phosphorKeyboard, phosphorListBullets, phosphorQuestion, phosphorSeal, phosphorUser, phosphorXCircle,
-} from '@ng-icons/phosphor-icons/regular';
+import { phosphorCaretRight, phosphorChatCircleText } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
-import { Dialog } from 'primeng/dialog';
 import { Message } from 'primeng/message';
 import { Skeleton } from 'primeng/skeleton';
 import { TabPanel, TabPanels, Tabs } from 'primeng/tabs';
@@ -22,7 +18,7 @@ import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
 import { paletteShortcut } from '../../ui/command-palette/shortcut';
 import { DecisionBar } from '../../ui/decision-bar/decision-bar';
-import { Help, HelpTerm } from '../../ui/help';
+import { Help, HelpKey, HelpTerm } from '../../ui/help';
 import { Meter } from '../../ui/meter';
 import { Seal } from '../../ui/seal';
 import { StateTab, StateTabs } from '../../ui/state-tabs';
@@ -36,10 +32,7 @@ import { SignDialog } from './sign-dialog';
 const WIDE = '(min-width: 1024px)';
 
 /** The icons the Review workspace and its own parts show beyond SHELL_ICONS, provided by its route (review.routes.ts). */
-export const REVIEW_ICONS = {
-  phosphorArrowSquareOut, phosphorCalculator, phosphorCaretRight, phosphorChatCircleText, phosphorCheckCircle, phosphorCircleDashed,
-  phosphorKeyboard, phosphorListBullets, phosphorQuestion, phosphorSeal, phosphorUser, phosphorXCircle,
-};
+export const REVIEW_ICONS = { phosphorCaretRight, phosphorChatCircleText };
 
 /** Review's definitions, behind its one Help button. */
 const HELP: readonly HelpTerm[] = [
@@ -50,14 +43,15 @@ const HELP: readonly HelpTerm[] = [
 ];
 
 /**
- * Review (DESIGN.md "Review"), the screen people work in for hours. A header with the states as an underlined tab row,
- * the Meter and, once every requirement is decided, "Sign <state>"; below it the requirement list, the requirement with
- * the DecisionBar at its foot, and the evidence on its page. A decision never holds input back; the next requirement
- * follows at once.
+ * Review (DESIGN.md "Review"), the screen people work in for hours. The header: the title and the one Help (its terms and
+ * the keyboard shortcuts), the Meter with "3 of 8 decided" and, once every requirement is decided, "Sign <state>"; the
+ * states as an underlined tab row beneath. Below it three columns divided by hairlines: the requirement list, the
+ * requirement with the decision footer fixed at the foot of its column, and the evidence on its page. A decision never
+ * holds input back: the row's mark fades in, and the selection moves to the next requirement without sliding.
  */
 @Component({
   selector: 'lx-review',
-  imports: [NgIcon, ButtonDirective, ButtonLabel, Dialog, Message, Skeleton, TabPanel, TabPanels, Tabs,
+  imports: [DatePipe, ButtonDirective, ButtonLabel, Message, Skeleton, TabPanel, TabPanels, Tabs,
     DecisionBar, Help, Meter, Seal, StateTabs, EvidencePane, RequirementCard, RequirementList, SignDialog],
   templateUrl: './review.html',
   styleUrl: './review.css',
@@ -76,11 +70,13 @@ export class Review {
   readonly jurisdictionParam = input<string | undefined>(undefined, { alias: 'jurisdiction' });
   readonly ref = input<string | undefined>();
   readonly workspace = new ReviewWorkspace();
-  readonly shortcuts = SHORTCUT_HELP;
-  /** The command palette works everywhere; the list names it beside the review keys. */
-  readonly paletteKeys = paletteShortcut(typeof navigator === 'undefined' ? '' : navigator.platform);
   readonly outcomeLabel = OUTCOME_LABEL;
   readonly help = HELP;
+  /** The review keys, and the command palette's, which works on every screen. */
+  readonly keys: readonly HelpKey[] = [
+    ...SHORTCUT_HELP,
+    { keys: paletteShortcut(typeof navigator === 'undefined' ? '' : navigator.platform), description: 'Search or jump to' },
+  ];
 
   readonly jurisdiction = signal<string>('');
   readonly loading = signal(false);
@@ -91,7 +87,6 @@ export class Review {
   readonly noteError = signal<string | null>(null);
   readonly busy = signal(false);
   readonly signOpen = signal(false);
-  readonly helpOpen = signal(false);
   /** The determination the signing dialog has just recorded, for its seal. */
   readonly justSigned = signal<Determination | null>(null);
   readonly wide = signal(typeof matchMedia === 'function' ? matchMedia(WIDE).matches : true);
@@ -106,16 +101,11 @@ export class Review {
    */
   private readonly ownNavigations = new Set<string>();
   private readonly bar = viewChild(DecisionBar);
+  private readonly helpPanel = viewChild.required(Help);
   private readonly centre = viewChild<ElementRef<HTMLElement>>('centre');
 
   readonly selected = this.workspace.selected;
   readonly evidence = this.workspace.evidence;
-  /** The requirement card, keyed by mapping so a new requirement enters (from the side it comes from). */
-  readonly hero = computed(() => {
-    const m = this.selected();
-    return m ? [m] : [];
-  });
-  readonly enterFrom = computed(() => (this.workspace.travel() === 'back' ? 'lx-enter-back' : 'lx-enter-forward'));
   /**
    * The note opens by itself where the reviewer is asked which evidence they relied on (a person answered an evidence
    * request, F4); otherwise it waits for Gap, G or the note button. Every requirement starts from that again.
@@ -293,7 +283,7 @@ export class Review {
   }
 
   onKey(event: KeyboardEvent): void {
-    if (this.signOpen() || this.helpOpen()) { return; }
+    if (this.signOpen() || this.helpPanel().open()) { return; }
     const target = event.target as HTMLElement | null;
     const command = shortcutFor({
       key: event.key, ctrlKey: event.ctrlKey, metaKey: event.metaKey, altKey: event.altKey,
@@ -314,7 +304,7 @@ export class Review {
       case 'accept': this.decide('ACCEPTED'); break;
       case 'request': this.decide('EVIDENCE_REQUESTED'); break;
       case 'gap': this.bar()?.openNote(); break;
-      case 'help': this.helpOpen.set(true); break;
+      case 'help': this.helpPanel().show(); break;
     }
   }
 

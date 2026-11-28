@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Decision, Evidence, EvidenceResponse, Finding, Mapping } from '../../core/models';
-import { REVIEW_FILTERS, ReviewWorkspace, checkMethod, decisionBlocker, evidenceView, filterLabel, isDecided, shortcutFor, stateProgress } from './review-workspace';
+import { REVIEW_FILTERS, ReviewWorkspace, checkMethod, decidedLabel, decisionBlocker, evidenceView, isDecided, shortcutFor, stateProgress } from './review-workspace';
 
 const decision: Decision = { kind: 'ACCEPTED', note: null, userId: 'u', userDisplayName: 'Dana', at: '2026-11-26T10:00:00Z' };
 
@@ -29,11 +29,11 @@ describe('ReviewWorkspace progress', () => {
     const w = workspace();
     expect(isDecided(w.mappings()[4])).toBe(false);
     expect(w.decided()).toBe(1);
-    expect(w.progressLabel()).toBe('1 of 5 reviewed');
+    expect(w.progressLabel()).toBe('1 of 5 decided');
     expect(w.allDecided()).toBe(false);
   });
 
-  it('counts every filter chip', () => {
+  it('counts every filter tab', () => {
     expect(workspace().counts()).toEqual({ ALL: 5, NEEDS_REVIEW: 4, EVIDENCE_FOUND: 3, AMBIGUOUS: 1, EVIDENCE_MISSING: 1 });
   });
 
@@ -105,7 +105,7 @@ describe('ReviewWorkspace after a decision', () => {
     w.load([mapping('1', 'EVIDENCE_FOUND')]);
     expect(w.applyDecision({ ...w.selected()!, decision })?.id).toBe('1');
     expect(w.allDecided()).toBe(true);
-    expect(w.progressLabel()).toBe('1 of 1 reviewed');
+    expect(w.progressLabel()).toBe('1 of 1 decided');
   });
 });
 
@@ -187,36 +187,34 @@ describe('evidenceView: responses merged into the Evidence pane', () => {
   });
 });
 
-describe('the list filter as a segmented icon control', () => {
-  it('names each segment with its count first, as its accessible name and tooltip', () => {
-    expect(workspace().filterOptions().map((o) => o.label)).toEqual(['5 requirements', '4 to review', '3 found', '1 ambiguous', '1 missing']);
-    expect(filterLabel('ALL', 1)).toBe('1 requirement');
-    expect(filterLabel('EVIDENCE_FOUND', 0)).toBe('0 found');
+describe('the list filter as a text tab row with counts', () => {
+  it('lists All, To review, Found, Ambiguous and Missing in that order, each with its count', () => {
+    expect(REVIEW_FILTERS.map((f) => f.label)).toEqual(['All', 'To review', 'Found', 'Ambiguous', 'Missing']);
+    expect(workspace().filterTabs().map((t) => [t.label, t.count])).toEqual([['All', 5], ['To review', 4], ['Found', 3], ['Ambiguous', 1], ['Missing', 1]]);
   });
 
-  it('gives each finding filter an icon of its own', () => {
-    expect(new Set(REVIEW_FILTERS.map((f) => f.icon)).size).toBe(REVIEW_FILTERS.length);
+  it('names each tab by its word and its count, so the visible word is in the name', () => {
+    expect(workspace().filterTabs().map((t) => t.name)).toEqual(['All, 5', 'To review, 4', 'Found, 3', 'Ambiguous, 1', 'Missing, 1']);
   });
 });
 
-describe('the direction a requirement enters from', () => {
-  it('is forward down the list and back up it, by J and K, by a click and after a decision', () => {
+describe('a decision landing', () => {
+  it('marks the decided row, whose mark fades in, and moves the selection on without any direction', () => {
     const w = workspace();
-    w.move(1);
-    expect(w.travel()).toBe('forward');
-    w.move(-1);
-    expect(w.travel()).toBe('back');
-    w.select('5');
-    expect(w.travel()).toBe('forward');
-    w.select('1');
-    expect(w.travel()).toBe('back');
-    // A decision that wraps to the top of the list still moves on, so it reads forward.
-    w.select('5');
-    w.select('4');
+    expect(w.landed()).toBeNull();
     w.applyDecision({ ...w.selected()!, decision });
-    w.applyDecision({ ...w.selected()!, stale: false, decision });
-    expect(w.selectedId()).toBe('2');
-    expect(w.travel()).toBe('forward');
+    expect(w.landed()).toBe('2');
+    expect(w.selectedId()).toBe('3');
+  });
+
+  it('forgets the landed row when the list is filtered or loaded again, so no other mark replays the fade', () => {
+    const w = workspace();
+    w.applyDecision({ ...w.selected()!, decision });
+    w.setFilter('EVIDENCE_FOUND');
+    expect(w.landed()).toBeNull();
+    w.applyDecision({ ...w.selected()!, decision });
+    w.load(w.mappings());
+    expect(w.landed()).toBeNull();
   });
 });
 
@@ -233,8 +231,9 @@ describe('header and state tab progress', () => {
       { jurisdiction: 'CA', total: 8, decided: 6, evidenceFound: 5, evidenceMissing: 1, ambiguous: 2 },
       { jurisdiction: 'UT', total: 9, decided: 0, evidenceFound: 7, evidenceMissing: 1, ambiguous: 1 },
     ]);
-    expect(progress.get('CA')).toEqual({ value: 6, total: 8, label: '6 of 8 reviewed' });
-    expect(progress.get('UT')?.label).toBe('0 of 9 reviewed');
+    expect(progress.get('CA')).toEqual({ value: 6, total: 8, label: '6 of 8 decided' });
+    expect(progress.get('UT')?.label).toBe('0 of 9 decided');
+    expect(decidedLabel(3, 8)).toBe('3 of 8 decided');
     expect(progress.get('TX')).toBeUndefined();
   });
 });
@@ -243,16 +242,16 @@ describe('checkMethod: how a finding was reached, in one line', () => {
   it('states the numeric check the rules engine made', () => {
     const m = mapping('1', 'EVIDENCE_FOUND');
     const numeric = { ...m, method: 'RULES_ENGINE' as const, requirement: { ...m.requirement, type: 'SUPERVISED_HOURS' as const, numericField: 'INTERNSHIP_HOURS' as const, numericOperator: '>=' as const, numericValue: 600 } };
-    expect(checkMethod(numeric)).toMatchObject({ icon: 'phosphorCalculator', line: 'Rules engine: Internship hours >= 600' });
+    expect(checkMethod(numeric)).toMatchObject({ line: 'Rules engine: Internship hours >= 600' });
     expect(checkMethod({ ...m, method: 'RULES_ENGINE' }).line).toBe('Rules engine calculation');
   });
 
   it('names the page a verified quote sits on, or says no passage was found', () => {
-    expect(checkMethod({ ...mapping('1', 'EVIDENCE_FOUND'), evidence: systemEvidence })).toMatchObject({ icon: 'phosphorMagnifyingGlass', line: 'Quote verified on page 1' });
+    expect(checkMethod({ ...mapping('1', 'EVIDENCE_FOUND'), evidence: systemEvidence })).toMatchObject({ line: 'Quote verified on page 1' });
     expect(checkMethod(mapping('2', 'EVIDENCE_MISSING')).line).toBe('No passage found');
   });
 
-  it('keeps the explanation for the InfoTip, never on the line itself', () => {
+  it("keeps the explanation for the line's tooltip, never on the line itself", () => {
     expect(checkMethod({ ...mapping('1', 'EVIDENCE_FOUND'), evidence: systemEvidence }).detail).toContain('verified character for character');
   });
 });
