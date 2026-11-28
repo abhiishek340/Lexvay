@@ -12,9 +12,7 @@
         </li>
       </ul>
       <p class="lx-state" data-testid="version-state">
-        <p-tag [severity]="statusView().severity" [value]="statusView().label">
-          <ng-template #icon><ng-icon [name]="statusView().icon" size="14" aria-hidden="true" [class.lx-spin]="status() === 'EXTRACTING'" /></ng-template>
-        </p-tag>
+        <lx-label>{{ statusView().label }}</lx-label>
         @if (v.approval; as a) {
           <span>Approved by {{ approverName() }} on <time class="lx-mono" [attr.datetime]="a.at">{{ a.at | date: 'yyyy-MM-dd' }}</time></span>
         } @else {
@@ -22,7 +20,7 @@
         }
       </p>
     </div>
-    <lx-stat class="lx-detail-stat" [value]="v.requirementCount" label="Requirements" />
+    <lx-figure class="lx-detail-stat" [value]="v.requirementCount" label="Requirements" />
   </header>
   @if (status() === 'EXTRACTION_FAILED') {
     <div class="lx-extraction-failed" data-testid="extraction-failed">

@@ -5,9 +5,9 @@
 @if (store.readiness()) {
   <ul class="lx-checks" aria-label="Readiness checks">
     @for (check of checks(); track check.id; let i = $index) {
-      <li class="lx-check" [attr.data-check]="check.id" [attr.data-tone]="tone(check)" [lxEnter]="i">
-        <ng-icon [name]="icon(check)" size="20" aria-hidden="true" />
-        <span class="lx-check-text"><span class="lx-sr-only">{{ verdict(check) }}: </span>{{ check.text }}</span>
+      <li class="lx-check" [attr.data-check]="check.id" [attr.data-tone]="tone(check)">
+        <lx-status-mark [status]="mark(check)" [label]="verdict(check) + ':'" [quiet]="true" />
+        <span class="lx-check-text">{{ check.text }}</span>
         @if (!check.ok) {
           @if (check.id === 'RULES') {
             <a pButton [link]="true" size="small" [routerLink]="['/programs', store.programId(), 'rules']"><span pButtonLabel>Open Rules</span></a>
@@ -24,9 +24,7 @@
   <div class="lx-run">
     @if (store.run(); as r) {
       <div class="lx-run-progress" data-testid="assessment-progress" [attr.data-status]="r.view.status">
-        <lx-progress-ring [size]="40" [value]="r.processed" [total]="r.total || 1" [label]="r.processed + ' of ' + r.total + ' requirements assessed'">
-          {{ r.processed }}
-        </lx-progress-ring>
+        <lx-meter [segments]="[{ tone: 'decided', value: r.processed }]" [total]="r.total" [text]="r.processed + ' of ' + r.total + ' assessed'" />
         <div class="lx-run-text">
           <p class="lx-strong">
             @switch (r.view.status) {
@@ -46,7 +44,7 @@
     @if (store.canRun() && !running()) {
       <button pButton type="button" [disabled]="blocked() || starting()" [loading]="starting()" (click)="run()"
               [severity]="store.run()?.view.status === 'FINISHED' ? 'secondary' : 'primary'">
-        <ng-icon name="phosphorPlay" size="16" aria-hidden="true" /><span pButtonLabel>Run assessment</span>
+        <span pButtonLabel>Run assessment</span>
       </button>
     }
   </div>

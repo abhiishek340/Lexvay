@@ -43,7 +43,7 @@ import { lexvaySkeleton } from '../theme/skeleton-tokens';
           </ul>
         }
       } @else {
-        <div class="lx-skeleton" aria-busy="true" aria-label="Loading programs"><p-skeleton width="24rem" height="2.5rem" /><p-skeleton width="20rem" height="2.5rem" /></div>
+        <div class="lx-skeleton" role="status" aria-busy="true" aria-label="Loading programs"><p-skeleton aria-hidden="true" width="24rem" height="2.5rem" /><p-skeleton aria-hidden="true" width="20rem" height="2.5rem" /></div>
       }
     </div>
   `,

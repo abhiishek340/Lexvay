@@ -1,16 +1,10 @@
 <div class="lx-page lx-people">
   <header class="lx-page-header">
-    <div class="lx-title">
-      <h1>People</h1>
-      <lx-info-tip label="About people">
-        Each person chooses their own password from a one-time setup link you hand over. Nobody is deleted: deactivating
-        ends their access and keeps their name on every record.
-      </lx-info-tip>
+    <h1>People</h1>
+    <div class="lx-title-actions">
+      <button pButton type="button" size="large" (click)="add()"><span pButtonLabel>Add person</span></button>
+      <lx-help [terms]="help" />
     </div>
-    <button pButton type="button" (click)="add()">
-      <ng-icon name="phosphorUserPlus" size="18" aria-hidden="true" />
-      <span pButtonLabel>Add person</span>
-    </button>
   </header>
 
   <div class="lx-toolbar" role="search" aria-label="Find people">
@@ -19,11 +13,11 @@
       <input pInputText type="search" aria-label="Search by name or email" placeholder="Search name or email" [ngModel]="query().text"
              (ngModelChange)="set('text', $event)" fluid />
     </p-iconfield>
-    <div class="lx-chips" role="group" aria-label="Filters">
-      <p-select class="lx-chip" [class.lx-chip-on]="query().role" [options]="roleOptions" optionLabel="label" optionValue="value"
+    <div class="lx-filters" role="group" aria-label="Filters">
+      <p-select [options]="roleOptions" optionLabel="label" optionValue="value"
                 [ngModel]="query().role" (ngModelChange)="set('role', $event)" placeholder="Role" ariaLabel="Role"
                 [showClear]="true" size="small" appendTo="body" />
-      <p-select class="lx-chip" [class.lx-chip-on]="query().status" [options]="statusOptions" optionLabel="label" optionValue="value"
+      <p-select [options]="statusOptions" optionLabel="label" optionValue="value"
                 [ngModel]="query().status" (ngModelChange)="set('status', $event)" placeholder="Status" ariaLabel="Status"
                 [showClear]="true" size="small" appendTo="body" />
       @if (filtered()) {
@@ -36,7 +30,7 @@
   @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
 
   @if (accounts()) {
-    <div class="lx-card lx-table-card">
+    <div class="lx-table-card">
       <p-table [value]="shown()" dataKey="id" [rowHover]="true" [pt]="{ table: { 'aria-label': 'People' } }" class="lx-table">
         <ng-template #header>
           <tr>
@@ -48,29 +42,27 @@
           </tr>
         </ng-template>
         <ng-template #body let-a let-i="rowIndex">
-          <tr [lxEnter]="i" [attr.data-testid]="'person-' + a.email">
+          <tr [attr.data-testid]="'person-' + a.email">
             <td>
               <div class="lx-person">
                 <p-avatar [label]="initials(a.displayName)" shape="circle" aria-hidden="true" [class.lx-avatar-quiet]="!a.active" />
                 <div class="lx-person-text">
-                  <span class="lx-person-name">{{ a.displayName }}@if (a.id === selfId()) { <span class="lx-you">You</span> }</span>
+                  <span class="lx-person-name">{{ a.displayName }}@if (a.id === selfId()) { <lx-label>You</lx-label> }</span>
                   <span class="lx-person-email">{{ a.email }}</span>
                 </div>
               </div>
             </td>
-            <td><p-tag severity="secondary" [value]="roleOf(a)" /></td>
+            <td><lx-label>{{ roleOf(a) }}</lx-label></td>
             <td>
               @let s = status(a);
-              <p-tag [severity]="s.severity" [value]="s.label">
-                <ng-template #icon><ng-icon [name]="s.icon" size="14" aria-hidden="true" /></ng-template>
-              </p-tag>
+              <span [class.lx-muted]="s.quiet">{{ s.label }}</span>
             </td>
             <td class="lx-nowrap"><time [attr.datetime]="a.createdAt">{{ a.createdAt | date: 'd MMM y' }}</time></td>
             <td class="lx-actions">
               <button pButton type="button" [text]="true" severity="secondary" size="small" class="lx-row-menu"
                       [attr.aria-label]="'Actions for ' + a.displayName" aria-haspopup="menu"
                       [attr.aria-expanded]="menuOpen() && menuFor() === a.id" (click)="openMenu($event, a)">
-                <ng-icon name="phosphorDotsThree" size="20" aria-hidden="true" />
+                <ng-icon name="phosphorDotsThree" size="16" aria-hidden="true" />
               </button>
             </td>
           </tr>
@@ -79,7 +71,6 @@
           <tr>
             <td colspan="5">
               <div class="lx-empty">
-                <ng-icon name="phosphorUsersDuotone" size="32" aria-hidden="true" />
                 <p>{{ filtered() ? 'No one matches these filters.' : 'No people yet.' }}</p>
                 @if (filtered()) {
                   <button pButton type="button" size="small" [outlined]="true" (click)="clear()"><span pButtonLabel>Clear filters</span></button>
@@ -93,9 +84,9 @@
       </p-table>
     </div>
   } @else if (!error()) {
-    <div class="lx-card lx-skeleton" aria-busy="true" aria-label="Loading people">
+    <div class="lx-skeleton" role="status" aria-busy="true" aria-label="Loading people">
       @for (i of [1, 2, 3, 4, 5]; track i) {
-        <div class="lx-skeleton-row"><p-skeleton shape="circle" size="2rem" /><p-skeleton height="2.5rem" styleClass="lx-skeleton-line" /></div>
+        <div class="lx-skeleton-row"><p-skeleton aria-hidden="true" shape="circle" size="2rem" /><p-skeleton aria-hidden="true" height="2.5rem" styleClass="lx-skeleton-line" /></div>
       }
     </div>
   }
@@ -104,7 +95,7 @@
 <p-menu #menu [model]="menuItems()" [popup]="true" appendTo="body" ariaLabel="Person actions" (onShow)="menuOpen.set(true)" (onHide)="menuOpen.set(false)">
   <ng-template #item let-item>
     <span class="p-menu-item-link lx-menu-item">
-      <ng-icon [name]="item.icon" size="18" aria-hidden="true" />
+      <ng-icon [name]="item.icon" size="16" aria-hidden="true" />
       <span>{{ item.label }}</span>
     </span>
   </ng-template>
@@ -123,10 +114,7 @@
                       (ngModelChange)="newRole.set($event)" ariaLabelledBy="new-role-label" appendTo="body" [fluid]="true" />
           </div>
         }
-        <p class="lx-consequence">
-          <ng-icon [name]="p.kind === 'access' && p.active ? 'phosphorArrowCounterClockwise' : 'phosphorSignOut'" size="16" aria-hidden="true" />
-          {{ p.kind === 'access' && p.active ? 'They can sign in again.' : 'Their current session ends.' }}
-        </p>
+        <p class="lx-consequence">{{ p.kind === 'access' && p.active ? 'They can sign in again.' : 'Their current session ends.' }}</p>
         @if (confirmError(); as e) { <p-message severity="error" size="small" data-testid="confirm-error">{{ e }}</p-message> }
       </div>
     }

@@ -1,34 +1,30 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import auraInputtext from '@primeuix/themes/aura/inputtext';
 import auraPassword from '@primeuix/themes/aura/password';
-import { Button, ButtonDirective, ButtonLabel } from 'primeng/button';
+import { Button } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
 import { Password } from 'primeng/password';
 import { BUSY, Countdown, busyRetryAfter } from '../../core/busy';
 import { DEMO_ACCOUNTS, DemoAccount } from '../../core/demo';
 import { ROLE_LABEL } from '../../core/labels';
-import { MotionPreferences } from '../../core/motion';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
 import { lexvayMessage } from '../../theme/message-tokens';
 import { AuthFrame } from '../../ui/auth-frame';
-import { StateMap } from '../../ui/state-map/state-map';
-import { STORY_STEP_MS, STORY_STILL, storyAt } from './sign-in-story';
 
-type Story = 'playing' | 'stopped' | 'off';
 type Field = 'email' | 'password';
 
 /**
- * Sign in (DESIGN.md "Screens"): the story map and the headline on the left, the form on the right. The story
- * plays until the person starts typing and never under reduced motion, where the map stands still. A session the
- * server ended arrives here with its reason (core/access.ts); a busy server holds the button for its Retry-After.
+ * Sign in (DESIGN.md v3 "Sign in"): one centred column with the form and, for the demo tenant, its fictional accounts.
+ * A session the server ended arrives here with its reason (core/access.ts); a busy server holds the button for its
+ * Retry-After.
  */
 @Component({
   selector: 'lx-login',
-  imports: [FormsModule, Button, ButtonDirective, ButtonLabel, InputText, Message, Password, AuthFrame, StateMap],
+  imports: [FormsModule, Button, InputText, Message, Password, AuthFrame],
   templateUrl: './login.html',
   styleUrl: './login.css',
 })
@@ -43,31 +39,12 @@ export class Login {
   readonly demoAccounts = DEMO_ACCOUNTS;
   readonly roleLabel = ROLE_LABEL;
 
-  readonly story = signal<Story>(inject(MotionPreferences).reduced() ? 'off' : 'playing');
-  private readonly elapsed = signal(0);
-  readonly picture = computed(() => (this.story() === 'off' ? STORY_STILL : storyAt(this.elapsed())));
-  private timer = 0;
-
   constructor() {
     registerComponentTokens({ inputtext: auraInputtext, message: lexvayMessage, password: auraPassword });
-    if (this.story() === 'playing') {
-      const started = performance.now();
-      this.timer = window.setInterval(() => this.elapsed.set(performance.now() - started), STORY_STEP_MS);
-    }
-    inject(DestroyRef).onDestroy(() => clearInterval(this.timer));
   }
 
-  /** Typing stops the story where it is: nothing moves while someone signs in. */
-  stopStory(): void {
-    if (this.story() === 'playing') {
-      clearInterval(this.timer);
-      this.story.set('stopped');
-    }
-  }
-
-  /** A demo chip fills the email and moves on to the password (the fictional seed's shared password). */
+  /** A demo account fills the email and moves on to the password (the fictional seed's shared password). */
   useAccount(account: DemoAccount): void {
-    this.stopStory();
     this.email = account.email;
     this.error.set(null);
     document.getElementById('password')?.focus();

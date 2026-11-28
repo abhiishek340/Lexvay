@@ -8,8 +8,8 @@ import { ProgramContext } from '../core/program-context';
 import { SessionService } from '../core/session.service';
 import { registerComponentTokens } from '../theme/component-tokens';
 
-/** About as many characters as the 360 px pill holds at 13 px. */
-const PILL_CHARACTERS = 44;
+/** About as many characters as the 280 px switcher holds at 13 px beside its chevron. */
+const SWITCHER_CHARACTERS = 40;
 
 /** `text` cut after its last whole word that fits in `max` characters, with an ellipsis; whole when it fits. */
 export function truncateAtWord(text: string, max: number): string {
@@ -20,9 +20,9 @@ export function truncateAtWord(text: string, max: number): string {
 }
 
 /**
- * The program switcher in the top bar: a pill up to 360 px wide with the program's name, cut at a word when it is
- * longer (the full name in the tooltip and the accessible name), that moves to the same screen of another program.
- * Deferred by the shell with the Select and its tokens.
+ * The program switcher in the top bar (DESIGN.md "Shell"): a ghost text button with a chevron, up to 280 px wide, with
+ * the program's name cut at a word when it is longer (the full name in the tooltip and the accessible name), that moves
+ * to the same screen of another program. Deferred by the shell with the Select and its tokens.
  */
 @Component({
   selector: 'lx-program-switcher',
@@ -44,16 +44,17 @@ export function truncateAtWord(text: string, max: number): string {
   styles: `
     :host { display: inline-flex; min-width: 0; }
     :host ::ng-deep .lx-program.p-select {
-      max-width: 360px; border-radius: 999px; border-color: transparent; background: var(--p-lx-surface-2);
-      transition: background-color var(--lx-t-1) var(--lx-ease-out);
+      max-width: 280px; border-color: transparent; background: transparent; box-shadow: none;
+      transition: background-color var(--lx-t-fast) var(--lx-ease);
     }
-    :host ::ng-deep .lx-program.p-select:hover { background: var(--p-lx-line); border-color: transparent; }
-    :host ::ng-deep .lx-program .p-select-label { font-weight: 550; padding-left: 0.875rem; white-space: nowrap; }
-    .lx-switcher-footer { padding: 0.375rem; border-top: 1px solid var(--p-lx-line); }
+    :host ::ng-deep .lx-program.p-select:not(.p-disabled):hover, :host ::ng-deep .lx-program.p-select.p-select-open { background: var(--p-lx-sunken); border-color: transparent; }
+    :host ::ng-deep .lx-program .p-select-label { font-weight: 500; padding: 6px 0 6px 8px; white-space: nowrap; color: var(--p-lx-ink); }
+    :host ::ng-deep .lx-program .p-select-dropdown { width: 28px; color: var(--p-lx-ink-2); }
+    .lx-switcher-footer { padding: 4px; border-top: 1px solid var(--p-lx-line); }
     .lx-switcher-new {
-      display: flex; align-items: center; gap: 8px; padding: 0.5rem 0.75rem; border-radius: 6px; font-weight: 550; text-decoration: none;
+      display: block; padding: 6px 8px; border-radius: 4px; font-size: 13px; line-height: 20px; font-weight: 500; text-decoration: none;
     }
-    .lx-switcher-new:hover { background: var(--p-lx-surface-2); }
+    .lx-switcher-new:hover { background: var(--p-lx-sunken); }
   `,
 })
 export class ProgramSwitcher {
@@ -65,7 +66,7 @@ export class ProgramSwitcher {
   readonly screen = input('overview');
 
   readonly name = computed(() => this.context.programs().find((p) => p.id === this.programId())?.name ?? '');
-  readonly shortName = computed(() => truncateAtWord(this.name(), PILL_CHARACTERS));
+  readonly shortName = computed(() => truncateAtWord(this.name(), SWITCHER_CHARACTERS));
 
   constructor() {
     registerComponentTokens({ select: auraSelect });

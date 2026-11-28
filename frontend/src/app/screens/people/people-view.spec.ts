@@ -26,9 +26,9 @@ describe('personStatus', () => {
     expect(personStatus({ active: false, passwordSet: true })).toBe('DEACTIVATED');
   });
 
-  it('gives every status a word and an icon, and the filter the same words', () => {
+  it('gives every status a word, the filter the same words, and quiets all but Active', () => {
     expect(STATUS_OPTIONS.map((o) => o.label)).toEqual(['Active', 'Setup pending', 'Deactivated']);
-    for (const status of Object.values(PERSON_STATUS)) { expect(status.icon).toMatch(/^phosphor/); }
+    expect(Object.values(PERSON_STATUS).map((s) => s.quiet)).toEqual([false, true, true]);
   });
 
   it('describes every role in one line', () => {

@@ -2,18 +2,12 @@
           [style]="{ width: '42rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Close signing">
   @if (signed(); as d) {
     <div class="lx-signed" data-testid="signed-seal">
-      <lx-seal [outcome]="d.outcome" [signer]="d.signedByName" [signedAt]="d.signedAt" [size]="152" [stamp]="true" />
+      <lx-seal [outcome]="d.outcome" [signer]="d.signedByName" [signedAt]="d.signedAt" />
       <p class="lx-signed-outcome">{{ outcomeLabel[d.outcome] }}</p>
       <p class="lx-help">{{ d.signedByName }}, {{ d.signedAt | date: 'd MMM y, HH:mm' }}</p>
     </div>
   } @else {
-    <p class="lx-sign-sub">
-      <span>{{ total() }} of {{ total() }} decided</span>
-      <lx-info-tip label="About signing">
-        Signing records a determination in your name and locks it to the rule version and course versions in use now. It cannot
-        be edited afterwards; a later change reopens it for a new signature.
-      </lx-info-tip>
-    </p>
+    <p class="lx-sign-sub">{{ total() }} of {{ total() }} decided · Locked to the rule and course versions in use now</p>
     <div class="lx-sign-body">
       <fieldset class="lx-outcomes">
         <legend class="lx-sr-only">Outcome</legend>
@@ -28,7 +22,7 @@
       <!-- A picture of what signing would produce; hidden from assistive technology because nothing is signed yet. -->
       <div class="lx-seal-slot" aria-hidden="true">
         @if (outcome(); as o) {
-          <lx-seal class="lx-seal-preview" [preview]="true" [outcome]="o" [signer]="signerName()" [signedAt]="today()" [size]="136" />
+          <lx-seal class="lx-seal-preview" [preview]="true" [outcome]="o" [signer]="signerName()" [signedAt]="today()" />
         } @else {
           <span class="lx-seal-empty">{{ signerInitials() }}</span>
         }

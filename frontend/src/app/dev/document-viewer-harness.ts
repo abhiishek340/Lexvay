@@ -17,7 +17,7 @@ import { PassageSelection } from '../shared/document-viewer/page-text';
         <lx-document-viewer [documentId]="id" [pageNumber]="page()" [selectable]="true" (selection)="chosen.set($event)" />
       }
       <section class="lx-harness-result" aria-labelledby="selection-heading">
-        <h2 id="selection-heading" class="lx-label">Last selection</h2>
+        <h2 id="selection-heading" class="lx-meta">Last selection</h2>
         @if (chosen(); as s) {
           <output data-testid="selection" [attr.data-page]="s.pageNumber" [attr.data-start]="s.charStart" [attr.data-end]="s.charEnd">{{ s.quote }}</output>
         } @else {

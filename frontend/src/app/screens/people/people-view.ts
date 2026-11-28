@@ -1,7 +1,6 @@
 import { formatDate } from '@angular/common';
 import { ROLE_LABEL } from '../../core/labels';
 import { Account, Role } from '../../core/models';
-import type { IconName } from '../../theme/icons';
 
 /** Where an account stands: deactivated wins over everything, then an account nobody has set a password for. */
 export type PersonStatus = 'ACTIVE' | 'PENDING' | 'DEACTIVATED';
@@ -11,17 +10,17 @@ export function personStatus(account: Pick<Account, 'active' | 'passwordSet'>): 
   return account.passwordSet ? 'ACTIVE' : 'PENDING';
 }
 
-/** A status chip: its word, its icon and its tone; never the colour alone. */
-export const PERSON_STATUS: Record<PersonStatus, { label: string; icon: IconName; severity: 'success' | 'warn' | 'secondary' }> = {
-  ACTIVE: { label: 'Active', icon: 'phosphorCheckCircle', severity: 'success' },
-  PENDING: { label: 'Setup pending', icon: 'phosphorHourglass', severity: 'warn' },
-  DEACTIVATED: { label: 'Deactivated', icon: 'phosphorProhibit', severity: 'secondary' },
+/** A status in words; anything but Active steps back to the secondary text colour. */
+export const PERSON_STATUS: Record<PersonStatus, { label: string; quiet: boolean }> = {
+  ACTIVE: { label: 'Active', quiet: false },
+  PENDING: { label: 'Setup pending', quiet: true },
+  DEACTIVATED: { label: 'Deactivated', quiet: true },
 };
 
 /** Roles in the order of what they may do, least first (the Select and the role filter). */
 export const ROLES: readonly Role[] = ['CONTRIBUTOR', 'REVIEWER', 'SIGNER', 'ADMIN'];
 
-/** One line per role for the InfoTip beside the role field, as the server's permissions stand. */
+/** One line per role, as the server's permissions stand: People's Help and the role options of the dialog. */
 export const ROLE_DESCRIPTION: Record<Role, string> = {
   CONTRIBUTOR: 'Adds programs, courses, documents and rule versions.',
   REVIEWER: 'Reviews findings and approves extracted requirements.',

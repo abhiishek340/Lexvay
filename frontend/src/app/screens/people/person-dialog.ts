@@ -1,7 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, computed, effect, inject, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NgIcon } from '@ng-icons/core';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
 import { InputText } from 'primeng/inputtext';
@@ -10,11 +9,9 @@ import { Select } from 'primeng/select';
 import { Skeleton } from 'primeng/skeleton';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
-import { ROLE_LABEL } from '../../core/labels';
 import { Account, Role, UserSetup } from '../../core/models';
 import { problemDetail } from '../../core/problem';
-import { InfoTip } from '../../ui/info-tip';
-import { PersonProblems, ROLE_DESCRIPTION, ROLE_OPTIONS, ROLES, expiryText, personProblems, setupLink } from './people-view';
+import { PersonProblems, ROLE_DESCRIPTION, ROLE_OPTIONS, expiryText, personProblems, setupLink } from './people-view';
 
 type Phase = 'form' | 'code';
 
@@ -25,7 +22,7 @@ type Phase = 'form' | 'code';
  */
 @Component({
   selector: 'lx-person-dialog',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, InputText, Message, Select, Skeleton, InfoTip],
+  imports: [FormsModule, ButtonDirective, ButtonLabel, Dialog, InputText, Message, Select, Skeleton],
   templateUrl: './person-dialog.html',
   styleUrl: './person-dialog.css',
 })
@@ -35,7 +32,10 @@ export class PersonDialog {
   readonly saved = output<Account>();
 
   readonly roles = ROLE_OPTIONS;
-  readonly roleLines = ROLES.map((role) => ({ role, label: ROLE_LABEL[role], text: ROLE_DESCRIPTION[role] }));
+  /** What a role may do, under its name in the role options. */
+  describe(role: Role): string {
+    return ROLE_DESCRIPTION[role];
+  }
 
   readonly visible = signal(false);
   readonly phase = signal<Phase>('form');

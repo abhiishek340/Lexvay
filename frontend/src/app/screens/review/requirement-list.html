@@ -13,24 +13,22 @@
   </div>
   <div class="lx-list-body" #body>
     @if (loading()) {
-      @for (i of [1, 2, 3, 4, 5, 6]; track i) { <div class="lx-row-skeleton"><p-skeleton width="2.5rem" height="0.75rem" /><p-skeleton height="0.875rem" /></div> }
+      @for (i of [1, 2, 3, 4, 5, 6]; track i) { <div class="lx-row-skeleton"><p-skeleton aria-hidden="true" width="2.5rem" height="0.75rem" /><p-skeleton aria-hidden="true" height="0.875rem" /></div> }
     } @else if (w.visible().length === 0) {
       <p class="lx-empty">No requirements match this filter.</p>
     } @else {
       <ul class="lx-rows">
         @for (m of w.visible(); track m.id) {
-          <li [lxEnter]="$index">
-            <button type="button" class="lx-row" [class.lx-row-current]="m.id === w.selectedId()" [class.lx-landed]="m.id === landed()"
+          <li>
+            <button type="button" class="lx-row" [class.lx-row-current]="m.id === w.selectedId()"
                     [attr.aria-current]="m.id === w.selectedId() ? 'true' : null" (click)="selectRequirement.emit(m.id)">
-              <span class="lx-row-ref lx-mono">{{ m.requirement.ref }}</span>
+              <span class="lx-row-ref">{{ m.requirement.ref }}</span>
               <span class="lx-row-title">{{ m.requirement.title }}</span>
               @if (m.responseCount > 0) {
                 <span class="lx-row-provided"><ng-icon name="phosphorChatCircleText" size="14" aria-hidden="true" /><span class="lx-sr-only">evidence provided</span></span>
               }
-              <span class="lx-row-status">
-                <svg class="lx-ink" viewBox="0 0 28 28" aria-hidden="true" (animationend)="landingDone.emit()"><circle cx="14" cy="14" r="12.5" pathLength="100" /></svg>
-                <lx-status-icon [finding]="m.finding" [decision]="m.decision?.kind ?? null" [stale]="m.stale" />
-              </span>
+              @let s = status(m.finding, m.decision?.kind ?? null, m.stale);
+              <lx-status-mark class="lx-row-status" [status]="s.status" [label]="s.label" [quiet]="true" />
             </button>
           </li>
         }

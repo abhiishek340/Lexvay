@@ -16,8 +16,8 @@ export const REVIEW_TOKENS = {
   message: lexvayMessage,
   radiobutton: {
     ...auraRadiobutton,
-    root: { ...auraRadiobutton.root, borderColor: t.lineStrong, hoverBorderColor: t.text2, checkedBorderColor: t.accent, checkedHoverBorderColor: t.accentHover, checkedBackground: t.accent, checkedHoverBackground: t.accentHover },
-    icon: { ...auraRadiobutton.icon, checkedColor: t.onAccent, checkedHoverColor: t.onAccent },
+    root: { ...auraRadiobutton.root, borderColor: t.lineStrong, hoverBorderColor: t.ink2, checkedBorderColor: t.accent, checkedHoverBorderColor: t.inkHover, checkedBackground: t.accent, checkedHoverBackground: t.inkHover },
+    icon: { ...auraRadiobutton.icon, checkedColor: t.paper, checkedHoverColor: t.paper },
   },
   skeleton: lexvaySkeleton,
   tabs: lexvayTabs,

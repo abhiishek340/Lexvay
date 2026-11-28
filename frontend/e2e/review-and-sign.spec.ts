@@ -3,14 +3,12 @@ import { DANA, PRIYA, SCREENSHOTS, expect, expectAccessible, goTo, nav, shoot, s
 test('Dana Whitfield reviews every California requirement, signs, and sees the audit entries', async ({ page }) => {
   await signIn(page, DANA);
 
-  // Program overview with the permanent Demo data pill; its InfoTip holds the full notice.
+  // Program overview with the permanent "Demo data" meta text, which names the full notice.
   await expect(page.getByRole('heading', { level: 1, name: 'M.S. Clinical Mental Health Counseling' })).toBeVisible();
   await expect(page.getByRole('banner').getByText('Demo data', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'About demo data' }).click();
-  await expect(page.getByRole('dialog', { name: 'About demo data' })).toContainText('invented for this prototype');
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('group', { name: 'Target states' })).toBeVisible();
-  await expect(page.getByTestId('state-card-CA')).toContainText('California');
+  await expect(page.getByRole('note', { name: /^Demo data\. .*invented for this prototype/ })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'States' })).toBeVisible();
+  await expect(page.getByTestId('state-row-CA')).toContainText('California');
   await expectAccessible(page, 'Program overview');
 
   // Review, California, under reduced motion: every step below asserts at once, never waiting for an animation.
@@ -22,7 +20,7 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^CA-/);
   const progress = page.getByTestId('progress');
   await expect(progress).toHaveText(/of 8 reviewed/);
-  // The pill names the state; its mini ring's numbers are its description.
+  // The tab names the state; its "0 of 8" count is its description.
   await expect(stateTab(page, 'CA')).toHaveAccessibleDescription(/^\d of 8 reviewed$/);
   // "Sign California" appears only once every requirement is decided.
   await expect(page.getByRole('button', { name: 'Sign California' })).toHaveCount(0);
@@ -98,7 +96,7 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
   await expectAccessible(page, 'Signing dialog with an outcome chosen');
   await dialog.getByRole('button', { name: 'Sign', exact: true }).click();
   await expect(page.getByTestId('message')).toContainText('Determination for CA signed by Dana Whitfield');
-  // The seal stamps in the dialog, named in one sentence; Done takes the focus.
+  // The seal appears in the dialog, named in one sentence; Done takes the focus.
   const signedDialog = page.getByRole('dialog', { name: 'Signed' });
   await expect(signedDialog.getByRole('img', { name: /^Signed by Dana Whitfield on .+: determined not to meet$/ })).toBeVisible();
   await expect(signedDialog.getByRole('button', { name: 'Done' })).toBeFocused();
@@ -167,7 +165,7 @@ test('the review tabs are keyboard operable and the sign-in page is accessible',
 
   await signIn(page, PRIYA);
   await goTo(page, 'Review');
-  // The state pills are listed alphabetically: Arizona, California, Colorado, Texas, Utah.
+  // The state tabs are listed alphabetically: Arizona, California, Colorado, Texas, Utah.
   await stateTab(page, 'AZ').focus();
   await page.keyboard.press('ArrowRight');
   await expect(stateTab(page, 'CA')).toHaveAttribute('aria-selected', 'true');

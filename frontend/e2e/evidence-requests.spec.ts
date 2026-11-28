@@ -222,10 +222,12 @@ test('at 400 px: the inbox, the drawer, a blocked request and the provided evide
     await expect(row).toContainText('Blocked');
     await expect(row.getByTestId('blocked-reason')).toContainText(short);
     await expect(row.getByRole('button', { name: /Provide evidence/ })).toHaveCount(0);
-    await row.getByRole('button', { name: `Why ${ref} is blocked` }).click();
-    await expect(page.getByRole('dialog', { name: `Why ${ref} is blocked` })).toHaveText(why);
+    // The reason is a term whose sentence is its description and, on focus, its tooltip.
+    const term = row.getByTestId('blocked-reason').locator('.lx-term');
+    await expect(term).toHaveAccessibleDescription(why);
+    await term.focus();
+    await expect(page.getByRole('tooltip').filter({ hasText: why })).toBeVisible();
     await expectAccessible(page, `Evidence requests at 400 px, blocked (${reason})`);
-    await page.keyboard.press('Escape');
   }
   // A signed request is listed, blocked, but not counted in the badge: it can never be answered.
   await expect(nav(page, 'Evidence requests')).not.toHaveAttribute('aria-describedby');

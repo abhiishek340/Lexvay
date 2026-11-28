@@ -2,14 +2,10 @@
   <header class="lx-page-header lx-rules-header">
     <div class="lx-title-row">
       <h1>Rules</h1>
-      <lx-info-tip label="About rule versions">
-        Each state's rule versions. The model proposes a version's requirement list; a reviewer corrects and approves it, and only an approved
-        list is used in assessments. An approved list is never edited: a revision is entered as a new version.
-      </lx-info-tip>
+      <lx-help [terms]="help" />
     </div>
     @if (session.canEnterRules()) {
       <button pButton type="button" #newButton (click)="newOpen.set(true)">
-        <ng-icon name="phosphorPlus" size="16" aria-hidden="true" />
         <span pButtonLabel>New rule version</span>
       </button>
     }
@@ -19,12 +15,11 @@
   @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
 
   @if (context.ready()) {
-    <div class="lx-hero lx-rules-panes">
+    <div class="lx-rules-panes">
       <section class="lx-versions" aria-labelledby="versions-heading">
         <h2 id="versions-heading" class="lx-versions-heading">Versions <span class="lx-versions-count">{{ versionCount() }}</span></h2>
         @if (groups().length === 0) {
           <div class="lx-empty-state">
-            <ng-icon name="phosphorScalesDuotone" size="32" aria-hidden="true" />
             <p>No rule versions yet.</p>
           </div>
         } @else {
@@ -37,11 +32,11 @@
             <ng-template #item let-option>
               @let v = option.row.view;
               @let s = statusOf(option.row);
-              <div class="lx-version" [lxEnter]="option.index">
+              <div class="lx-version">
                 <span class="lx-version-label">{{ v.label }}</span>
                 <span class="lx-version-meta">
                   <span class="lx-version-status" [attr.data-tone]="s.tone">
-                    <ng-icon [name]="s.icon" size="16" aria-hidden="true" [class.lx-spin]="option.row.status === 'EXTRACTING'" />{{ s.label }}
+                    <ng-icon [name]="s.icon" size="16" aria-hidden="true" />{{ s.label }}
                   </span>
                   <span class="lx-mono">{{ v.effectiveFrom }}</span>
                 </span>
@@ -55,14 +50,14 @@
         @if (selected(); as v) {
           <lx-rule-version-detail [version]="v" [all]="context.ruleVersions()" [users]="users()" (notice)="notify($event)" (changed)="refresh()" />
         } @else if (ruleVersionId()) {
-          <div class="lx-empty-state"><ng-icon name="phosphorScalesDuotone" size="32" aria-hidden="true" /><p>This rule version does not exist here.</p></div>
+          <div class="lx-empty-state"><p>This rule version does not exist here.</p></div>
         }
       </section>
     </div>
   } @else if (!context.error()) {
-    <div class="lx-rules-skeleton" aria-busy="true" aria-label="Loading rule versions">
-      <div>@for (i of [1, 2, 3, 4, 5]; track i) { <p-skeleton height="3.75rem" /> }</div>
-      <p-skeleton height="24rem" />
+    <div class="lx-rules-skeleton" role="status" aria-busy="true" aria-label="Loading rule versions">
+      <div>@for (i of [1, 2, 3, 4, 5]; track i) { <p-skeleton aria-hidden="true" height="3.75rem" /> }</div>
+      <p-skeleton aria-hidden="true" height="24rem" />
     </div>
   }
 </div>

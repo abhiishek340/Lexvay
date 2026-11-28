@@ -1,15 +1,10 @@
 <div class="lx-page lx-changes">
   <header class="lx-page-header">
     <div>
-      <div class="lx-title">
-        <h1>Changes</h1>
-        <lx-info-tip label="About changes">
-          A new rule version or course version creates a change. Findings that cite the old version become outdated and the
-          signed determinations that rest on it reopen. A re-run keeps what still holds and sends the rest back to review.
-        </lx-info-tip>
-      </div>
-      @if (context.ready() && cards().length > 0) { <p>{{ openCount() }} open</p> }
+      <h1>Changes</h1>
+      @if (context.ready() && cards().length > 0) { <p class="lx-meta">{{ openCount() }} open</p> }
     </div>
+    <lx-help [terms]="help" />
   </header>
   @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
   @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
@@ -17,8 +12,7 @@
 
   @if (context.ready()) {
     @if (cards().length === 0) {
-      <div class="lx-empty lx-card">
-        <ng-icon name="phosphorGitDiffDuotone" size="32" aria-hidden="true" />
+      <div class="lx-empty">
         <p>No changes yet.</p>
         <a pButton size="small" [outlined]="true" routerLink="../rules"><span pButtonLabel>Open rules</span></a>
       </div>
@@ -29,19 +23,15 @@
         </ng-template>
         <ng-template #content let-c>
           @let busy = running();
-          <article class="lx-change" [lxEnter]="cards().indexOf(c)" [attr.aria-labelledby]="'change-' + c.id" [attr.data-status]="c.event.status">
+          <article class="lx-change" [attr.aria-labelledby]="'change-' + c.id" [attr.data-status]="c.event.status">
             <div class="lx-change-head">
               <h2 [id]="'change-' + c.id">{{ c.title }}</h2>
-              @if (c.open) {
-                <p-tag severity="warn" value="Open"><ng-template #icon><ng-icon name="phosphorWarning" size="14" aria-hidden="true" /></ng-template></p-tag>
-              } @else {
-                <p-tag severity="success" value="Handled"><ng-template #icon><ng-icon name="phosphorCheckCircle" size="14" aria-hidden="true" /></ng-template></p-tag>
-              }
+              <lx-label>{{ c.open ? 'Open' : 'Handled' }}</lx-label>
             </div>
             <p class="lx-versions">
-              <span class="lx-pill lx-pill-old">{{ c.from }}</span>
+              <span class="lx-version-old">{{ c.from }}</span>
               <ng-icon name="phosphorArrowRight" size="14" aria-hidden="true" /><span class="lx-sr-only">to</span>
-              <span class="lx-pill lx-pill-new">{{ c.to }}</span>
+              <span class="lx-version-new">{{ c.to }}</span>
               <time class="lx-when" [attr.datetime]="c.createdAt">{{ c.createdAt | date: 'd MMM y' }}</time>
             </p>
 
@@ -53,7 +43,6 @@
               } @else if (c.open && session.canReview()) {
                 <button pButton type="button" size="small" [disabled]="!!c.blocker || busy !== null" (click)="rerun(c)"
                         [attr.aria-describedby]="c.blocker ? 'blocker-' + c.id : null">
-                  <ng-icon name="phosphorArrowsClockwise" size="16" aria-hidden="true" />
                   <span pButtonLabel>{{ c.action }}</span>
                 </button>
                 @if (c.blocker) { <span class="lx-help" [id]="'blocker-' + c.id">{{ c.blocker }}</span> }
@@ -80,9 +69,9 @@
       </p-timeline>
     }
   } @else if (!context.error()) {
-    <div class="lx-skeleton" aria-busy="true" aria-label="Loading changes">
+    <div class="lx-skeleton" role="status" aria-busy="true" aria-label="Loading changes">
       @for (i of [1, 2]; track i) {
-        <div class="lx-skeleton-row"><p-skeleton shape="circle" size="2.25rem" /><p-skeleton height="8.5rem" styleClass="lx-skeleton-card" /></div>
+        <div class="lx-skeleton-row"><p-skeleton aria-hidden="true" shape="circle" size="2.25rem" /><p-skeleton aria-hidden="true" height="8.5rem" styleClass="lx-skeleton-card" /></div>
       }
     </div>
   }
