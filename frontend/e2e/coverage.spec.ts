@@ -33,7 +33,8 @@ test('California shows each course carrying the evidence and the flags; Utah sho
 
   const ethics = row(page, 'CA-2').getByRole('button', { name: 'COUN 605, evidence from the system, 1 quote' });
   await expect(ethics).toBeVisible();
-  await expect(ethics.locator('.lx-mark')).toHaveAttribute('data-kind', 'SYSTEM');
+  await expect(ethics.locator('.lx-cell-mark')).toHaveAttribute('data-kind', 'SYSTEM');
+  await expect(ethics.locator('.lx-cell-mark')).toHaveAttribute('data-shape', 'disc');
   expect(await ethics.evaluate((b) => (b.closest('td') as HTMLTableCellElement).cellIndex)).toBe(await columnOf(page, 'COUN 605'));
   await expect(row(page, 'CA-2')).toContainText('Rests on one course');
   await expect(row(page, 'CA-6')).toContainText('Rests on an elective');
@@ -48,8 +49,8 @@ test('California shows each course carrying the evidence and the flags; Utah sho
   const group = row(page, 'UT-7');
   await expect(group).toContainText('Outdated evidence');
   const outdated = group.getByRole('button', { name: 'COUN 625, outdated evidence from the system, 1 quote on the 2026-27 version' });
-  await expect(outdated.locator('.lx-mark')).toHaveAttribute('data-kind', 'OUTDATED');
-  await expect(outdated.locator('ng-icon')).toBeVisible();
+  await expect(outdated.locator('.lx-cell-mark')).toHaveAttribute('data-kind', 'OUTDATED');
+  await expect(outdated.locator('.lx-cell-mark')).toHaveAttribute('data-shape', 'dashed-ring');
   expect(await outdated.evaluate((b) => (b.closest('td') as HTMLTableCellElement).cellIndex)).toBe(await columnOf(page, 'COUN 625'));
   await expect(row(page, 'UT-6').getByRole('button', { name: 'Program documents, evidence from the system, accreditation-letter.pdf' })).toBeVisible();
 
@@ -103,22 +104,28 @@ test('arrow keys move across the cells, Enter opens the card and its action land
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', 'CA-2');
 });
 
-test('a flag chip dims the rows without it and keeps the matrix whole', async ({ page }) => {
+test('a flag tab dims the rows without it and keeps the matrix whole', async ({ page }) => {
   await openCoverage(page);
   const rows = matrix(page).locator('tbody tr');
   const total = await rows.count();
-  const chip = page.getByRole('group', { name: 'Highlight a flag' }).getByRole('button', { name: /^Rests on an elective, \d+$/ });
+  const flags = page.getByRole('tablist', { name: 'Highlight a flag' });
+  const all = flags.getByRole('tab', { name: `All, ${total}` });
+  await expect(all).toHaveAttribute('aria-selected', 'true');
+  const chip = flags.getByRole('tab', { name: /^Rests on an elective, \d+$/ });
   await chip.click();
-  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  await expect(chip).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByTestId('message')).toHaveText(/^Rests on an elective: 1 of 8 requirements highlighted\.$/);
   await expect(rows).toHaveCount(total);
   await expect(row(page, 'CA-6')).not.toHaveClass(/lx-dim/);
   await expect(row(page, 'CA-2')).toHaveClass(/lx-dim/);
-  await expect.poll(() => row(page, 'CA-2').locator('.lx-dot').first().evaluate((el) => Number(getComputedStyle(el).opacity))).toBeCloseTo(0.35, 2);
+  await expect.poll(() => row(page, 'CA-2').locator('.lx-cell-button').first().evaluate((el) => Number(getComputedStyle(el).opacity))).toBeCloseTo(0.35, 2);
   await expectAccessible(page, 'Coverage with a flag highlighted');
 
-  await chip.click();
-  await expect(chip).toHaveAttribute('aria-pressed', 'false');
+  // The arrow keys move along the row of tabs, and All brings every row back to full strength.
+  await chip.focus();
+  await page.keyboard.press('Home');
+  await expect(all).toHaveAttribute('aria-selected', 'true');
+  await expect(chip).toHaveAttribute('aria-selected', 'false');
   await expect(matrix(page).locator('tbody tr.lx-dim')).toHaveCount(0);
 });
 
@@ -156,7 +163,7 @@ for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     if (SCREENSHOTS) { await shoot(page, `f10b-card-${width}`); }
     await page.keyboard.press('Escape');
 
-    await page.getByRole('group', { name: 'Highlight a flag' }).getByRole('button', { name: /^Outdated evidence, \d+$/ }).click();
+    await page.getByRole('tablist', { name: 'Highlight a flag' }).getByRole('tab', { name: /^Outdated evidence, \d+$/ }).click();
     await expect(row(page, 'UT-7')).not.toHaveClass(/lx-dim/);
     if (SCREENSHOTS) { await shoot(page, `f10b-filter-${width}`); }
   });

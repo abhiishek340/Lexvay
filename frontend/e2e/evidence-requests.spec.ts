@@ -143,7 +143,7 @@ test('a reviewer asks for evidence, a contributor answers with a verified passag
   await switchUser(page, PRIYA);
   await goTo(page, 'Review');
   await stateTab(page, 'UT').click();
-  await page.getByRole('region', { name: 'Requirements' }).getByRole('button', { name: / to review$/ }).click();
+  await page.getByRole('region', { name: 'Requirements' }).getByRole('tab', { name: /^To review, \d+$/ }).click();
   const listed = page.getByRole('region', { name: 'Requirements' }).getByRole('button').filter({ hasText: new RegExp(`^${ref}(?!\\d)`) });
   await expect(listed).toContainText('evidence provided');
   await listed.click();

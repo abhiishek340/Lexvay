@@ -204,6 +204,7 @@ export class Coverage {
     if (flag !== this.filter() && (flag !== null || value === ALL)) {
       this.closeCard();
       this.hover.set(null);
+      this.previewed.set(null);
       this.filter.set(flag);
     }
   }

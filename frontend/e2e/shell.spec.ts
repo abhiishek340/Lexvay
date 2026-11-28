@@ -41,12 +41,12 @@ test('the command palette opens with the shortcut and jumps to Review for a stat
   await expect(stateTab(page, 'TX')).toHaveAttribute('aria-selected', 'true');
   await expect(palette).toBeHidden();
 
-  // The command used last comes first the next time, and the shortcuts list names the palette.
+  // The command used last comes first the next time, and Review's Help names the palette among its keys.
   await page.getByRole('button', { name: 'Search or jump to' }).click();
   await expect(palette.getByRole('menuitem').first()).toContainText('Review Texas');
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
-  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toContainText(/(Ctrl|Cmd) K\s*Search or jump to/);
+  await page.getByRole('button', { name: 'Help' }).click();
+  await expect(page.getByRole('dialog', { name: 'Help' })).toContainText(/(Ctrl|Cmd) K\s*Search or jump to/);
 });
 
 test('the command palette jumps to a requirement by its ref', async ({ page }) => {
