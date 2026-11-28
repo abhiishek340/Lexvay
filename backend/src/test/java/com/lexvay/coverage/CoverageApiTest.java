@@ -196,7 +196,7 @@ class CoverageApiTest extends AbstractAssessmentTest {
         fake.script("EXTRACT:" + label, revised);
         var created = mvc.post().uri("/api/v1/rule-versions").with(user(t.contributor())).with(csrf()).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("jurisdiction", "CA", "licenseType", AssessmentFixtures.LICENSE, "label", label,
-                        "sourceUrl", "https://example.invalid/coverage-rev-2", "effectiveFrom", LocalDate.of(2027, 1, 1).toString(),
+                        "sourceUrl", "https://example.invalid/coverage-rev-2", "effectiveFrom", LocalDate.of(2027, 1, 1).toString(), "legalStatus", "IN_FORCE", "datesBasis", "Fictional test data",
                         "text", "Fictional revised rule text", "supersedesId", s.ruleVersionId().toString()))).exchange();
         assertThat(created).hasStatus(202);
         UUID revision = UUID.fromString(fx.read(created).get("ruleVersionId").asString());

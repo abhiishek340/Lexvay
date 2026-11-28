@@ -12,6 +12,7 @@ import com.lexvay.rule.source.CheckOutcome;
 import com.lexvay.rule.source.CreateRuleSourceRequest;
 import com.lexvay.rule.source.RuleSourceRepository;
 import com.lexvay.rule.source.RuleSourceService;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +41,7 @@ class Rule7_RuleSourceIsolationTest extends AbstractDatabaseTest {
         b = tenants.create("sources-b");
         sourceOfA = TenantContext.runAs(a.tenantId(), () -> {
             UUID id = service.register(new CreateRuleSourceRequest("CA", "LICENSE", "A's source", "https://rules.example.test/a.pdf", 24));
-            repository.insertCheck(a.tenantId(), id, CheckOutcome.FETCH_FAILED, 500, null, "The server answered HTTP 500", null, null);
+            repository.insertCheck(a.tenantId(), id, OffsetDateTime.now(), CheckOutcome.FETCH_FAILED, 500, null, "The server answered HTTP 500", null, null);
             return id;
         });
     }
@@ -82,7 +83,7 @@ class Rule7_RuleSourceIsolationTest extends AbstractDatabaseTest {
             assertThatThrownBy(() -> jdbc.sql("INSERT INTO rule_source (tenant_id, jurisdiction_id, license_type, label, url, check_interval_hours) "
                     + "SELECT :t, id, 'L', 'x', 'https://rules.example.test/x', 1 FROM jurisdiction WHERE code = 'CA'")
                     .param("t", a.tenantId()).update()).isInstanceOf(DataAccessException.class);
-            assertThatThrownBy(() -> repository.insertCheck(a.tenantId(), sourceOfA, CheckOutcome.UNCHANGED, 200, null, null, null, null))
+            assertThatThrownBy(() -> repository.insertCheck(a.tenantId(), sourceOfA, OffsetDateTime.now(), CheckOutcome.UNCHANGED, 200, null, null, null, null))
                     .isInstanceOf(DataAccessException.class);
             assertThat(jdbc.sql("UPDATE rule_source SET active = false WHERE id = :id").param("id", sourceOfA).update()).isZero();
             return null;

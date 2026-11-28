@@ -22,7 +22,7 @@ class AssessmentUsageServiceTest {
     private AssessmentUsageService service(String inputPrice, String outputPrice) {
         OffsetDateTime start = OffsetDateTime.parse("2026-11-26T10:00:00Z");
         when(assessments.require(id)).thenReturn(new Assessment(id, UUID.randomUUID(), AssessmentStatus.FINISHED, start,
-                start.plusSeconds(3), "model-x", "match-v1", start, null));
+                start.plusSeconds(3), "model-x", "match-v1", java.time.LocalDate.of(2026, 11, 26), start, null));
         when(usage.forAssessment(id)).thenReturn(List.of(
                 new PurposeUsage(LlmPurpose.MATCH_EVIDENCE, 4, 1_500_000, 250_000, 1200)));
         return new AssessmentUsageService(assessments, usage, new BigDecimal(inputPrice), new BigDecimal(outputPrice));

@@ -116,7 +116,7 @@ class RuleSourceScheduleTest extends AbstractRuleSourceTest {
         fetcher.html(url, page("Applicants need 72 semester hours."));
         checkNow(sourceId);
 
-        assertThat(latestCheck(sourceId)).containsEntry("outcome", "DRAFT_EXISTS");
+        assertThat(latestCheck(sourceId)).containsEntry("outcome", "CHANGED_QUEUED");
         assertThat(schedule(sourceId)).containsEntry("failures", 0).containsEntry("minutes", INTERVAL_HOURS * 60);
     }
 
