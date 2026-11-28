@@ -22,7 +22,7 @@ Decisions D-530 to D-537 are in `docs/decisions/SEC-3.md`.
 - `make perf` runs `AuditSealPerfTest`.
 
 ## Checks
-Final tree: SEC-3 merged with origin/main at the F15 merge (V018, V023, V020; F15's shared `AuditCsv` now carries the seal
+Final tree: SEC-3 merged with origin/main at the F15 merge (V018, V020, V022, V023; F15's shared `AuditCsv` now carries the seal
 columns, so the evidence package's `audit.csv` has them too, checked in `PackageApiTest`).
 - Backend 1182 tests, frontend unit 421: all passing in one `make test` run. End-to-end: 58 passed in a separate
   `make e2e` run; the two full `make test` runs before it each lost one or two end-to-end tests to timing (a focus
