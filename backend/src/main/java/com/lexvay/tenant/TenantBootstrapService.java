@@ -36,13 +36,14 @@ public class TenantBootstrapService {
     public record NewTenant(UUID tenantId, LexvayUser admin) {
     }
 
-    public NewTenant createTenant(String name, String adminEmail, String adminDisplayName, String adminPassword) {
+    /** Creates a tenant in the given data mode; only the seed creates {@link DataMode#DEMO} tenants (D-560). */
+    public NewTenant createTenant(String name, DataMode dataMode, String adminEmail, String adminDisplayName, String adminPassword) {
         UUID tenantId = UUID.randomUUID();
         UUID adminId = UUID.randomUUID();
         return TenantContext.runAs(tenantId, () -> transaction.execute(status -> {
-            tenants.insert(tenantId, name, adminId);
+            tenants.insert(tenantId, name, dataMode, adminId);
             LexvayUser admin = insertUser(adminId, tenantId, adminEmail, adminDisplayName, Role.ADMIN, adminPassword, adminId);
-            audit.recordAs(adminId, "TENANT_CREATED", "tenant", tenantId, Map.of("name", name));
+            audit.recordAs(adminId, "TENANT_CREATED", "tenant", tenantId, Map.of("name", name, "dataMode", dataMode.name()));
             audit.recordAs(adminId, "USER_CREATED", "app_user", adminId, Map.of("email", admin.email(), "role", "ADMIN"));
             return new NewTenant(tenantId, admin);
         }));

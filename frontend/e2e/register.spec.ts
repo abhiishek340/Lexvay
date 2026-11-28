@@ -65,13 +65,14 @@ test('the register lists the California signature, filters, exports CSV, groups 
   expect(hash).toMatch(/^[0-9a-f]{64}$/);
   await expect(rows.first()).toContainText(hash.slice(0, 12));
 
-  // The CSV carries the same filter, the labelled header and the California row.
+  // The CSV carries the demo notice, the same filter, the labelled header and the California row.
   const downloading = page.waitForEvent('download');
   await page.getByRole('link', { name: 'Download CSV' }).click();
   const download = await downloading;
   expect(download.suggestedFilename()).toMatch(/^lexvay-determination-register-\d{4}-\d{2}-\d{2}\.csv$/);
   const csv = await readFile(await download.path(), 'utf8');
-  const [header, ...records] = csv.split('\r\n');
+  const [notice, header, ...records] = csv.split('\r\n');
+  expect(notice, 'the seeded tenant is a DEMO tenant, so its register says the data is fictional').toBe('"Fictional demo data"');
   expect(header).toBe(CSV_HEADER);
   expect(records).toHaveLength(2);
   expect(records[1]).toBe('');
