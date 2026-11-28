@@ -1,4 +1,4 @@
-import { DANA, PRIYA, expect, expectAccessible, nav, signIn, test } from './support';
+import { DANA, PRIYA, expect, expectAccessible, goTo, programIdFromUrl, signIn, test } from './support';
 
 /**
  * The program overview (UI3-0, design v3): the title row, the three figures, the States table and "Needs you". The
@@ -26,8 +26,8 @@ test('the States table lists every target state with its rules, progress, share 
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^TX-/);
 
   // Back on the overview, the figures state the same numbers the API does.
-  await nav(page, 'Program overview').click();
-  const programId = new URL(page.url()).pathname.split('/')[2];
+  await goTo(page, 'Program overview');
+  const programId = await programIdFromUrl(page);
   const overview = await (await page.request.get(`/api/v1/programs/${programId}/overview`)).json();
   const summaries = overview.assessment.jurisdictions as { total: number; decided: number }[];
   const toReview = summaries.reduce((n, s) => n + s.total - s.decided, 0);
