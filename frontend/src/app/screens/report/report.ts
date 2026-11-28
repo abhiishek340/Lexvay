@@ -2,8 +2,6 @@ import { DOCUMENT, DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { NgIcon } from '@ng-icons/core';
-import { phosphorFilePdf } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -16,31 +14,35 @@ import { Mapping } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import { Enter } from '../../ui/enter';
-import { InfoTip } from '../../ui/info-tip';
+import { Help, HelpTerm } from '../../ui/help';
 import { Seal } from '../../ui/seal';
-import { StatusIcon } from '../../ui/status-icon';
+import { requirementStatus } from '../../ui/status';
+import { StatusMark } from '../../ui/status-mark';
 import { ReportCheckDialog } from './report-check-dialog';
 import { REPORT_TOKENS } from './report-theme';
 
-/** The icons the report shows beyond SHELL_ICONS, provided by its route (report.routes.ts). */
-export const REPORT_ICONS = { phosphorFilePdf };
+const HELP: readonly HelpTerm[] = [
+  { term: 'Evidence report', definition: 'The proposed findings and the review decisions recorded so far, with the quoted evidence.' },
+  { term: 'Draft', definition: 'It becomes a determination only when a signer signs it in Review; the PDF is available after that.' },
+];
 
 const POLL_MS = 1000;
 const POLL_LIMIT = 60;
 
 /**
  * The evidence report (DESIGN.md "Evidence report"): one jurisdiction's requirements as a document sheet, with the Seal
- * when the determination is signed and a Draft stamp when it is not, and a floating pill that downloads the PDF. "Check a
- * file" opens the report check (F14), deferred until it is first asked for.
+ * when the determination is signed and the word Draft when it is not; the PDF download and "Check a file" (F14, deferred
+ * until it is first asked for) sit in the title row.
  */
 @Component({
   selector: 'lx-report',
-  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, Select, Skeleton, Enter, InfoTip, Seal, StatusIcon, ReportCheckDialog],
+  imports: [DatePipe, FormsModule, ButtonDirective, ButtonLabel, Message, Select, Skeleton, Help, Seal, StatusMark, ReportCheckDialog],
   templateUrl: './report.html',
   styleUrl: './report.css',
 })
 export class Report {
+  readonly help = HELP;
+  readonly status = requirementStatus;
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);

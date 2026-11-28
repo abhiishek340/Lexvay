@@ -6,7 +6,7 @@
       @let v = p.view;
       <div class="lx-result" [attr.data-result]="v.kind" data-testid="check-result">
         @if (v.kind === 'signed') {
-          <lx-seal class="lx-result-seal" [preview]="true" [outcome]="v.seal.outcome" [signer]="v.seal.signer" [signedAt]="v.seal.signedAt" [size]="96" />
+          <lx-seal class="lx-result-seal" [preview]="true" [outcome]="v.seal.outcome" [signer]="v.seal.signer" [signedAt]="v.seal.signedAt" />
         }
         <h3 #headline class="lx-result-headline" [class.lx-quiet]="v.kind === 'reopened'" tabindex="-1">{{ v.headline }}</h3>
         @if (v.kind === 'signed') {

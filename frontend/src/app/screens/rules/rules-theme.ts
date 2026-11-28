@@ -13,13 +13,12 @@ import { lexvayDialog } from '../../theme/dialog-tokens';
 import { lexvayMessage } from '../../theme/message-tokens';
 import { lexvaySkeleton } from '../../theme/skeleton-tokens';
 import { lexvayTabs } from '../../theme/tabs-tokens';
-import { lexvayTag } from '../../theme/tag-tokens';
 
 /** Component token sets the Rules screen renders and the shell does not (registered with registerComponentTokens, D-246). */
 export const RULES_TOKENS = {
   accordion: auraAccordion,
   /** The search terms cell: AutoComplete in multiple mode without suggestions, its entries as chips (F7c). */
-  autocomplete: { ...auraAutocomplete, chip: { ...auraAutocomplete.chip, borderRadius: '999px' } },
+  autocomplete: { ...auraAutocomplete, chip: { ...auraAutocomplete.chip, borderRadius: '6px' } },
   chip: lexvayChip,
   confirmdialog: auraConfirmdialog,
   datatable: lexvayDatatable,
@@ -32,6 +31,5 @@ export const RULES_TOKENS = {
   select: auraSelect,
   skeleton: lexvaySkeleton,
   tabs: lexvayTabs,
-  tag: lexvayTag,
   textarea: auraTextarea,
 };

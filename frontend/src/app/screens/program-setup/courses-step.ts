@@ -8,14 +8,12 @@ import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
-import { Tag } from 'primeng/tag';
 import { ToggleSwitch } from 'primeng/toggleswitch';
 import { Course } from '../../core/models';
 import { problemDetail } from '../../core/problem';
-import { Enter } from '../../ui/enter';
-import { InfoTip } from '../../ui/info-tip';
 import { currentVersion, groupRule, memberCodes, minimumCreditsLabel } from './setup-model';
 import { SetupNotice, SetupStore } from './setup-store';
+import { Label } from '../../ui/label';
 
 interface CourseRow { course: Course; catalogYear: string; required: boolean; versions: number }
 interface CourseForm { code: string; title: string; required: boolean }
@@ -27,7 +25,7 @@ interface VersionForm { catalogYear: string; required: boolean }
  */
 @Component({
   selector: 'lx-setup-courses',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, InputText, Message, Skeleton, TableModule, Tag, ToggleSwitch, Enter, InfoTip],
+  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, InputText, Message, Skeleton, TableModule, Label, ToggleSwitch],
   templateUrl: './courses-step.html',
   styleUrl: './steps.css',
 })

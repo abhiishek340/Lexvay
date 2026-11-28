@@ -4,35 +4,35 @@
 :host { display: flex; flex-direction: column; min-height: 0; }
 .lx-document {
   flex: 1; min-height: 0; display: flex; flex-direction: column;
-  margin: 0; background: var(--p-lx-surface); border-radius: var(--lx-r-card); box-shadow: var(--p-lx-e1);
+  margin: 0; background: var(--p-lx-surface); border: 1px solid var(--p-lx-line); border-radius: var(--lx-r-control);
 }
 .lx-document-head { flex: none; padding: 8px 8px 6px 14px; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid var(--p-lx-line); }
 .lx-document-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; }
-.lx-document-body { position: relative; flex: 1; min-height: 0; max-height: var(--lx-document-max-height, 60vh); overflow-y: auto; border-radius: 0 0 var(--lx-r-card) var(--lx-r-card); }
+.lx-document-body { position: relative; flex: 1; min-height: 0; max-height: var(--lx-document-max-height, 60vh); overflow-y: auto; border-radius: 0 0 var(--lx-r-control) var(--lx-r-control); }
 .lx-document-body:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: -2px; }
 .lx-document-name { display: flex; gap: 6px; align-items: center; font-weight: 500; word-break: break-word; }
 .lx-document-name ng-icon { flex: none; }
-.lx-document-ocr { display: flex; gap: 6px; align-items: center; font-size: 12px; line-height: 16px; color: var(--p-lx-ambiguous); }
+.lx-document-ocr { display: flex; gap: 6px; align-items: center; font-size: 12px; line-height: 16px; color: var(--p-lx-ink-2); }
 .lx-document-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin-left: -8px; }
 .lx-document-pager { display: flex; align-items: center; gap: 2px; }
-.lx-document-position { min-width: 6.5rem; text-align: center; font-size: 12px; line-height: 16px; color: var(--p-lx-text-2); white-space: nowrap; }
-.lx-document-position .lx-mono { color: var(--p-lx-text); }
+.lx-document-position { min-width: 6.5rem; text-align: center; font-size: 12px; line-height: 16px; color: var(--p-lx-ink-2); white-space: nowrap; }
+.lx-document-position .lx-mono { color: var(--p-lx-ink); }
 /* Icon-only controls: the words are their accessible names and tooltips. */
 .lx-document-icon.p-button { width: 32px; height: 32px; padding: 0; justify-content: center; flex: none; }
 .lx-document-note { display: block; flex: none; margin: 12px 14px 0; }
 
 .lx-document-text {
-  margin: 0; padding: 16px 18px 18px; color: var(--p-lx-text);
-  font-family: var(--lx-font-serif); font-size: 15px; line-height: 24px;
+  margin: 0; padding: 16px 18px 18px; color: var(--p-lx-ink);
+  font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px;
   white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4;
 }
 div.lx-document-text { display: flex; flex-direction: column; gap: 10px; }
 .lx-selectable { cursor: text; }
 
-/* The cited span: warning tint and a 2 px underline, so it never depends on colour alone. */
+/* The cited span: the accent wash and a 2 px underline, so it never depends on colour alone. */
 mark {
-  background: var(--p-lx-ambiguous-tint); color: var(--p-lx-text);
-  text-decoration: underline 2px var(--p-lx-ambiguous); text-underline-offset: 4px;
+  background: var(--p-lx-accent-wash); color: var(--p-lx-ink);
+  text-decoration: underline 2px var(--p-lx-ink-2); text-underline-offset: 4px;
   box-decoration-break: clone; -webkit-box-decoration-break: clone; padding: 1px 0; border-radius: 2px;
 }
 mark:focus { outline: none; }
@@ -40,7 +40,7 @@ mark:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: 2px;
 
 .lx-selection-toolbar {
   position: absolute; z-index: 2; padding: 4px; border-radius: var(--lx-r-control);
-  background: var(--p-lx-raised); box-shadow: var(--p-lx-e3);
+  background: var(--p-lx-surface); box-shadow: var(--p-lx-overlay);
 }
 
 /* Character range dialog */
@@ -52,6 +52,6 @@ mark:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: 2px;
 .lx-range-field ::ng-deep .p-inputnumber, .lx-range-field ::ng-deep input { width: 100%; }
 .lx-range-quote { margin-top: 6px; min-height: 3rem; max-height: 14rem; overflow-y: auto; }
 .lx-range-quote blockquote {
-  padding: 10px 14px; border-left: 2px solid var(--p-lx-line); background: var(--p-lx-ground);
+  padding: 10px 14px; border-left: 2px solid var(--p-lx-line); background: var(--p-lx-paper);
   white-space: pre-wrap; overflow-wrap: anywhere;
 }

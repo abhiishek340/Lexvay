@@ -2,8 +2,7 @@ import { Component, DestroyRef, ElementRef, computed, effect, inject, input, lin
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorArchive, phosphorArrowCounterClockwise, phosphorArrowDown, phosphorArrowSquareOut, phosphorArrowUp, phosphorCircleDashed, phosphorEquals, phosphorFloppyDisk, phosphorMinusCircle, phosphorNotePencil, phosphorPencilSimple, phosphorPlus, phosphorPlusCircle, phosphorSealCheck, phosphorSpinner, phosphorTrash, phosphorWarningCircle } from '@ng-icons/phosphor-icons/regular';
-import { phosphorListChecksDuotone, phosphorScalesDuotone, phosphorSealCheckDuotone, phosphorSpinnerDuotone } from '@ng-icons/phosphor-icons/duotone';
+import { phosphorArchive, phosphorArrowDown, phosphorArrowSquareOut, phosphorArrowUp, phosphorCircleDashed, phosphorEquals, phosphorMinusCircle, phosphorNotePencil, phosphorPlusCircle, phosphorSealCheck, phosphorSpinner, phosphorTrash, phosphorWarningCircle } from '@ng-icons/phosphor-icons/regular';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
@@ -18,35 +17,35 @@ import { ProgramContext } from '../../core/program-context';
 import { RuleVersionRow, anyExtracting, groupRuleVersions, openingVersion } from '../../core/rules';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import { Enter } from '../../ui/enter';
-import { InfoTip } from '../../ui/info-tip';
 import { NewRuleVersionDialog } from './new-rule-version';
 import { Notice, RuleVersionDetail } from './rule-version-detail';
 import { RULES_TOKENS } from './rules-theme';
 import { RULE_STATUS } from './rule-status';
 import { UnsavedChanges, leaveNeedsConfirmation } from './unsaved-changes';
+import { Help, HelpTerm } from '../../ui/help';
+
+/** Rules' definitions, behind its one Help button (the screen, its new-version dialog and its requirement list). */
+const HELP: readonly HelpTerm[] = [
+  { term: 'Rule version', definition: "One state's rules as published. The model proposes its requirement list; a reviewer corrects and approves it." },
+  { term: 'Approved', definition: 'Only an approved list is used in assessments, and it is never edited: a revision is entered as a new version.' },
+  { term: 'Editing the list', definition: 'The whole list is saved at once, in this order. Approving it afterwards locks it.' },
+  { term: 'Supersedes', definition: 'The version a new one replaces; a change event opens when the new one is approved.' },
+  { term: 'Rule text', definition: "Stored as the version's document; the model then proposes its requirement list." },
+];
 
 /** The icons the Rules screen and its parts show beyond SHELL_ICONS, provided by its route (rules.routes.ts). */
 export const RULES_ICONS = {
   phosphorArchive,
-  phosphorArrowCounterClockwise,
   phosphorArrowDown,
   phosphorArrowSquareOut,
   phosphorArrowUp,
   phosphorCircleDashed,
   phosphorEquals,
-  phosphorFloppyDisk,
-  phosphorListChecksDuotone,
   phosphorMinusCircle,
   phosphorNotePencil,
-  phosphorPencilSimple,
-  phosphorPlus,
   phosphorPlusCircle,
-  phosphorScalesDuotone,
   phosphorSealCheck,
-  phosphorSealCheckDuotone,
   phosphorSpinner,
-  phosphorSpinnerDuotone,
   phosphorTrash,
   phosphorWarningCircle,
 };
@@ -60,13 +59,14 @@ interface VersionGroup { label: string; code: string; name: string; items: Versi
 
 @Component({
   selector: 'lx-rules',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, ConfirmDialog, Listbox, Message, Skeleton, Enter, InfoTip, NewRuleVersionDialog, RuleVersionDetail],
+  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, ConfirmDialog, Listbox, Message, Skeleton, NewRuleVersionDialog, RuleVersionDetail, Help],
   providers: [UnsavedChanges, ConfirmationService],
   templateUrl: './rules.html',
   styleUrl: './rules.css',
   host: { '(window:beforeunload)': 'onBeforeUnload($event)' },
 })
 export class Rules {
+  readonly help = HELP;
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly toast = inject(MessageService);

@@ -9,20 +9,22 @@
     }
   </div>
   <div class="lx-bar-actions">
-    <button type="button" class="lx-bar-toggle" aria-label="Add note" [attr.aria-expanded]="open()" aria-controls="decision-note" (click)="toggleNote()">
-      <ng-icon name="phosphorNotePencil" size="18" aria-hidden="true" />
-    </button>
-    <button pButton type="button" [disabled]="busy()" (click)="decide.emit('ACCEPTED')" aria-label="Accept evidence" aria-keyshortcuts="a">
-      <span pButtonLabel>Accept</span><kbd aria-hidden="true">A</kbd>
+    <button pButton type="button" [disabled]="busy()" (click)="decide.emit('ACCEPTED')" aria-label="Accept evidence" aria-keyshortcuts="a"
+            pTooltip="Accept, key A" tooltipPosition="top" [showDelay]="500">
+      <span pButtonLabel>Accept</span>
     </button>
     <button pButton type="button" severity="secondary" [outlined]="true" [disabled]="busy()" (click)="decide.emit('EVIDENCE_REQUESTED')"
-            aria-label="Request evidence" aria-keyshortcuts="r">
-      <span pButtonLabel>Request</span><kbd aria-hidden="true">R</kbd>
+            aria-label="Request evidence" aria-keyshortcuts="r" pTooltip="Request evidence, key R" tooltipPosition="top" [showDelay]="500">
+      <span pButtonLabel>Request</span>
     </button>
-    <button pButton type="button" #gapButton severity="danger" [outlined]="!open()" [disabled]="busy()" aria-keyshortcuts="g"
+    <button pButton type="button" #gapButton severity="danger" [outlined]="true" [disabled]="busy()" aria-keyshortcuts="g"
             [attr.aria-expanded]="open() ? null : false" [attr.aria-controls]="open() ? null : 'decision-note'"
+            [pTooltip]="open() ? '' : 'Confirm a gap, key G'" tooltipPosition="top" [showDelay]="500"
             (click)="open() ? decide.emit('GAP_CONFIRMED') : openNote()">
-      @if (open()) { <span pButtonLabel>Confirm gap</span> } @else { <span pButtonLabel>Gap</span><kbd aria-hidden="true">G</kbd> }
+      <span pButtonLabel>{{ open() ? 'Confirm gap' : 'Gap' }}</span>
+    </button>
+    <button type="button" class="lx-bar-toggle" aria-label="Add note" [attr.aria-expanded]="open()" aria-controls="decision-note" (click)="toggleNote()">
+      <ng-icon name="phosphorNotePencil" size="16" aria-hidden="true" />
     </button>
   </div>
 </div>

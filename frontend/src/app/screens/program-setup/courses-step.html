@@ -1,14 +1,13 @@
 <div class="lx-step-head">
   <h2 class="lx-panel-title">Courses</h2>
   @if (store.canEdit() && store.program()) {
-    <button pButton type="button" #addButton (click)="openAdd()"><ng-icon name="phosphorPlus" size="16" aria-hidden="true" /><span pButtonLabel>Add course</span></button>
+    <button pButton type="button" #addButton (click)="openAdd()"><span pButtonLabel>Add course</span></button>
   }
 </div>
 
 @if (rows(); as list) {
   @if (list.length === 0) {
     <div class="lx-empty-state" data-testid="courses-empty">
-      <ng-icon name="phosphorBooksDuotone" size="32" aria-hidden="true" />
       <p>No courses yet.</p>
     </div>
   } @else {
@@ -23,16 +22,16 @@
         </tr>
       </ng-template>
       <ng-template #body let-row let-i="rowIndex">
-        <tr [lxEnter]="i" [attr.data-code]="row.course.code">
+        <tr [attr.data-code]="row.course.code">
           <td class="lx-mono lx-nowrap">{{ row.course.code }}</td>
           <td class="lx-strong">{{ row.course.title }}</td>
           <td class="lx-mono lx-nowrap">{{ row.catalogYear }}@if (row.versions > 1) { <span class="lx-muted"> · {{ row.versions }} years</span> }</td>
-          <td><p-tag [severity]="row.required ? 'info' : 'secondary'" [value]="row.required ? 'Required' : 'Elective'" /></td>
+          <td><lx-label>{{ row.required ? 'Required' : 'Elective' }}</lx-label></td>
           @if (store.canEdit()) {
             <td class="lx-row-action">
               <button pButton type="button" size="small" severity="secondary" [text]="true" (click)="openVersion(row.course, $event.target)"
                       [attr.aria-label]="'New catalog year for ' + row.course.code">
-                <ng-icon name="phosphorPlus" size="16" aria-hidden="true" /><span pButtonLabel>New catalog year</span>
+                <span pButtonLabel>New catalog year</span>
               </button>
             </td>
           }
@@ -44,30 +43,24 @@
   @if (store.pathway(); as pathway) {
     @if (pathway.groups.length > 0) {
       <section class="lx-pathway" aria-labelledby="pathway-title" data-testid="pathway">
-        <h3 id="pathway-title" class="lx-pathway-title">
-          Graduation paths
-          <lx-info-tip label="About graduation paths">Evidence in a course that is not on every path is shown as ambiguous. A minimum or a credit that is not recorded counts the same way.</lx-info-tip>
-        </h3>
+        <h3 id="pathway-title" class="lx-pathway-title">Graduation paths</h3>
         <ul class="lx-pathway-groups">
           @for (group of pathway.groups; track group.id) {
             <li>
               <span class="lx-strong">{{ group.label }}</span>
-              <span class="lx-muted"> · {{ groupRule(group) }}</span>
+              <span class="lx-pathway-rule"> · {{ groupRule(group) }}</span>
               <span class="lx-mono lx-pathway-members">{{ memberCodes(group) }}</span>
             </li>
           }
         </ul>
-        <p class="lx-muted" data-testid="pathway-minimum">
-          @if (minimumCredits(); as minimum) { Fewest credits on a path: {{ minimum }} } @else { Fewest credits on a path: not known }
-          @if (pathway.minimumCredits === null) {
-            <lx-info-tip label="What is not recorded">{{ pathway.unknowns.join('. ') }}.</lx-info-tip>
-          }
+        <p class="lx-pathway-rule" data-testid="pathway-minimum">
+          @if (minimumCredits(); as minimum) { Fewest credits on a path: {{ minimum }} } @else { Fewest credits on a path: not known ({{ pathway.unknowns.join('; ') }}) }
         </p>
       </section>
     }
   }
 } @else {
-  <div class="lx-panel-skeleton" aria-busy="true" aria-label="Loading courses">@for (i of [1, 2, 3]; track i) { <p-skeleton height="3.25rem" /> }</div>
+  <div class="lx-panel-skeleton" role="status" aria-busy="true" aria-label="Loading courses">@for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="3.25rem" /> }</div>
 }
 
 <p-dialog header="Add course" [visible]="addOpen()" (visibleChange)="addOpen.set($event)" (onHide)="addClosed()" [modal]="true" [draggable]="false"
@@ -97,7 +90,6 @@
     <div class="lx-switch">
       <p-toggleswitch inputId="course-required" [ngModel]="c.required" name="required" (ngModelChange)="setCourse('required', $event)" />
       <label for="course-required">Required course</label>
-      <lx-info-tip label="About required courses">Evidence found only in an elective is shown as ambiguous: not every graduate takes it.</lx-info-tip>
     </div>
   </form>
   <ng-template #footer>

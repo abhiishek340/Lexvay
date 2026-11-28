@@ -2,12 +2,12 @@
 .lx-panel-body { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 12px; }
 .lx-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .lx-toolbar button { gap: 6px; }
-.lx-edit-state { display: inline-flex; align-items: center; gap: 8px; margin-left: 4px; font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
-.lx-edit-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--p-lx-line-strong); transition: background-color var(--lx-t-2) var(--lx-ease-out), transform var(--lx-t-2) var(--lx-spring); }
-.lx-edit-dirty .lx-edit-dot { background: var(--p-lx-ambiguous); transform: scale(1.25); }
-.lx-edit-dirty { color: var(--p-lx-text); }
+.lx-edit-state { display: inline-flex; align-items: center; gap: 8px; margin-left: 4px; font-size: 13px; line-height: 20px; color: var(--p-lx-ink-2); }
+.lx-edit-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--p-lx-line-strong); transition: background-color var(--lx-t) var(--lx-ease), transform var(--lx-t) var(--lx-ease); }
+.lx-edit-dirty .lx-edit-dot { background: var(--p-lx-ink-2); transform: scale(1.25); }
+.lx-edit-dirty { color: var(--p-lx-ink); }
 .lx-nowrap { white-space: nowrap; }
-.lx-title { font-weight: 550; min-width: 8rem; }
+.lx-title { font-weight: 500; min-width: 8rem; }
 .lx-text { min-width: 14rem; }
 .lx-requirement-text { font-family: var(--lx-font-serif); font-size: 15px; line-height: 24px; max-width: 60ch; }
 .lx-more { padding: 0; margin-top: 2px; }
@@ -17,7 +17,7 @@
 .lx-terms-cell { min-width: 11rem; }
 .lx-terms { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; max-width: 18rem; }
 .lx-term {
-  padding: 1px 8px; border-radius: var(--lx-r-pill); background: var(--p-lx-surface-2); color: var(--p-lx-text);
+  padding: 1px 8px; border-radius: var(--lx-r-control); background: var(--p-lx-sunken); color: var(--p-lx-ink);
   font-size: 12px; line-height: 18px; white-space: nowrap;
 }
 
@@ -38,7 +38,7 @@
 .lx-f-type { grid-area: type; }
 .lx-f-check { grid-area: check; }
 .lx-f-actions { grid-area: actions; flex-direction: row; gap: 0; justify-content: flex-end; }
-.lx-f-label { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-text-2); }
+.lx-f-label { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-ink-2); }
 .lx-term-count { font-weight: 450; margin-left: 4px; font-variant-numeric: tabular-nums; }
 .lx-check-controls { display: grid; grid-template-columns: 8.5rem 4.75rem minmax(0, 1fr); gap: 4px; }
 .lx-line-one td { border-bottom: 0; padding-bottom: 6px; }
@@ -65,8 +65,8 @@
 /* The approval: the count that will be locked, said once in large type, then the sentence. */
 .lx-approve { display: flex; flex-direction: column; gap: 12px; }
 .lx-approve-icon { color: var(--p-lx-found); display: inline-flex; }
-.lx-approve-count { display: flex; align-items: baseline; gap: 8px; color: var(--p-lx-text-2); }
-.lx-approve-count .lx-number { color: var(--p-lx-text); }
+.lx-approve-count { display: flex; align-items: baseline; gap: 8px; color: var(--p-lx-ink-2); }
+.lx-approve-count .lx-figure { color: var(--p-lx-ink); }
 .lx-dialog-text { max-width: 60ch; }
 
 @media (max-width: 640px) {

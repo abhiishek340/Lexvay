@@ -3,9 +3,9 @@
 .lx-step-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .lx-step-head .lx-panel-title { margin: 0; }
 .lx-step-head button { gap: 6px; }
-.lx-panel-title { font-size: 20px; line-height: 28px; font-weight: 620; letter-spacing: -0.012em; }
+.lx-panel-title { font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.012em; }
 .lx-panel-skeleton { display: flex; flex-direction: column; gap: 8px; }
-.lx-strong { font-weight: 550; }
+.lx-strong { font-weight: 500; }
 .lx-nowrap { white-space: nowrap; }
 .lx-row-action { text-align: right; }
 .lx-row-action button { gap: 6px; }
@@ -19,7 +19,7 @@
 .lx-fixed-value { padding: 9px 0; }
 .lx-switch { display: flex; align-items: center; gap: 8px; }
 .lx-switch label { font-size: 13px; }
-.lx-version-course { font-weight: 550; }
+.lx-version-course { font-weight: 500; }
 
 /* Documents: the drop zone, the files on their way, then the program's documents by course. */
 .lx-upload { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
@@ -27,50 +27,50 @@
 .lx-target-select { min-width: min(22rem, 100%); }
 :host ::ng-deep .lx-dropzone .p-fileupload-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 :host ::ng-deep .lx-dropzone .p-fileupload-header button { gap: 6px; }
-:host ::ng-deep .lx-dropzone.p-fileupload { border: 2px dashed var(--p-lx-line-strong); transition: border-color var(--lx-t-1) var(--lx-ease-out); }
+:host ::ng-deep .lx-dropzone.p-fileupload { border: 2px dashed var(--p-lx-line-strong); transition: border-color var(--lx-t-fast) var(--lx-ease); }
 :host ::ng-deep .lx-dropzone .p-fileupload-content { border: 0; }
 :host ::ng-deep .lx-dropzone .p-fileupload-highlight { outline: 2px solid var(--p-lx-accent); outline-offset: -2px; }
-.lx-drop-hint { color: var(--p-lx-text-2); font-size: 13px; }
+.lx-drop-hint { color: var(--p-lx-ink-2); font-size: 13px; }
 .lx-queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .lx-queue-row {
   display: grid; grid-template-columns: auto minmax(10rem, 1fr) auto auto minmax(9rem, auto) auto; align-items: center; gap: 8px 12px;
-  padding: 10px 12px; border-radius: 10px; background: var(--p-lx-surface); box-shadow: var(--p-lx-e1);
+  padding: 10px 12px; border-radius: 10px; background: var(--p-lx-surface); box-shadow: inset 0 0 0 1px var(--p-lx-line);
 }
-.lx-file-icon { color: var(--p-lx-text-2); }
+.lx-file-icon { color: var(--p-lx-ink-2); }
 .lx-queue-name { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .lx-queue-kind { min-width: 9rem; }
 .lx-queue-course { min-width: 10rem; }
-.lx-queue-kind-text { font-size: 13px; color: var(--p-lx-text-2); }
+.lx-queue-kind-text { font-size: 13px; color: var(--p-lx-ink-2); }
 .lx-queue-state { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .lx-queue-message { font-size: 12px; line-height: 16px; color: var(--p-lx-missing); max-width: 28ch; }
-.lx-queue-row[data-state='READY'] { box-shadow: var(--p-lx-e1), inset 3px 0 0 var(--p-lx-found); }
+.lx-queue-row[data-state='READY'] { box-shadow: inset 0 0 0 1px var(--p-lx-line), inset 3px 0 0 var(--p-lx-found); }
 
 .lx-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); gap: 12px; }
-.lx-section { padding: 14px 16px; border-radius: var(--lx-r-card); background: var(--p-lx-surface-2); display: flex; flex-direction: column; gap: 8px; }
+.lx-doc-group { padding: 14px 16px; border-radius: var(--lx-r-control); background: var(--p-lx-sunken); display: flex; flex-direction: column; gap: 8px; }
 .lx-section-title { display: flex; align-items: baseline; gap: 8px; font-size: 14px; line-height: 20px; font-weight: 600; }
 .lx-docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.lx-doc { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.lx-doc-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
 .lx-doc-open {
   display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px; margin-left: -4px; border: 0; border-radius: 6px; background: transparent;
-  color: var(--p-lx-accent); font: inherit; font-weight: 550; cursor: pointer; text-align: left; overflow-wrap: anywhere;
+  color: var(--p-lx-accent); font: inherit; font-weight: 500; cursor: pointer; text-align: left; overflow-wrap: anywhere;
 }
 .lx-doc-open:hover:not(:disabled) { text-decoration: underline; }
-.lx-doc-open:disabled { color: var(--p-lx-text); cursor: default; }
+.lx-doc-open:disabled { color: var(--p-lx-ink); cursor: default; }
 .lx-doc-name { min-width: 0; }
 
 /* Program facts: one card per number, the value large, its quote in Document type. */
 .lx-facts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-.lx-fact { padding: 16px 18px; border-radius: var(--lx-r-card); background: var(--p-lx-surface); box-shadow: var(--p-lx-e1); display: flex; flex-direction: column; gap: 10px; }
+.lx-fact { padding: 16px 18px; border-radius: var(--lx-r-control); background: var(--p-lx-surface); box-shadow: inset 0 0 0 1px var(--p-lx-line); display: flex; flex-direction: column; gap: 10px; }
 .lx-fact-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .lx-fact-name { font-size: 15px; line-height: 22px; }
 .lx-fact-body { display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
 .lx-fact-source { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 20rem; }
 .lx-fact-quote { font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; overflow-wrap: anywhere; }
-.lx-fact-missing { display: flex; align-items: center; gap: 6px; color: var(--p-lx-text-2); }
-.lx-fact-missing ng-icon { color: var(--p-lx-ambiguous); }
-.lx-history summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--p-lx-text-2); }
+.lx-fact-missing { display: flex; align-items: center; gap: 6px; color: var(--p-lx-ink-2); }
+.lx-fact-missing ng-icon { color: var(--p-lx-ink-2); }
+.lx-history summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--p-lx-ink-2); }
 .lx-history[open] summary ng-icon { transform: rotate(180deg); }
-.lx-history ul { margin: 8px 0 0; padding-left: 20px; font-size: 13px; line-height: 22px; color: var(--p-lx-text-2); }
+.lx-history ul { margin: 8px 0 0; padding-left: 20px; font-size: 13px; line-height: 22px; color: var(--p-lx-ink-2); }
 :host ::ng-deep .lx-fact-input { font-size: 18px; width: 10rem; }
 
 .lx-record { display: grid; gap: 24px 28px; grid-template-columns: minmax(0, 1fr); }
@@ -83,14 +83,14 @@
 
 /* Readiness: one line per check, the icon and its words; then the run. */
 .lx-checks { list-style: none; margin: 0 0 24px; padding: 0; display: flex; flex-direction: column; gap: 8px; max-width: 48rem; }
-.lx-check { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; background: var(--p-lx-surface-2); }
+.lx-check { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; background: var(--p-lx-sunken); }
 .lx-check[data-tone='found'] ng-icon { color: var(--p-lx-found); }
 .lx-check[data-tone='missing'] ng-icon { color: var(--p-lx-missing); }
-.lx-check[data-tone='ambiguous'] ng-icon { color: var(--p-lx-ambiguous); }
+.lx-check[data-tone='ambiguous'] ng-icon { color: var(--p-lx-ink-2); }
 .lx-check ng-icon { flex: none; }
 .lx-check-text { flex: 1; min-width: 0; }
 .lx-run { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.lx-run-progress { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: var(--lx-r-card); background: var(--p-lx-surface); box-shadow: var(--p-lx-e1); }
+.lx-run-progress { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: var(--lx-r-control); background: var(--p-lx-surface); box-shadow: inset 0 0 0 1px var(--p-lx-line); }
 .lx-run-text { display: flex; flex-direction: column; }
 
 @media (max-width: 720px) {
@@ -108,7 +108,8 @@
 
 /* Graduation paths, read only until the editor (UI3-3) replaces it. */
 .lx-pathway { margin-top: 24px; }
-.lx-pathway-title { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 15px; line-height: 22px; font-weight: 620; }
+.lx-pathway-title { margin: 0 0 8px; font-size: 15px; line-height: 22px; font-weight: 600; }
+.lx-pathway-rule { margin: 0; color: var(--p-lx-ink-2); }
 .lx-pathway-groups { margin: 0 0 8px; padding: 0; list-style: none; }
 .lx-pathway-groups li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 0; padding: 8px 0; border-bottom: 1px solid var(--p-lx-line); }
-.lx-pathway-members { flex-basis: 100%; font-size: 13px; color: var(--p-lx-text-2); }
+.lx-pathway-members { flex-basis: 100%; font-size: 13px; color: var(--p-lx-ink-2); }

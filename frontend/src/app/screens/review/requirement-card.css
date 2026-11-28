@@ -1,40 +1,30 @@
 :host { display: block; }
 .lx-req-card { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; max-width: 760px; }
 
-.lx-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.lx-ref {
-  padding: 3px 10px; border-radius: var(--lx-r-pill); background: var(--p-lx-surface-2); color: var(--p-lx-text-2); font-weight: 500;
-}
-.lx-title { font-size: 26px; line-height: 32px; font-weight: 620; letter-spacing: -0.018em; text-wrap: balance; }
+.lx-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.lx-ref { font-size: 13px; line-height: 20px; font-weight: 500; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums; }
+.lx-title { font-size: 24px; line-height: 32px; font-weight: 600; letter-spacing: -0.012em; text-wrap: balance; }
 
-/* The rule text in the Document type, in a quiet inset: the words the requirement is judged by. */
-.lx-rule { align-self: stretch; margin: 4px 0 0; padding: 20px 24px; border-radius: var(--lx-r-card); background: var(--p-lx-surface-2); }
-.lx-rule blockquote { max-width: 68ch; color: var(--p-lx-text); text-wrap: pretty; }
-.lx-rule-source { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 12px; font-size: 12px; line-height: 18px; color: var(--p-lx-text-2); }
+/* The rule text in the Document type on a 2 px rule, no box: the words the requirement is judged by. */
+.lx-rule { align-self: stretch; margin: 8px 0 0; padding-left: 16px; border-left: 2px solid var(--p-lx-line-strong); }
+.lx-rule blockquote { max-width: 68ch; color: var(--p-lx-ink); text-wrap: pretty; }
+.lx-rule-source { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 12px; font-size: 12px; line-height: 16px; color: var(--p-lx-ink-2); }
 
-/* The proposed finding, large, with how it was reached in one line beside it. */
-.lx-finding-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 8px; }
-.lx-chip { display: inline-flex; align-items: center; padding: 8px 16px 8px 12px; border-radius: var(--lx-r-pill); }
-.lx-chip-found { background: var(--p-lx-found-tint); }
-.lx-chip-ambiguous { background: var(--p-lx-ambiguous-tint); }
-.lx-chip-missing { background: var(--p-lx-missing-tint); }
-.lx-method { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
+/* The proposed finding with how it was reached in one line beside it. */
+.lx-finding-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; margin-top: 8px; }
+.lx-finding { font-weight: 500; }
+.lx-method { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; line-height: 20px; color: var(--p-lx-ink-2); }
 .lx-method ng-icon { flex: none; }
-.lx-rationale { max-width: 68ch; font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); margin-top: -6px; }
+.lx-rationale { max-width: 68ch; font-size: 13px; line-height: 20px; color: var(--p-lx-ink-2); margin-top: -6px; }
 .lx-more {
-  margin-top: -12px; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 550;
+  margin-top: -12px; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 500;
   color: var(--p-lx-accent); border-radius: 4px;
 }
 
 /* Where it stands: the decision, by whom and when, and its note in the Document type. */
 .lx-now { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 4px; font-size: 13px; line-height: 20px; }
-.lx-by { color: var(--p-lx-text-2); }
+.lx-by { color: var(--p-lx-ink-2); }
 .lx-note {
   max-width: 68ch; margin-top: -8px; padding-left: 12px; border-left: 2px solid var(--p-lx-line-strong);
-  font-family: var(--lx-font-serif); font-size: 15px; line-height: 24px; color: var(--p-lx-text);
-}
-
-@media (max-width: 640px) {
-  .lx-title { font-size: 22px; line-height: 28px; }
-  .lx-rule { padding: 16px; }
+  font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; color: var(--p-lx-ink);
 }

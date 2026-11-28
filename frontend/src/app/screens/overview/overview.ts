@@ -1,15 +1,8 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { NgIcon } from '@ng-icons/core';
-import {
-  phosphorArrowCounterClockwise, phosphorCheckCircle, phosphorCircleDashed, phosphorMinusCircle, phosphorSignature, phosphorWarning,
-  phosphorWarningCircle, phosphorXCircle,
-} from '@ng-icons/phosphor-icons/regular';
-import { phosphorMapTrifoldDuotone } from '@ng-icons/phosphor-icons/duotone';
-import { ButtonDirective, ButtonLabel } from 'primeng/button';
+import { Button, ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { Skeleton } from 'primeng/skeleton';
-import { Tag } from 'primeng/tag';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { AssessmentRunner } from '../../core/assessment-runner';
@@ -19,32 +12,28 @@ import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import { Enter } from '../../ui/enter';
-import { InfoTip } from '../../ui/info-tip';
-import { ProgressRing } from '../../ui/progress-ring';
-import { Stat } from '../../ui/stat';
-import { StateMap } from '../../ui/state-map/state-map';
+import { Figure } from '../../ui/figure';
+import { Help, HelpTerm } from '../../ui/help';
+import { Meter } from '../../ui/meter';
+import { Seal } from '../../ui/seal';
 import { OVERVIEW_TOKENS } from './overview-theme';
-import { CardTone, StateCard, heroStats, mapStates, needsYou, stateCards } from './overview-view';
+import { needsYou, overviewFigures, primaryAction, stateRows } from './overview-view';
 
-/** The icons the Overview shows beyond SHELL_ICONS (state cards, "Needs you", the empty hero), provided by its route. */
-export const OVERVIEW_ICONS = {
-  phosphorArrowCounterClockwise, phosphorCheckCircle, phosphorCircleDashed, phosphorMinusCircle, phosphorSignature, phosphorWarning,
-  phosphorWarningCircle, phosphorXCircle, phosphorMapTrifoldDuotone,
-};
-
-const TONE_SEVERITY: Record<CardTone, 'success' | 'danger' | 'info' | 'secondary'> = {
-  found: 'success', missing: 'danger', accent: 'info', seal: 'secondary', muted: 'secondary',
-};
+/** The overview's definitions, behind its one Help button. */
+const HELP: readonly HelpTerm[] = [
+  { term: 'Finding', definition: 'A proposal drawn from the curriculum documents: evidence found, evidence missing, or ambiguous.' },
+  { term: 'Decided', definition: 'A reviewer has accepted the finding, requested evidence, or confirmed a gap.' },
+  { term: 'Determination', definition: 'Signed for a state by a signer, naming the exact rule and course versions it rests on.' },
+];
 
 /**
- * The first screen after sign-in (DESIGN.md "Program overview"): the program's name, its target states on the map
- * with the three numbers that matter, what needs the signed-in person, and one card per state with its next step.
- * It appears once the program and the work queue are both in, so nothing moves after the first paint.
+ * The first screen after sign-in (DESIGN.md v3 "Program overview"), the reference for every other screen's spacing: the
+ * program's name and meta line with its one primary action, the three figures, the States table, and what needs the
+ * signed-in person. It appears once the program and the work queue are both in, so nothing moves after the first paint.
  */
 @Component({
   selector: 'lx-overview',
-  imports: [RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, Skeleton, Tag, Enter, InfoTip, ProgressRing, Stat, StateMap],
+  imports: [RouterLink, Button, ButtonDirective, ButtonLabel, Message, Skeleton, Figure, Help, Meter, Seal],
   templateUrl: './overview.html',
   styleUrl: './overview.css',
 })
@@ -58,25 +47,24 @@ export class Overview {
   private readonly queue = signal<WorkItem[] | null>(null);
   readonly queueError = signal<string | null>(null);
   readonly running = signal(false);
-  /** The state whose card action runs: its card head carries the shared-element name into Review's state header. */
-  readonly departing = signal<string | null>(null);
 
   readonly license = licenseLabel;
-  readonly severity = TONE_SEVERITY;
+  readonly help = HELP;
 
   readonly ready = computed(() => this.context.ready() && this.context.program()?.id === this.programId()
     && (this.queue() !== null || this.queueError() !== null));
-  readonly cards = computed(() => {
+  readonly rows = computed(() => {
     const program = this.context.program();
     return program
-      ? stateCards(program, this.context.assessment(), this.context.determinations(), this.session.isSigner(), (code) => this.context.jurisdictionName(code))
+      ? stateRows(program, this.context.assessment(), this.context.determinations(), this.context.ruleVersions(), this.session.isSigner(),
+        (code) => this.context.jurisdictionName(code))
       : [];
   });
-  readonly mapStates = computed(() => mapStates(this.cards()));
-  readonly stats = computed(() => {
+  readonly figures = computed(() => {
     const program = this.context.program();
-    return program ? heroStats(program, this.context.assessment(), this.context.determinations()) : null;
+    return program ? overviewFigures(program, this.context.assessment(), this.context.determinations()) : null;
   });
+  readonly primary = computed(() => primaryAction(this.context.assessment(), this.rows(), this.session.isSigner()));
   readonly needs = computed(() => {
     const program = this.context.program();
     return program ? needsYou(this.queue() ?? [], program, (code) => this.context.jurisdictionName(code)) : [];
@@ -93,11 +81,7 @@ export class Overview {
     });
   }
 
-  depart(card: StateCard): void {
-    this.departing.set(card.code);
-  }
-
-  /** "Run assessment" on an empty overview and "Run again" on a failed run: the queue changes when it is done. */
+  /** "Run assessment" before the first finished one and "Run again" on a failed run: the queue changes when it is done. */
   async runAssessment(): Promise<void> {
     this.running.set(true);
     await this.assessments.run(this.programId());
