@@ -14,6 +14,7 @@ printf '#!/bin/sh\nexit 0\n' > "$WORK/bin/docker"
 chmod +x "$WORK/bin/docker"
 export PATH="$WORK/bin:$PATH"
 export LEXVAY_STACK_WAIT_MINUTES=1
+source scripts/lib/stack.sh
 
 # A stack user: takes a token, announces it by creating <ready>, then idles until signalled.
 cat > "$WORK/holder.sh" <<'EOF'
@@ -60,12 +61,29 @@ start_holder() {
 ready() { [ -f "$WORK/$1.ready" ]; }
 gone() { ! ps -p "$1" >/dev/null 2>&1; }
 token_count() { find "$TOKENS" -mindepth 1 -maxdepth 1 -type d ! -name '.mutex' 2>/dev/null | wc -l | tr -d ' '; }
-no_mutex() { [ ! -d "$TOKENS/.mutex" ]; }
+no_mutex() { [ ! -e "$TOKENS/.mutex" ]; }
 
 stop_holder() { # stop_holder <pid>: TERM, then wait for it to finish its cleanup
   kill -TERM "$1"
   wait_for 10 gone "$1"
 }
+
+echo "== the mutex stays exclusive even when mkdir reports success for a directory that exists =="
+# uutils mkdir, the default on Ubuntu 26.04 (the CI runner), does exactly that when it loses a race, so a mkdir lock admits
+# two holders now and then. This mkdir does it every time, which makes that outcome certain instead of rare.
+mkdir -p "$WORK/lossy-bin" "$TOKENS"
+printf '#!/bin/sh\n/bin/mkdir "$@" 2>/dev/null && exit 0\nfor arg in "$@"; do last=$arg; done\n[ -d "$last" ]\n' > "$WORK/lossy-bin/mkdir"
+chmod +x "$WORK/lossy-bin/mkdir"
+stack_mutex_lock "$TOKENS"
+( PATH="$WORK/lossy-bin:$PATH"; stack_mutex_lock "$TOKENS"; touch "$WORK/second.locked"; stack_mutex_unlock ) &
+SECOND=$!
+PIDS="$PIDS $SECOND"
+sleep 0.5
+check "a second contender waits while the mutex is held" test ! -f "$WORK/second.locked"
+stack_mutex_unlock
+wait "$SECOND"
+check "and takes it once it is released" test -f "$WORK/second.locked"
+check "the mutex is gone after both" no_mutex
 
 echo "== two tokens taken: the third waits, then gets one when a holder exits =="
 export LEXVAY_STACK_CONCURRENCY=2
