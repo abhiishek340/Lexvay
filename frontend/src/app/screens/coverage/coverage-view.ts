@@ -1,20 +1,23 @@
 import { NUMERIC_TYPES } from '../../core/labels';
 import { CoverageCourse, CoverageMatrix, CoverageProgramDocument, CoverageRequirement, CoverageRisk, CoverageSource } from '../../core/models';
-import type { IconName } from '../../theme/icons';
+import type { MarkShape } from '../../ui/mark-shape';
 
-/** The flags a row can carry; NONE carries no chip. */
+/** The flags a row can carry; NONE carries none. */
 export type Flag = Exclude<CoverageRisk, 'NONE'>;
-export type FlagTone = 'ambiguous' | 'neutral' | 'missing';
+/** Only "no evidence cited" takes a colour (missing); the other flags are ink-2. */
+export type FlagTone = 'neutral' | 'missing';
 
 /**
- * How each flag is shown, in the order the filter chips appear. The words describe where the evidence sits and never
- * judge it (D-392): no flag says that anything is sufficient or missing for a licence.
+ * How each flag is shown, in the order the filter tabs list them: a status-mark shape and the words, always together. The
+ * words describe where the evidence sits and never judge it (D-392): no flag says that anything is sufficient or missing
+ * for a licence. The shapes echo the review marks: half for a partial footing, dashed for outdated, a filled square for
+ * nothing cited, an open square for a single course.
  */
-export const FLAGS: Readonly<Record<Flag, { label: string; icon: IconName; tone: FlagTone }>> = {
-  ELECTIVE_ONLY: { label: 'Rests on an elective', icon: 'phosphorWarningCircle', tone: 'ambiguous' },
-  SINGLE_COURSE: { label: 'Rests on one course', icon: 'phosphorBook', tone: 'neutral' },
-  OUTDATED_EVIDENCE: { label: 'Outdated evidence', icon: 'phosphorClock', tone: 'ambiguous' },
-  NO_EVIDENCE: { label: 'No evidence cited', icon: 'phosphorCircleDashed', tone: 'missing' },
+export const FLAGS: Readonly<Record<Flag, { label: string; shape: MarkShape; tone: FlagTone }>> = {
+  ELECTIVE_ONLY: { label: 'Rests on an elective', shape: 'half', tone: 'neutral' },
+  SINGLE_COURSE: { label: 'Rests on one course', shape: 'open-square', tone: 'neutral' },
+  OUTDATED_EVIDENCE: { label: 'Outdated evidence', shape: 'dashed-ring', tone: 'neutral' },
+  NO_EVIDENCE: { label: 'No evidence cited', shape: 'square', tone: 'missing' },
 };
 export const FLAG_ORDER = Object.keys(FLAGS) as Flag[];
 
@@ -32,14 +35,15 @@ export const PROGRAM_COLUMN = 'PROGRAM';
 /** A run of adjacent columns that are all required or all electives: the marker under the codes. */
 export interface ColumnGroup { readonly required: boolean; readonly span: number }
 
-/** Evidence on a superseded version of the column's course, drawn as a dashed ring with a clock (D-394). */
+/** Evidence on a superseded version of the column's course, drawn as a dashed ring (D-394). */
 export interface OutdatedPart { readonly catalogYear: string; readonly source: CoverageSource; readonly quoteCount: number }
 
 /**
- * How a cell is drawn: a filled dot (the system's evidence), a ring (a person's), both as a dot with a ring, or a
- * dashed ring when the only evidence is on a superseded course version.
+ * How a cell is drawn (DESIGN.md "Coverage"): a filled circle (the system's verified quote), an outline circle (a
+ * person's), a ring with a dot (both), or a dashed ring when the only evidence is on a superseded course version.
  */
 export type CellKind = 'SYSTEM' | 'PERSON' | 'BOTH' | 'OUTDATED';
+export const CELL_SHAPE: Readonly<Record<CellKind, MarkShape>> = { SYSTEM: 'disc', PERSON: 'ring', BOTH: 'ring-dot', OUTDATED: 'dashed-ring' };
 
 export interface Cell {
   readonly column: Column;
@@ -134,7 +138,7 @@ export function coverageView(matrix: CoverageMatrix): CoverageView {
   return { columns, groups: columnGroups(matrix.courses), rows };
 }
 
-/** The number of rows carrying each flag, in chip order; a flag no row carries has no chip. */
+/** The number of rows carrying each flag, in tab order; a flag no row carries has no tab. */
 export function flagCounts(rows: readonly Row[]): { flag: Flag; count: number }[] {
   return FLAG_ORDER.map((flag) => ({ flag, count: rows.filter((r) => r.flag === flag).length })).filter((c) => c.count > 0);
 }
@@ -144,7 +148,7 @@ export function matchesFlag(row: Row, filter: Flag | null): boolean {
   return filter === null || row.flag === filter;
 }
 
-/** The pill ring: the share of requirements that carry no flag. */
+/** A state tab's count: how many of its requirements carry no flag. */
 export function unflaggedShare(matrix: CoverageMatrix): { value: number; total: number; label: string } {
   const total = matrix.requirements.length;
   const value = matrix.requirements.filter((r) => r.risk === 'NONE').length;

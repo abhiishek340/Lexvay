@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CoverageMatrix, CoverageRequirement } from '../../core/models';
-import { FLAGS, FLAG_ORDER, PROGRAM_COLUMN, columnGroups, coverageView, firstCell, flagCounts, matchesFlag, move, unflaggedShare } from './coverage-view';
+import { CELL_SHAPE, FLAGS, FLAG_ORDER, PROGRAM_COLUMN, columnGroups, coverageView, firstCell, flagCounts, matchesFlag, move, unflaggedShare } from './coverage-view';
 
 const course = (id: string, code: string, required: boolean) => ({ courseId: `c-${id}`, courseVersionId: id, code, title: `${code} title`, catalogYear: '2027-28', required });
 
@@ -97,7 +97,7 @@ describe('coverageView', () => {
 describe('flags', () => {
   const view = coverageView(MATRIX);
 
-  it('counts each flag in chip order and leaves out flags no row carries', () => {
+  it('counts each flag in tab order and leaves out flags no row carries', () => {
     expect(flagCounts(view.rows)).toEqual([
       { flag: 'ELECTIVE_ONLY', count: 1 }, { flag: 'SINGLE_COURSE', count: 1 }, { flag: 'OUTDATED_EVIDENCE', count: 1 }, { flag: 'NO_EVIDENCE', count: 1 },
     ]);
@@ -110,11 +110,20 @@ describe('flags', () => {
     expect(view.rows.filter((r) => matchesFlag(r, 'ELECTIVE_ONLY')).map((r) => r.requirement.ref)).toEqual(['UT-4']);
   });
 
-  it('words each flag as where the evidence sits, in chip order', () => {
+  it('words each flag as where the evidence sits, in tab order', () => {
     expect(FLAG_ORDER.map((f) => FLAGS[f].label)).toEqual(['Rests on an elective', 'Rests on one course', 'Outdated evidence', 'No evidence cited']);
   });
 
-  it('rings a pill with the share of requirements that carry no flag', () => {
+  it('gives each flag a distinct mark, coloured only where nothing is cited', () => {
+    expect(FLAG_ORDER.map((f) => FLAGS[f].shape)).toEqual(['half', 'open-square', 'dashed-ring', 'square']);
+    expect(FLAG_ORDER.filter((f) => FLAGS[f].tone === 'missing')).toEqual(['NO_EVIDENCE']);
+  });
+
+  it('draws each kind of cell with its own mark shape', () => {
+    expect(CELL_SHAPE).toEqual({ SYSTEM: 'disc', PERSON: 'ring', BOTH: 'ring-dot', OUTDATED: 'dashed-ring' });
+  });
+
+  it("counts a state tab's requirements that carry no flag", () => {
     expect(unflaggedShare(MATRIX)).toEqual({ value: 4, total: 8, label: '4 of 8 with no flag' });
   });
 });

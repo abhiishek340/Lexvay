@@ -1,32 +1,29 @@
 <p-dialog [header]="header()" [visible]="open()" (visibleChange)="open.set($event)" [modal]="true" [draggable]="false" [resizable]="false"
-          [style]="{ width: '42rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Close signing">
+          [style]="{ width: '32rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Close signing">
   @if (signed(); as d) {
     <div class="lx-signed" data-testid="signed-seal">
       <lx-seal [outcome]="d.outcome" [signer]="d.signedByName" [signedAt]="d.signedAt" />
-      <p class="lx-signed-outcome">{{ outcomeLabel[d.outcome] }}</p>
-      <p class="lx-help">{{ d.signedByName }}, {{ d.signedAt | date: 'd MMM y, HH:mm' }}</p>
+      <div>
+        <p class="lx-signed-outcome">{{ outcomeLabel[d.outcome] }}</p>
+        <p class="lx-meta">{{ d.signedByName }}, {{ d.signedAt | date: 'd MMM y, HH:mm' }}</p>
+      </div>
     </div>
   } @else {
-    <p class="lx-sign-sub">{{ total() }} of {{ total() }} decided · Locked to the rule and course versions in use now</p>
+    <p class="lx-meta lx-sign-sub">{{ total() }} of {{ total() }} decided · Locked to the rule and course versions in use now</p>
     <div class="lx-sign-body">
       <fieldset class="lx-outcomes">
         <legend class="lx-sr-only">Outcome</legend>
-        @for (o of outcomes; track o.value) {
-          <label [for]="'outcome-' + o.value" class="lx-outcome" [class]="'lx-tone-' + o.tone" [class.lx-outcome-chosen]="outcome() === o.value">
-            <p-radiobutton [inputId]="'outcome-' + o.value" name="outcome" [value]="o.value" [ngModel]="outcome()" (ngModelChange)="outcome.set($event)" />
-            <ng-icon [name]="o.icon" size="24" aria-hidden="true" />
-            <span>{{ outcomeLabel[o.value] }}</span>
+        @for (o of outcomes; track o) {
+          <label [for]="'outcome-' + o" class="lx-outcome">
+            <p-radiobutton [inputId]="'outcome-' + o" name="outcome" [value]="o" [ngModel]="outcome()" (ngModelChange)="outcome.set($event)" />
+            <span>{{ outcomeLabel[o] }}</span>
           </label>
         }
       </fieldset>
-      <!-- A picture of what signing would produce; hidden from assistive technology because nothing is signed yet. -->
-      <div class="lx-seal-slot" aria-hidden="true">
-        @if (outcome(); as o) {
-          <lx-seal class="lx-seal-preview" [preview]="true" [outcome]="o" [signer]="signerName()" [signedAt]="today()" />
-        } @else {
-          <span class="lx-seal-empty">{{ signerInitials() }}</span>
-        }
-        <span class="lx-seal-caption">Preview</span>
+      <!-- What signing produces: the signer's seal, line art. Hidden from assistive technology, since nothing is signed yet. -->
+      <div class="lx-preview" aria-hidden="true">
+        <lx-seal class="lx-seal-preview" [preview]="true" [outcome]="outcome() ?? 'NOT_DETERMINED'" [signer]="signerName()" [signedAt]="today()" />
+        <span class="lx-meta">Preview</span>
       </div>
     </div>
   }

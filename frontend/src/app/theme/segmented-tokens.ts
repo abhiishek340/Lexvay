@@ -4,7 +4,7 @@ import { lexvayTokens as t } from './lexvay-preset';
 
 /**
  * SelectButton as a segmented control: one bordered field whose chosen segment is sunken with ink text. Shared by the
- * chunks that render one (the account menu's theme choice, the review filters), registered with registerComponentTokens.
+ * chunks that render one (the account menu's theme choice, the requests inbox filter), registered with registerComponentTokens.
  */
 export const SEGMENTED_TOKENS = {
   selectbutton: { ...auraSelectbutton, root: { ...auraSelectbutton.root, borderRadius: '6px' } },

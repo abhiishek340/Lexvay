@@ -1,31 +1,24 @@
 import { DatePipe } from '@angular/common';
 import { Component, ElementRef, Injector, afterNextRender, computed, effect, inject, input, linkedSignal, model, output, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NgIcon } from '@ng-icons/core';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
 import { RadioButton } from 'primeng/radiobutton';
 import { OUTCOME_LABEL } from '../../core/labels';
 import { Determination, Outcome } from '../../core/models';
-import type { IconName } from '../../theme/icons';
-import { initials } from '../../ui/initials';
 import { Seal } from '../../ui/seal';
 
-const OUTCOMES: { value: Outcome; icon: IconName; tone: 'found' | 'missing' | 'seal' }[] = [
-  { value: 'MEETS', icon: 'phosphorCheckCircle', tone: 'found' },
-  { value: 'DOES_NOT_MEET', icon: 'phosphorXCircle', tone: 'missing' },
-  { value: 'NOT_DETERMINED', icon: 'phosphorSeal', tone: 'seal' },
-];
+const OUTCOMES: readonly Outcome[] = ['MEETS', 'DOES_NOT_MEET', 'NOT_DETERMINED'];
 
 /**
- * The signing dialog (DESIGN.md "Review", "Signing"): the three outcomes as large selectable cards beside a preview of
- * the seal the signer's name and today's date would carry, and Sign. Only a person chooses the outcome; nothing is
+ * The signing dialog (DESIGN.md "Review"): the three outcomes as a radio list, one line each, beside the line-art seal the
+ * signer's name would carry, and Sign. Only a person chooses the outcome; nothing is
  * preselected. Once the screen reports the determination it recorded (`signed`), the dialog shows that seal, then
  * Done. The preview is hidden from assistive technology: until the server has signed, nothing is signed.
  */
 @Component({
   selector: 'lx-sign-dialog',
-  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, RadioButton, Seal],
+  imports: [DatePipe, FormsModule, ButtonDirective, ButtonLabel, Dialog, RadioButton, Seal],
   templateUrl: './sign-dialog.html',
   styleUrl: './sign-dialog.css',
 })
@@ -46,7 +39,6 @@ export class SignDialog {
   /** Every opening starts with no outcome chosen and today's date on the preview. */
   readonly outcome = linkedSignal<boolean, Outcome | null>({ source: this.open, computation: () => null });
   readonly today = linkedSignal<boolean, string>({ source: this.open, computation: () => new Date().toISOString() });
-  readonly signerInitials = computed(() => initials(this.signerName()));
   readonly header = computed(() => (this.signed() ? 'Signed' : `Sign ${this.stateName()}`));
 
   private readonly doneButton = viewChild<ElementRef<HTMLButtonElement>>('done');
