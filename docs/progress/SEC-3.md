@@ -22,13 +22,21 @@ Decisions D-530 to D-537 are in `docs/decisions/SEC-3.md`.
 - `make perf` runs `AuditSealPerfTest`.
 
 ## Checks
-- `make test` with `LEXVAY_E2E_SLOT=6` after merging origin/main: 1141 backend tests, 414 frontend unit tests, 55
-  end-to-end tests, all passing. An earlier run of the merged tree failed `ManagementPortTest` (twice) and
-  `MetricsTest` with a 404 from the management port; both pass alone and in the next full run, and nothing in this item
-  touches them, so it is recorded as an environmental flake while other builds shared the machine.
-- `make perf`: `EndpointLatencyTest` failed once on `GET /programs/{id}/facts` p95 46.9 ms (budget 40) while other
-  builds were running, and passed on the rerun; `IndexUsageTest` and `AuditSealPerfTest` pass. Verifying 20 005
-  sealed entries: 52 to 75 ms on a quiet machine, 139 to 221 ms on a busy one (budget 2 s).
+Final tree: SEC-3 merged with origin/main at the F15 merge (V018, V019, V020; F15's shared `AuditCsv` now carries the seal
+columns, so the evidence package's `audit.csv` has them too, checked in `PackageApiTest`).
+- Backend 1182 tests, frontend unit 421: all passing in one `make test` run. End-to-end: 58 passed in a separate
+  `make e2e` run; the two full `make test` runs before it each lost one or two end-to-end tests to timing (a focus
+  assertion in `report-check.spec.ts`, a keyboard test in `people.spec.ts`, a 90 s timeout in `review-and-sign.spec.ts`,
+  `setup.spec.ts:218`), never the same one twice and none touching the audit trail, while the machine's load average was
+  14 to 23 from other builds. An earlier merged-tree run also lost `ManagementPortTest` and `MetricsTest` once (404 from
+  the management port; both pass alone and on rerun).
+- `make perf`: `IndexUsageTest` and `AuditSealPerfTest` pass. `EndpointLatencyTest` did not pass on this machine in the
+  final runs: its p95 values were 40 to 51 ms for endpoints this item does not touch (`/jurisdictions`, `/programs`,
+  `/programs/{id}`) at a load average of 14 to 23; the same test passed on this branch at 52 to 75 ms verification
+  times and a quiet machine before the F15 merge (and failed once on another unrelated endpoint, 46.9 ms, under load).
+  It needs a rerun on a quiet machine.
+- Verifying 20 005 sealed entries: 52 to 75 ms on a quiet machine, 139 to 221 ms busy, 433 to 989 ms at load average 20
+  (budget 2 s). Sealing them: 0.5 s quiet, 5 s at that load.
 - The Python recipe in the operations guide was run against a real export: intact, and "broken at entry 6" after one
   word of one entry was changed.
 
