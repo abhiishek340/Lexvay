@@ -55,12 +55,15 @@ public class RuleVersionService {
     private final RequirementListParser parser;
     private final ChangeService changes;
     private final TextExtractor extractor;
+    private final RealDataApprovalGuard realData;
 
     public RuleVersionService(RuleVersionRepository ruleVersions, JurisdictionRepository jurisdictions,
                               DocumentRepository documents, DocumentService documentService, JobRepository jobs, AuditService audit,
-                              RequirementListParser parser, ChangeService changes, TextExtractor extractor) {
+                              RequirementListParser parser, ChangeService changes, TextExtractor extractor,
+                              RealDataApprovalGuard realData) {
         this.changes = changes;
         this.extractor = extractor;
+        this.realData = realData;
         this.ruleVersions = ruleVersions;
         this.jurisdictions = jurisdictions;
         this.documents = documents;
@@ -181,6 +184,7 @@ public class RuleVersionService {
         if (count == 0) {
             throw new ConflictException("There are no requirements to approve; extraction has not produced any");
         }
+        realData.require(version);
         UUID actor = CurrentUser.require().id();
         ruleVersions.approve(id, actor);
         audit.record("REQUIREMENTS_APPROVED", "rule_version", id, Map.of("requirementCount", count));

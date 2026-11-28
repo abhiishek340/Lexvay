@@ -40,6 +40,11 @@ lexvay:
     effort: ${LEXVAY_LLM_EFFORT:medium}       # low | medium | high | xhigh | max
     fake-scripts: ${LEXVAY_LLM_FAKE_SCRIPTS:}  # fake provider only: comma-separated fake-llm.yml files scripted at startup (D-280)
     max-output-tokens: 16000
+    # Spend gate (MODE-1, D-562): a metered provider is refused unless approved, the model has a price below and the
+    # month's recorded cost plus the call's largest possible cost stays within the budget. Defaults refuse everything.
+    paid-approved: ${LEXVAY_LLM_PAID_APPROVED:false}
+    monthly-budget-usd: ${LEXVAY_LLM_MONTHLY_BUDGET_USD:0}
+    rates: ${LEXVAY_LLM_RATES:}             # model=inputPerMtok:outputPerMtok, comma separated; empty means every cost is unknown
     price:                                    # USD per million tokens; evaluation cost report and GET /assessments/{id}/usage; 0 means not set
       input-per-mtok: ${LEXVAY_LLM_PRICE_INPUT_PER_MTOK:0}
       output-per-mtok: ${LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK:0}
