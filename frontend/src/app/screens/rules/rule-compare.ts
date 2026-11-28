@@ -1,11 +1,9 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NgIcon } from '@ng-icons/core';
 import { Accordion, AccordionContent, AccordionHeader, AccordionPanel } from 'primeng/accordion';
 import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
 import { Skeleton } from 'primeng/skeleton';
-import { TableModule } from 'primeng/table';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { REQUIREMENT_TYPE_LABEL, numericCheck } from '../../core/labels';
@@ -24,7 +22,7 @@ const SUMMARY_ORDER: { status: DiffStatus; key: keyof RuleVersionDiff['summary']
 /** The Compare tab: this version against the one it supersedes, or another approved version of the same rule. */
 @Component({
   selector: 'lx-rule-compare',
-  imports: [FormsModule, NgIcon, Accordion, AccordionContent, AccordionHeader, AccordionPanel, Message, Select, Skeleton, TableModule, Label, DiffText],
+  imports: [FormsModule, Accordion, AccordionContent, AccordionHeader, AccordionPanel, Message, Select, Skeleton, Label, DiffText],
   templateUrl: './rule-compare.html',
   styleUrl: './rule-compare.css',
 })
@@ -90,8 +88,10 @@ export class RuleCompare {
     return (row.after ?? row.before)?.title ?? '';
   }
 
-  text(row: DiffRow): string {
-    return (row.after ?? row.before)?.text ?? '';
+  /** An added requirement's text as inserted, a removed one's as deleted, an unchanged one's as it is. */
+  whole(row: DiffRow): DiffSegment[] {
+    const op = row.status === 'ADDED' ? 'INSERT' : row.status === 'REMOVED' ? 'DELETE' : 'EQUAL';
+    return [{ op, text: (row.after ?? row.before)?.text ?? '' }];
   }
 
   /** The old and the new value of one aspect, marked as deleted and inserted. */

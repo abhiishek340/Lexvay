@@ -1,6 +1,5 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, output, signal } from '@angular/core';
-import { NgIcon } from '@ng-icons/core';
 import { Message } from 'primeng/message';
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
 import { licenseLabel } from '../../core/labels';
@@ -8,11 +7,10 @@ import { RuleVersionView, UserSummary } from '../../core/models';
 import { ProgramContext } from '../../core/program-context';
 import { ruleVersionStatus } from '../../core/rules';
 import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
-import { Figure } from '../../ui/figure';
 import { RequirementsPanel } from './requirements-panel';
 import { RULE_STATUS } from './rule-status';
 import { RuleCompare } from './rule-compare';
-import { Label } from '../../ui/label';
+import { StatusMark } from '../../ui/status-mark';
 
 /** A finished operation, for the screen's live region and toast. */
 export interface Notice { summary: string; detail: string; severity?: 'success' | 'info' | 'warn' | 'error' }
@@ -22,7 +20,7 @@ type DetailTab = 'requirements' | 'text' | 'compare';
 /** One rule version: what it is, where it stands, and its three tabs. */
 @Component({
   selector: 'lx-rule-version-detail',
-  imports: [DatePipe, NgIcon, Message, Tab, TabList, TabPanel, TabPanels, Tabs, Label, DocumentViewer, Figure, RequirementsPanel, RuleCompare],
+  imports: [DatePipe, Message, Tab, TabList, TabPanel, TabPanels, Tabs, StatusMark, DocumentViewer, RequirementsPanel, RuleCompare],
   templateUrl: './rule-version-detail.html',
   styleUrl: './rule-version-detail.css',
 })

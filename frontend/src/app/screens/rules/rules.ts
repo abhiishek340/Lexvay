@@ -1,8 +1,7 @@
 import { Component, DestroyRef, ElementRef, computed, effect, inject, input, linkedSignal, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { NgIcon } from '@ng-icons/core';
-import { phosphorArchive, phosphorArrowDown, phosphorArrowSquareOut, phosphorArrowUp, phosphorCircleDashed, phosphorEquals, phosphorMinusCircle, phosphorNotePencil, phosphorPlusCircle, phosphorSealCheck, phosphorSpinner, phosphorTrash, phosphorWarningCircle } from '@ng-icons/phosphor-icons/regular';
+import { phosphorArrowDown, phosphorArrowUp, phosphorTrash } from '@ng-icons/phosphor-icons/regular';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
@@ -23,6 +22,7 @@ import { RULES_TOKENS } from './rules-theme';
 import { RULE_STATUS } from './rule-status';
 import { UnsavedChanges, leaveNeedsConfirmation } from './unsaved-changes';
 import { Help, HelpTerm } from '../../ui/help';
+import { StatusMark } from '../../ui/status-mark';
 
 /** Rules' definitions, behind its one Help button (the screen, its new-version dialog and its requirement list). */
 const HELP: readonly HelpTerm[] = [
@@ -34,32 +34,17 @@ const HELP: readonly HelpTerm[] = [
 ];
 
 /** The icons the Rules screen and its parts show beyond SHELL_ICONS, provided by its route (rules.routes.ts). */
-export const RULES_ICONS = {
-  phosphorArchive,
-  phosphorArrowDown,
-  phosphorArrowSquareOut,
-  phosphorArrowUp,
-  phosphorCircleDashed,
-  phosphorEquals,
-  phosphorMinusCircle,
-  phosphorNotePencil,
-  phosphorPlusCircle,
-  phosphorSealCheck,
-  phosphorSpinner,
-  phosphorTrash,
-  phosphorWarningCircle,
-};
+export const RULES_ICONS = { phosphorArrowDown, phosphorArrowUp, phosphorTrash };
 
 /** While an extraction runs the list is fetched again this often (and never while the tab is hidden). */
 const POLL_MS = 5000;
 
-/** `index` is the option's place in the whole list, for the entrance stagger. */
-interface VersionOption { id: string; name: string; row: RuleVersionRow; index: number }
+interface VersionOption { id: string; name: string; row: RuleVersionRow }
 interface VersionGroup { label: string; code: string; name: string; items: VersionOption[] }
 
 @Component({
   selector: 'lx-rules',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, ConfirmDialog, Listbox, Message, Skeleton, NewRuleVersionDialog, RuleVersionDetail, Help],
+  imports: [FormsModule, ButtonDirective, ButtonLabel, ConfirmDialog, Listbox, Message, Skeleton, NewRuleVersionDialog, RuleVersionDetail, Help, StatusMark],
   providers: [UnsavedChanges, ConfirmationService],
   templateUrl: './rules.html',
   styleUrl: './rules.css',
@@ -91,21 +76,22 @@ export class Rules {
 
   private readonly versionGroups = computed(() =>
     groupRuleVersions(this.context.ruleVersions(), this.context.program()?.jurisdictions ?? [], (code) => this.context.jurisdictionName(code)));
-  readonly groups = computed<VersionGroup[]>(() => {
-    let index = 0;
-    return this.versionGroups().map((g) => ({
-      code: g.code,
-      name: g.name,
-      label: `${g.name} (${g.code})`,
-      items: g.rows.map((row) => ({
-        id: row.view.id,
-        name: `${row.view.jurisdiction}, ${row.view.label}, effective ${row.view.effectiveFrom}, ${RULE_STATUS[row.status].label}`,
-        row,
-        index: index++,
-      })),
-    }));
+  readonly groups = computed<VersionGroup[]>(() => this.versionGroups().map((g) => ({
+    code: g.code,
+    name: g.name,
+    label: `${g.name} (${g.code})`,
+    items: g.rows.map((row) => ({
+      id: row.view.id,
+      name: `${row.view.jurisdiction}, ${row.view.label}, effective ${row.view.effectiveFrom}, ${RULE_STATUS[row.status].label}`,
+      row,
+    })),
+  })));
+  /** The title's meta line: how many versions, and how many wait for a reviewer's approval. */
+  readonly meta = computed(() => {
+    const count = this.context.ruleVersions().length;
+    const waiting = this.context.rulesWaiting();
+    return `${count} ${count === 1 ? 'version' : 'versions'}${waiting ? ` · ${waiting} waiting for approval` : ''}`;
   });
-  readonly versionCount = computed(() => this.context.ruleVersions().length);
   /** The list's value: follows the route, and snaps back when a guarded navigation is cancelled. */
   readonly listValue = linkedSignal<string | null>(() => this.ruleVersionId() ?? null);
   readonly selected = computed(() => this.context.ruleVersions().find((v) => v.id === this.ruleVersionId()) ?? null);

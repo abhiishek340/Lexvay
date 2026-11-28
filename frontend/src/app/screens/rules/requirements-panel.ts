@@ -24,6 +24,7 @@ import { EditableRequirement, RequirementListEditor } from './requirement-list-e
 import { MAX_TERMS, applyTerms, droppedTerms, sameTerms } from './search-terms';
 import { UnsavedChanges } from './unsaved-changes';
 import type { Notice } from './rule-version-detail';
+import { Figure } from '../../ui/figure';
 import { Label } from '../../ui/label';
 
 /**
@@ -32,7 +33,7 @@ import { Label } from '../../ui/label';
  */
 @Component({
   selector: 'lx-requirements-panel',
-  imports: [FormsModule, NgIcon, AutoComplete, ButtonDirective, ButtonLabel, Dialog, InputNumber, InputText, Message, Select, Skeleton, TableModule, Label, Textarea, Clamp],
+  imports: [FormsModule, NgIcon, AutoComplete, ButtonDirective, ButtonLabel, Dialog, InputNumber, InputText, Message, Select, Skeleton, TableModule, Figure, Label, Textarea, Clamp],
   templateUrl: './requirements-panel.html',
   styleUrl: './requirements-panel.css',
 })

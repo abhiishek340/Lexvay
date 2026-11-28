@@ -1,48 +1,40 @@
 :host { display: block; }
-.lx-rules-header { margin-bottom: var(--lx-space-3); }
-.lx-rules-header button { gap: 6px; }
 
-/* The screen's one hero: the version list and the selected version on one raised panel, split by depth. */
-.lx-rules-panes { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; overflow: clip; }
+/*
+ * Two columns under a hairline, divided by a vertical hairline (DESIGN.md "Structure with rules, not cards"): the
+ * versions (280 px of text, its selection bleeding 12 px into the page's gutter so the words align with the title) and
+ * the chosen version. The list stays in view while the version scrolls.
+ */
+.lx-rules-columns { display: grid; grid-template-columns: 292px minmax(0, 1fr); border-top: 1px solid var(--p-lx-line); }
 .lx-versions {
-  position: sticky; top: 0; max-height: calc(100dvh - 120px); overflow-y: auto; align-self: stretch;
-  background: var(--p-lx-sunken); border-radius: var(--lx-r-control) 0 0 var(--lx-r-control);
+  margin-left: -12px; position: sticky; top: 0; align-self: start; box-sizing: border-box;
+  max-height: calc(100dvh - var(--lx-topbar)); overflow-y: auto; padding: 8px 0 24px;
 }
-.lx-versions-heading { display: flex; align-items: center; gap: 8px; padding: 16px 16px 4px; }
-.lx-versions-count {
-  font-size: 12px; line-height: 16px; font-weight: 500; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums;
-}
-.lx-version-pane { min-width: 0; }
+.lx-version-pane { min-width: 0; padding: 24px 0 0 32px; border-left: 1px solid var(--p-lx-line); }
+.lx-skeleton-list { display: flex; flex-direction: column; gap: 8px; padding-left: 12px; padding-right: 16px; }
+.lx-version-pane.lx-skeleton-list { padding: 24px 0 0 32px; }
 
 :host ::ng-deep .lx-version-list.p-listbox { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-:host ::ng-deep .lx-version-list .p-listbox-list { padding: 0 8px 12px; gap: 2px; }
-:host ::ng-deep .lx-version-list .p-listbox-option-group { padding: 14px 8px 6px; background: transparent; }
+:host ::ng-deep .lx-version-list .p-listbox-list { padding: 0; gap: 0; }
+:host ::ng-deep .lx-version-list .p-listbox-option-group { padding: 16px 16px 4px 12px; background: transparent; }
 :host ::ng-deep .lx-version-list .p-listbox-option {
-  padding: 10px 12px; border-radius: 10px; position: relative; color: var(--p-lx-ink);
-  transition: background-color var(--lx-t-fast) var(--lx-ease), box-shadow var(--lx-t) var(--lx-ease);
+  padding: 8px 16px 8px 12px; border-radius: 0; color: var(--p-lx-ink); background: transparent;
+  transition: background-color var(--lx-t-fast) var(--lx-ease);
 }
-:host ::ng-deep .lx-version-list .p-listbox-option:not(.p-listbox-option-selected):hover { background: var(--p-lx-surface); }
-:host ::ng-deep .lx-version-list .p-listbox-option.p-focus { outline: 2px solid var(--p-lx-accent); outline-offset: -2px; }
-/* The chosen version is lifted onto the surface, so it reads as the one the panel beside it shows. */
-:host ::ng-deep .lx-version-list .p-listbox-option-selected { background: var(--p-lx-surface); color: var(--p-lx-ink); box-shadow: inset 0 0 0 1px var(--p-lx-line); }
-:host ::ng-deep .lx-version-list .p-listbox-option-selected::before {
-  content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--p-lx-accent);
-}
-.lx-group { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 20px; font-weight: 600; color: var(--p-lx-ink); }
-.lx-version { display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 18px; width: 100%; min-width: 0; }
+:host ::ng-deep .lx-version-list .p-listbox-option:not(.p-listbox-option-selected):hover { background: var(--p-lx-sunken); }
+/* The chosen version: accent-wash with the 2 px accent rule, as a selected table row. */
+:host ::ng-deep .lx-version-list .p-listbox-option-selected { background: var(--p-lx-accent-wash); color: var(--p-lx-ink); box-shadow: inset 2px 0 0 var(--p-lx-accent); }
+/* The option the arrow keys reached, only when the list was reached by keyboard. */
+:host ::ng-deep .lx-version-list:has(:focus-visible) .p-listbox-option.p-focus { outline: 2px solid var(--p-lx-accent); outline-offset: -2px; }
+
+.lx-group { display: flex; align-items: baseline; gap: 8px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
+.lx-version { display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0; }
 .lx-version-label { font-weight: 500; overflow-wrap: anywhere; }
-.lx-version-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; color: var(--p-lx-ink-2); }
-.lx-version-status { display: inline-flex; align-items: center; gap: 6px; color: var(--p-lx-ink-2); font-weight: 500; }
-.lx-version-status[data-tone='accent'] ng-icon { color: var(--p-lx-ink); }
-.lx-version-status[data-tone='missing'] ng-icon { color: var(--p-lx-missing); }
-.lx-version-status[data-tone='ambiguous'] ng-icon { color: var(--p-lx-ink-2); }
-.lx-version-status[data-tone='found'] ng-icon { color: var(--p-lx-found); }
+.lx-version-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
 
-.lx-rules-skeleton { display: grid; grid-template-columns: 300px 1fr; gap: 12px; }
-.lx-rules-skeleton > div { display: flex; flex-direction: column; gap: 8px; }
-
-/* Under 1024 px the list sits above the version. */
+/* Under 1024 px the versions sit above the version, a hairline between. */
 @media (max-width: 1023px) {
-  .lx-rules-panes, .lx-rules-skeleton { grid-template-columns: minmax(0, 1fr); }
-  .lx-versions { position: static; max-height: 22rem; border-radius: var(--lx-r-control) var(--lx-r-control) 0 0; }
+  .lx-rules-columns { grid-template-columns: minmax(0, 1fr); }
+  .lx-versions { position: static; max-height: 20rem; }
+  .lx-version-pane, .lx-version-pane.lx-skeleton-list { padding-left: 0; border-left: 0; border-top: 1px solid var(--p-lx-line); }
 }

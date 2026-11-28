@@ -1,23 +1,27 @@
 <div class="lx-page lx-rules">
-  <header class="lx-page-header lx-rules-header">
-    <div class="lx-title-row">
+  <header class="lx-page-header">
+    <div>
       <h1>Rules</h1>
+      @if (context.ready()) { <p class="lx-meta">{{ meta() }}</p> }
+    </div>
+    <div class="lx-title-actions">
+      @if (session.canEnterRules()) {
+        <button pButton type="button" size="large" #newButton (click)="newOpen.set(true)">
+          <span pButtonLabel>New rule version</span>
+        </button>
+      }
       <lx-help [terms]="help" />
     </div>
-    @if (session.canEnterRules()) {
-      <button pButton type="button" #newButton (click)="newOpen.set(true)">
-        <span pButtonLabel>New rule version</span>
-      </button>
-    }
   </header>
-  <p class="lx-status-line" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
+  <!-- What just happened, for assistive technology: the toast says it on screen. -->
+  <p class="lx-sr-only" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
   @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
   @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
 
   @if (context.ready()) {
-    <div class="lx-rules-panes">
+    <div class="lx-rules-columns">
       <section class="lx-versions" aria-labelledby="versions-heading">
-        <h2 id="versions-heading" class="lx-versions-heading">Versions <span class="lx-versions-count">{{ versionCount() }}</span></h2>
+        <h2 id="versions-heading" class="lx-sr-only">Versions</h2>
         @if (groups().length === 0) {
           <div class="lx-empty-state">
             <p>No rule versions yet.</p>
@@ -32,15 +36,10 @@
             <ng-template #item let-option>
               @let v = option.row.view;
               @let s = statusOf(option.row);
-              <div class="lx-version">
+              <span class="lx-version">
                 <span class="lx-version-label">{{ v.label }}</span>
-                <span class="lx-version-meta">
-                  <span class="lx-version-status" [attr.data-tone]="s.tone">
-                    <ng-icon [name]="s.icon" size="16" aria-hidden="true" />{{ s.label }}
-                  </span>
-                  <span class="lx-mono">{{ v.effectiveFrom }}</span>
-                </span>
-              </div>
+                <span class="lx-version-meta"><lx-status-mark [status]="s.mark" [label]="s.label" /><span aria-hidden="true">·</span><span>{{ v.effectiveFrom }}</span></span>
+              </span>
             </ng-template>
           </p-listbox>
         }
@@ -55,9 +54,9 @@
       </section>
     </div>
   } @else if (!context.error()) {
-    <div class="lx-rules-skeleton" role="status" aria-busy="true" aria-label="Loading rule versions">
-      <div>@for (i of [1, 2, 3, 4, 5]; track i) { <p-skeleton aria-hidden="true" height="3.75rem" /> }</div>
-      <p-skeleton aria-hidden="true" height="24rem" />
+    <div class="lx-rules-columns" role="status" aria-busy="true" aria-label="Loading rule versions">
+      <div class="lx-versions lx-skeleton-list">@for (i of [1, 2, 3, 4, 5]; track i) { <p-skeleton aria-hidden="true" height="3.5rem" /> }</div>
+      <div class="lx-version-pane lx-skeleton-list"><p-skeleton aria-hidden="true" width="24rem" height="2rem" /><p-skeleton aria-hidden="true" height="20rem" /></div>
     </div>
   }
 </div>
