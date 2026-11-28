@@ -19,9 +19,9 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
   await stateTab(page, 'CA').click();
   await expect(page.getByTestId('requirement-heading')).toHaveAttribute('data-ref', /^CA-/);
   const progress = page.getByTestId('progress');
-  await expect(progress).toHaveText(/of 8 reviewed/);
+  await expect(progress).toHaveText(/of 8 decided/);
   // The tab names the state; its "0 of 8" count is its description.
-  await expect(stateTab(page, 'CA')).toHaveAccessibleDescription(/^\d of 8 reviewed$/);
+  await expect(stateTab(page, 'CA')).toHaveAccessibleDescription(/^\d of 8 decided$/);
   // "Sign California" appears only once every requirement is decided.
   await expect(page.getByRole('button', { name: 'Sign California' })).toHaveCount(0);
   await expectAccessible(page, 'Review at 1440 px');
@@ -29,7 +29,7 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
   let gapNoteChecked = false;
 
   for (let done = 0; done < 8; done++) {
-    await expect(progress).toHaveText(`${done} of 8 reviewed`);
+    await expect(progress).toHaveText(`${done} of 8 decided`);
     const finding = (await page.getByTestId('proposed-finding').textContent()) ?? '';
     const ref = (await page.getByTestId('requirement-heading').getAttribute('data-ref')) ?? '';
     if (finding.includes('Evidence missing')) {
@@ -51,9 +51,9 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
     } else {
       await page.getByRole('button', { name: 'Accept evidence' }).click();
     }
-    // The decision has landed at once: announced, counted, the row's one status icon filled, the next one open.
+    // The decision has landed at once: announced, counted, the row's one status mark replaced, the next one open.
     await expect(page.getByTestId('message')).toContainText(`${ref}:`);
-    await expect(progress).toHaveText(`${done + 1} of 8 reviewed`);
+    await expect(progress).toHaveText(`${done + 1} of 8 decided`);
     const row = page.getByRole('region', { name: 'Requirements' }).getByRole('button').filter({ hasText: new RegExp(`^${ref}(?!\\d)`) });
     await expect(row).toContainText(/, (accepted|evidence requested|gap confirmed)$/);
     if (done < 7) {
@@ -62,14 +62,14 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
     // Reduced motion removes the motion: nothing is left running once the decision has landed.
     expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length)).toBe(0);
   }
-  await expect(progress).toHaveText('8 of 8 reviewed');
-  await expect(stateTab(page, 'CA')).toHaveAccessibleDescription('8 of 8 reviewed');
+  await expect(progress).toHaveText('8 of 8 decided');
+  await expect(stateTab(page, 'CA')).toHaveAccessibleDescription('8 of 8 decided');
 
-  // Sign with the dialog's three outcome cards; Sign stays disabled until one is chosen.
+  // Sign with the dialog's radio list of three outcomes; Sign stays disabled until one is chosen.
   const signButton = page.getByRole('button', { name: 'Sign California' });
   await expect(signButton).toBeEnabled();
   const dialog = page.getByRole('dialog', { name: 'Sign California' });
-  // At 400 px the signing action has a row of its own and the dialog stacks the cards under the seal preview.
+  // At 400 px the signing action has a row of its own and the dialog puts the seal preview above the list.
   await page.setViewportSize({ width: 400, height: 860 });
   await signButton.click();
   await expect(dialog.getByRole('radio')).toHaveCount(3);
@@ -188,7 +188,7 @@ test('keyboard shortcuts move through the list and record a decision', async ({ 
   const heading = page.getByTestId('requirement-heading');
   await expect(heading).toHaveAttribute('data-ref', /^TX-/);
   const progress = page.getByTestId('progress');
-  await expect(progress).toHaveText(/^0 of \d+ reviewed$/);
+  await expect(progress).toHaveText(/^0 of \d+ decided$/);
   const first = await heading.getAttribute('data-ref');
 
   // Shortcuts act when focus is outside text fields: move focus to the list first.
@@ -199,20 +199,21 @@ test('keyboard shortcuts move through the list and record a decision', async ({ 
   await page.keyboard.press('k');
   await expect(heading).toHaveAttribute('data-ref', first ?? '');
 
-  // ? opens the shortcut list; Escape closes it.
+  // ? opens the screen's one Help, whose list ends with the keys; Escape closes it.
   await page.keyboard.press('?');
-  const help = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+  const help = page.getByRole('dialog', { name: 'Help' });
   await expect(help).toContainText('Accept evidence');
-  await expectAccessible(page, 'Keyboard shortcuts');
+  await expect(help).toContainText('Proposed finding');
+  await expectAccessible(page, 'Review help with the keys');
   await page.keyboard.press('Escape');
   await expect(help).toBeHidden();
 
   // A accepts the current requirement, announces it, and opens the next one that needs a decision. Motion is on here:
-  // the landing plays, and keys pressed while the next requirement slides in act at once.
+  // the row's mark fades in, nothing slides, and keys pressed at once act at once.
   await page.locator('.lx-row[aria-current="true"]').focus();
   await page.keyboard.press('a');
   await expect(page.getByTestId('message')).toContainText(`${first}: Accepted.`);
-  await expect(progress).toHaveText(/^1 of \d+ reviewed$/);
+  await expect(progress).toHaveText(/^1 of \d+ decided$/);
   await expect(heading).toHaveAttribute('data-ref', second ?? '');
   await page.keyboard.press('k');
   await expect(heading).toHaveAttribute('data-ref', first ?? '');
@@ -228,7 +229,7 @@ test('keyboard shortcuts move through the list and record a decision', async ({ 
   await expect(page.getByRole('button', { name: 'Confirm gap' })).toBeVisible();
   await page.keyboard.type('ja');
   await expect(note).toHaveValue('ja');
-  await expect(progress).toHaveText(/^1 of \d+ reviewed$/);
+  await expect(progress).toHaveText(/^1 of \d+ decided$/);
   // Escape keeps a note with words in it; emptied, Escape closes it and focus returns to Gap.
   await page.keyboard.press('Escape');
   await expect(note).toBeFocused();

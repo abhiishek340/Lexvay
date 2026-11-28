@@ -1,14 +1,10 @@
 import { Component, DestroyRef, ElementRef, afterRenderEffect, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { NgIcon } from '@ng-icons/core';
-import { phosphorBook, phosphorCalculator, phosphorCircleDashed, phosphorClock, phosphorWarningCircle } from '@ng-icons/phosphor-icons/regular';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { Popover } from 'primeng/popover';
-import { SelectButton } from 'primeng/selectbutton';
 import { Skeleton } from 'primeng/skeleton';
-import { TabPanel, TabPanels, Tabs } from 'primeng/tabs';
+import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
 import { Tooltip } from 'primeng/tooltip';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
@@ -17,33 +13,37 @@ import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { registerComponentTokens } from '../../theme/component-tokens';
 import { Help, HelpTerm } from '../../ui/help';
+import { MarkShapeIcon } from '../../ui/mark-shape';
 import { StateTab, StateTabs } from '../../ui/state-tabs';
 import { COVERAGE_TOKENS } from './coverage-theme';
-import { Cell, FLAGS, Flag, MoveKey, Position, Row, coverageView, firstCell, flagCounts, matchesFlag, move, unflaggedShare } from './coverage-view';
-
-/** The icons the Coverage screen shows beyond SHELL_ICONS, provided by its route (coverage.routes.ts). */
-export const COVERAGE_ICONS = { phosphorBook, phosphorCalculator, phosphorCircleDashed, phosphorClock, phosphorWarningCircle };
+import { Cell, FLAGS, FLAG_ORDER, Flag, MoveKey, Position, Row, coverageView, firstCell, flagCounts, matchesFlag, move, unflaggedShare } from './coverage-view';
 
 const HELP: readonly HelpTerm[] = [
-  { term: 'Filled mark', definition: "A quote the system verified in the course's documents." },
-  { term: 'Open mark', definition: 'A passage a person provided.' },
-  { term: 'Dashed mark', definition: 'A quote on an older version of the course.' },
+  { term: 'Filled circle', definition: "A quote the system verified in the course's documents." },
+  { term: 'Outline circle', definition: 'A passage a person provided.' },
+  { term: 'Ring with a dot', definition: 'Both: a verified quote and a passage a person provided.' },
+  { term: 'Dashed circle', definition: 'A quote on an older version of the course.' },
+  { term: 'Mark in a dashed ring', definition: 'Some of the evidence is outdated: the rest is on the current version.' },
   { term: 'Flags', definition: 'Say where the evidence sits, never whether it is enough. People decide that in Review.' },
 ];
+
+/** The filter tab that highlights no flag. */
+const ALL = 'ALL';
 
 const MOVES: Record<string, MoveKey> = { ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', Home: 'Home', End: 'End' };
 /** Space left between a revealed cell and the sticky column it was hidden under. */
 const REVEAL_MARGIN = 8;
 
 /**
- * Coverage (F10b): for one target state, which course carries the evidence of each requirement, and where a
- * requirement rests on an elective, on one course, on outdated evidence or on nothing. The matrix reports the evidence
- * and the flags the server computed (D-392); it concludes nothing (product rule 1). One request per state: the state
- * in the URL first, then the others for their pill rings; each answer is kept while the screen is open.
+ * Coverage (F10b, DESIGN.md "Coverage"): for one target state, which course carries the evidence of each requirement,
+ * and where a requirement rests on an elective, on one course, on outdated evidence or on nothing. The matrix is a table
+ * on surface whose cells are status-mark shapes; flags are words with a mark; a text tab row highlights one flag. It
+ * reports the evidence and the flags the server computed (D-392) and concludes nothing (product rule 1). One request per
+ * state: the state in the URL first, then the others for their tab counts; each answer is kept while the screen is open.
  */
 @Component({
   selector: 'lx-coverage',
-  imports: [FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, Popover, SelectButton, Skeleton, TabPanel, TabPanels, Tabs, Tooltip, Help, StateTabs],
+  imports: [RouterLink, ButtonDirective, ButtonLabel, Message, Popover, Skeleton, Tab, TabList, TabPanel, TabPanels, Tabs, Tooltip, Help, MarkShapeIcon, StateTabs],
   templateUrl: './coverage.html',
   styleUrl: './coverage.css',
 })
@@ -60,6 +60,9 @@ export class Coverage {
 
   readonly flags = FLAGS;
   readonly help = HELP;
+  readonly all = ALL;
+  /** Every filter tab's value, for the panels: All, then each flag. */
+  readonly filterValues: readonly string[] = [ALL, ...FLAG_ORDER];
   /** Matrices by state code for the program in `loadedFor`. */
   readonly matrices = signal<ReadonlyMap<string, CoverageMatrix>>(new Map());
   readonly errors = signal<ReadonlyMap<string, string>>(new Map());
@@ -105,7 +108,8 @@ export class Coverage {
     const m = this.matrix();
     return m ? coverageView(m) : null;
   });
-  readonly chips = computed(() => flagCounts(this.view()?.rows ?? []).map(({ flag, count }) => ({ flag, count, ...FLAGS[flag], name: `${FLAGS[flag].label}, ${count}` })));
+  /** The filter tabs after All: each flag some row carries, with its count. */
+  readonly flagTabs = computed(() => flagCounts(this.view()?.rows ?? []).map(({ flag, count }) => ({ flag, count, ...FLAGS[flag], name: `${FLAGS[flag].label}, ${count}` })));
   readonly tabStop = computed(() => {
     const view = this.view();
     const at = this.stop();
@@ -126,7 +130,7 @@ export class Coverage {
       const id = this.programId();
       untracked(() => this.context.ensure(id));
     });
-    // The selected state first, then every other target state once, for the rings on the pills.
+    // The selected state first, then every other target state once, for the counts on their tabs.
     effect(() => {
       const program = this.program();
       const code = this.jurisdiction();
@@ -191,6 +195,17 @@ export class Coverage {
       if (this.loadedFor === programId) {
         this.errors.update((all) => new Map(all).set(code, problemDetail(e, `The coverage for ${this.context.jurisdictionName(code)} could not be loaded.`)));
       }
+    }
+  }
+
+  /** A filter tab was chosen: All highlights nothing, a flag dims the rows without it. The matrix is drawn anew, so no card stays open. */
+  setFilter(value: string | number | undefined): void {
+    const flag = FLAG_ORDER.find((f) => f === value) ?? null;
+    if (flag !== this.filter() && (flag !== null || value === ALL)) {
+      this.closeCard();
+      this.hover.set(null);
+      this.previewed.set(null);
+      this.filter.set(flag);
     }
   }
 

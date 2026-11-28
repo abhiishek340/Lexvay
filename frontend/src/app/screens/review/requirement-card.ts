@@ -1,7 +1,5 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, input } from '@angular/core';
-import { NgIcon } from '@ng-icons/core';
-import { Message } from 'primeng/message';
 import { Tooltip } from 'primeng/tooltip';
 import { Mapping, RuleVersionView } from '../../core/models';
 import { Clamp } from '../../ui/clamp';
@@ -11,12 +9,12 @@ import { checkMethod } from './review-workspace';
 
 /**
  * The requirement under decision (DESIGN.md "Review"): ref and title, the rule text in the Document type on a left rule
- * with its source, the proposed finding as a mark and a word with how it was checked in one line (the explanation in
- * that line's tooltip), the model's rationale, and the current decision.
+ * with its source in meta type, then Finding as a section: the proposed finding (a mark and a word, how it was checked as
+ * one plain line whose tooltip explains it, the model's rationale) and the decision people have recorded.
  */
 @Component({
   selector: 'lx-requirement-card',
-  imports: [DatePipe, NgIcon, Message, Tooltip, Clamp, StatusMark],
+  imports: [DatePipe, Tooltip, Clamp, StatusMark],
   templateUrl: './requirement-card.html',
   styleUrl: './requirement-card.css',
 })
