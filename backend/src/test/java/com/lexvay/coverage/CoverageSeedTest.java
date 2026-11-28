@@ -104,7 +104,7 @@ class CoverageSeedTest extends AbstractDatabaseTest {
                 .containsExactlyElementsOf(mappings.valueStream().map(x -> x.get("id").asString()).toList());
 
         assertThat(m.get("courses")).extracting(c -> c.get("code").asString()).containsExactly("COUN 605", "COUN 610", "COUN 615",
-                "COUN 620", "COUN 625", "COUN 630", "COUN 635", "COUN 640", "COUN 660", "COUN 650", "COUN 655");
+                "COUN 620", "COUN 625", "COUN 630", "COUN 635", "COUN 640", "COUN 660", "COUN 645", "COUN 650", "COUN 655");
         JsonNode coun605 = course(m, "COUN 605");
 
         JsonNode ethics = row(m, "CA-2");

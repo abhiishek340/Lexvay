@@ -4,7 +4,6 @@ import com.lexvay.assessment.EvidenceSpanRepository;
 import com.lexvay.assessment.Mapping;
 import com.lexvay.assessment.MappingProducer;
 import com.lexvay.assessment.MappingRepository;
-import com.lexvay.assessment.rules.RulesEngine;
 import com.lexvay.audit.AuditService;
 import com.lexvay.common.TenantContext;
 import com.lexvay.document.Document;
@@ -19,7 +18,6 @@ import com.lexvay.program.CourseRepository;
 import com.lexvay.program.CourseVersion;
 import com.lexvay.review.ReviewKind;
 import com.lexvay.review.ReviewRepository;
-import com.lexvay.rule.NumericField;
 import com.lexvay.rule.Requirement;
 import com.lexvay.rule.RequirementComparison;
 import com.lexvay.rule.RuleVersion;
@@ -100,7 +98,7 @@ public class RerunChangeHandler implements JobHandler {
             UUID assessmentId = (UUID) target.get("assessment_id");
             UUID programId = (UUID) target.get("program_id");
             UUID actor = (UUID) target.get("created_by");
-            Map<NumericField, RulesEngine.Fact> facts = producer.currentFacts(programId);
+            MappingProducer.Basis basis = producer.basis(programId);
             for (Requirement requirement : newRequirements) {
                 if (mappings.exists(assessmentId, requirement.id())) {
                     continue;
@@ -118,7 +116,7 @@ public class RerunChangeHandler implements JobHandler {
                     }
                     carried++;
                 } else {
-                    MappingProducer.Produced p = producer.produce(assessmentId, programId, requirement, facts, actor);
+                    MappingProducer.Produced p = producer.produce(assessmentId, programId, requirement, basis, actor);
                     mappings.insertIfAbsent(tenantId, assessmentId, requirement.id(), newVersion.jurisdictionId(), p.finding(), p.method(),
                             p.rationale(), p.evidenceSpanId(), actor);
                     oldMapping.ifPresent(old -> reviews.insert(tenantId, old.id(), ReviewKind.REOPENED,

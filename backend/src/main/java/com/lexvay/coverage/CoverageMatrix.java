@@ -1,10 +1,13 @@
 package com.lexvay.coverage;
 
 import com.lexvay.assessment.Finding;
+import com.lexvay.pathway.PathwayCoverage;
 import com.lexvay.review.ReviewKind;
 import com.lexvay.rule.RequirementType;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Which course carries the evidence for which requirement of one jurisdiction, in the program's latest finished
@@ -32,9 +35,14 @@ public record CoverageMatrix(ProgramRef program, JurisdictionRef jurisdiction, U
      * One row. {@code decision} is the latest review decision, null when nobody decided or the mapping was reopened.
      * {@code cells} are the current course versions whose documents the evidence cites; {@code outdatedCells} the
      * superseded course versions it cites (D-394); {@code programLevel} the cited documents that belong to no course.
+     * {@code risk} is null in the database's answer when the row cites only current courses; {@link PathwayRisk} sets it.
      */
     public record Requirement(UUID mappingId, String ref, String title, RequirementType type, Finding finding, ReviewKind decision,
                               List<Cell> cells, List<OutdatedCell> outdatedCells, List<ProgramDocument> programLevel, Risk risk) {
+
+        Requirement withRisk(Risk resolved) {
+            return new Requirement(mappingId, ref, title, type, finding, decision, cells, outdatedCells, programLevel, resolved);
+        }
     }
 
     /** Evidence in a document of a superseded course version; {@code supersededBy} is the course's current version, a column of {@code courses}. */
@@ -53,8 +61,19 @@ public record CoverageMatrix(ProgramRef program, JurisdictionRef jurisdiction, U
         SYSTEM, PERSON
     }
 
-    /** Descriptive flags with fixed names; they say where the evidence sits and never judge it (D-392). */
+    /**
+     * Descriptive flags with fixed names; they say where the evidence sits and never judge it (D-392). ELECTIVE_ONLY: some
+     * graduation path avoids every cited course. PATHS_UNKNOWN: the pathway does not say whether one does.
+     */
     public enum Risk {
-        NONE, OUTDATED_EVIDENCE, NO_EVIDENCE, ELECTIVE_ONLY, SINGLE_COURSE
+        NONE, OUTDATED_EVIDENCE, NO_EVIDENCE, ELECTIVE_ONLY, PATHS_UNKNOWN, SINGLE_COURSE
+    }
+
+    /** The matrix with the risk of every row that waited for the pathway decided from it. */
+    CoverageMatrix withPathwayRisks(PathwayCoverage pathway) {
+        Map<UUID, PathwayCoverage.Course> byVersion = courses.stream()
+                .collect(Collectors.toMap(Course::courseVersionId, c -> new PathwayCoverage.Course(c.courseId(), c.code())));
+        return new CoverageMatrix(program, jurisdiction, assessmentId, ruleVersion, courses, requirements.stream()
+                .map(r -> r.risk() != null ? r : r.withRisk(PathwayRisk.of(r, byVersion, pathway))).toList());
     }
 }

@@ -80,7 +80,7 @@ class Rule4_LowOcrConfidenceForcesAmbiguousTest extends AbstractAssessmentTest {
     void everyApplicableReasonIsStated() {
         var m = mappingFromScan(55.0, false, "ACA Code of Ethics", "EVIDENCE_FOUND");
         assertThat(m.get("finding").asString()).isEqualTo("AMBIGUOUS");
-        assertThat(m.get("rationale").asString()).contains("is not required of every student")
+        assertThat(m.get("rationale").asString()).contains("the program's graduation paths are not fully known (Electives: minimum not recorded)")
                 .contains("shorter than 40 characters").contains("read by OCR with 55 % confidence");
     }
 

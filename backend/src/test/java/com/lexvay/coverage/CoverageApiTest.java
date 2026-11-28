@@ -165,13 +165,50 @@ class CoverageApiTest extends AbstractAssessmentTest {
     }
 
     @Test
-    void evidenceOnlyInAnElectiveCourseIsFlagged() {
+    void evidenceOnlyInAnElectiveWhoseMinimumIsNotRecordedIsFlaggedAsNotFullyKnown() {
         UUID syllabus650 = fx.document(t, s.programId(), "coun650.txt", "SYLLABUS", s.course650Version(), SYLLABUS_650);
         respond(s.missingMapping(), syllabus650, "etiology of substance use disorders, screening and assessment of addictions");
 
         JsonNode telehealth = row(matrix(), "CA-2");
         assertThat(cells(telehealth)).containsExactly(s.course650Version() + " PERSON 1");
+        assertThat(telehealth.get("risk").asString()).isEqualTo("PATHS_UNKNOWN");
+    }
+
+    /** Replaces the electives group of the scenario by "choose 1 of 2" with a second elective, COUN 655. */
+    private UUID chooseOneOfTwoElectives() {
+        fx.courseOnly(t, s.programId(), "COUN 655", false, "3");
+        var ids = fx.courseIds(t, s.programId());
+        fx.pathway(t, s.programId()).get("groups").forEach(g -> {
+            if (g.get("label").asString().equals("Electives")) {
+                assertThat(fx.retirePathwayGroup(t, UUID.fromString(g.get("id").asString()), "The handbook offers a second elective")).hasStatus(200);
+            }
+        });
+        fx.pathwayGroup(t, s.programId(), "2026-27", "Electives: choose 1 of 2", "CHOOSE_COUNT", 1, null, List.of(ids.get("COUN 650"), ids.get("COUN 655")));
+        return fx.document(t, s.programId(), "coun655.txt", "SYLLABUS",
+                fx.courseVersionOf(t, s.programId(), "COUN 655"), "Fictional. Prototype data. COUN 655 Psychopharmacology. The course covers medication classes and their effects.");
+    }
+
+    @Test
+    void evidenceOnlyInAnElectiveOfAKnownChoiceIsFlaggedAsRestingOnAnElective() {
+        UUID syllabus650 = fx.document(t, s.programId(), "coun650.txt", "SYLLABUS", s.course650Version(), SYLLABUS_650);
+        chooseOneOfTwoElectives();
+        respond(s.missingMapping(), syllabus650, "etiology of substance use disorders, screening and assessment of addictions");
+
+        JsonNode telehealth = row(matrix(), "CA-2");
+        assertThat(cells(telehealth)).containsExactly(s.course650Version() + " PERSON 1");
         assertThat(telehealth.get("risk").asString()).isEqualTo("ELECTIVE_ONLY");
+    }
+
+    @Test
+    void evidenceInEveryElectiveOfAChoiceIsOnEveryPathAndNotFlagged() {
+        UUID syllabus650 = fx.document(t, s.programId(), "coun650.txt", "SYLLABUS", s.course650Version(), SYLLABUS_650);
+        UUID syllabus655 = chooseOneOfTwoElectives();
+        respond(s.missingMapping(), syllabus650, "etiology of substance use disorders, screening and assessment of addictions");
+        respond(s.missingMapping(), syllabus655, "covers medication classes and their effects");
+
+        JsonNode telehealth = row(matrix(), "CA-2");
+        assertThat(telehealth.get("cells")).hasSize(2);
+        assertThat(telehealth.get("risk").asString()).isEqualTo("NONE");
     }
 
     @Test
