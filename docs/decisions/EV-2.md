@@ -84,8 +84,8 @@ and whether its course is on every graduation path, D-623), an unverified one lo
 the finding it claimed is scored as claimed. Calls go through `LlmGateway`, so the spend gate applies, and are recorded by
 `LlmCallRecorder` with prompt version `eval-baseline-v1` so spend accounting stays true: the stored `metered` flag is what the gate
 adds up, as for every call. They are stored under their own purpose, `EVAL_BASELINE`, because a record that called them
-`MATCH_EVIDENCE` would misstate what the call was. Migration V028 widens the `llm_call.purpose` CHECK with it (the number is
-provisional: V026 is AC-1's and V027 is expected for RG-2, so it is renumbered at merge to the next free one).
+`MATCH_EVIDENCE` would misstate what the call was. Migration V028 widens the `llm_call.purpose` CHECK with it (V028: V026 is AC-1's
+and V027 is RG-2's, both merged first, so it merges after them).
 `EvalRepository.modelUse(boolean)` separates the two uses by purpose, so the pipeline's cost line is not inflated by the
 baseline's calls and the baseline has its own. In
 `SCRIPTED` mode the baseline is reported as `BLOCKED: needs a model` and no call is made; a `LlmCallBlockedException` (spend gate,
