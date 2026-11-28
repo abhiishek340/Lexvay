@@ -186,6 +186,31 @@ cannot be cross-checked against the plan. Decided model:
 
    Decisions go in `docs/decisions/AC-1.md`, progress in `docs/progress/AC-1.md`.
 
+### OPS-2 — Cap concurrent local test stacks (tooling; slot 5; Sonnet 5.5; no migration; D-641 to D-643)
+Several agents run `make test` at once on one machine (load average up to 55). End-to-end specs then fail on timing:
+keyboard focus races and 15 s request timeouts, each in a different spec, and they pass when rerun alone. Decided
+fix: a machine-wide semaphore over isolated stacks, in `scripts/lib/stack.sh` only.
+1. **Acquiring a token:** `stack_init` acquires one of `LEXVAY_STACK_CONCURRENCY` tokens (default 2) before it
+   starts anything.
+   - A token is a directory `${TMPDIR:-/tmp}/lexvay-stack-tokens/<n>`, created atomically with `mkdir` (macOS has
+     no `flock` command), holding a `pid` file and the slot.
+   - A token whose pid is no longer alive is reclaimed.
+   - While waiting, print `"<name>: waiting for a free test stack (n of N in use: slots …)"` every 30 s.
+   - Give up after `LEXVAY_STACK_WAIT_MINUTES` (default 60) with a clear error.
+2. **Releasing:** `stack_cleanup` releases the token on every exit path; the existing `trap` covers EXIT, so add
+   INT and TERM.
+3. **CI:** unchanged in behaviour (one stack). `LEXVAY_STACK_CONCURRENCY=0` disables the semaphore.
+4. **Test:** `scripts/lib/stack-lock-test.sh`, run by a new `make test-scripts` target that the CI test job runs
+   before `make test`. It covers:
+   - two tokens taken: the third waits, then gets one when a holder exits;
+   - a stale token with a dead pid is reclaimed;
+   - a killed holder (TERM) releases its token;
+   - concurrency 0 skips the lock.
+
+   Use short timeouts and a temporary `TMPDIR`; it must finish in under 20 s.
+5. **Docs:** a sentence in CLAUDE.md's "Local environment" section, the README or OPERATIONS where `make e2e` is
+   described, and `docs/decisions/OPS-2.md` and `docs/progress/OPS-2.md`.
+
 ## Design system v3 "Ledger" (owner directive 2026-11-27: "not AI slop", professional, human craft)
 The owner reviewed v2 on the running app and rejected it: yellow and orange accents, icon-heavy pills and cards, a
 palette and card art that look generated. `docs/DESIGN.md` is rewritten as v3 and is the contract. Every screen
@@ -388,6 +413,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | RG-1 Legal time and status model (P0) | `rg-legal-time` | 2 | Sonnet 5.5 | in progress |
 | MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | in progress |
 | AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | in progress |
+| OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | in progress |
 | RG-2, RG-3, AC-2, AC-3, EV-1, EV-2, UX-1 | see Real-data validation track | — | — | queued |
 | SP-1 SharePoint spike, DOM-1 expert review | — | — | — | blocked (founder) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
