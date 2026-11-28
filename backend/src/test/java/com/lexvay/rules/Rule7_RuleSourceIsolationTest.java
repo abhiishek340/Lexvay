@@ -8,6 +8,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
 import com.lexvay.common.TestTenants;
+import com.lexvay.rule.source.AccessStatus;
+import com.lexvay.rule.source.CheckFinding;
 import com.lexvay.rule.source.CheckOutcome;
 import com.lexvay.rule.source.CreateRuleSourceRequest;
 import com.lexvay.rule.source.RuleSourceRepository;
@@ -41,7 +43,8 @@ class Rule7_RuleSourceIsolationTest extends AbstractDatabaseTest {
         b = tenants.create("sources-b");
         sourceOfA = TenantContext.runAs(a.tenantId(), () -> {
             UUID id = service.register(new CreateRuleSourceRequest("CA", "LICENSE", "A's source", "https://rules.example.test/a.pdf", 24));
-            repository.insertCheck(a.tenantId(), id, OffsetDateTime.now(), CheckOutcome.FETCH_FAILED, 500, null, "The server answered HTTP 500", null, null);
+            repository.insertCheck(a.tenantId(), id, OffsetDateTime.now(), AccessStatus.UNREVIEWED,
+                    new CheckFinding(CheckOutcome.FETCH_FAILED, 500, null, "The server answered HTTP 500", null, null, null));
             return id;
         });
     }
@@ -55,12 +58,12 @@ class Rule7_RuleSourceIsolationTest extends AbstractDatabaseTest {
         TenantContext.runAs(b.tenantId(), () -> {
             assertThat(count("rule_source")).isZero();
             assertThat(count("rule_source_check")).isZero();
-            assertThat(repository.list()).isEmpty();
+            assertThat(repository.list(OffsetDateTime.now())).isEmpty();
             assertThat(repository.findById(sourceOfA)).isEmpty();
             assertThat(repository.checks(sourceOfA, 10)).isEmpty();
         });
         TenantContext.runAs(a.tenantId(), () -> {
-            assertThat(repository.list()).hasSize(1);
+            assertThat(repository.list(OffsetDateTime.now())).hasSize(1);
             assertThat(repository.checks(sourceOfA, 10).orElseThrow()).hasSize(1);
         });
     }
@@ -70,8 +73,8 @@ class Rule7_RuleSourceIsolationTest extends AbstractDatabaseTest {
         TenantContext.runWithoutTenant(() -> {
             assertThat(count("rule_source")).isZero();
             assertThat(count("rule_source_check")).isZero();
-            assertThatThrownBy(() -> jdbc.sql("INSERT INTO rule_source (tenant_id, jurisdiction_id, license_type, label, url, check_interval_hours) "
-                    + "SELECT :t, id, 'L', 'x', 'https://rules.example.test/x', 1 FROM jurisdiction WHERE code = 'CA'")
+            assertThatThrownBy(() -> jdbc.sql("INSERT INTO rule_source (tenant_id, jurisdiction_id, license_type, label, url, check_interval_hours, allowed_hosts) "
+                    + "SELECT :t, id, 'L', 'x', 'https://rules.example.test/x', 1, ARRAY['rules.example.test'] FROM jurisdiction WHERE code = 'CA'")
                     .param("t", a.tenantId()).update()).isInstanceOf(DataAccessException.class);
             return null;
         });
@@ -80,10 +83,11 @@ class Rule7_RuleSourceIsolationTest extends AbstractDatabaseTest {
     @Test
     void aTenantCannotWriteRowsForAnotherTenant() {
         TenantContext.runAs(b.tenantId(), () -> {
-            assertThatThrownBy(() -> jdbc.sql("INSERT INTO rule_source (tenant_id, jurisdiction_id, license_type, label, url, check_interval_hours) "
-                    + "SELECT :t, id, 'L', 'x', 'https://rules.example.test/x', 1 FROM jurisdiction WHERE code = 'CA'")
+            assertThatThrownBy(() -> jdbc.sql("INSERT INTO rule_source (tenant_id, jurisdiction_id, license_type, label, url, check_interval_hours, allowed_hosts) "
+                    + "SELECT :t, id, 'L', 'x', 'https://rules.example.test/x', 1, ARRAY['rules.example.test'] FROM jurisdiction WHERE code = 'CA'")
                     .param("t", a.tenantId()).update()).isInstanceOf(DataAccessException.class);
-            assertThatThrownBy(() -> repository.insertCheck(a.tenantId(), sourceOfA, OffsetDateTime.now(), CheckOutcome.UNCHANGED, 200, null, null, null, null))
+            assertThatThrownBy(() -> repository.insertCheck(a.tenantId(), sourceOfA, OffsetDateTime.now(), AccessStatus.UNREVIEWED,
+                    new CheckFinding(CheckOutcome.UNCHANGED, 200, null, null, null, null, null)))
                     .isInstanceOf(DataAccessException.class);
             assertThat(jdbc.sql("UPDATE rule_source SET active = false WHERE id = :id").param("id", sourceOfA).update()).isZero();
             return null;

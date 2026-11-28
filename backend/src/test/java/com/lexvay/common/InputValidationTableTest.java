@@ -600,6 +600,38 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(rawJson("rule source active: flag is not a boolean", putActive, HttpMethod.PUT, ruleSources + "/" + ID + "/active",
                 "{\"active\":\"maybe\"}", 400));
         rows.add(rawJson("rule source active: body is not JSON", putActive, HttpMethod.PUT, ruleSources + "/" + ID + "/active", "{not json", 400));
+        String putGovernance = "PUT /api/v1/rule-sources/{id}/governance";
+        String governanceUri = ruleSources + "/" + ID + "/governance";
+        Map<String, Object> governance = Map.of("authorityClass", "OTHER", "allowedHosts", List.of("rules.example.test"),
+                "allowedPathPrefixes", List.of("/rules/"), "expectedIdentifiers", List.of("R156-60e"), "accessStatus", "UNREVIEWED");
+        rows.add(row("rule source governance: id is not a UUID", putGovernance, HttpMethod.PUT, ruleSources + "/" + BAD_ID + "/governance",
+                json(governance), JSON, 400));
+        rows.add(row("rule source governance: a valid request for a source that does not exist", putGovernance, HttpMethod.PUT, governanceUri,
+                json(governance), JSON, 404));
+        rows.add(row("rule source governance: unknown authority class", putGovernance, HttpMethod.PUT, governanceUri,
+                json(with(governance, "authorityClass", "NEWSPAPER")), JSON, 400));
+        rows.add(row("rule source governance: authority class missing", putGovernance, HttpMethod.PUT, governanceUri,
+                json(without(governance, "authorityClass")), JSON, 400));
+        rows.add(row("rule source governance: access status missing", putGovernance, HttpMethod.PUT, governanceUri,
+                json(without(governance, "accessStatus")), JSON, 400));
+        rows.add(row("rule source governance: unknown access status", putGovernance, HttpMethod.PUT, governanceUri,
+                json(with(governance, "accessStatus", "MAYBE")), JSON, 400));
+        rows.add(row("rule source governance: no allowed host", putGovernance, HttpMethod.PUT, governanceUri,
+                json(with(governance, "allowedHosts", List.of())), JSON, 400));
+        rows.add(row("rule source governance: allowed host with a space", putGovernance, HttpMethod.PUT, governanceUri,
+                json(with(governance, "allowedHosts", List.of("rules example.test"))), JSON, 400));
+        rows.add(row("rule source governance: allowed host with a scheme", putGovernance, HttpMethod.PUT, governanceUri,
+                json(with(governance, "allowedHosts", List.of("https://rules.example.test"))), JSON, 400));
+        rows.add(row("rule source governance: allowed path without a leading slash", putGovernance, HttpMethod.PUT, governanceUri,
+                json(with(governance, "allowedPathPrefixes", List.of("rules/"))), JSON, 400));
+        rows.add(row("rule source governance: blank expected identifier", putGovernance, HttpMethod.PUT, governanceUri,
+                json(with(governance, "expectedIdentifiers", List.of(" "))), JSON, 400));
+        rows.add(row("rule source governance: oversized access note", putGovernance, HttpMethod.PUT, governanceUri,
+                json(with(governance, "accessNote", "n".repeat(2001))), JSON, 400));
+        rows.add(row("rule source governance: owner is not a UUID", putGovernance, HttpMethod.PUT, governanceUri,
+                json(with(governance, "ownerUserId", "someone")), JSON, 400));
+        rows.add(rawJson("rule source governance: body is not JSON", putGovernance, HttpMethod.PUT, governanceUri, "{not json", 400));
+        rows.add(rawJson("rule source governance: empty object", putGovernance, HttpMethod.PUT, governanceUri, "{}", 400));
 
         // --- reports ---
         rows.add(row("report request: determination id is not a UUID", "POST /api/v1/determinations/{id}/report", HttpMethod.POST,

@@ -9,7 +9,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-/** Every table except jurisdiction has tenant_id, RLS enabled and forced, and a policy. */
+/**
+ * Every table except jurisdiction has tenant_id, RLS enabled and forced, and a policy. The one other exception,
+ * source_host_fetch, is not tenant data: it has RLS enabled and forced and the worker flag as its only policy.
+ */
 class Rule7_EveryTableHasPolicyTest extends AbstractDatabaseTest {
 
     @Autowired JdbcClient jdbc;
@@ -31,6 +34,14 @@ class Rule7_EveryTableHasPolicyTest extends AbstractDatabaseTest {
             String table = (String) row.get("table_name");
             if (table.equals("jurisdiction") || table.equals("flyway_schema_history")) {
                 assertThat(row.get("enabled")).as(table + " has no RLS by design").isEqualTo(false);
+                continue;
+            }
+            if (table.equals("source_host_fetch")) {
+                // What each host has been asked is shared by every tenant (RG-2, D-570): no tenant_id, and only the worker flag opens it.
+                assertThat(row.get("has_tenant_id")).as(table + " is not tenant data").isEqualTo(false);
+                assertThat(row.get("enabled")).as(table + " RLS enabled").isEqualTo(true);
+                assertThat(row.get("forced")).as(table + " RLS forced").isEqualTo(true);
+                assertThat(((Number) row.get("policies")).intValue()).as(table + " policies").isEqualTo(1);
                 continue;
             }
             assertThat(row.get("has_tenant_id")).as(table + " has tenant_id").isEqualTo(true);

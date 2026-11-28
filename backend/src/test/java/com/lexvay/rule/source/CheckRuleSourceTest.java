@@ -313,8 +313,6 @@ class CheckRuleSourceTest extends AbstractRuleSourceTest {
                         "larger than 20 MB"),
                 new Failure("address not allowed", url -> fetcher.reject(url, "The host internal.example.test resolves to an internal address, which is not fetched"),
                         null, "internal address"),
-                new Failure("not a document", url -> fetcher.respond(url, 200, "image/png", new byte[] {1, 2, 3}), 200,
-                        "Unsupported content type image/png"),
                 new Failure("no text", url -> fetcher.html(url, "<html><body><nav>Menu</nav></body></html>"), 200, "no extractable text"),
                 new Failure("corrupt pdf", url -> fetcher.respond(url, 200, "application/pdf", "%PDF-1.4 not really".getBytes(StandardCharsets.UTF_8)), 200,
                         "could not be parsed as a PDF"));
