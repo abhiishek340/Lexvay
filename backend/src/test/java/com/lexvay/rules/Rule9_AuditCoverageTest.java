@@ -25,6 +25,7 @@ class Rule9_AuditCoverageTest extends AbstractDatabaseTest {
             "POST /api/v1/rule-versions",                   // RuleVersionApiTest.createStoresRuleTextAndExtractsRequirements
             "PUT /api/v1/rule-versions/{id}/requirements",  // RuleVersionApiTest.reviewerCanReplaceRequirementsBeforeApproval
             "POST /api/v1/rule-versions/{id}/requirements/approve", // RuleVersionApiTest.approvalIsAuditedAndHappensOnce
+            "POST /api/v1/rule-versions/{id}/status",       // LegalTimeApiTest.aReviewerRecordsTheStatusThenApprovesAndTheApprovalPinsItAsAStatusRow
             "POST /api/v1/programs/{programId}/facts",             // ProgramFactApiTest.verifiedQuoteBecomesEvidenceAndIsAudited
             "POST /api/v1/programs/{programId}/assessments",       // AssessmentApiTest.fullRunProducesMappingsWithEvidence
             "POST /api/v1/mappings/{id}/reviews",                  // ReviewApiTest.decisionsAreRecordedAndTheLatestWins

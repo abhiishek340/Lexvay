@@ -8,6 +8,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -24,11 +25,14 @@ public class AssessmentController {
         this.service = service;
     }
 
-    /** Any tenant user may start an assessment; it only proposes, nobody is bound by it. */
+    /**
+     * Any tenant user may start an assessment; it only proposes, nobody is bound by it. The optional body sets the date
+     * whose rules in force are used; without it, today's.
+     */
     @PostMapping("/programs/{programId}/assessments")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    AssessmentService.StartResult start(@PathVariable UUID programId) {
-        return service.start(programId);
+    AssessmentService.StartResult start(@PathVariable UUID programId, @RequestBody(required = false) StartAssessmentRequest request) {
+        return service.start(programId, request == null ? null : request.asOf());
     }
 
     @GetMapping("/programs/{programId}/assessments")

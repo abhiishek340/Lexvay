@@ -6,11 +6,17 @@
       <h2 id="version-heading" class="lx-detail-title" tabindex="-1">{{ v.label }}</h2>
       <ul class="lx-pills" aria-label="Version facts">
         <li class="lx-pill">{{ license() }}</li>
-        <li class="lx-pill"><span class="lx-pill-key">Effective</span><span class="lx-mono">{{ v.effectiveFrom }}</span></li>
+        <li class="lx-pill"><span class="lx-pill-key">Legal status</span>{{ legalStatus() }}</li>
+        <li class="lx-pill"><span class="lx-pill-key">Effective</span><span class="lx-mono">{{ v.effectiveFrom ?? 'Not recorded' }}</span></li>
         <li class="lx-pill">
           <a [href]="v.sourceUrl" target="_blank" rel="noopener noreferrer" class="lx-pill-link">Source<ng-icon name="phosphorArrowSquareOut" size="12" aria-hidden="true" /><span class="lx-sr-only">(opens in a new tab)</span></a>
         </li>
       </ul>
+      <p class="lx-muted" data-testid="version-legal">
+        @if (v.datesBasis) { Dates from {{ v.datesBasis }}. }
+        @if (v.observedAt) { Text observed {{ v.observedAt | date: 'yyyy-MM-dd' }}. }
+        @if (v.queuedObservations.length > 0) { {{ v.queuedObservations.length }} later {{ v.queuedObservations.length === 1 ? 'change' : 'changes' }} kept behind this draft. }
+      </p>
       <p class="lx-state" data-testid="version-state">
         <lx-label>{{ statusView().label }}</lx-label>
         @if (v.approval; as a) {
