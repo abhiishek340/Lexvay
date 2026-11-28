@@ -3,16 +3,20 @@
 </div>
 
 @if (store.readiness()) {
+  <!-- Each line: a neutral check or cross (not a requirement's status mark), the check in words, and for an open line
+       whether it blocks the run and where to fix it. -->
   <ul class="lx-checks" aria-label="Readiness checks">
-    @for (check of checks(); track check.id; let i = $index) {
-      <li class="lx-check" [attr.data-check]="check.id" [attr.data-tone]="tone(check)">
-        <lx-status-mark [status]="mark(check)" [label]="verdict(check) + ':'" [quiet]="true" />
-        <span class="lx-check-text">{{ check.text }}</span>
+    @for (check of checks(); track check.id) {
+      @let st = state(check);
+      <li class="lx-check" [attr.data-check]="check.id" [attr.data-state]="st">
+        <ng-icon class="lx-check-mark" [name]="check.ok ? 'phosphorCheck' : 'phosphorX'" size="16" aria-hidden="true" />
+        <span class="lx-check-text">@if (check.ok) {<span class="lx-sr-only">Done: </span>}{{ check.text }}</span>
         @if (!check.ok) {
+          <span class="lx-check-verdict">{{ st === 'blocking' ? 'Blocks the run' : 'Does not block' }}</span>
           @if (check.id === 'RULES') {
-            <a pButton [link]="true" size="small" [routerLink]="['/programs', store.programId(), 'rules']"><span pButtonLabel>Open Rules</span></a>
-          } @else if (fixStep[check.id]; as step) {
-            <button pButton type="button" [link]="true" size="small" (click)="goTo.emit(step)"><span pButtonLabel>Fix</span></button>
+            <a class="lx-row-action" [routerLink]="['/programs', store.programId(), 'rules']">Open Rules</a>
+          } @else if (fix[check.id]; as f) {
+            <button type="button" class="lx-row-action" (click)="goTo.emit(f.step)">{{ f.label }}</button>
           }
         }
       </li>
@@ -24,26 +28,23 @@
   <div class="lx-run">
     @if (store.run(); as r) {
       <div class="lx-run-progress" data-testid="assessment-progress" [attr.data-status]="r.view.status">
-        <lx-meter [segments]="[{ tone: 'decided', value: r.processed }]" [total]="r.total" [text]="r.processed + ' of ' + r.total + ' assessed'" />
-        <div class="lx-run-text">
-          <p class="lx-strong">
-            @switch (r.view.status) {
-              @case ('QUEUED') { Waiting to start }
-              @case ('RUNNING') { Assessing }
-              @case ('FINISHED') { Assessment finished }
-              @case ('FAILED') { Assessment failed }
-            }
-          </p>
-          <p class="lx-help"><span class="lx-mono">{{ r.processed }}</span> of <span class="lx-mono">{{ r.total }}</span> requirements</p>
-        </div>
+        <p class="lx-strong">
+          @switch (r.view.status) {
+            @case ('QUEUED') { Waiting to start }
+            @case ('RUNNING') { Assessing }
+            @case ('FINISHED') { Assessment finished }
+            @case ('FAILED') { Assessment failed }
+          }
+        </p>
+        <lx-meter [segments]="[{ tone: 'decided', value: r.processed }]" [total]="r.total" [text]="r.processed + ' of ' + r.total + ' requirements assessed'" />
         @if (r.view.status === 'FINISHED') {
-          <a pButton [routerLink]="['/programs', store.programId(), 'review']"><span pButtonLabel>Open Review</span></a>
+          <a class="lx-row-action" [routerLink]="['/programs', store.programId(), 'review']">Open Review</a>
         }
       </div>
     }
     @if (store.canRun() && !running()) {
-      <button pButton type="button" [disabled]="blocked() || starting()" [loading]="starting()" (click)="run()"
-              [severity]="store.run()?.view.status === 'FINISHED' ? 'secondary' : 'primary'">
+      <button pButton type="button" size="large" [disabled]="blocked() || starting()" [loading]="starting()" (click)="run()"
+              [severity]="store.run()?.view.status === 'FINISHED' ? 'secondary' : 'primary'" [outlined]="store.run()?.view.status === 'FINISHED'">
         <span pButtonLabel>Run assessment</span>
       </button>
     }

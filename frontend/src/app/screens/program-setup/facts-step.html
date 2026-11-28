@@ -1,7 +1,5 @@
 <div class="lx-step-head">
-  <div class="lx-title-row">
-    <h2 class="lx-panel-title">Program facts</h2>
-  </div>
+  <h2 class="lx-panel-title">Program facts</h2>
 </div>
 
 @if (rows(); as list) {
@@ -11,37 +9,34 @@
     </div>
   } @else {
     <ul class="lx-facts" aria-label="Program facts">
-      @for (row of list; track row.field; let i = $index) {
+      @for (row of list; track row.field) {
         <li class="lx-fact" [attr.data-field]="row.field">
-          <div class="lx-fact-head">
-            <h3 class="lx-fact-name">{{ fieldLabel[row.field] }}</h3>
-            @if (store.canEdit()) {
-              <button pButton type="button" size="small" [severity]="row.current ? 'secondary' : 'primary'" (click)="record(row.field, $event.target)"
-                      [attr.aria-label]="(row.current ? 'Record again: ' : 'Record ') + fieldLabel[row.field]">
-                <span pButtonLabel>{{ row.current ? 'Record again' : 'Record' }}</span>
-              </button>
-            }
-          </div>
+          <h3 class="lx-fact-name">{{ fieldLabel[row.field] }}</h3>
           @if (row.current; as f) {
-            <div class="lx-fact-body">
-              <span class="lx-figure" data-testid="fact-value">{{ f.value }}</span>
-              <div class="lx-fact-source">
-                <blockquote class="lx-fact-quote">{{ f.quote }}</blockquote>
-                <p class="lx-help">{{ f.filename }}, page <span class="lx-mono">{{ f.pageNumber }}</span>, {{ f.createdAt | date: 'd MMM y' }}</p>
-              </div>
+            <p class="lx-fact-value" data-testid="fact-value">{{ f.value }}</p>
+            <div class="lx-fact-source">
+              <blockquote class="lx-fact-quote">{{ f.quote }}</blockquote>
+              <p class="lx-meta">{{ f.filename }}, page {{ f.pageNumber }}, {{ f.createdAt | date: 'd MMM y' }}</p>
+              @if (row.earlier.length > 0) {
+                <details class="lx-history">
+                  <summary>History ({{ row.earlier.length }})</summary>
+                  <ul>
+                    @for (e of row.earlier; track e.id) {
+                      <li><span class="lx-strong">{{ e.value }}</span> · {{ e.filename }}, page {{ e.pageNumber }}, {{ e.createdAt | date: 'd MMM y' }}</li>
+                    }
+                  </ul>
+                </details>
+              }
             </div>
-            @if (row.earlier.length > 0) {
-              <details class="lx-history">
-                <summary><ng-icon name="phosphorCaretDown" size="14" aria-hidden="true" />History ({{ row.earlier.length }})</summary>
-                <ul>
-                  @for (e of row.earlier; track e.id) {
-                    <li><span class="lx-strong">{{ e.value }}</span> · {{ e.filename }}, page <span class="lx-mono">{{ e.pageNumber }}</span>, {{ e.createdAt | date: 'd MMM y' }}</li>
-                  }
-                </ul>
-              </details>
-            }
           } @else {
-            <p class="lx-fact-missing"><lx-status-mark status="NOT_REVIEWED" label="Not recorded" /></p>
+            <p class="lx-fact-value lx-fact-missing"><lx-status-mark status="NOT_REVIEWED" label="Not recorded" /></p>
+            <div class="lx-fact-source"></div>
+          }
+          @if (store.canEdit()) {
+            <div class="lx-fact-action">
+              <button type="button" class="lx-row-action" (click)="record(row.field, $event.target)"
+                      [attr.aria-label]="(row.current ? 'Record again: ' : 'Record ') + fieldLabel[row.field]">{{ row.current ? 'Record again' : 'Record' }}</button>
+            </div>
           }
         </li>
       }
@@ -59,7 +54,7 @@
         <div class="lx-field">
           <label for="fact-value" class="lx-numbered"><span class="lx-numbered-n" aria-hidden="true">1</span>Value</label>
           <p-inputnumber inputId="fact-value" [ngModel]="value()" (ngModelChange)="value.set($event); valueProblem.set(null)" [useGrouping]="false"
-                         [minFractionDigits]="0" [maxFractionDigits]="2" [min]="0" inputStyleClass="lx-mono lx-fact-input" [invalid]="!!valueProblem()" />
+                         [minFractionDigits]="0" [maxFractionDigits]="2" [min]="0" inputStyleClass="lx-fact-input" [invalid]="!!valueProblem()" />
           @if (valueProblem(); as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
         </div>
         <section class="lx-field" aria-labelledby="fact-document-label">
@@ -71,12 +66,12 @@
           <div aria-live="polite" data-testid="fact-passage">
             @if (selection(); as s) {
               <blockquote class="lx-passage">{{ s.quote }}</blockquote>
-              <p class="lx-help">Page <span class="lx-mono">{{ s.pageNumber }}</span>, characters <span class="lx-mono">{{ s.charStart }}–{{ s.charEnd }}</span></p>
+              <p class="lx-meta">Page {{ s.pageNumber }}, characters <span class="lx-mono">{{ s.charStart }}–{{ s.charEnd }}</span></p>
               @if (mismatch()) {
                 <p-message severity="warn" size="small" data-testid="fact-mismatch">The passage does not show {{ value() }} as written.</p-message>
               }
             } @else {
-              <p class="lx-help">Select the passage that states the number.</p>
+              <p class="lx-muted">Select the passage that states the number.</p>
             }
           </div>
           @if (quoteError(); as e) { <p-message severity="error" size="small" data-testid="fact-quote-error">{{ e }}</p-message> }

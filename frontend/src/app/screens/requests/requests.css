@@ -1,51 +1,60 @@
-/* The inbox is the screen's one hero: a raised panel with the filter on top and the requests below it. */
-.lx-inbox { padding: var(--lx-space-4) var(--lx-space-2) var(--lx-space-2); display: flex; flex-direction: column; gap: var(--lx-space-2); }
-.lx-inbox-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 0 var(--lx-space-3) var(--lx-space-2); }
-.lx-filter-count {
-  margin-left: 6px; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums;
+/*
+ * The filter: a toggle group drawn as an underlined text row (DESIGN.md: filters are a text tab row with counts), the
+ * chosen word in ink over a 2 px ink bar, a hairline under the row. The table follows 16 px below.
+ */
+:host ::ng-deep .lx-filter-row.p-selectbutton {
+  display: flex; flex-wrap: wrap; gap: 0 24px; margin-bottom: 16px; border: 0; border-bottom: 1px solid var(--p-lx-line); border-radius: 0; background: transparent;
 }
-.lx-inbox-blocked { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--p-lx-ink-2); }
+:host ::ng-deep .lx-filter-row .p-togglebutton {
+  padding: 10px 0; margin-bottom: -1px; border: 0; border-radius: 0; background: transparent; color: var(--p-lx-ink-2); box-shadow: none;
+  font-size: 13px; line-height: 20px; font-weight: 500; transition: color var(--lx-t-fast) var(--lx-ease);
+}
+:host ::ng-deep .lx-filter-row .p-togglebutton:hover { background: transparent; color: var(--p-lx-ink); }
+:host ::ng-deep .lx-filter-row .p-togglebutton-checked { color: var(--p-lx-ink); box-shadow: inset 0 -2px 0 var(--p-lx-ink); }
+:host ::ng-deep .lx-filter-row .p-togglebutton-content { padding: 0; gap: 6px; background: transparent; box-shadow: none; }
+:host ::ng-deep .lx-filter-row .p-togglebutton:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: 2px; }
+.lx-filter-count { font-size: 12px; line-height: 16px; letter-spacing: 0.01em; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums; }
 
-.lx-toggle-cell { width: 2.5rem; padding-right: 0; }
+/* The rows align on their first line; the toggle sits 4 px up so its caret centres on that line. */
+:host ::ng-deep .lx-requests-table .p-datatable-tbody > tr > td { padding-top: 12px; padding-bottom: 12px; vertical-align: baseline; }
+:host ::ng-deep .lx-requests-table .p-datatable-tbody > tr > td.lx-toggle-cell { vertical-align: top; padding-top: 6px; }
+:host ::ng-deep .lx-requests-table .p-datatable-thead > tr > th:first-child,
+:host ::ng-deep .lx-requests-table .p-datatable-tbody > tr > td:first-child { padding-left: 0; }
+:host ::ng-deep .lx-requests-table .p-datatable-thead > tr > th:last-child,
+:host ::ng-deep .lx-requests-table .p-datatable-tbody > tr > td:last-child { padding-right: 0; }
+.lx-toggle-cell { width: 32px; }
 .lx-toggle ng-icon { transition: transform var(--lx-t) var(--lx-ease); }
 .lx-toggle ng-icon.lx-turned { transform: rotate(90deg); }
 .lx-requirement-cell { min-width: 12rem; }
-.lx-request-ids { display: flex; align-items: center; gap: 8px; }
-.lx-request-title { display: block; margin-top: 4px; font-weight: 500; }
-.lx-request-cell { max-width: 36ch; }
-/* The note in two lines; the row detail has all of it. */
-.lx-two-lines {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
-  overflow-wrap: anywhere; margin-bottom: 6px;
-}
-.lx-asked { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 20px; color: var(--p-lx-ink-2); }
-.lx-avatar-mini {
-  width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; flex: none;
-  background: var(--p-lx-sunken); color: var(--p-lx-ink); font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
-}
-.lx-answers-cell { min-width: 7rem; }
-.lx-answer-count { font-size: 15px; font-weight: 600; }
-.lx-answer-words { display: none; font-size: 13px; color: var(--p-lx-ink-2); }
-.lx-action { min-width: 11rem; text-align: right; }
-.lx-action .lx-help { max-width: 30ch; }
-.lx-action button { gap: 6px; }
-.lx-blocked { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--p-lx-ink-2); }
+.lx-request-ids { display: flex; align-items: baseline; gap: 8px; }
+.lx-ref { font-weight: 500; font-variant-numeric: tabular-nums; }
+.lx-request-title { display: block; margin-top: 4px; }
+.lx-request-cell { max-width: 40ch; }
+/* The note in two lines; the row's detail has all of it. */
+.lx-two-lines { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.lx-asked { margin-top: 4px; }
+.lx-status-cell { white-space: nowrap; }
+.lx-answers-cell { min-width: 6rem; text-align: right; }
+.lx-answer-count { font-weight: 500; font-variant-numeric: tabular-nums; }
+.lx-answer-words { display: none; color: var(--p-lx-ink-2); }
+.lx-latest { margin-top: 4px; max-width: 28ch; margin-left: auto; text-align: right; }
+.lx-action { text-align: right; white-space: nowrap; }
 
-.lx-request-detail { display: grid; gap: 12px; padding: 4px 0 8px 2.5rem; }
-.lx-request-detail div { display: flex; flex-direction: column; gap: 2px; }
-.lx-request-detail dd { margin: 0; }
-.lx-request-note { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 80ch; font-family: var(--lx-font-serif); font-size: 15px; line-height: 24px; }
-.lx-skeleton { display: flex; flex-direction: column; gap: 8px; padding: var(--lx-space-4); }
+.lx-request-detail { display: grid; gap: 12px; padding: 4px 0 8px 32px; }
+.lx-request-detail div { display: flex; flex-direction: column; gap: 4px; }
+.lx-request-note { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 72ch; }
+.lx-skeleton { display: flex; flex-direction: column; gap: 8px; }
 
+/* Under 720 px each request is a block: the toggle at its left, the rest stacked, the answer count in words. */
 @media (max-width: 720px) {
   :host ::ng-deep .lx-requests-table thead { display: none; }
-  :host ::ng-deep .lx-requests-table tbody tr { display: grid; grid-template-columns: auto minmax(0, 1fr); padding: 12px 4px; border-bottom: 1px solid var(--p-lx-line); }
-  :host ::ng-deep .lx-requests-table tbody td { display: block; border: 0; padding: 4px 0; max-width: none; text-align: left; grid-column: 2; }
-  :host ::ng-deep .lx-requests-table tbody td.lx-toggle-cell { grid-column: 1; grid-row: 1 / span 5; padding-right: 8px; }
+  :host ::ng-deep .lx-requests-table tbody tr { display: grid; grid-template-columns: 40px minmax(0, 1fr); padding: 12px 0; border-bottom: 1px solid var(--p-lx-line); }
+  :host ::ng-deep .lx-requests-table .p-datatable-tbody > tr > td { display: block; border: 0; padding: 4px 0; max-width: none; text-align: left; grid-column: 2; }
+  :host ::ng-deep .lx-requests-table .p-datatable-tbody > tr > td.lx-toggle-cell { grid-column: 1; grid-row: 1 / span 5; padding: 0; }
   :host ::ng-deep .lx-requests-table tbody tr.lx-request-detail-row { display: block; }
-  :host ::ng-deep .lx-requests-table tbody tr.lx-request-detail-row td { grid-column: auto; }
+  :host ::ng-deep .lx-requests-table tbody tr.lx-request-detail-row > td { grid-column: auto; }
   .lx-request-detail { padding-left: 0; }
-  .lx-action { min-width: 0; }
   .lx-answer-count { display: none; }
   .lx-answer-words { display: inline; }
+  .lx-latest { margin-left: 0; text-align: left; max-width: none; }
 }
