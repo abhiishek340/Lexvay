@@ -9,12 +9,16 @@ import com.lexvay.audit.AuditVerificationService;
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
 import com.lexvay.common.TestTenants;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -49,11 +53,12 @@ class AuditSealPerfTest extends AbstractDatabaseTest {
         }
         List<String> queuePlan = explain(tenantId, AuditSealRepository.QUEUED);
 
+        List<Double> batchMillis = new ArrayList<>();
         long sealStart = System.nanoTime();
-        assertThat(sealer.sealBatch(tenantId)).isEqualTo(AuditSealer.BATCH_SIZE);
+        assertThat(sealBatchTimed(tenantId, batchMillis)).isEqualTo(AuditSealer.BATCH_SIZE);
         List<String> dequeuePlan = explain(tenantId, AuditSealRepository.DEQUEUE);
         long sealed = AuditSealer.BATCH_SIZE;
-        for (int batch; (batch = sealer.sealBatch(tenantId)) > 0; ) {
+        for (int batch; (batch = sealBatchTimed(tenantId, batchMillis)) > 0; ) {
             sealed += batch;
         }
         long sealMillis = (System.nanoTime() - sealStart) / 1_000_000;
@@ -73,6 +78,7 @@ class AuditSealPerfTest extends AbstractDatabaseTest {
                 sealed, sealMillis, AuditSealer.BATCH_SIZE, Arrays.toString(millis), sorted[RUNS / 2], VERIFY_BUDGET_MS);
         System.out.println("Queue read plan:\n" + String.join("\n", queuePlan));
         System.out.println("Dequeue plan:\n" + String.join("\n", dequeuePlan));
+        writeReport(sealed, sealMillis, batchMillis, millis);
 
         assertThat(result.intact()).isTrue();
         assertThat(result.sealed()).isEqualTo(sealed);
@@ -85,6 +91,35 @@ class AuditSealPerfTest extends AbstractDatabaseTest {
         assertThat(dequeuePlan).as("dequeueing finds the queue rows by primary key, not by scanning the queue")
                 .anyMatch(line -> line.contains("audit_unsealed_pkey"))
                 .noneMatch(line -> line.contains("Seq Scan on audit_unsealed"));
+    }
+
+    private int sealBatchTimed(UUID tenantId, List<Double> batchMillis) {
+        long start = System.nanoTime();
+        int sealed = sealer.sealBatch(tenantId);
+        if (sealed > 0) {
+            batchMillis.add((System.nanoTime() - start) / 1_000_000.0);
+        }
+        return sealed;
+    }
+
+    /** The CI summary's numbers (the perf job publishes every file under target/perf), written before the assertions so a failing run still reports. */
+    private static void writeReport(long sealed, long sealMillis, List<Double> batchMillis, long[] verifyMillis) throws IOException {
+        double[] batches = batchMillis.stream().mapToDouble(Double::doubleValue).sorted().toArray();
+        double[] verifies = Arrays.stream(verifyMillis).asDoubleStream().sorted().toArray();
+        String report = String.format(Locale.ROOT, """
+                | Audit seal (%d entries) | Runs | Median ms | p95 ms |
+                |---|---:|---:|---:|
+                | Sealing one batch of %d | %d | %.2f | %.2f |
+                | Verifying all entries (budget %d ms) | %d | %.2f | %.2f |
+
+                Sealing all %d entries took %d ms.
+                """, sealed, AuditSealer.BATCH_SIZE, batches.length, EndpointLatencyTest.percentile(batches, 0.5),
+                EndpointLatencyTest.percentile(batches, 0.95), VERIFY_BUDGET_MS, verifies.length,
+                EndpointLatencyTest.percentile(verifies, 0.5), EndpointLatencyTest.percentile(verifies, 0.95), sealed, sealMillis);
+        System.out.println(report);
+        Path out = Path.of("target", "perf", "audit-seal.md");
+        Files.createDirectories(out.getParent());
+        Files.writeString(out, report);
     }
 
     private AuditVerification verify(UUID tenantId) {

@@ -143,6 +143,10 @@ jobs:
             echo
             cat backend/target/perf/index-usage.md 2>/dev/null || echo "The index test wrote no report."
             echo
+            echo "## Audit trail seal (budget: verifying 20 000 entries under 2 s)"
+            echo
+            cat backend/target/perf/audit-seal.md 2>/dev/null || echo "The audit seal test wrote no report."
+            echo
             for report in backend/target/surefire-reports/*.txt; do
               if grep -q "FAILURE" "$report" 2>/dev/null; then
                 echo "## Failed: $(basename "$report" .txt)"

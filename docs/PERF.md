@@ -409,7 +409,9 @@ Budget: under 2 s. Two runs on this machine (loopback, Testcontainers PostgreSQL
 | Queue read (`AuditSealRepository.QUEUED`) | Index Only Scan `audit_unsealed_tenant_idx`, nested loop to `audit_log_pkey`, `LIMIT 500` stops early |
 | Dequeue (`AuditSealRepository.DEQUEUE`) | Index Scan `audit_seal_tenant_id_seq_key`, then `audit_unsealed_pkey` |
 
-The test fails when either plan scans the queue sequentially.
+The test fails when either plan scans the queue sequentially. It writes `backend/target/perf/audit-seal.md` (median and p95
+of the batch seal and of the verify, in the format of `latency.md`), which the CI perf summary publishes under "Audit trail
+seal" (FIX-9, D-649).
 
 ## Not covered
 
