@@ -15,6 +15,8 @@ import { DiffSegment } from '../core/models';
     ins, del { text-decoration-thickness: 1px; text-underline-offset: 3px; }
     ins { text-decoration-line: underline; color: var(--p-lx-found); }
     del { text-decoration-line: line-through; color: var(--p-lx-missing); }
+    /* A replacement ("600" by "700") reads as two words, not one: a quarter em between them, drawn, never typed. */
+    del + ins { margin-left: 0.25em; }
     ins::before, ins::after, del::before, del::after {
       position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
     }

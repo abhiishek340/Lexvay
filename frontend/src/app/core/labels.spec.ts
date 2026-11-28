@@ -18,8 +18,8 @@ describe('labels', () => {
     }
   });
 
-  it('every diff status has its own icon, and a numeric check reads as field, operator and value', () => {
-    expect(new Set(Object.values(DIFF_STATUS).map((s) => s.icon)).size).toBe(4);
+  it('every diff status has its own word, and a numeric check reads as field, operator and value', () => {
+    expect(new Set(Object.values(DIFF_STATUS).map((s) => s.label)).size).toBe(4);
     expect(numericCheck({ numericField: 'INTERNSHIP_HOURS', numericOperator: '>=', numericValue: 700 })).toBe('Internship hours >= 700');
     expect(numericCheck({ numericField: null, numericOperator: null, numericValue: null })).toBeNull();
   });
