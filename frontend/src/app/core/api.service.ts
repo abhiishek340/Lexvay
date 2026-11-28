@@ -4,8 +4,8 @@ import { Observable, switchMap } from 'rxjs';
 import {
   Account, AssessmentView, AuditEntry, ChangeEvent, Course, CoverageMatrix, DecisionKind, Determination, DeterminationLists, DocumentKind, DocumentPage,
   DocumentView, EvidenceRequest, EvidenceResponse, EvidenceResponseBody, Jurisdiction, Mapping, MappingsView, NewCourse, NewCourseVersion, NewProgram,
-  NewProgramFact, NewRuleVersion, NewUser, Outcome, Program, ProgramDocument, ProgramFact, ProgramOverview, RegisterFilter, RegisterRow, RequirementDraft,
-  RequirementsView, Role, RuleVersionDiff, RuleVersionView, SessionView, UploadResult, UserSetup, UserSummary, UserView, WorkQueue,
+  NewProgramFact, NewRuleVersion, NewUser, Outcome, Program, ProgramDocument, ProgramFact, ProgramOverview, RegisterFilter, RegisterRow, ReportCheck,
+  RequirementDraft, RequirementsView, Role, RuleVersionDiff, RuleVersionView, SessionView, UploadResult, UserSetup, UserSummary, UserView, WorkQueue,
 } from './models';
 import { REGISTER_PATH, registerQuery } from './register';
 import { ReportAnswer, readReport } from './report-answer';
@@ -105,6 +105,12 @@ export class ApiService {
   /** The status while the PDF is generated, then the PDF itself (D-069, readReport). */
   report(reportId: string): Observable<ReportAnswer> {
     return this.http.get(`${this.base}/reports/${reportId}`, { observe: 'response', responseType: 'blob' }).pipe(switchMap(readReport));
+  }
+  /** Whether a PDF is exactly a report of this workspace (F14). */
+  checkReport(file: File): Observable<ReportCheck> {
+    const body = new FormData();
+    body.append('file', file, file.name);
+    return this.http.post<ReportCheck>(`${this.base}/reports/check`, body);
   }
   jobStatus(jobId: string): Observable<{ id: string; status: string; error: string | null }> {
     return this.http.get<{ id: string; status: string; error: string | null }>(`${this.base}/jobs/${jobId}`);

@@ -33,6 +33,7 @@ class Rule9_AuditCoverageTest extends AbstractDatabaseTest {
             "POST /api/v1/courses/{courseId}/versions",            // CourseVersionChangeTest.newCourseVersionCreatesEventMarksStaleAndReopens
             "POST /api/v1/change-events/{id}/rerun",               // RuleVersionChangeTest.rerunCarriesOverUnchangedAndReevaluatesChanged
             "POST /api/v1/determinations/{id}/report",             // ReportTest.signedDeterminationReportIsGeneratedAndDownloadable
+            "POST /api/v1/reports/check",                          // ReportCheckTest.theDownloadedFileMatchesItsReportWithEveryFieldAndTheCheckIsAudited
             "POST /api/v1/rule-sources",                           // RuleSourceApiTest.createStoresTheSourceQueuesTheFirstCheckAndIsAudited
             "POST /api/v1/rule-sources/{id}/check",                // RuleSourceApiTest.aCheckCanBeRequestedOnceAtATimeAndIsAudited
             "PUT /api/v1/rule-sources/{id}/active",                // RuleSourceApiTest.onlyAnAdminTurnsMonitoringOffAndOnAndItIsAudited

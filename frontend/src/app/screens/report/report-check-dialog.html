@@ -1,0 +1,57 @@
+<p-dialog header="Check a file" [visible]="open()" (visibleChange)="open.set($event)" [modal]="true" [draggable]="false" [resizable]="false"
+          [style]="{ width: '32rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Close file check">
+  @let p = phase();
+  <div class="lx-check" aria-live="polite">
+    @if (p.step === 'done') {
+      @let v = p.view;
+      <div class="lx-result" [attr.data-result]="v.kind" data-testid="check-result">
+        @if (v.kind === 'signed') {
+          <lx-seal class="lx-result-seal" [preview]="true" [outcome]="v.seal.outcome" [signer]="v.seal.signer" [signedAt]="v.seal.signedAt" />
+        }
+        <h3 #headline class="lx-result-headline" [class.lx-quiet]="v.kind === 'reopened'" tabindex="-1">{{ v.headline }}</h3>
+        @if (v.kind === 'signed') {
+          <ul class="lx-meta" aria-label="Report facts">
+            <li>{{ v.place }}</li>
+            <li>{{ v.signature }}</li>
+            <li>{{ v.ruleVersion }}</li>
+          </ul>
+          <a class="lx-open" [routerLink]="['/programs', v.report.programId, 'report']" [queryParams]="{ jurisdiction: v.report.jurisdiction }"
+             (click)="open.set(false)">Open report</a>
+        } @else if (v.kind === 'reopened') {
+          <ul class="lx-meta" aria-label="Report facts"><li>{{ v.place }}</li></ul>
+        } @else {
+          <p class="lx-meta">Any change to the file, even saving it again, changes its fingerprint.</p>
+        }
+        <p class="lx-fingerprint">
+          <span>SHA-256</span>
+          <span class="lx-mono" [attr.title]="v.fingerprint.sha256" data-testid="check-sha">{{ v.fingerprint.short }}</span>
+          <button pButton type="button" [text]="true" severity="secondary" size="small" aria-label="Copy SHA-256" (click)="copy(v.fingerprint.sha256)">
+            <ng-icon name="phosphorCopy" size="16" aria-hidden="true" />
+          </button>
+        </p>
+      </div>
+    } @else {
+      <p-fileupload mode="advanced" [customUpload]="true" [auto]="true" [disabled]="p.step === 'checking'" styleClass="lx-check-upload"
+                    (uploadHandler)="check($event.files[0])">
+        <ng-template #header></ng-template>
+        <ng-template #content let-choose="chooseCallback">
+          <div class="lx-drop">
+            <p class="lx-drop-title">Drop a PDF here</p>
+            <button pButton type="button" [disabled]="p.step === 'checking'" (click)="choose()">
+              <span pButtonLabel>{{ p.step === 'checking' ? 'Checking…' : 'Choose a file' }}</span>
+            </button>
+          </div>
+        </ng-template>
+      </p-fileupload>
+      @if (p.step === 'choose' && p.error; as error) {
+        <p-message class="lx-check-error" severity="error" data-testid="message">{{ error }}</p-message>
+      }
+    }
+  </div>
+  <ng-template #footer>
+    @if (p.step === 'done') {
+      <button pButton type="button" severity="secondary" [outlined]="true" (click)="reset()"><span pButtonLabel>Check another</span></button>
+    }
+    <button pButton type="button" severity="secondary" [outlined]="true" (click)="open.set(false)"><span pButtonLabel>Close</span></button>
+  </ng-template>
+</p-dialog>

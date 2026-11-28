@@ -10,6 +10,7 @@ import com.lexvay.audit.AuditRepository;
 import com.lexvay.auth.Role;
 import com.lexvay.coverage.CoverageRepository;
 import com.lexvay.llm.LlmClient;
+import com.lexvay.report.ReportRepository;
 import com.lexvay.rule.source.RuleSourceRepository;
 import com.lexvay.seed.ScriptedFakeModel;
 import com.lexvay.seed.SeedLoader;
@@ -40,7 +41,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Proves with {@code EXPLAIN}, as the application role under row-level security, that the planner chooses
- * each index added by V008, V013 and V016 for the query it was added for, and ignores the candidates that were left out. The database holds 100 renamed copies of the seed
+ * each index added by V008, V013, V016 and V018 for the query it was added for, and ignores the candidates that were left out. The database holds 100 renamed copies of the seed
  * (about 100 tenants), so tables are large enough for the planner to prefer an index over a sequential scan.
  * Run through {@code make perf}.
  */
@@ -64,6 +65,9 @@ class IndexUsageTest extends AbstractDatabaseTest {
     /** A plain Sort holds every matching row before the first leaves; an Incremental Sort only the rows of one timestamp. */
     static final Predicate<String> FULL_SORT = line -> line.matches("^\\s*(->\\s*)?Sort\\s+\\(cost=.*");
     static final Predicate<String> AUDIT_SEQUENTIAL_SCAN = line -> line.matches(".*Seq Scan on audit_log\\b.*");
+    static final String REPORT_CHECK_INDEX = "report_content_sha_idx";
+    /** A check reads the one index entry of the hash and the rows it joins: a few dozen buffers, never the report table. */
+    static final int REPORT_CHECK_BUFFER_BUDGET = 60;
 
     /** An index and the application query it was considered for; a rejected one is created here only to prove it is ignored. */
     record Candidate(String index, String query, String sql, boolean kept, String alternative) {
@@ -217,6 +221,26 @@ class IndexUsageTest extends AbstractDatabaseTest {
         Files.createDirectories(auditPlan.getParent());
         Files.writeString(auditPlan, String.join("\n", auditPlans) + "\n");
 
+        String knownHash = TenantContext.runAs(tenantId, () -> one("SELECT content_sha256 FROM report WHERE content_sha256 IS NOT NULL LIMIT 1"));
+        List<String> reportCheckPlans = new ArrayList<>();
+        List<String> reportChecksOverBudget = new ArrayList<>();
+        for (var lookup : Map.of("a file that matches", knownHash, "a file that matches nothing", "0".repeat(64)).entrySet()) {
+            List<String> analyzed = null;
+            for (int run = 0; run < 3; run++) {
+                analyzed = TenantContext.runAs(tenantId,
+                        () -> jdbc.sql("EXPLAIN (ANALYZE, BUFFERS) " + reportCheck(lookup.getValue())).query(String.class).list());
+            }
+            reportCheckPlans.add("-- " + lookup.getKey());
+            reportCheckPlans.addAll(analyzed);
+            if (buffers(analyzed) > REPORT_CHECK_BUFFER_BUDGET || analyzed.stream().noneMatch(l -> l.contains(REPORT_CHECK_INDEX))
+                    || analyzed.stream().anyMatch(l -> l.matches(".*Seq Scan on report\\b.*"))) {
+                reportChecksOverBudget.add(lookup.getKey() + ": " + buffers(analyzed) + " buffers");
+            }
+        }
+        Path reportCheckPlan = Path.of("target", "perf", "report-check-plan.txt");
+        Files.createDirectories(reportCheckPlan.getParent());
+        Files.writeString(reportCheckPlan, String.join("\n", reportCheckPlans) + "\n");
+
         Path plan = Path.of("target", "perf", "work-queue-plan.txt");
         Files.createDirectories(plan.getParent());
         Files.writeString(plan, String.join("\n", workQueue) + "\n");
@@ -227,7 +251,7 @@ class IndexUsageTest extends AbstractDatabaseTest {
         Path out = Path.of("target", "perf", "index-usage.md");
         Files.createDirectories(out.getParent());
         Files.writeString(out, table);
-        assertThat(keptButIgnored).as("indexes of V008, V013 and V016 the planner did not choose: drop them").isEmpty();
+        assertThat(keptButIgnored).as("indexes of V008, V013, V016 and V018 the planner did not choose: drop them").isEmpty();
         assertThat(rejectedButChosen).as("rejected candidates the planner now chooses: add them to V008").isEmpty();
         assertThat(lookupsOverBudget).as("job lookups touching more than " + JOB_LOOKUP_BUFFER_BUDGET
                 + " buffers: a lookup by one record must not walk the index of every tenant").isEmpty();
@@ -236,6 +260,8 @@ class IndexUsageTest extends AbstractDatabaseTest {
         assertThat(auditSorts).as("audit statements that scan the table, or lists that sort all matching rows (plans in target/perf/audit-plans.txt)")
                 .isEmpty();
         assertThat(jobSequentialScans).as("statements that scan the job table sequentially: it only grows").isEmpty();
+        assertThat(reportChecksOverBudget).as("report checks that do not use " + REPORT_CHECK_INDEX + " or read more than "
+                + REPORT_CHECK_BUFFER_BUDGET + " buffers (plans in target/perf/report-check-plan.txt)").isEmpty();
         Path coveragePlan = Path.of("target", "perf", "coverage-plan.txt");
         Files.writeString(coveragePlan, String.join("\n", coverage) + "\n");
         assertThat(coverage).as("the coverage statement scans no hot table sequentially (plan in target/perf/coverage-plan.txt)")
@@ -310,6 +336,7 @@ class IndexUsageTest extends AbstractDatabaseTest {
         String ruleVersion = one("SELECT id FROM rule_version LIMIT 1");
         String otherRuleVersion = one("SELECT id FROM rule_version OFFSET 1 LIMIT 1");
         String ruleSource = one("SELECT id FROM rule_source LIMIT 1");
+        String reportHash = one("SELECT content_sha256 FROM report WHERE content_sha256 IS NOT NULL LIMIT 1");
         return List.of(
                 new Candidate("mapping_assessment_jurisdiction_idx", "mappings of one jurisdiction in an assessment (list, counts)",
                         "SELECT m.id FROM mapping m JOIN requirement r ON r.id = m.requirement_id "
@@ -354,7 +381,13 @@ class IndexUsageTest extends AbstractDatabaseTest {
                 Candidate.eitherOf("job_claim_idx", "job_entity_idx", "is a check of a rule source already queued (manual check: the queued jobs of V001 or the one source of V013)",
                         RuleSourceRepository.ENQUEUE.formatted("rs.id = '" + ruleSource + "'").replace(":createdBy", "NULL")),
                 new Candidate("requirement_ordinal_key", "requirements of a rule version (existing unique index, so V008 adds none)",
-                        "SELECT id FROM requirement WHERE rule_version_id = '" + ruleVersion + "' ORDER BY ordinal"));
+                        "SELECT id FROM requirement WHERE rule_version_id = '" + ruleVersion + "' ORDER BY ordinal"),
+                new Candidate(REPORT_CHECK_INDEX, "the report with the content of a checked file (V018)", reportCheck(reportHash)));
+    }
+
+    /** The report check statement as the application runs it, for one content hash. */
+    private static String reportCheck(String sha256) {
+        return ReportRepository.CHECK.replace(":h", "'" + sha256 + "'");
     }
 
     private String one(String sql) {

@@ -8,6 +8,7 @@ import { COVERAGE_ICONS } from '../screens/coverage/coverage';
 import { PEOPLE_ICONS } from '../screens/people/people';
 import { REGISTER_ICONS } from '../screens/register/register';
 import { REQUESTS_ICONS } from '../screens/requests/requests';
+import { REPORT_CHECK_ICONS } from '../screens/report/report-check-dialog';
 import { REVIEW_ICONS } from '../screens/review/review';
 import { RULES_ICONS } from '../screens/rules/rules';
 import { PROGRAM_SETUP_ICONS } from '../screens/program-setup/program-setup';
@@ -50,6 +51,7 @@ const UNITS: Unit[] = [
   { name: 'work queue (shell, deferred)', entries: ['shell/work-queue-menu.ts'], registered: WORK_QUEUE_ICONS, shared: true },
   { name: 'command palette (shell, deferred)', entries: ['ui/command-palette/command-palette.ts'], registered: PALETTE_ICONS, shared: true },
   { name: 'decision bar (shared)', entries: ['ui/decision-bar/decision-bar.ts'], registered: DECISION_BAR_ICONS, shared: true },
+  { name: 'report check (report, deferred)', entries: ['screens/report/report-check-dialog.ts'], registered: REPORT_CHECK_ICONS, shared: true },
 ];
 
 const read = (file: string): string => readFileSync(join(SRC, file), 'utf8');

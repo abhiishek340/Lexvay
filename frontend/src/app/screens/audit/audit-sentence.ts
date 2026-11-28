@@ -160,6 +160,7 @@ export const AUDIT_SENTENCES: Record<string, Sentence> = {
   },
   REPORT_REQUESTED: ({ actor }) => `${actor} requested an evidence report PDF`,
   REPORT_GENERATED: ({ actor }) => `${actor} generated an evidence report PDF`,
+  REPORT_CHECKED: ({ actor, detail }) => `${actor} checked a report file: ${detail['match'] === true ? 'it matches' : 'no match'}`,
   JOB_FAILED: ({ actor, detail }) => `${actor} could not finish ${JOB_NOUN[String(detail['type'])] ?? 'a background job'}`,
 };
 
@@ -202,6 +203,7 @@ export const ACTION_LABEL: Record<string, string> = {
   CHANGE_RERUN: 'Re-run finished',
   REPORT_REQUESTED: 'Evidence report requested',
   REPORT_GENERATED: 'Evidence report generated',
+  REPORT_CHECKED: 'Report file checked',
   JOB_FAILED: 'Background job failed',
 };
 
