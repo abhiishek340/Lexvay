@@ -12,6 +12,7 @@ import com.lexvay.common.TestCsv;
 import com.lexvay.determination.DeterminationRepository;
 import com.lexvay.document.DocumentService;
 import com.lexvay.review.ReviewFixtures;
+import com.lexvay.tenant.DataMode;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +25,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -84,6 +86,7 @@ class PackageApiTest extends AbstractAssessmentTest {
         JsonNode manifest = packages.checkedManifest(entries);
         assertThat(manifest.get("packageId").asString()).isEqualTo(packageId.toString());
         assertThat(manifest.get("determinationId").asString()).isEqualTo(determinationId.toString());
+        assertThat(manifest.get("dataMode").asString()).isEqualTo("DEMO");
         assertThat(manifest.get("lexvayVersion").asString()).isNotBlank();
         assertThat(Instant.parse(manifest.get("generatedAt").asString())).isBefore(Instant.now().plusSeconds(1));
 
@@ -91,7 +94,9 @@ class PackageApiTest extends AbstractAssessmentTest {
                 .getResponse().getContentAsByteArray();
         assertThat(entries.get("report.pdf")).as("the report's exact bytes").isEqualTo(storedReport);
         assertThat(new String(entries.get("documents/coun605.txt"), StandardCharsets.UTF_8)).isEqualTo(SYLLABUS_605);
-        assertThat(new String(entries.get("README.txt"), StandardCharsets.UTF_8).split("\\.\\s+|\\.\\n")).hasSize(4);
+        String readme = new String(entries.get("README.txt"), StandardCharsets.UTF_8);
+        assertThat(readme).as("a DEMO tenant's README says in its first line that the data is fictional").startsWith("Fictional demo data.\n");
+        assertThat(readme.substring("Fictional demo data.\n".length()).split("\\.\\s+|\\.\\n")).hasSize(4);
 
         JsonNode determination = json.readTree(entries.get("determination.json"));
         assertThat(determination.get("id").asString()).isEqualTo(determinationId.toString());
@@ -185,6 +190,22 @@ class PackageApiTest extends AbstractAssessmentTest {
         assertThat(mvc.get().uri("/api/v1/packages/" + packageId).with(user(other.admin())).exchange()).hasStatus(404);
         assertThat(packages.file(other.admin(), packageId)).hasStatus(404);
         assertThat(packages.file(t.admin(), packageId)).hasStatus(200);
+    }
+
+    @Test
+    void aPackageOfATenantWithRealDataSaysSoInItsManifestAndLeavesTheReadmeAsItIs() throws Exception {
+        packages.readyReport(t.signer(), determinationId);
+        UUID packageId = packages.acceptedPackage(t.signer(), determinationId);
+        tenants.setDataMode(t.tenantId(), DataMode.LIVE);
+        Instant generatedAt = Instant.parse("2026-11-27T10:15:30Z");
+
+        Built first = build(packageId, generatedAt);
+
+        Map<String, byte[]> entries = PackageFixtures.unzip(first.bytes());
+        assertThat(packages.checkedManifest(entries).get("dataMode").asString()).isEqualTo("LIVE");
+        assertThat(entries.get("README.txt")).isEqualTo(new ClassPathResource("evidence-package/README.txt").getContentAsByteArray());
+        assertThat(new String(entries.get("README.txt"), StandardCharsets.UTF_8)).doesNotContain("Fictional demo data");
+        assertThat(build(packageId, generatedAt).bytes()).as("still deterministic").isEqualTo(first.bytes());
     }
 
     @Test

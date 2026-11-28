@@ -44,8 +44,9 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "LEXVAY_LLM_PROVIDER", value = "anthropic" },
         { name = "LEXVAY_LLM_MODEL", value = var.llm_model },
         { name = "LEXVAY_LLM_EFFORT", value = var.llm_effort },
-        { name = "LEXVAY_LLM_PRICE_INPUT_PER_MTOK", value = tostring(var.llm_price_input_per_mtok) },
-        { name = "LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK", value = tostring(var.llm_price_output_per_mtok) },
+        { name = "LEXVAY_LLM_PAID_APPROVED", value = tostring(var.llm_paid_approved) },
+        { name = "LEXVAY_LLM_MONTHLY_BUDGET_USD", value = tostring(var.llm_monthly_budget_usd) },
+        { name = "LEXVAY_LLM_RATES", value = var.llm_rates },
       ]
 
       secrets = [

@@ -1,16 +1,17 @@
 package com.lexvay.auth;
 
 import com.lexvay.common.TenantContext;
+import com.lexvay.tenant.DataMode;
 import com.lexvay.tenant.PasswordSetupService;
+import com.lexvay.tenant.Tenant;
 import com.lexvay.tenant.TenantRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,13 +31,10 @@ public class AuthController {
 
     private final TenantRepository tenants;
     private final PasswordSetupService passwordSetup;
-    private final List<String> demoTenantNames;
 
-    public AuthController(TenantRepository tenants, PasswordSetupService passwordSetup,
-                          @Value("${lexvay.demo-tenant-names:Northfield University}") List<String> demoTenantNames) {
+    public AuthController(TenantRepository tenants, PasswordSetupService passwordSetup) {
         this.tenants = tenants;
         this.passwordSetup = passwordSetup;
-        this.demoTenantNames = demoTenantNames;
     }
 
     public record UserView(UUID id, UUID tenantId, String email, String displayName, Role role) {
@@ -46,7 +44,7 @@ public class AuthController {
         return new UserView(user.id(), user.tenantId(), user.email(), user.displayName(), user.role());
     }
 
-    /** {@code demo} drives the permanent fictional-data banner (D-064). */
+    /** {@code demo} is true for a DEMO tenant and drives the permanent fictional-data banner (D-064, D-560). */
     public record SessionView(boolean authenticated, UserView user, String csrfHeaderName, String tenantName, boolean demo) {
     }
 
@@ -58,11 +56,10 @@ public class AuthController {
     SessionView session(HttpServletRequest request) {
         CsrfToken token = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
         String headerName = token == null ? null : token.getHeaderName();
-        String tenantName = CurrentUser.get().isPresent()
-                ? TenantContext.runAs(CurrentUser.require().tenantId(), () -> tenants.findById(CurrentUser.require().tenantId()).map(t -> t.name()).orElse(null))
-                : null;
-        boolean demo = tenantName != null && demoTenantNames.contains(tenantName);
-        return new SessionView(CurrentUser.get().isPresent(), CurrentUser.get().map(AuthController::toView).orElse(null), headerName, tenantName, demo);
+        Optional<Tenant> tenant = CurrentUser.get()
+                .flatMap(user -> TenantContext.runAs(user.tenantId(), () -> tenants.findById(user.tenantId())));
+        return new SessionView(CurrentUser.get().isPresent(), CurrentUser.get().map(AuthController::toView).orElse(null), headerName,
+                tenant.map(Tenant::name).orElse(null), tenant.map(t -> t.dataMode() == DataMode.DEMO).orElse(false));
     }
 
     /**

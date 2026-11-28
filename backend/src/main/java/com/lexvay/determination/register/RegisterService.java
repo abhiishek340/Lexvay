@@ -2,6 +2,7 @@ package com.lexvay.determination.register;
 
 import com.lexvay.audit.AuditService;
 import com.lexvay.common.NotFoundException;
+import com.lexvay.tenant.TenantRepository;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,10 +19,12 @@ public class RegisterService {
 
     private final RegisterRepository repository;
     private final AuditService audit;
+    private final TenantRepository tenants;
 
-    public RegisterService(RegisterRepository repository, AuditService audit) {
+    public RegisterService(RegisterRepository repository, AuditService audit, TenantRepository tenants) {
         this.repository = repository;
         this.audit = audit;
+        this.tenants = tenants;
     }
 
     @Transactional(readOnly = true)
@@ -44,6 +47,6 @@ public class RegisterService {
         Map<String, Object> detail = new LinkedHashMap<>(filter.auditDetail());
         detail.put("rowCount", rows.size());
         audit.record("REGISTER_EXPORTED", "determination_register", null, detail);
-        return RegisterCsv.write(rows);
+        return RegisterCsv.write(rows, tenants.currentDataMode());
     }
 }

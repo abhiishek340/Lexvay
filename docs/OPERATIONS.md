@@ -88,7 +88,7 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 | `LEXVAY_SHUTDOWN_GRACE` | Time a stop waits for open requests and the running job | 30s |
 | `LEXVAY_DB_URL`, `LEXVAY_DB_OWNER_*`, `LEXVAY_DB_APP_*` | PostgreSQL URL and the two roles (D-013, D-034) | see `.env.example` |
 | `LEXVAY_LLM_PROVIDER`, `LEXVAY_LLM_MODEL`, `LEXVAY_LLM_EFFORT`, `ANTHROPIC_API_KEY` | Model (D-033). `fake` is for demos only | `fake` |
-| `LEXVAY_LLM_PRICE_INPUT_PER_MTOK`, `LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK` | USD per million tokens, for the cost estimate; 0 means not set | 0 |
+| `LEXVAY_LLM_PAID_APPROVED`, `LEXVAY_LLM_MONTHLY_BUDGET_USD`, `LEXVAY_LLM_RATES` | The spend gate for a metered provider and the one price table (see "Data mode and the spend gate"). `LEXVAY_LLM_RATES` replaces `LEXVAY_LLM_PRICE_INPUT_PER_MTOK` and `LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK`, which are no longer read | `false`, `0`, empty |
 | `LEXVAY_FILESTORE`, `LEXVAY_FILESTORE_PATH`, `LEXVAY_S3_BUCKET` | Where documents are stored | image: `/var/lexvay/files` |
 | `SPRING_PROFILES_ACTIVE` (compose: `LEXVAY_PROFILES`) | The image sets `prod` (structured logs); use `prod,oidc` for single sign-on, because setting only `oidc` drops the production log format | `prod` |
 | `LEXVAY_OIDC_ISSUER_URI`, `LEXVAY_OIDC_CLIENT_ID`, `LEXVAY_OIDC_CLIENT_SECRET`, `LEXVAY_OIDC_POST_LOGIN_URL` | Single sign-on (WS-SEC, D-090) | empty |
@@ -105,6 +105,52 @@ The JVM options are in `JAVA_OPTS` (default `-XX:MaxRAMPercentage=75 -XX:+ExitOn
 -Djava.io.tmpdir=/var/lexvay/tmp`); override the variable to change them. Password hashing needs heap headroom of
 `LEXVAY_PASSWORD_HASH_CONCURRENCY` x 32 MiB on top of the application's own use (64 MiB with the minimum of 2 permits, 256 MiB on
 eight processors): if you lower the heap, lower the setting with it, because the JVM exits on out-of-memory.
+
+## Data mode and the spend gate
+
+Demo data stays apart from real data, and no billed model call happens without approval and a cap (MODE-1, D-560 to
+D-565).
+
+**Data mode.** Every tenant is `DEMO` or `LIVE` (`tenant.data_mode`). The seed creates its tenants as `DEMO`, and so
+do the tests; a tenant created any other way is `LIVE`. The fictional-data banner and the sign-in demo accounts follow
+the mode (`GET /api/v1/auth/session` returns `demo: true` for a `DEMO` tenant). A `LIVE` tenant never uses the
+scripted model: with `LEXVAY_LLM_PROVIDER=fake` its extraction and assessment jobs fail with "No model is
+configured for real data", the seed refuses to write into it, and requirements cannot be approved from a rule version
+until its dates basis is recorded and does not say "Fictional demo data" (until RG-1 records dates bases, every approval
+in a `LIVE` tenant is refused). Every report, register export and audit export of a `DEMO` tenant carries "Fictional
+demo data" in its header.
+
+No API changes the mode. A database administrator does it as the owner role, naming the tenant first because
+row-level security applies to the owner too:
+
+```
+BEGIN;
+SELECT set_config('lexvay.tenant_id', '<tenant id>', true);
+UPDATE tenant SET data_mode = 'LIVE' WHERE id = '<tenant id>';
+COMMIT;
+```
+
+The database writes the audit entry itself (`TENANT_DATA_MODE_CHANGED`, with the old and new mode and the database
+role). Do not move a tenant that holds fictional data to `LIVE`: its seeded documents and rules would then be mixed with
+real ones.
+
+**Spend gate.** The scripted model costs nothing. The `anthropic` provider is metered, and every call of it is refused
+unless all three hold:
+1. `LEXVAY_LLM_PAID_APPROVED` is `true` (default `false`).
+2. The model has a price in `LEXVAY_LLM_RATES`, written `model=inputPerMtok:outputPerMtok` in USD per million tokens,
+   entries separated by commas. There are no built-in prices, so the default table is empty and the cost of any call is
+   unknown. Copy the prices from the provider's price list on the day you approve spending; a model that appears in
+   this month's recorded calls needs a price too.
+3. The cost recorded so far this UTC month, over every tenant, plus the most the call can cost is at most
+   `LEXVAY_LLM_MONTHLY_BUDGET_USD` (default `0`). The most a call can cost is its `max-output-tokens` at the output
+   price plus one input token per byte of its prompts and schema at the input price.
+
+A refused call sends nothing, fails its job at once (no retries), logs the reason without content and is audited as
+`LLM_CALL_REFUSED` with the reason, model and purpose. The cost recorded is the tokens of every stored call
+(`llm_call`) at the configured prices: a call that failed at the provider is not stored, and instances running at the
+same moment can together pass the budget by the calls in flight. Treat the budget as a guard rail and also set a
+spending limit with the provider. At startup one log line states the provider, whether paid calls are approved, the
+budget and the priced models. `make eval-live` goes through the same gate.
 
 ## Users and sessions
 
@@ -303,13 +349,13 @@ lexvay_llm_duration_seconds_count{purpose="MATCH_EVIDENCE"} 3
 ### Cost of one assessment
 
 `GET /api/v1/assessments/{id}/usage` (any signed-in user of the tenant; another tenant's id is a 404). With prices
-set (`2.00` and `10.00` here), for the seeded Northfield assessment:
+set (`fake-llm=2.00:10.00` here), for the seeded Northfield assessment:
 
 ```
 {"assessmentId":"9a3e5aef-0a0f-4c15-a8b0-b32b14703993","model":"fake-llm","calls":31,"inputTokens":49362,"outputTokens":2618,"modelTimeMs":0,"wallTimeMs":150,"estimatedCostUsd":0.124904,"prices":{"inputPerMtok":2.00,"outputPerMtok":10.00},"byPurpose":[{"purpose":"MATCH_EVIDENCE","calls":31,"inputTokens":49362,"outputTokens":2618,"durationMs":0}]}
 ```
 
-`estimatedCostUsd` is tokens times the configured prices and is `null` when no price is configured. Requirement
+`estimatedCostUsd` is the tokens times the price of the assessment's model in `LEXVAY_LLM_RATES` (for this example `LEXVAY_LLM_RATES=fake-llm=2.00:10.00`), rounded up to a millionth of a dollar; it and `prices` are `null` when the model has no price. The evaluation report's cost line uses the same table. Requirement
 extraction calls belong to a rule version, not an assessment, and are not included.
 
 ## Deploy on AWS (Terraform)

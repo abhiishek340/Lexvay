@@ -46,7 +46,8 @@ test('the audit filter chips ask the server, details open in place, and the admi
   await page.getByRole('link', { name: 'Download CSV' }).click();
   const file = await download;
   expect(file.suggestedFilename()).toMatch(/^lexvay-audit-\d{4}-\d{2}-\d{2}\.csv$/);
-  const [header, ...rows] = readFileSync(await file.path(), 'utf8').trim().split('\r\n');
+  const [notice, header, ...rows] = readFileSync(await file.path(), 'utf8').trim().split('\r\n');
+  expect(notice, 'the seeded tenant is a DEMO tenant, so its audit file says the data is fictional').toBe('"Fictional demo data"');
   expect(header).toBe('"Time (UTC)","Actor","Action","Record type","Record ID","Details","Seq","Row hash","Entry ID","Actor ID"');
   expect(rows).toHaveLength(1);
   expect(rows[0]).toContain('"Dana Whitfield","DETERMINATION_SIGNED","determination"');

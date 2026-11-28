@@ -46,7 +46,7 @@ public class AuditSealRepository {
 
     /**
      * Tenants with entries waiting to be sealed, read across tenants under the transaction-local worker flag
-     * (D-013, V019). The flag opens this read and nothing else.
+     * (D-013, V023). The flag opens this read and nothing else.
      */
     @Transactional(readOnly = true)
     public List<UUID> tenantsWithQueue() {

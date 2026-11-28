@@ -16,12 +16,12 @@ import org.springframework.core.io.ClassPathResource;
 
 /**
  * Flyway applies every migration before the application starts, so no test can load entries and then migrate. This
- * test runs the backfill statement of V019 itself, read from the migration file, against temporary tables named
+ * test runs the backfill statement of V023 itself, read from the migration file, against temporary tables named
  * {@code audit_log} and {@code audit_unsealed} (which shadow the real ones for this connection only).
  */
 class AuditSealBackfillTest extends AbstractDatabaseTest {
 
-    private static final String MIGRATION = "db/migration/V019__audit_seal.sql";
+    private static final String MIGRATION = "db/migration/V023__audit_seal.sql";
 
     @Autowired DataSource dataSource;
 

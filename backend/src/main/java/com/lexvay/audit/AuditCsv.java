@@ -21,7 +21,12 @@ public final class AuditCsv {
 
     /** A writer on {@code out} that has written the header line. */
     public static CsvWriter start(Writer out) {
-        return CsvWriter.to(out).row(HEADER);
+        return header(CsvWriter.to(out));
+    }
+
+    /** Writes the header line to a writer that may already hold lines above it, such as a demo notice. */
+    public static CsvWriter header(CsvWriter csv) {
+        return csv.row(HEADER);
     }
 
     public static void write(CsvWriter csv, ExportRow row) {

@@ -6,7 +6,7 @@ created_at) INSERT INTO audit_unsealed SELECT ... FROM entry`, so an entry and i
 together or not at all and no entry can escape sealing. Chaining inside the business transaction was rejected by the
 spec (a per-tenant lock held until commit by every audited write would serialise the tenant and invite deadlocks) and
 stays rejected. `Rule9_SingleAuditWritePathTest` reads `src/main` and fails if any other file contains
-`INSERT INTO audit_log`, or if that statement stops queueing. V019 backfills `audit_unsealed` from every existing
+`INSERT INTO audit_log`, or if that statement stops queueing. V023 backfills `audit_unsealed` from every existing
 `audit_log` row, with row-level security switched off on the two tables for the migration and forced again at its end
 (the pattern of V016), so the sealer's first runs seal the history. `AuditSealBackfillTest` runs the migration's own
 statement against shadow tables, because no test can load rows and then migrate. `audit_seal` has no `created_by`:
@@ -35,7 +35,7 @@ timer is a separate component, as `JobPoller` is to `JobRunner`: `AuditSealPolle
 lexvay.audit.sealing-enabled` (default true, off in `AbstractDatabaseTest` and in the seed and eval profiles), runs
 every `lexvay.audit.seal-interval-ms` (default 2000, `LEXVAY_AUDIT_SEAL_INTERVAL_MS`), begins no batch once the context
 is closing, and carries its own `@EnableScheduling` so it works with job polling off. `AuditSealer.sealWhile` finds the
-tenants with queued rows under the worker flag (V019 adds one policy, `worker_queue_select`, a SELECT on
+tenants with queued rows under the worker flag (V023 adds one policy, `worker_queue_select`, a SELECT on
 `audit_unsealed`; D-013), then for each tenant runs batches of 500 in separate transactions as that tenant. A batch takes
 `pg_try_advisory_xact_lock(hashtextextended('audit-seal:' || tenant, 0))` and skips the tenant when it is held, reads
 the head, reads the queue, hashes in Java, inserts the seals in one `unnest` statement, and deletes the queue rows that

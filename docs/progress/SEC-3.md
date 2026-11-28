@@ -1,10 +1,10 @@
 # SEC-3 progress (Tamper-evident audit trail)
 
-Branch `sec-audit-seal`, slot 6, migration V019 (V018 is F14's, PR #47, not on main when this was built).
+Branch `sec-audit-seal`, slot 6, migration V023 (written as V019, renumbered before merge because V020 and V022 reached main first).
 Decisions D-530 to D-537 are in `docs/decisions/SEC-3.md`.
 
 ## Done
-- V019: `audit_seal` (unique `(tenant_id, seq)`, `forbid_change()` trigger, forced RLS), `audit_unsealed` (the queue;
+- V023: `audit_seal` (unique `(tenant_id, seq)`, `forbid_change()` trigger, forced RLS), `audit_unsealed` (the queue;
   forced RLS plus the worker-flag read policy `worker_queue_select`; index `(tenant_id, created_at, audit_id)`),
   backfill of every existing audit entry into the queue.
 - Write path: `AuditRepository.insert` is one `WITH ... INSERT` statement that also queues the entry;
@@ -22,7 +22,7 @@ Decisions D-530 to D-537 are in `docs/decisions/SEC-3.md`.
 - `make perf` runs `AuditSealPerfTest`.
 
 ## Checks
-Final tree: SEC-3 merged with origin/main at the F15 merge (V018, V019, V020; F15's shared `AuditCsv` now carries the seal
+Final tree: SEC-3 merged with origin/main at the F15 merge (V018, V023, V020; F15's shared `AuditCsv` now carries the seal
 columns, so the evidence package's `audit.csv` has them too, checked in `PackageApiTest`).
 - Backend 1182 tests, frontend unit 421: all passing in one `make test` run. End-to-end: 58 passed in a separate
   `make e2e` run; the two full `make test` runs before it each lost one or two end-to-end tests to timing (a focus
@@ -43,5 +43,5 @@ columns, so the evidence package's `audit.csv` has them too, checked in `Package
 ## Deviations from the spec
 - Four export columns instead of two (D-535), and `AUDIT_VERIFIED` also records `firstBrokenSeq` when broken (D-536).
 - `AuditSealer` is not itself scheduled; `AuditSealPoller` is (D-533), so tests can switch the timer off.
-- If V018 lands after V019 on a development database that already applied V019, Flyway needs `outOfOrder`
-  (`flyway.outOfOrder=true`) or a recreated database; nothing is deployed.
+- The migration was V019 while it waited and is V023 now: V020 (F15) and V022 (MODE-1) merged first, and numbers follow merge
+  order.

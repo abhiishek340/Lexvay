@@ -8,17 +8,24 @@ const names = (code: string): string => NAMES[code] ?? code;
 const say = (action: string, detail: Record<string, unknown> = {}, actor = 'Dana Whitfield'): string =>
   auditSentence(action, { actor, detail, jurisdictionName: names });
 
-/** Every action name the backend passes to AuditService, read from its sources (`audit.record(...)` and `recordAs`). */
+/**
+ * Every action name the backend audits, read from its sources: the Java calls `audit.record(...)` and `recordAs`, and
+ * the migrations whose triggers insert into audit_log themselves.
+ */
 function backendActions(): string[] {
-  const root = resolve(process.cwd(), '../backend/src/main/java');
-  const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true })
-    .flatMap((e) => (e.isDirectory() ? files(join(dir, e.name)) : e.name.endsWith('.java') ? [join(dir, e.name)] : []));
+  const main = resolve(process.cwd(), '../backend/src/main');
+  const files = (dir: string, extension: string): string[] => readdirSync(dir, { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? files(join(dir, e.name), extension) : e.name.endsWith(extension) ? [join(dir, e.name)] : []));
   const actions = new Set<string>();
-  for (const file of files(root)) {
+  for (const file of files(join(main, 'java'), '.java')) {
     // The action is the upper-case string before the record type (the first lower-case string) of the call.
     for (const [, head] of readFileSync(file, 'utf8').matchAll(/audit\.record(?:As)?\(([^;]*?)"[a-z_]+"/gs)) {
       for (const [, action] of head.matchAll(/"([A-Z][A-Z_]+)"/g)) { actions.add(action); }
     }
+  }
+  for (const file of files(join(main, 'resources/db/migration'), '.sql')) {
+    // The action is the first quoted upper-case word of the VALUES of an INSERT INTO audit_log.
+    for (const [, action] of readFileSync(file, 'utf8').matchAll(/INSERT INTO audit_log[^;]*?VALUES\s*\([^']*?'([A-Z][A-Z_]+)'/gs)) { actions.add(action); }
   }
   return [...actions].sort();
 }
@@ -88,6 +95,11 @@ describe('audit sentences', () => {
       ['REPORT_CHECKED', { match: true, sha256: 'a'.repeat(64) }, 'Dana Whitfield checked a report file: it matches'],
       ['REPORT_CHECKED', { match: false, sha256: 'b'.repeat(64) }, 'Dana Whitfield checked a report file: no match'],
       ['JOB_FAILED', { type: 'RUN_ASSESSMENT', error: 'boom' }, 'Dana Whitfield could not finish an assessment'],
+      ['LLM_CALL_REFUSED', { reason: 'NO_MODEL_FOR_REAL_DATA' }, 'Dana Whitfield did not make a model call: no model is configured for real data'],
+      ['LLM_CALL_REFUSED', { reason: 'OVER_BUDGET' }, 'Dana Whitfield did not make a model call: it would pass the monthly budget'],
+      ['LLM_CALL_REFUSED', { reason: 'PAID_CALLS_NOT_APPROVED' }, 'Dana Whitfield did not make a model call: paid model calls are not approved'],
+      ['LLM_CALL_REFUSED', { reason: 'COST_UNKNOWN' }, 'Dana Whitfield did not make a model call: its cost is unknown'],
+      ['TENANT_DATA_MODE_CHANGED', { from: 'DEMO', to: 'LIVE' }, "Dana Whitfield changed the organization's data from demo to real"],
     ];
     for (const [action, detail, sentence] of cases) {
       expect(say(action, detail), action).toBe(sentence);

@@ -30,10 +30,10 @@ runs, sandbox, authorized real data or production.
 | ID | Work package | Depends on | Model | Migration | Status |
 |---|---|---|---|---|---|
 | RG-1 | Legal time and status model; fix fetch-date-as-effective-date (P0); keep every observed change (A→B→C) | — | Sonnet 5.5 | V021 | in progress |
-| MODE-1 | Persisted tenant data mode (DEMO/LIVE) and the spend gate for paid providers | — | Sonnet 5.5 | V022 | in progress |
+| MODE-1 | Persisted tenant data mode (DEMO/LIVE) and the spend gate for paid providers | — | Sonnet 5.5 | V022 | merged (#51) |
 | RG-2 | Source registry governance: allowed hosts and paths, authority class, rights and access state, owner, expected identifiers, conditional GET, per-host throttle, robots, block-page detection | RG-1 | Sonnet 5.5 | V023 | queued |
 | RG-3 | Utah official-source adapter (DOPL, R156-60e, Utah Code 58-60-405, State Bulletin), with archived-version replay and an observed-change test | RG-2 | Sonnet 5.5 | — | queued |
-| AC-1 | Academic pathway model: catalog version, credits, choice groups, substitutions, and "every valid graduation path" evaluated with three-valued logic | — | Sonnet 5.5 | V024 | queued |
+| AC-1 | Academic pathway model: catalog version, credits, choice groups, substitutions, and "every valid graduation path" evaluated with three-valued logic | — | Sonnet 5.5 | V024 | in progress |
 | AC-2 | Governed export ingestion: manifest v1, local drop folder and read-only SFTP (Apache MINA SSHD), full and delta, tombstones, checkpoints | AC-1 | Sonnet 5.5 | V025 | queued |
 | AC-3 | Public catalog feasibility adapter (University of Utah CMHC program requirements and handbooks): proposed facts with citations and a missing-evidence manifest; no university text committed | RG-2, AC-1 | Sonnet 5.5 | — | queued |
 | EV-1 | Local inference adapter (OpenAI-compatible endpoint for a locally run model), configured explicitly and never defaulted; evaluation runs labelled scripted, replay, local-live or paid-live | MODE-1 | Sonnet 5.5 | — | queued |
@@ -121,6 +121,141 @@ Decided model. Unknown stays unknown, and nothing becomes law because a crawler 
    the mode, Rule 9 and the input table rows, and the frontend banner driven by the session flag (unchanged
    component). Decisions go in `docs/decisions/MODE-1.md`, progress in `docs/progress/MODE-1.md`. `.env.example`
    documents the new variables.
+
+### AC-1 — Academic pathway model (backend; slot 3; Sonnet 5.5; V024; D-586 to D-595)
+Today `course_version.required` is one boolean. `DowngradeRule.notRequiredCourse` turns a quote from a non-required
+course into AMBIGUOUS. The program's total credits are a fact a person enters (`program_fact`). There are no choice
+groups, no course credits and no units, so "every valid graduation path" cannot be checked, and a credit total
+cannot be cross-checked against the plan. Decided model:
+1. **V024:**
+   - `course_version.credits numeric(5,2) NULL CHECK (credits > 0)` and `course_version.credit_unit text NOT NULL
+     DEFAULT 'SEMESTER' CHECK (credit_unit IN ('SEMESTER','QUARTER'))`. NULL credits means unknown.
+   - `pathway_group`: `id`, `tenant_id`, `program_id`, `catalog_year`, `label`, `kind` (`ALL_OF`, `CHOOSE_COUNT`,
+     `CHOOSE_CREDITS`), `min_count int NULL`, `min_credits numeric NULL`, an optional citation (`document_id`,
+     `char_start`, `char_end`, verified against stored text like every quote, rule 2), `created_at`, `created_by`.
+     CHECKs tie `min_count` to CHOOSE_COUNT and `min_credits` to CHOOSE_CREDITS; NULL means unknown.
+   - `pathway_group_course (group_id, course_id, tenant_id)`.
+   - `pathway_group_retirement (group_id PK, retired_at, retired_by, reason)`: groups are never edited; a correction
+     retires one group and creates another.
+   - All four tables have forced RLS and `forbid_change()` (except that retirement is insert-only by construction).
+   - Backfill per program and catalog year: an `ALL_OF` "Required courses" group of the `required = true` courses,
+     and a `CHOOSE_COUNT` "Electives" group of the others with `min_count NULL` (unknown). Nothing is invented.
+2. **Pure evaluator (`PathwayCoverage`, unit-tested, no database):** given the active groups and a set of courses,
+   decide with three values (TRUE, FALSE, UNKNOWN) whether the set appears on **every** valid path and on **some**
+   valid path.
+   - A course is on every path if it belongs to an `ALL_OF` group, or to a CHOOSE group whose minimum cannot be met
+     without it: for CHOOSE_COUNT, the members other than it number fewer than `min_count`; for CHOOSE_CREDITS, the
+     credits of the other members sum to less than `min_credits`.
+   - A minimum that is unknown, or a member credit that is unknown where credits matter, gives UNKNOWN, never TRUE.
+   - The evaluator never enumerates paths.
+   - It also computes the minimum total credits of a path (all ALL_OF credits plus the smallest selection that meets
+     each CHOOSE group). The result is UNKNOWN if any needed credit is unknown or if units are mixed. There is no
+     unit conversion; conversion needs expert approval (later item).
+3. **Assessment:**
+   - Replace `DowngradeRule.notRequiredCourse` with a rule that asks the evaluator whether the cited course is on
+     every path:
+     - FALSE: "the cited course COUN 650 is not on every graduation path";
+     - UNKNOWN: "the program's graduation paths are not fully known (Electives: minimum not recorded)".
+     Either one makes the finding AMBIGUOUS.
+   - For a NUMERIC `TOTAL_CREDITS` requirement, the rules engine still compares the reviewer's `program_fact`. When
+     the pathway minimum is known and differs from the fact, the finding becomes AMBIGUOUS, with both numbers and
+     their sources in the rationale. The rules engine does the arithmetic (rule 3).
+4. **Coverage (F10a):** the `ELECTIVE_ONLY` flag uses the evaluator instead of `required_count = 0`. Its label stays
+   "Rests on an elective" for FALSE; UNKNOWN shows "Graduation paths not fully known".
+5. **API:**
+   - `GET /programs/{id}/pathway?catalogYear=`: groups, members, credits, units, the computed minimum credits, and
+     the unknowns.
+   - `POST /programs/{id}/pathway-groups` (CONTRIBUTOR, ADMIN): audited `PATHWAY_GROUP_CREATED`.
+   - `POST /pathway-groups/{id}/retire`: audited `PATHWAY_GROUP_RETIRED`.
+   - `PUT` is not offered for credits. Credits are set when a course version is created (extend the existing
+     endpoint with an optional `credits` and `creditUnit`), and a new value means a new course version.
+   - Add the rows to Rule 9, `InputValidationTableTest` and `audit-sentence.ts` with its spec. The setup screen shows
+     the pathway as read-only text for now; UI3-3 designs the editor.
+6. **Seed:** Northfield's fictional program gets credits per course (3 each, the clinical sequence 6), and an
+   explicit "Electives: choose 2 of 3" group. Westbrook gets an "Electives: choose 1 of 2" group. Update
+   `eval/golden.yml` only where the new rule truly changes a finding, and record each change with its reason in
+   D-590. Do not loosen any threshold.
+7. **Tests:** the evaluator's truth table, including unknowns, CHOOSE_CREDITS, mixed units and empty groups.
+   - A quote from an elective in "choose 2 of 3" is AMBIGUOUS.
+   - In "choose 3 of 3" it is not downgraded.
+   - With an unknown minimum it is AMBIGUOUS with the unknown named.
+   - The credit cross-check: equal, different and unknown.
+   - The backfill makes no assumption.
+   - RLS and immutability on the new tables; retirement keeps the history; `make perf` stays green (the pathway read
+     is one statement).
+
+   Decisions go in `docs/decisions/AC-1.md`, progress in `docs/progress/AC-1.md`.
+
+### OPS-2 — Cap concurrent local test stacks (tooling; slot 5; Sonnet 5.5; no migration; D-641 to D-643)
+Several agents run `make test` at once on one machine (load average up to 55). End-to-end specs then fail on timing:
+keyboard focus races and 15 s request timeouts, each in a different spec, and they pass when rerun alone. Decided
+fix: a machine-wide semaphore over isolated stacks, in `scripts/lib/stack.sh` only.
+1. **Acquiring a token:** `stack_init` acquires one of `LEXVAY_STACK_CONCURRENCY` tokens (default 2) before it
+   starts anything.
+   - A token is a directory `${TMPDIR:-/tmp}/lexvay-stack-tokens/<n>`, created atomically with `mkdir` (macOS has
+     no `flock` command), holding a `pid` file and the slot.
+   - A token whose pid is no longer alive is reclaimed.
+   - While waiting, print `"<name>: waiting for a free test stack (n of N in use: slots …)"` every 30 s.
+   - Give up after `LEXVAY_STACK_WAIT_MINUTES` (default 60) with a clear error.
+2. **Releasing:** `stack_cleanup` releases the token on every exit path; the existing `trap` covers EXIT, so add
+   INT and TERM.
+3. **CI:** unchanged in behaviour (one stack). `LEXVAY_STACK_CONCURRENCY=0` disables the semaphore.
+4. **Test:** `scripts/lib/stack-lock-test.sh`, run by a new `make test-scripts` target that the CI test job runs
+   before `make test`. It covers:
+   - two tokens taken: the third waits, then gets one when a holder exits;
+   - a stale token with a dead pid is reclaimed;
+   - a killed holder (TERM) releases its token;
+   - concurrency 0 skips the lock.
+
+   Use short timeouts and a temporary `TMPDIR`; it must finish in under 20 s.
+5. **Docs:** a sentence in CLAUDE.md's "Local environment" section, the README or OPERATIONS where `make e2e` is
+   described, and `docs/decisions/OPS-2.md` and `docs/progress/OPS-2.md`.
+
+### EV-1 — Local inference adapter and labelled evaluation runs (backend; slot 8; Sonnet 5.5; no migration; D-616 to D-620)
+The master prompt (M5) asks for evaluation on authorized, no-incremental-fee inference, with no untested model
+hard-coded. Llama.cpp's `llama-server`, Ollama, vLLM and LM Studio all expose the OpenAI-compatible
+`/v1/chat/completions` API, so one adapter covers them. Which model to run is the founder's choice, and the agent
+downloads no model.
+1. **Client:** `OpenAiCompatibleLlmClient implements LlmClient` (provider `openai-compatible`).
+   - It uses the JDK `HttpClient`; no new dependency.
+   - Configuration: `LEXVAY_LLM_BASE_URL` (required), `LEXVAY_LLM_MODEL` (required, **no default**),
+     `LEXVAY_LLM_API_KEY` (optional), and `LEXVAY_LLM_TIMEOUT_SECONDS` (default 120).
+   - `LEXVAY_LLM_ALLOWED_HOSTS` (default `localhost,127.0.0.1,::1`): a base URL host outside it fails startup.
+     Remote endpoints need an explicit entry, and the startup line names the host.
+   - `metered()` is false, because local inference has no per-call fee. `scripted()` is false, so LIVE tenants may
+     use it.
+2. **Structured output:** send `response_format: {type: "json_schema", json_schema: {name, schema, strict: true}}`.
+   - If the server rejects it (HTTP 400 naming `response_format`), retry once without it, with the schema in the
+     system message.
+   - Either way, validate with the existing `JsonSchemaValidator`; an invalid answer is the same failure as
+     Anthropic's.
+   - Record `usage.prompt_tokens` and `usage.completion_tokens` when present, and estimate them as the fake
+     provider does when absent, marking the estimate in `llm_call` (reuse the existing field if one exists; check
+     first).
+3. **Evaluation labels:** `EvalReport.Mode` becomes `SCRIPTED` (fake), `LOCAL_LIVE` (openai-compatible) and
+   `PAID_LIVE` (anthropic).
+   - The report header states the mode, model, base URL host and date.
+   - `make eval-live` accepts either live provider.
+   - `eval/thresholds.yml` keeps separate limits for scripted and live. Live limits stay "unmeasured first values"
+     until a measured run sets them; never copy the scripted ones.
+   - A local run's report is written to `eval/runs/<date>-<model-slug>.txt` (gitignored) for the founder to keep.
+4. **Tests**, against an in-process `com.sun.net.httpserver.HttpServer` on loopback (no network):
+   - success with `json_schema`;
+   - the 400 fallback;
+   - an invalid JSON answer;
+   - a timeout;
+   - missing usage (estimated and marked);
+   - a disallowed host failing startup;
+   - a LIVE tenant accepted, and the spend gate not consulted;
+   - the eval header for each mode.
+5. **Docs:** "Local inference" in OPERATIONS, covering:
+   - how to point Lexvay at a local server (with `llama-server --port 8089` and `ollama serve` as examples of
+     servers, not model recommendations);
+   - that a model's licence must be vetted before use;
+   - the memory and latency to measure;
+   - that results from a model nobody has vetted are labelled as such.
+
+   Decisions go in `docs/decisions/EV-1.md`, progress in `docs/progress/EV-1.md`.
 
 ## Design system v3 "Ledger" (owner directive 2026-11-27: "not AI slop", professional, human craft)
 The owner reviewed v2 on the running app and rejected it: yellow and orange accents, icon-heavy pills and cards, a
@@ -319,11 +454,14 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI3-1 Review and Coverage in v3 | `ui3-review-coverage` | 2 | Opus 5.5 | queued (after UI3-0) |
 | UI3-2 Changes, audit, report, register, people in v3 | `ui3-records` | 3 | Opus 5.5 | queued (after UI3-0, F14) |
 | UI3-3 Rules, requests, setup in v3 | `ui3-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI3-0, UI2-4) |
-| SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | in progress |
+| SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | PR #53, renumbering to V023 |
 | F15 Evidence package | `feat-evidence-package` | 5 | Sonnet 5.5 | merged (#49) |
 | RG-1 Legal time and status model (P0) | `rg-legal-time` | 2 | Sonnet 5.5 | in progress |
-| MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | in progress |
-| RG-2, RG-3, AC-1, AC-2, AC-3, EV-1, EV-2, UX-1 | see Real-data validation track | — | — | queued |
+| MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | merged (#51) |
+| AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | in progress |
+| OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | in progress |
+| EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | in progress |
+| RG-2, RG-3, AC-2, AC-3, EV-2, UX-1 | see Real-data validation track | — | — | queued |
 | SP-1 SharePoint spike, DOM-1 expert review | — | — | — | blocked (founder) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |

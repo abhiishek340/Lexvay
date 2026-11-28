@@ -81,4 +81,9 @@ public class AnthropicLlmClient implements LlmClient {
     public String modelId() {
         return model;
     }
+
+    @Override
+    public boolean metered() {
+        return true;
+    }
 }

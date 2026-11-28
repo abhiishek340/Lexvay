@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { JORDAN, PASSWORD, PRIYA, SCREENSHOTS, expect, expectAccessible, goTo, nav, shoot, test } from './support';
+import { JORDAN, PASSWORD, PRIYA, SCREENSHOTS, expect, expectAccessible, goTo, nav, programIdFromUrl, shoot, test } from './support';
 
 /*
  * Program setup (F2) against the seeded Northfield tenant: a contributor creates a fictional program for two states
@@ -218,7 +218,7 @@ test('a contributor sets up a program from nothing to its first assessment', asy
 test('a reviewer sees the setup read-only, and it fits 400 px', async ({ page }) => {
   // Two programs now: the home screen lists them instead of opening the only one.
   await signInTo(page, PRIYA, NAME);
-  const programId = new URL(page.url()).pathname.split('/')[2];
+  const programId = await programIdFromUrl(page);
   await goTo(page, 'Program setup');
   await expect(page).toHaveURL(new RegExp(`/programs/${programId}/setup$`));
   await expect(page.getByRole('heading', { level: 1, name: 'Program setup' })).toBeVisible();
