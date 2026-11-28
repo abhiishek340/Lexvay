@@ -13,7 +13,7 @@ const assessment: AssessmentView = {
 };
 const determination = (jurisdiction: string, over: Partial<Determination> = {}): Determination => ({
   id: `d-${jurisdiction}`, programId: 'p1', jurisdiction, ruleVersionId: 'r', ruleVersionLabel: 'CA board rules 2026', assessmentId: 'a', outcome: 'DOES_NOT_MEET',
-  signedBy: 'u', signedByName: 'Dana Whitfield', signedAt: '2026-11-26T10:00:00Z', status: 'SIGNED', versionsHash: 'h', courseVersionIds: [], ...over,
+  signedBy: 'u', signedByName: 'Dana Whitfield', signedAt: '2026-11-26T10:00:00Z', status: 'SIGNED', versionsHash: 'h', courseVersionIds: [], latestReadyReportId: null, latestReadyReportAt: null, ...over,
 });
 const version = (jurisdiction: string, label: string, over: Partial<RuleVersionView> = {}): RuleVersionView => ({
   id: `${jurisdiction}-${label}`, jurisdiction, licenseType: 'L', label, sourceUrl: '', legalStatus: 'IN_FORCE', effectiveFrom: '2026-01-01', effectiveTo: null, publishedAt: null, adoptedAt: null, datesBasis: 'Fictional demo data', observedAt: null, queuedObservations: [], supersedesId: null, documentId: 'doc',

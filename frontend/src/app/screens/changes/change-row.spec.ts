@@ -15,7 +15,7 @@ const course: ChangeEvent = {
 };
 const determination = (id: string, jurisdiction: string): Determination => ({
   id, programId: 'p', jurisdiction, ruleVersionId: 'r1', ruleVersionLabel: 'x', assessmentId: 'a', outcome: 'MEETS', signedBy: 'u',
-  signedByName: 'Dana Whitfield', signedAt: '2026-11-20T10:00:00Z', status: 'REOPENED', versionsHash: 'h', courseVersionIds: [],
+  signedByName: 'Dana Whitfield', signedAt: '2026-11-20T10:00:00Z', status: 'REOPENED', versionsHash: 'h', courseVersionIds: [], latestReadyReportId: null, latestReadyReportAt: null,
 });
 
 describe('version difference', () => {

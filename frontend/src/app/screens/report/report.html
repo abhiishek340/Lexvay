@@ -2,19 +2,20 @@
   <header class="lx-page-header">
     <div>
       <h1>Evidence report</h1>
-      <p class="lx-meta lx-downloads-note" id="downloads-note">{{ note() }}</p>
+      @if (note(); as n) { <p class="lx-meta" id="downloads-note">{{ n }}</p> }
     </div>
     <div class="lx-title-actions">
       @if (context.program()) {
         <button pButton type="button" severity="secondary" [outlined]="true" (click)="checkOpen.set(true)"><span pButtonLabel>Check a file</span></button>
-        <button pButton type="button" severity="secondary" [outlined]="true" [disabled]="!reportReady() || preparingPackage()"
-                [attr.aria-busy]="preparingPackage()" [attr.aria-describedby]="note() ? 'downloads-note' : null" (click)="downloadPackage()">
-          <span pButtonLabel>{{ preparingPackage() ? 'Preparing package…' : 'Download evidence package' }}</span>
-        </button>
-        <button pButton type="button" [disabled]="!signed() || preparingPdf()" [attr.aria-busy]="preparingPdf()"
-                [attr.aria-describedby]="signed() ? null : 'downloads-note'" (click)="downloadPdf()">
-          <span pButtonLabel>{{ preparingPdf() ? 'Preparing PDF…' : 'Download PDF' }}</span>
-        </button>
+        @if (signed()) {
+          <button pButton type="button" severity="secondary" [outlined]="true" [disabled]="!reportReady() || preparingPackage()"
+                  [attr.aria-busy]="preparingPackage()" [attr.aria-describedby]="note() ? 'downloads-note' : null" (click)="downloadPackage()">
+            <span pButtonLabel>{{ preparingPackage() ? 'Preparing package…' : 'Download evidence package' }}</span>
+          </button>
+          <button pButton type="button" [disabled]="preparingPdf()" [attr.aria-busy]="preparingPdf()" (click)="downloadPdf()">
+            <span pButtonLabel>{{ preparingPdf() ? 'Preparing PDF…' : 'Download PDF' }}</span>
+          </button>
+        }
       }
       <lx-help [terms]="help" />
     </div>

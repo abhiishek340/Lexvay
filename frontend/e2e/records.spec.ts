@@ -84,10 +84,11 @@ test('the signed report carries the seal and downloads its PDF, then its evidenc
   await expect(page.getByRole('note', { name: 'Draft. Not a determination.' })).toBeVisible();
   const pdfButton = page.getByRole('button', { name: 'Download PDF' });
   const packageButton = page.getByRole('button', { name: 'Download evidence package' });
-  await expect(pdfButton).toBeDisabled();
-  await expect(packageButton).toBeDisabled();
-  await expect(pdfButton).toHaveAccessibleDescription('PDF and package after signing');
-  await expect(packageButton).toHaveAccessibleDescription('PDF and package after signing');
+  // A draft offers no download at all, only the line that says when there will be one.
+  await expect(pdfButton).toHaveCount(0);
+  await expect(packageButton).toHaveCount(0);
+  await expect(page.getByRole('main').getByText('PDF and package after signing', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Check a file' })).toBeVisible();
 
   await stateTab(page, 'CA').click();
   await expect(page).toHaveURL(/[?&]jurisdiction=CA$/);
@@ -95,10 +96,6 @@ test('the signed report carries the seal and downloads its PDF, then its evidenc
   const requirements = page.getByRole('list', { name: '8 requirements' });
   await expect(requirements.getByRole('listitem')).toHaveCount(8);
   await expect(requirements.getByRole('listitem').first().getByRole('heading', { level: 4 })).toBeVisible();
-  // The package holds the report's PDF, so it waits for the PDF and says so in the title row's meta line.
-  await expect(packageButton).toBeDisabled();
-  await expect(packageButton).toHaveAccessibleDescription('Package after the PDF');
-
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download PDF' }).click();
   const file = await download;
@@ -115,6 +112,23 @@ test('the signed report carries the seal and downloads its PDF, then its evidenc
   expect(readFileSync(await zip.path()).subarray(0, 2).toString('latin1')).toBe('PK');
   await expect(page.locator('.p-toast')).toContainText('Package ready');
   await expect(packageButton).toBeEnabled();
+
+  // A signer who comes back later finds the report ready: the stored PDF and the package, with nothing generated again.
+  const generated: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && /\/api\/v1\/determinations\/[^/]+\/report$/.test(new URL(request.url()).pathname)) { generated.push(request.url()); }
+  });
+  await page.reload();
+  await expect(page.getByRole('img', { name: /^Signed by Dana Whitfield on / })).toBeVisible();
+  await expect(page.getByRole('main').getByText('Package after the PDF')).toHaveCount(0);
+  await expect(packageButton).toBeEnabled();
+  const again = page.waitForEvent('download');
+  await packageButton.click();
+  expect((await again).suggestedFilename()).toMatch(/^lexvay-[a-z0-9-]+-ca-\d{4}-\d{2}-\d{2}\.zip$/);
+  const stored = page.waitForEvent('download');
+  await pdfButton.click();
+  expect(readFileSync(await (await stored).path()).subarray(0, 5).toString('latin1')).toBe('%PDF-');
+  expect(generated, 'the returning signer generated no new report').toEqual([]);
 });
 
 for (const [width, height] of [[1440, 900], [400, 860]] as const) {

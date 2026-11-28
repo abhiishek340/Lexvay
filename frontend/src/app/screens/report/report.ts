@@ -85,9 +85,10 @@ export class Report {
   });
   readonly signed = computed(() => this.context.determinations().find((d) => d.jurisdiction === this.jurisdiction() && d.status === 'SIGNED') ?? null);
   private readonly reopened = computed(() => this.context.determinations().some((d) => d.jurisdiction === this.jurisdiction() && d.status === 'REOPENED'));
+  /** A READY report exists: stored before this visit (the read model's `latestReadyReportId`) or generated in it. */
   readonly reportReady = computed(() => {
     const d = this.signed();
-    return d !== null && this.pdf()?.determinationId === d.id;
+    return d !== null && (d.latestReadyReportId !== null || this.pdf()?.determinationId === d.id);
   });
   readonly note = computed(() => downloadsNote(this.signed() ? 'SIGNED' : this.reopened() ? 'REOPENED' : null, this.reportReady()));
 
@@ -132,7 +133,10 @@ export class Report {
     }
   }
 
-  /** Generates the PDF of the signed determination (a job) the first time, then saves it; later clicks save it again. */
+  /**
+   * Saves the PDF of the signed determination: the stored one when a report is ready (D-515), otherwise a new one the
+   * server generates (a job) first. Later clicks save the same file again.
+   */
   async downloadPdf(): Promise<void> {
     const d = this.signed();
     if (!d || this.preparingPdf()) { return; }
@@ -144,13 +148,16 @@ export class Report {
     this.preparingPdf.set(true);
     this.error.set(null);
     try {
-      const requested = await firstValueFrom(this.api.requestReport(d.id));
+      const reportId = d.latestReadyReportId ?? (await firstValueFrom(this.api.requestReport(d.id))).reportId;
       for (let i = 0; i < REPORT_POLL_LIMIT; i++) {
-        const answer = await firstValueFrom(this.api.report(requested.reportId));
+        const answer = await firstValueFrom(this.api.report(reportId));
         if (answer.status === 'READY') {
           this.pdf.set({ determinationId: d.id, file: answer.pdf, filename: answer.filename });
           this.saveBlob(answer.pdf, answer.filename);
           this.toast.add({ severity: 'success', summary: 'PDF ready', detail: `Evidence report for ${this.context.jurisdictionName(d.jurisdiction)}.` });
+          // A newly generated report is now the determination's latest ready one: read it back, so every later visit
+          // in this session offers the stored PDF and the package at once.
+          if (d.latestReadyReportId === null) { await this.context.refreshDeterminations(); }
           return;
         }
         if (answer.status === 'FAILED') { throw new Error('The PDF could not be generated.'); }
