@@ -59,6 +59,7 @@ PERF_MVN = ./mvnw test -Dgroups=perf -DexcludedGroups=none -Djacoco.skip=true
 perf: ## Read-path latency benchmark and index-usage check (Testcontainers); fails when a read endpoint's p95 exceeds 40 ms
 	cd $(BACKEND) && $(PERF_MVN) -Dtest=EndpointLatencyTest
 	cd $(BACKEND) && $(PERF_MVN) -Dtest=IndexUsageTest
+	cd $(BACKEND) && $(PERF_MVN) -Dtest=AuditSealPerfTest
 
 test-scripts: ## Tests of the stack scripts' machine-wide semaphore (no Docker, under 20 s)
 	scripts/lib/stack-lock-test.sh

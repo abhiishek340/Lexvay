@@ -24,10 +24,12 @@ public class AuditController {
 
     private final AuditRepository repository;
     private final AuditExportService export;
+    private final AuditVerificationService verification;
 
-    public AuditController(AuditRepository repository, AuditExportService export) {
+    public AuditController(AuditRepository repository, AuditExportService export, AuditVerificationService verification) {
         this.repository = repository;
         this.export = export;
+        this.verification = verification;
     }
 
     /**
@@ -54,5 +56,15 @@ public class AuditController {
                 throw new UncheckedIOException(e);
             }
         });
+    }
+
+    /**
+     * Recomputes the tenant's hash chain and reports whether it is intact and, if not, where it first breaks
+     * (SEC-3). Administrators only; each check is itself audited.
+     */
+    @GetMapping("/audit/verify")
+    @PreAuthorize("hasRole('ADMIN')")
+    AuditVerification verify() {
+        return verification.verify();
     }
 }
