@@ -9,7 +9,7 @@
     <blockquote class="lx-doc">{{ m.requirement.text }}</blockquote>
     @if (ruleVersion(); as rv) {
       <figcaption class="lx-meta lx-source">
-        {{ rv.label }} · Effective {{ rv.effectiveFrom | date: 'd MMMM y' }} ·
+        {{ rv.label }} ·@if (rv.effectiveFrom) { Effective {{ rv.effectiveFrom | date: 'd MMMM y' }} ·}
         <a [href]="rv.sourceUrl" target="_blank" rel="noopener noreferrer">Source<span class="lx-sr-only"> (opens in a new tab)</span></a>
       </figcaption>
     }

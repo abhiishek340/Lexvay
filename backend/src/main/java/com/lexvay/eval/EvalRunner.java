@@ -16,7 +16,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * `make eval`: run the pipeline evaluation and the retrieval measurement, print both tables, write docs/RETRIEVAL.md, and
- * exit non-zero when a limit of either is broken.
+ * exit non-zero when a limit of either is broken. A run against a local model also keeps its report under
+ * eval/runs/ (gitignored), named by date and model, for the founder to keep (D-618).
  */
 @Component
 @Profile("eval")
@@ -51,8 +52,13 @@ class EvalRunner implements ApplicationRunner {
             System.out.print(report.render());
             System.out.println();
             System.out.print(measured.render());
-            write(measured.markdown());
-            code = report.passed() && measured.passed() ? 0 : 1;
+            write(retrievalReport, measured.markdown());
+            if (report.mode() == EvalReport.Mode.LOCAL_LIVE) {
+                Path kept = evalDir.resolve("runs").resolve(report.fileName());
+                write(kept, report.render());
+                System.out.println("Report kept in " + kept);
+            }
+            code =report.passed() && measured.passed() ? 0 : 1;
         } catch (RuntimeException e) {
             System.err.println("eval failed: " + e.getMessage());
             code = 2;
@@ -61,11 +67,12 @@ class EvalRunner implements ApplicationRunner {
         System.exit(SpringApplication.exit(context, (ExitCodeGenerator) () -> exitCode));
     }
 
-    private void write(String markdown) {
+    private static void write(Path file, String text) {
         try {
-            Files.writeString(retrievalReport, markdown);
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, text);
         } catch (IOException e) {
-            throw new UncheckedIOException("Cannot write " + retrievalReport, e);
+            throw new UncheckedIOException("Cannot write " + file, e);
         }
     }
 }

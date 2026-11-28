@@ -51,8 +51,20 @@ export function groupRuleVersions(all: readonly RuleVersionView[], targets: read
   }));
 }
 
+/** Newest effective date first; a version with no recorded date has none to compare and comes before the dated ones. */
+function newestDateFirst(a: string | null, b: string | null): number {
+  if (a === b) { return 0; }
+  if (a === null) { return -1; }
+  return b === null ? 1 : b.localeCompare(a);
+}
+
 function newestFirst(a: RuleVersionRow, b: RuleVersionRow): number {
-  return b.view.effectiveFrom.localeCompare(a.view.effectiveFrom) || b.view.createdAt.localeCompare(a.view.createdAt);
+  return newestDateFirst(a.view.effectiveFrom, b.view.effectiveFrom) || b.view.createdAt.localeCompare(a.view.createdAt);
+}
+
+/** "2026-07-01", or the words for a version whose date nobody has recorded. */
+export function effectiveText(view: Pick<RuleVersionView, 'effectiveFrom'>): string {
+  return view.effectiveFrom ?? 'date not recorded';
 }
 
 /**
@@ -62,7 +74,7 @@ function newestFirst(a: RuleVersionRow, b: RuleVersionRow): number {
 export function comparableVersions(all: readonly RuleVersionView[], jurisdiction: string, licenseType: string, exceptId: string | null): RuleVersionView[] {
   return all
     .filter((v) => v.approval && v.jurisdiction === jurisdiction && v.licenseType === licenseType && v.id !== exceptId)
-    .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
+    .sort((a, b) => newestDateFirst(a.effectiveFrom, b.effectiveFrom));
 }
 
 /**

@@ -15,6 +15,9 @@ frontend/.angular/
 frontend/test-results/
 frontend/playwright-report/
 
+# reports of evaluation runs against a local model, kept by the founder (EV-1)
+eval/runs/
+
 # infra
 infra/.terraform/
 infra/*.tfstate*

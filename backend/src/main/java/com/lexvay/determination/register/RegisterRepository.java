@@ -30,7 +30,7 @@ public class RegisterRepository {
             FROM determination d
             JOIN program p ON p.id = d.program_id
             JOIN jurisdiction j ON j.id = d.jurisdiction_id
-            JOIN rule_version rv ON rv.id = d.rule_version_id
+            JOIN rule_version_current rv ON rv.id = d.rule_version_id
             JOIN app_user u ON u.id = d.signed_by
             """;
 

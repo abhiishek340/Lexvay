@@ -9,12 +9,14 @@ import com.lexvay.job.JobStatus;
 import com.lexvay.job.JobType;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
 
 /** The CHECK_RULE_SOURCE job (F12, D-184): what each outcome records, creates and leaves alone. */
 class CheckRuleSourceTest extends AbstractRuleSourceTest {
@@ -46,7 +48,10 @@ class CheckRuleSourceTest extends AbstractRuleSourceTest {
         assertThat(draft.get("requirements_approved_at")).as("nothing approves a fetched version").isNull();
         assertThat(draft.get("source_url")).isEqualTo(url);
         assertThat(draft.get("label")).isEqualTo(fetchedLabel("CA"));
-        assertThat(draft.get("effective_from").toString()).isEqualTo(today());
+        assertThat(draft.get("effective_from")).as("a fetch date is not a legal date").isNull();
+        assertThat(draft.get("legal_status")).isEqualTo("UNKNOWN");
+        assertThat(draft.get("dates_basis")).isNull();
+        assertThat(draft.get("observed_at")).as("observed when the check ran").isEqualTo(check.get("checked_at"));
         assertThat(draft.get("document_id")).isEqualTo(documentId);
 
         assertThat(count("document")).isEqualTo(documentsBefore + 1);
@@ -170,10 +175,11 @@ class CheckRuleSourceTest extends AbstractRuleSourceTest {
         checkNow(sourceId);
 
         var check = latestCheck(sourceId);
-        assertThat(check).containsEntry("outcome", "DRAFT_EXISTS").containsEntry("document_id", null).containsEntry("rule_version_id", null);
+        assertThat(check).containsEntry("outcome", "CHANGED_QUEUED").containsEntry("rule_version_id", draftId);
+        assertThat(check.get("document_id")).as("the changed text is stored").isNotNull();
         assertThat((String) check.get("detail")).contains(draftId.toString());
         assertThat(count("rule_version")).as("no second draft").isEqualTo(versions);
-        assertThat(source(sourceId).get("last_content_hash")).as("the change is not forgotten").isEqualTo(baseline);
+        assertThat(source(sourceId).get("last_content_hash")).as("the baseline is the drafted text").isEqualTo(baseline);
     }
 
     @Test
@@ -187,9 +193,9 @@ class CheckRuleSourceTest extends AbstractRuleSourceTest {
         UUID first = (UUID) latestCheck(sourceId).get("rule_version_id");
         fetcher.html(url, page("Applicants need 72 semester hours."));
         checkNow(sourceId);
-        assertThat(latestCheck(sourceId)).containsEntry("outcome", "DRAFT_EXISTS");
+        assertThat(latestCheck(sourceId)).containsEntry("outcome", "CHANGED_QUEUED");
 
-        extractAndApprove(first, fetchedLabel("CA"));
+        extractAndApprove(first, fetchedLabel("CA"), LocalDate.of(2026, 7, 1));
         checkNow(sourceId);
 
         var check = latestCheck(sourceId);
@@ -200,6 +206,55 @@ class CheckRuleSourceTest extends AbstractRuleSourceTest {
     }
 
     @Test
+    void everyChangeSeenWhileADraftWaitsIsKeptInOrderBehindIt() {
+        approvedCaliforniaRules();
+        String url = newUrl("html");
+        fetcher.html(url, page("Applicants need 66 semester hours."));
+        UUID sourceId = register("CA", url);
+        runner.runOne();
+        UUID draftId = (UUID) latestCheck(sourceId).get("rule_version_id");
+        String baseline = (String) source(sourceId).get("last_content_hash");
+        long versions = count("rule_version");
+        List<String> observed = List.of("Applicants need 72 semester hours.", "Applicants need 75 semester hours.",
+                "Applicants need 80 semester hours.");
+
+        for (String text : observed) {
+            fetcher.html(url, page(text));
+            checkNow(sourceId);
+            assertThat(latestCheck(sourceId)).containsEntry("outcome", "CHANGED_QUEUED").containsEntry("rule_version_id", draftId);
+        }
+        checkNow(sourceId);
+
+        assertThat(latestCheck(sourceId)).as("the same text twice is kept once").containsEntry("outcome", "UNCHANGED");
+        var kept = inTenant(() -> jdbc.sql("SELECT c.id, c.document_id, p.text FROM rule_source_check c "
+                + "JOIN document_page p ON p.document_id = c.document_id WHERE c.rule_source_id = :id AND c.outcome = 'CHANGED_QUEUED' "
+                + "ORDER BY c.checked_at, c.id").param("id", sourceId).query().listOfRows());
+        assertThat(kept).extracting(r -> r.get("text")).containsExactlyElementsOf(observed);
+        assertThat(count("rule_version")).as("one draft, not three").isEqualTo(versions);
+        assertThat(source(sourceId).get("last_content_hash")).as("the baseline stays the drafted text").isEqualTo(baseline);
+
+        var view = body(mvc.get().uri("/api/v1/rule-versions/" + draftId).with(user(t.reviewer())).exchange());
+        var queued = view.get("queuedObservations");
+        assertThat(queued).hasSize(3);
+        for (int i = 0; i < 3; i++) {
+            assertThat(queued.get(i).get("checkId").asString()).isEqualTo(kept.get(i).get("id").toString());
+            assertThat(queued.get(i).get("documentId").asString()).isEqualTo(kept.get(i).get("document_id").toString());
+            assertThat(queued.get(i).get("contentHash").asString()).matches("[0-9a-f]{64}");
+            if (i > 0) {
+                assertThat(queued.get(i).get("observedAt").asString()).isGreaterThan(queued.get(i - 1).get("observedAt").asString());
+            }
+        }
+        assertThat(view.get("effectiveFrom").isNull()).isTrue();
+        assertThat(view.get("legalStatus").asString()).isEqualTo("UNKNOWN");
+        assertThat(view.get("observedAt").isNull()).isFalse();
+        var listed = body(mvc.get().uri("/api/v1/rule-versions").with(user(t.reviewer())).exchange());
+        for (JsonNode listedVersion : listed) {
+            boolean isDraft = listedVersion.get("id").asString().equals(draftId.toString());
+            assertThat(listedVersion.get("queuedObservations")).hasSize(isDraft ? 3 : 0);
+        }
+    }
+
+    @Test
     void textThatReturnsToAnEarlierPageReusesTheStoredDocument() {
         String url = newUrl("html");
         fetcher.html(url, page("Applicants need 66 semester hours."));
@@ -207,13 +262,13 @@ class CheckRuleSourceTest extends AbstractRuleSourceTest {
         runner.runOne();
         UUID first = (UUID) latestCheck(sourceId).get("rule_version_id");
         UUID firstDocument = (UUID) latestCheck(sourceId).get("document_id");
-        extractAndApprove(first, fetchedLabel("TX"));
+        extractAndApprove(first, fetchedLabel("TX"), LocalDate.of(2026, 7, 1));
 
         fetcher.html(url, page("Applicants need 72 semester hours."));
         checkNow(sourceId);
         UUID second = (UUID) latestCheck(sourceId).get("rule_version_id");
         assertThat(latestCheck(sourceId).get("document_id")).isNotEqualTo(firstDocument);
-        extractAndApprove(second, fetchedLabel("TX"));
+        extractAndApprove(second, fetchedLabel("TX"), LocalDate.of(2026, 8, 1));
         long documents = count("document");
 
         fetcher.html(url, page("Applicants need 66 semester hours."));

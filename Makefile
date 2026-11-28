@@ -59,6 +59,7 @@ PERF_MVN = ./mvnw test -Dgroups=perf -DexcludedGroups=none -Djacoco.skip=true
 perf: ## Read-path latency benchmark and index-usage check (Testcontainers); fails when a read endpoint's p95 exceeds 40 ms
 	cd $(BACKEND) && $(PERF_MVN) -Dtest=EndpointLatencyTest
 	cd $(BACKEND) && $(PERF_MVN) -Dtest=IndexUsageTest
+	cd $(BACKEND) && $(PERF_MVN) -Dtest=AuditSealPerfTest
 
 test-scripts: ## Tests of the stack scripts' machine-wide semaphore (no Docker, under 20 s)
 	scripts/lib/stack-lock-test.sh
@@ -69,7 +70,7 @@ e2e: ## End-to-end tests (Playwright + axe) against an isolated seeded stack on 
 eval: ## Score the pipeline against eval/golden.yml with the scripted model (isolated database, slot ports, no network)
 	scripts/eval.sh
 
-eval-live: ## Same with the real model; runs only when ANTHROPIC_API_KEY is set, and reports tokens and cost
+eval-live: ## Same with a real model: LEXVAY_LLM_PROVIDER=openai-compatible (local server, no fee) or anthropic (needs ANTHROPIC_API_KEY and the spend gate)
 	scripts/eval.sh --live
 
 infra-validate: ## Terraform format check, validate and offline tests in infra/ (never plans or applies)

@@ -1,10 +1,13 @@
 package com.lexvay.rule.source;
 
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -112,15 +115,44 @@ public class RuleSourceRepository {
         return rows.isEmpty() ? Optional.empty() : Optional.of(rows.stream().filter(Objects::nonNull).toList());
     }
 
-    public UUID insertCheck(UUID tenantId, UUID ruleSourceId, CheckOutcome outcome, Integer httpStatus, String contentHash,
-                            String detail, UUID documentId, UUID ruleVersionId) {
+    /**
+     * Records a check made at {@code checkedAt}: the time the page was observed, which a draft made from it keeps as
+     * its own {@code observed_at}.
+     */
+    public UUID insertCheck(UUID tenantId, UUID ruleSourceId, OffsetDateTime checkedAt, CheckOutcome outcome, Integer httpStatus,
+                            String contentHash, String detail, UUID documentId, UUID ruleVersionId) {
         UUID id = UUID.randomUUID();
-        jdbc.sql("INSERT INTO rule_source_check (id, tenant_id, rule_source_id, outcome, http_status, content_hash, detail, document_id, rule_version_id) "
-                        + "VALUES (:id, :tenantId, :ruleSourceId, :outcome, :httpStatus, :contentHash, :detail, :documentId, :ruleVersionId)")
-                .param("id", id).param("tenantId", tenantId).param("ruleSourceId", ruleSourceId)
+        jdbc.sql("INSERT INTO rule_source_check (id, tenant_id, rule_source_id, checked_at, outcome, http_status, content_hash, detail, document_id, rule_version_id) "
+                        + "VALUES (:id, :tenantId, :ruleSourceId, :checkedAt, :outcome, :httpStatus, :contentHash, :detail, :documentId, :ruleVersionId)")
+                .param("id", id).param("tenantId", tenantId).param("ruleSourceId", ruleSourceId).param("checkedAt", checkedAt)
                 .param("outcome", outcome.name()).param("httpStatus", httpStatus).param("contentHash", contentHash)
                 .param("detail", detail).param("documentId", documentId).param("ruleVersionId", ruleVersionId).update();
         return id;
+    }
+
+    /** The text hash of the newest change this source queued behind the draft, so the same text is not kept twice. */
+    public Optional<String> latestQueuedHash(UUID ruleSourceId, UUID ruleVersionId) {
+        return jdbc.sql("""
+                SELECT content_hash FROM rule_source_check
+                WHERE outcome = 'CHANGED_QUEUED' AND rule_version_id = :ruleVersionId AND rule_source_id = :ruleSourceId
+                ORDER BY checked_at DESC, id DESC LIMIT 1""").param("ruleVersionId", ruleVersionId)
+                .param("ruleSourceId", ruleSourceId).query(String.class).optional();
+    }
+
+    /** The changes queued behind each of the given drafts, oldest first, in one statement. Drafts with none are absent. */
+    public Map<UUID, List<QueuedObservation>> queuedObservations(Collection<UUID> ruleVersionIds) {
+        if (ruleVersionIds.isEmpty()) {
+            return Map.of();
+        }
+        return jdbc.sql("""
+                SELECT rule_version_id, id, checked_at, document_id, content_hash FROM rule_source_check
+                WHERE outcome = 'CHANGED_QUEUED' AND rule_version_id IN (:ids)
+                ORDER BY checked_at, id""").param("ids", ruleVersionIds)
+                .query((rs, i) -> Map.entry(rs.getObject("rule_version_id", UUID.class), new QueuedObservation(
+                        rs.getObject("id", UUID.class), rs.getObject("checked_at", OffsetDateTime.class),
+                        rs.getObject("document_id", UUID.class), rs.getString("content_hash"))))
+                .list().stream().collect(Collectors.groupingBy(Map.Entry::getKey,
+                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
     }
 
     /**

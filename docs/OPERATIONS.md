@@ -87,7 +87,8 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 | `LEXVAY_MANAGEMENT_PORT` | Management port (`/actuator/prometheus`, `/actuator/health`). Keep it off the public network. `-1` turns it off | 8090 |
 | `LEXVAY_SHUTDOWN_GRACE` | Time a stop waits for open requests and the running job | 30s |
 | `LEXVAY_DB_URL`, `LEXVAY_DB_OWNER_*`, `LEXVAY_DB_APP_*` | PostgreSQL URL and the two roles (D-013, D-034) | see `.env.example` |
-| `LEXVAY_LLM_PROVIDER`, `LEXVAY_LLM_MODEL`, `LEXVAY_LLM_EFFORT`, `ANTHROPIC_API_KEY` | Model (D-033). `fake` is for demos only | `fake` |
+| `LEXVAY_LLM_PROVIDER`, `LEXVAY_LLM_MODEL`, `LEXVAY_LLM_EFFORT`, `ANTHROPIC_API_KEY` | Model (D-033). `fake` is for demos only; `anthropic` is billed; `openai-compatible` is a server you run (see "Local inference"). The model is empty for `anthropic` (it then uses its default) and required for `openai-compatible` | `fake` |
+| `LEXVAY_LLM_BASE_URL`, `LEXVAY_LLM_API_KEY`, `LEXVAY_LLM_TIMEOUT_SECONDS`, `LEXVAY_LLM_ALLOWED_HOSTS`, `LEXVAY_LLM_SEED` | The `openai-compatible` provider (EV-1, D-616): the server's base URL (required), an optional bearer token, the seconds a call may take, the hosts the base URL may name, and an optional integer sent as `seed` | empty, empty, `120`, `localhost,127.0.0.1,::1`, empty |
 | `LEXVAY_LLM_PAID_APPROVED`, `LEXVAY_LLM_MONTHLY_BUDGET_USD`, `LEXVAY_LLM_RATES` | The spend gate for a metered provider and the one price table (see "Data mode and the spend gate"). `LEXVAY_LLM_RATES` replaces `LEXVAY_LLM_PRICE_INPUT_PER_MTOK` and `LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK`, which are no longer read | `false`, `0`, empty |
 | `LEXVAY_FILESTORE`, `LEXVAY_FILESTORE_PATH`, `LEXVAY_S3_BUCKET` | Where documents are stored | image: `/var/lexvay/files` |
 | `SPRING_PROFILES_ACTIVE` (compose: `LEXVAY_PROFILES`) | The image sets `prod` (structured logs); use `prod,oidc` for single sign-on, because setting only `oidc` drops the production log format | `prod` |
@@ -97,6 +98,7 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 | `LEXVAY_RATELIMIT_LOGIN_PER_MINUTE`, `LEXVAY_RATELIMIT_API_PER_MINUTE`, `LEXVAY_RATELIMIT_UPLOAD_PER_MINUTE`, `LEXVAY_UPLOAD_MAX_MB` | Rate limits and upload size (WS-SEC) | 10, 600, 30, 25 |
 | `LEXVAY_PACKAGE_MAX_BYTES` | Largest evidence package, in bytes; a larger one fails its job with a message and nothing is stored (F15) | 536870912 (512 MB) |
 | `LEXVAY_PASSWORD_HASH_CONCURRENCY` | How many password hashes (sign-in, choosing a password) may run at once, 32 MiB of heap each; a caller that waits 2 seconds gets 503 with `Retry-After: 2` (D-407) | processors, at least 2 |
+| `LEXVAY_AUDIT_SEAL_INTERVAL_MS` | How often the sealer chains new audit entries into the tamper-evident trail (SEC-3, D-533); an entry is sealed within about this time of being written | 2000 |
 
 OCR of scanned PDFs (`LEXVAY_OCR`) checkpoints every page in its own committed transaction (`document_ocr_page`, FIX-6), so a retried ingest resumes after the last page that was read instead of recognising the whole document again.
 
@@ -151,6 +153,71 @@ same moment can together pass the budget by the calls in flight. Treat the budge
 spending limit with the provider. At startup one log line states the provider, whether paid calls are approved, the
 budget and the priced models. `make eval-live` goes through the same gate.
 
+## Local inference
+
+The `openai-compatible` provider talks to a language model server you run yourself, so no call has a per-call fee and
+the spend gate does not apply to it (D-616). Servers that speak the OpenAI-compatible `/chat/completions` API work:
+llama.cpp's `llama-server`, Ollama, vLLM and LM Studio. Lexvay downloads no model and ships none. The name of the model
+is yours to choose and has no default.
+
+**Point Lexvay at a server.** Start the server first, then set three variables. The base URL ends before
+`/chat/completions`, and the model is the exact name the server serves:
+
+```
+# llama-server started as: llama-server --port 8089 --model <path to the model file you chose>
+LEXVAY_LLM_PROVIDER=openai-compatible
+LEXVAY_LLM_BASE_URL=http://localhost:8089/v1
+LEXVAY_LLM_MODEL=<the name llama-server reports>
+
+# Ollama started as: ollama serve   (the server listens on port 11434)
+LEXVAY_LLM_PROVIDER=openai-compatible
+LEXVAY_LLM_BASE_URL=http://localhost:11434/v1
+LEXVAY_LLM_MODEL=<a model you pulled, as `ollama list` names it>
+```
+
+These two are examples of servers, not recommendations of a model. `LEXVAY_LLM_API_KEY` is sent as a bearer token only
+when set. A call that takes longer than `LEXVAY_LLM_TIMEOUT_SECONDS` (default 120) fails its job, which retries as for
+any provider; a local model on a laptop can be slow, so measure before you lower it.
+
+**The host list.** The base URL's host must be in `LEXVAY_LLM_ALLOWED_HOSTS` (default `localhost,127.0.0.1,::1`), or
+the application does not start and the message names the host. Every prompt carries a university's documents, so a
+remote server needs an explicit entry that you add knowing the prompts will be sent there. The startup log names the
+model and the host. Redirects are never followed. Inside the application container `localhost` is the container: reach
+a server on the host machine through an address you list, for example `host.docker.internal`.
+
+**Structured output.** The adapter sends the JSON schema as `response_format` of type `json_schema`. A server that
+answers HTTP 400 naming `response_format` is asked once more with the schema written into the system message instead.
+Either way the answer is validated against the schema by the same code as for every provider, and an answer that is not
+valid is rejected the same way as for the Claude API. Quotes are still verified against the stored
+page text (product rule 2), so a weak model can lower recall, not produce evidence that is not on the page.
+
+**Before you use a model.** Vet its licence. Some licences limit commercial or institutional use, require attribution
+or forbid certain uses; whether a model may be used on a university's documents is a decision for you and the
+university, and Lexvay cannot make it. Nothing in the repository says a model is acceptable.
+
+**What to measure.** Memory: the model's resident size on the machine that serves it, with the context length you
+configured, and what remains for PostgreSQL and the application. Latency: the wall time of one assessment, which
+`make eval-live` prints with the number of calls, and the slowest single call in the server's own log. Tokens: the
+report prints them; when the server reports no usage the counts are estimates from text length, the report says so
+and the stored call carries `tokensEstimated` in its request. Measure on the machine you will run on, with the context
+length and quantisation you will use; a figure from another machine does not transfer.
+
+**Measuring a model.** Run `make eval-live` with the three variables above in the environment. It scores the model on the
+fictional golden set, prints the report and keeps it in `eval/runs/<date>-<model>.txt` (not committed; keep it
+yourself). The header of every report names the mode, the model, the host and the date: `SCRIPTED` is the scripted
+model, `LOCAL_LIVE` is a model you run, `PAID_LIVE` is a billed provider. A `LOCAL_LIVE` report says that the model has
+not been vetted by Lexvay, and it describes that model, on that day, on that machine, only. The limits for a real model
+in `eval/thresholds.yml` are unmeasured first values until a measured run sets them.
+
+**Repeatable runs.** Every request asks for `temperature: 0`. Set `LEXVAY_LLM_SEED` to an integer and it is sent as
+`seed` too. On the same server, model file and settings that makes a run repeatable, as far as the server honours them:
+some servers ignore `seed`, and a different quantisation, context length or server version changes the answers. The
+report does not record the seed, so note it with the report you keep.
+
+**Local calls and the spend gate.** Each stored call says whether its client costs money (`metered` in the stored
+request). The spend gate adds up only metered calls, so a local model's calls, which have tokens and no price, never
+make a billed call's cost unknown. A call stored before this was recorded has no such entry and counts as metered.
+
 ## Users and sessions
 
 A tenant administrator adds users, changes their role and withdraws their access through the API (F5a, D-370 to D-379);
@@ -178,6 +245,86 @@ user it served for 15 seconds (at most 10 000 users) and refuses a session issue
 The audit log can be exported by an administrator as `GET /api/v1/audit.csv` with the filters of the audit list. It is
 streamed from the database, so its size does not matter to the heap, but it reads the whole matching log in one
 transaction; export a time range when a tenant's log is very large (D-377). Every export is itself an audit entry.
+
+## Audit trail integrity
+
+Triggers stop the application from changing or deleting an audit entry. They do not stop a database superuser, or a
+restore from an altered backup. So each tenant's entries are also chained (SEC-3, `docs/decisions/SEC-3.md`): a sealer
+(`AuditSealer`, every `LEXVAY_AUDIT_SEAL_INTERVAL_MS`, safe to run on several instances) gives each new entry the next
+sequence number and a SHA-256 hash over the entry and the previous entry's hash. Change, remove or reorder anything
+sealed and the chain stops matching. An entry written a moment ago is *pending* until the next run; the check below
+reports how many.
+
+An administrator checks a tenant's trail with `GET /api/v1/audit/verify`. It recomputes every hash from what is stored
+(50 to 220 ms for 20 000 entries on a development laptop) and answers `intact`, how many entries are `sealed` and `pending`, and, when the chain
+is broken, `firstBrokenSeq` and `firstBrokenReason`. Each check is an `AUDIT_VERIFIED` audit entry carrying the outcome
+and `headHash`, the hash of the newest seal.
+
+What it proves, and what it does not:
+- **Proves:** no sealed entry was changed, and no seal was removed from inside the chain.
+- **Does not prove:** that seals were not removed from the *end* of the chain, or that the whole chain was not
+  rebuilt by someone who can write the database. Keep `headHash` and `sealed` somewhere the database administrator
+  cannot write (the `AUDIT_VERIFIED` entries themselves are there, so are exported copies); a later check whose
+  `sealed` is smaller than an earlier one, or whose hash for the same number differs, shows the tail was cut or rebuilt.
+- Entries are numbered in the order they were sealed. An entry that commits late can have an earlier time than the
+  entry before it.
+
+### The canonical form
+
+The hash of an entry is the lower-case hex SHA-256 of the UTF-8 bytes of these ten fields joined with the control
+character U+001F (unit separator). A missing value is the empty string.
+
+| # | Field | Form |
+|---|---|---|
+| 1 | tenant id | UUID, lower case |
+| 2 | `seq` | decimal, from 1, no padding |
+| 3 | entry id | UUID |
+| 4 | actor id | UUID, empty for work no person started |
+| 5 | action | as stored |
+| 6 | record type | as stored |
+| 7 | record id | UUID, empty when the entry has none |
+| 8 | details | PostgreSQL `jsonb::text` of the stored details, which is deterministic |
+| 9 | time | creation time in UTC, `YYYY-MM-DDTHH:MM:SS.ffffffZ`, always six fractional digits |
+| 10 | previous hash | the previous entry's hash; 64 zeros for `seq` 1 |
+
+### Checking an export without the application
+
+The audit export (`GET /api/v1/audit.csv`) has the columns `Seq` and `Row hash` (empty for a pending entry) and the
+`Entry ID` and `Actor ID` the form needs. Export without filters, then run, with the tenant id and the file:
+
+```python
+import csv, hashlib, sys
+from datetime import datetime
+
+
+def canonical_time(text):  # the export prints 0, 3 or 6 fractional digits; the form always has 6
+    text = text.rstrip("Z")
+    return datetime.strptime(text if "." in text else text + ".0", "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+tenant, path = sys.argv[1], sys.argv[2]
+with open(path, newline="", encoding="utf-8") as f:
+    rows = sorted((r for r in csv.DictReader(f) if r["Seq"]), key=lambda r: int(r["Seq"]))
+previous = "0" * 64
+for number, row in enumerate(rows, start=1):
+    fields = [tenant, row["Seq"], row["Entry ID"], row["Actor ID"], row["Action"], row["Record type"],
+              row["Record ID"], row["Details"], canonical_time(row["Time (UTC)"]), previous]
+    if int(row["Seq"]) != number or hashlib.sha256("\x1f".join(fields).encode("utf-8")).hexdigest() != row["Row hash"]:
+        sys.exit(f"broken at entry {row['Seq']}")
+    previous = row["Row hash"]
+print(f"{len(rows)} entries, intact, head {previous}")
+```
+
+Against a restored database the same recomputation is one statement; it lists the `seq` of every seal that does not
+match its entry (no rows: all match). Gaps and links need the application's check or the script above.
+
+```sql
+SELECT s.seq FROM audit_seal s JOIN audit_log a ON a.id = s.audit_id
+WHERE s.row_hash <> encode(sha256(convert_to(concat_ws(E'\x1f', s.tenant_id, s.seq, a.id, coalesce(a.user_id::text, ''),
+      a.action, a.entity_type, coalesce(a.entity_id::text, ''), a.detail::text,
+      to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'), s.prev_hash), 'UTF8')), 'hex')
+ORDER BY s.seq;
+```
 
 ## Evidence packages
 

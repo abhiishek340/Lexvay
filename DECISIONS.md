@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640, OPS-2 D-641–643, OPS-3 D-644–646. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V020 F15, V022 MODE-1, then by merge order: SEC-3 takes V023 (it was V019 before V020 and V022 merged), RG-1 renumbers from V021 at merge, AC-1 V024, later items take the next free number at merge (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640, OPS-2 D-641–643, OPS-3 D-644–646, OPS-2b D-647 (supersedes D-642's mkdir mutex: the mutex is a noclobber file). Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V020 F15, V022 MODE-1, then by merge order: V023 SEC-3 (was V019), V025 RG-1 (was V021); AC-1 renumbers to V026 (V025 merged first), RG-2 takes the next free number at merge (expected V027); later items likewise (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -4746,3 +4746,299 @@ cause one on purpose:
 - `report-check.spec.ts` (F14): a text file named `renamed.pdf` is answered with 400 by `/api/v1/reports/check`.
 
 Every other error the suite found was the view-transition `AbortError`; no screen logged anything else.
+
+### SEC-3 — Tamper-evident audit trail (D-530 to D-537)
+
+**D-530 — The chain is built after the fact, and the queue is written by the audit statement itself.**
+`AuditRepository.insert` is one statement, `WITH entry AS (INSERT INTO audit_log ... RETURNING id, tenant_id,
+created_at) INSERT INTO audit_unsealed SELECT ... FROM entry`, so an entry and its place in the sealer's queue commit
+together or not at all and no entry can escape sealing. Chaining inside the business transaction was rejected by the
+spec (a per-tenant lock held until commit by every audited write would serialise the tenant and invite deadlocks) and
+stays rejected. `Rule9_SingleAuditWritePathTest` reads `src/main` and fails if any other file contains
+`INSERT INTO audit_log`, or if that statement stops queueing. V023 backfills `audit_unsealed` from every existing
+`audit_log` row, with row-level security switched off on the two tables for the migration and forced again at its end
+(the pattern of V016), so the sealer's first runs seal the history. `AuditSealBackfillTest` runs the migration's own
+statement against shadow tables, because no test can load rows and then migrate. `audit_seal` has no `created_by`:
+the spec lists its columns and a seal is made by the system.
+
+**D-531 — The canonical form is a contract, written in `docs/OPERATIONS.md`, and checked against hashes computed
+outside the code.** `AuditCanonical` joins the ten fields of the spec with U+001F and hashes the UTF-8 bytes with
+`DocumentService.sha256`, the one SHA-256 of a byte array in the code base (no second digest helper). The time is
+formatted with a fixed six-digit fraction, because `Instant.toString` drops trailing zero groups; PostgreSQL stores
+microseconds, so the form loses nothing. `detail` is read as `jsonb::text` and never re-serialised in Java.
+`AuditCanonicalTest` pins two hashes computed with Python's `hashlib`; `AuditSealerTest` recomputes a whole chain with
+the SQL recipe in the operations guide, and `AuditExportApiTest` recomputes it from the exported CSV alone with
+`AuditCanonical`. A field is not length-prefixed, so a value containing U+001F could in theory be ambiguous; actions
+and record types are constants in the code and `detail` is JSON, where U+001F is always escaped.
+
+**D-532 — Seal order is the order sealed.** An entry that commits late, with an earlier `created_at` than entries
+already sealed, takes the next `seq`; the chain proves the order entries were sealed in, not the order they were
+created in. Within one batch the order is `created_at, audit_id`. `AuditSealerTest.anEntryCommittedLateTakesTheNextNumber...`
+inserts such an entry. The queue's own `created_at` (copied by the statement that writes the entry) is what the sealer
+sorts on, so the read is an index range scan on `audit_unsealed (tenant_id, created_at, audit_id)` and not a sort of
+the tenant's whole backlog.
+
+**D-533 — `AuditSealer` seals, `AuditSealPoller` schedules; the lock is per tenant and per transaction.** The spec puts
+`@Scheduled` on `AuditSealer`. A scheduled bean cannot be switched off in tests while its logic stays callable, so the
+timer is a separate component, as `JobPoller` is to `JobRunner`: `AuditSealPoller` is `@ConditionalOnProperty
+lexvay.audit.sealing-enabled` (default true, off in `AbstractDatabaseTest` and in the seed and eval profiles), runs
+every `lexvay.audit.seal-interval-ms` (default 2000, `LEXVAY_AUDIT_SEAL_INTERVAL_MS`), begins no batch once the context
+is closing, and carries its own `@EnableScheduling` so it works with job polling off. `AuditSealer.sealWhile` finds the
+tenants with queued rows under the worker flag (V023 adds one policy, `worker_queue_select`, a SELECT on
+`audit_unsealed`; D-013), then for each tenant runs batches of 500 in separate transactions as that tenant. A batch takes
+`pg_try_advisory_xact_lock(hashtextextended('audit-seal:' || tenant, 0))` and skips the tenant when it is held, reads
+the head, reads the queue, hashes in Java, inserts the seals in one `unnest` statement, and deletes the queue rows that
+now have a seal in one `DELETE ... USING audit_seal` (no id lists). A tenant whose batch throws is logged with the
+exception class only and left for the next run, so it cannot hold up the others. `AuditSealPollerTest` is the
+shutdown test. The restart test seals one batch, builds a second `AuditSealer` and finishes the queue.
+
+**D-534 — Verification walks the stored seals, stops at the first that does not hold, and says what it cannot see.**
+`AuditVerificationService.verify` is one read-write transaction (it also writes the `AUDIT_VERIFIED` entry): pages of
+1000 seals joined to their entries by keyset on `(tenant_id, seq)`, each checked by `AuditChainCheck` (pure, tested
+without a database) in this order: the next number (a gap names the number that is missing), the link to the previous
+`row_hash` (genesis for the first), and the recomputed hash. `sealed` is the number of seal rows, `pending` the
+queue's length, `lastSealedAt` and `headHash` those of the newest seal. A seal removed from the end of the chain leaves
+no gap and cannot be seen from the database alone; `docs/OPERATIONS.md` says to keep `headHash` and `sealed` outside
+the database administrator's reach, and every `AUDIT_VERIFIED` entry carries them. Deleting a sealed `audit_log` row is
+refused by the foreign key even with its trigger disabled; deleting a seal row with its trigger disabled reports the gap
+(tests as the container's superuser). Over 20 000 sealed entries the walk took 52 to 75 ms on a quiet machine and 139 to 221 ms on a busy one (D-537, budget 2 s).
+
+**D-535 — The export gains four columns, not two.** The spec adds `seq` and `row_hash`. An exported trail cannot be
+recomputed from those alone: the hash covers the entry id and the actor's id, and the export shows the actor's display
+name. So the columns are `Seq`, `Row hash`, `Entry ID` and `Actor ID`, after `Details` (existing columns keep their
+positions), written by `AuditCsv`, which the F15 evidence package's `audit.csv` shares, so both carry them. A pending entry has an empty `Seq` and `Row hash`. The tenant id is not a column (one export is one
+tenant) and is passed to the check; the previous hash is the previous row's, so the recipe needs an export without
+filters. The Python recipe in `docs/OPERATIONS.md` was run against a real export, intact and with one word changed.
+`AuditExportApiTest` fails if the file stops being enough to recompute every hash. The end-to-end header assertion in
+`records.spec.ts` follows. Called out in the pull request as a spec deviation.
+
+**D-536 — `AUDIT_VERIFIED` records the break, and the sentence never claims more than the entry says.** The spec's
+detail is `{intact, sealed, headHash}`; a broken result also records `firstBrokenSeq`, because the audit screen's
+sentence names the entry ("broken at entry N") and the entry list is the only place that sentence can read it from.
+`headHash` is left out when nothing is sealed. The sentence says "intact" only for `intact: true`; an entry with no
+usable detail reads "verified the audit trail" with no verdict. The action is audited as a read that hands out a
+verdict (listed in `Rule9_AuditCoverageTest.AUDITED_READ_ENDPOINTS`, with rows in `InputValidationTableTest`), and is
+ADMIN only like the export.
+
+**D-537 — What the tests and the budget say.** Tests: `AuditCanonicalTest`, `AuditChainCheckTest`,
+`AuditSealPollerTest` (no database); `AuditSealerTest` (contiguous chain, SQL recipe, restart, 1 200 entries over three
+batches, eight writer threads against two competing sealers, late entry, every tamper), `AuditVerificationApiTest`
+(ADMIN only, 401 and 403, the audit entry, pending, broken, another tenant), `AuditSealBackfillTest`,
+`Rule5_AuditSealImmutabilityTest`, `Rule7_AuditSealIsolationTest`, `Rule9_SingleAuditWritePathTest`. Tests that edit or
+delete behind the application connect as the container's superuser, disable the trigger for one statement and enable it
+again in a `finally`. `AuditSealPerfTest` (`make perf`, tag `perf`) queues 20 000 entries of the perf seed's audit
+volume, seals them with the real sealer, times five verifications after a warm-up (budget 2 s) and fails unless the
+queue read uses `audit_unsealed_tenant_idx` with entries fetched by `audit_log_pkey`, and the dequeue finds its rows by
+`audit_unsealed_pkey`; plans are printed in the run.
+
+### OPS-2b — Stack lock race on Ubuntu 26.04 runners (D-647)
+
+**D-647 — The mutex in `scripts/lib/stack.sh` is a file created with the shell's own `O_EXCL` open, not a `mkdir`.**
+D-641 and D-642 used `mkdir` as the lock because macOS has no `flock`. The CI runner image is now Ubuntu 26.04, whose
+`mkdir` is uutils coreutils 0.10.0, and that `mkdir` is not atomic: it first checks that the path is free, then calls
+`mkdirat`, and when `mkdirat` fails with `EEXIST` because another process created the directory in between, it looks
+at the path again, finds a directory and exits 0. Two processes calling `mkdir` on the same new path at the same moment
+can therefore both succeed. `strace` of six racing calls shows the losing one doing `statx = ENOENT`,
+`mkdirat = EEXIST`, `statx = directory`, then exit 0; 16 racing calls produced two winners in about one round in ten
+(GNU `mkdir` on the same image, `gnumkdir`, produced none in 40 rounds).
+
+Effect in `scripts/lib/stack-lock-test.sh`: holders a and b start together and both took the mutex, both scanned an empty
+token directory, both went for token 1 (the second `mkdir "$dir"` failed with "File exists", but `stack_try_token` runs
+as the condition of an `until`, which switches `set -e` off, so nothing stopped it) and both wrote their pid and slot
+into it, the later write winning. Token 2 was
+never created, so the third holder found one live token and one free slot and started at once: "third holder does not
+start while both tokens are held", "says it is waiting" and "exactly two tokens are held again" failed. The same flaw
+would let two real runs share a token, so the cap of D-641 was not enforced either. It passed on macOS and on
+Ubuntu 24.04 (GNU coreutils), and on 26.04 only when the race was not lost (1 failure in 6 runs).
+
+The mutex is now the file `<lock dir>/.mutex`, taken with `( set -C; : > "$STACK_MUTEX" )`. With `noclobber` the shell
+itself opens the file with `O_CREAT|O_EXCL`, one system call that exactly one contender wins, on every kernel and with
+whatever coreutils are installed; bash 3.2 on macOS does the same. The stale-mutex rule is unchanged (older than a
+minute, removed with `rm -f`). Tokens stay directories holding `pid` and `slot`; they are created only while the
+mutex is held, so their `mkdir` never races. Nothing else in the design changes, and D-642's description "another
+`mkdir`" is replaced by this decision.
+
+Test: a new first section puts a `mkdir` that reports success for an existing directory (what uutils does when it loses
+the race, made certain instead of rare) first on `PATH` for the second contender, holds the mutex in the test shell and
+checks that the second contender stays blocked until the mutex is released. It fails on the old code on every run and
+passes on the new. No retry and no longer sleep was added to the existing scenarios: the failure was in the lock, not in
+the test's timing.
+
+Rejected: `flock` (absent on macOS); another coreutils command as the lock (the cause is trusting an external command for
+atomicity, and the shell's own redirection is the one primitive that needs none); making
+the test retry or wait longer (the failure is a shared token, not slowness); pinning the CI runner to `ubuntu-24.04`
+(hides a real defect that also affects 26.04 developer machines).
+
+### RG-1 — Legal time and status model (D-551 to D-559)
+
+Context: the intake of 2026-11-27 (`docs/INTAKE-2026-11-27.md`) confirmed two defects. The rule-source monitor wrote
+the fetch date as a rule's legal effective date, and a change seen while a draft waited was discarded. Unknown stays
+unknown, and nothing becomes law because a crawler saw it.
+
+## D-551 The fetch date is an observation, never a legal date
+A changed rule source creates a draft with `effective_from NULL`, `legal_status UNKNOWN`, no `dates_basis`, and
+`observed_at` equal to the `checked_at` of the check that saw it (one value, passed to both inserts). Its label is
+"<source label>, observed <date>"; "fetched" no longer appears as if it were a date in law. `observed_at` is null for an
+upload. Test: `CheckRuleSourceTest.aChangedPageCreatesAnUnapprovedDraft...`.
+
+## D-552 Dates and status are never edited in place
+`rule_version` keeps only the creation values (V025 adds `effective_to`, `published_at`, `adopted_at`, `legal_status`,
+`dates_basis`, `observed_at`; `effective_from` becomes nullable). The V003 trigger already rejects any change but
+approval, so the new columns are immutable without further code. A correction is a new row in `rule_version_status`
+(full position, not a difference; `recorded_by`, `recorded_at`), append-only through `forbid_change()`, with forced
+row-level security and a tenant policy like every table. The view `rule_version_current` (`security_invoker = true`, so
+the caller's RLS applies) joins each version to its newest status row, or to its creation values while there is none,
+and every reader (`RuleVersionRepository`, the determination register) reads that view. Ties are impossible to confuse:
+a correction always outranks the creation row, then newest `recorded_at`, then id.
+CHECKs: a date requires `dates_basis` (also checked in `LegalPosition`, so the API answers 400 with words);
+`effective_to > effective_from` when both are set. A lone end date is allowed by the database, as the spec's CHECK
+reads; selection never uses a version without an effective date.
+
+## D-553 Approval needs a recorded, final status with dates
+`POST .../requirements/approve` answers 409 unless the current status is `IN_FORCE` or `FINAL_NOT_EFFECTIVE` and an
+effective date is recorded (a date always carries its basis). `PROPOSED`, `WITHDRAWN`, `REPEALED`, `SUPERSEDED` and
+`UNKNOWN` cannot be approved. On approval the current position is appended as a status row signed by the approver, even
+when an earlier correction already exists: the approval then names the exact dates it approved, and a later correction
+is a row after it. Only a person records status, so a monitored draft stays unapprovable until a reviewer does.
+MODE-1's fail-closed hook (`RealDataApprovalGuard`, D-561) now reads the current `dates_basis` of the version: in a LIVE
+tenant a version is approved only when a basis is recorded and it does not say "Fictional demo data"; a DEMO tenant is
+unchanged (`LiveTenantApprovalTest`). The migration is numbered V025 (V022 is MODE-1, V023 SEC-3, V024 AC-1).
+
+## D-554 Backfill
+Existing rows get `legal_status = 'IN_FORCE'` when approved, else `'UNKNOWN'`, and `dates_basis = 'Entered at creation
+before V025'`; their `effective_from` is kept. The backfill needs to write rows of every tenant and to bypass the
+approval-only trigger of V003, so the migration switches `rule_version` (and `assessment`, for D-556) to NO FORCE row
+security and disables that one trigger for its own duration and restores both in the same transaction, as V016 does.
+`rule_source_check.outcome` historic `DRAFT_EXISTS` rows are immutable and stored nothing, so the value stays valid in
+the CHECK and in `CheckOutcome` and is documented as no longer written.
+
+## D-555 Every observed change is kept (A, B, C)
+When the text changed and a draft already waits, the handler stores the document and records a `CHANGED_QUEUED` check
+whose `rule_version_id` is the waiting draft. `CHANGED` and `CHANGED_QUEUED` both carry a document and a version (the
+V025 constraints keep the V011 names). The draft's view lists its `queuedObservations`, oldest first, from one statement
+for a whole list (no new index: the planner ignores a partial one at this size, as `IndexUsageTest` showed). Decision on the baseline: it stays the drafted text
+(it moves only on `CHANGED`). Moving it on a queued change would leave B and C stored but never drafted once A is
+decided, which loses the old behaviour that the next check after approval drafts the page as it then reads. To avoid
+recording the same text on every interval, a change equal to the newest text already queued by this source behind the
+draft is recorded `UNCHANGED`, not queued again. Consequence, stated plainly: after A is approved the next check drafts
+the current page (C); B stays stored and listed behind A, and is not drafted by itself. Promoting each queued
+observation to its own draft in order is a decision for the orchestrator (candidate follow-up, with UX-1).
+The "review queue" is the rule version view: the work queue kinds are unchanged.
+
+## D-556 Selection by the assessment date
+`assessment.assessment_as_of date NOT NULL` (backfilled from `created_at` in UTC; the column default is
+`CURRENT_DATE`, the application always sends it). `POST /programs/{id}/assessments` takes an optional body
+`{ "asOf": "yyyy-MM-dd" }`; without one, today in UTC. For each target state the version used is the approved one whose
+current status is `IN_FORCE` or `FINAL_NOT_EFFECTIVE`, with `effective_from <= as_of` and `effective_to` null or after
+`as_of` (the end is exclusive); latest effective date wins, then the newest entry. Interpretation to report: the spec
+lists `effective_from <= as_of` only for `FINAL_NOT_EFFECTIVE`; it is applied to `IN_FORCE` as well, because an
+`IN_FORCE` version dated in the future is not in force on an earlier date. When no version matches, the start is refused
+with 409 "No rule in force on <date> for license type ... in: <states>" and no assessment row is made; the run handler
+fails permanently the same way if it ever finds none. It never falls back to the newest version. The overview response
+gains `rules`, one entry per target state: `inForce`, `upcoming` (the earliest approved `FINAL_NOT_EFFECTIVE` version
+after the date), `noRuleInForce` ("No rule in force on <date>") and `upcomingNotice` ("Upcoming from <date>"), from two
+statements for all states. The change re-run (`RERUN_CHANGE`) is unchanged: it names its old and new versions
+explicitly.
+
+## D-557 API
+`POST /rule-versions/{id}/status` (REVIEWER, ADMIN, as the spec says; a signer or contributor gets 403) takes the whole
+position: `legalStatus` (required), `effectiveFrom`, `effectiveTo`, `publishedAt`, `adoptedAt`, `datesBasis`; it appends a
+row and is audited `RULE_STATUS_RECORDED` (new position plus `previousLegalStatus`). `POST /rule-versions` takes the same
+fields optionally; `effectiveFrom` is no longer required, and no status means `UNKNOWN`. Rule version views expose
+`legalStatus`, the dates, `datesBasis`, `observedAt` and `queuedObservations`. The audited creation and approval details
+carry the status and dates. Listed in `Rule9_AuditCoverageTest` and `InputValidationTableTest`.
+
+## D-558 Seed
+Each fictional demo version carries explicit fictional `adoptedAt`, `publishedAt` and `effectiveFrom` in
+`seed/manifest.yml` (`legal:`), status `IN_FORCE`, and `dates_basis` "Fictional demo data" (`DataMode.DEMO_NOTICE`, the notice MODE-1 also prints on demo exports).
+Deviation to report: the Colorado revision 2 (effective 2027-01-01, after today) is `FINAL_NOT_EFFECTIVE`, not
+`IN_FORCE`. It is the true state of that fictional rule and it shows "Upcoming from 2027-01-01" on the overview.
+
+## D-559 Frontend
+The Rules screen shows the new fields as plain text only (status and effective date pills, one muted line with the source
+of the dates, the observed date and the count of kept changes); UX-1 designs them. The entry form gains a legal status
+and the source of the date, both required with the effective date, so a version entered by hand stays approvable.
+Versions without a date list first (a person still has to date them) and read "date not recorded". Program setup
+readiness mirrors the server's selection (`assessedVersion`). The audit sentence for `RULE_STATUS_RECORDED` and
+`CHANGED_QUEUED` are in `audit-sentence.ts` with their spec. There is no screen yet that records a status for a
+monitored draft: it is API-only until UX-1, which means a monitored draft cannot be approved from the interface yet.
+
+### EV-1 — Local inference adapter and labelled evaluation runs (D-616 to D-620)
+
+Work item EV-1, "Local inference adapter and labelled evaluation runs" (docs/ROADMAP.md). Folded into DECISIONS.md by
+the orchestrator when it merges. No migration, no new dependency, no model downloaded or run: the tests answer from an
+in-process `com.sun.net.httpserver.HttpServer` on the loopback interface.
+
+**D-616 — A local model is one more `LlmClient`: `openai-compatible`, with no model built in and no host assumed.**
+`OpenAiCompatibleLlmClient` uses the JDK `HttpClient` against `<base url>/chat/completions`, the API that llama.cpp's
+`llama-server`, Ollama, vLLM and LM Studio all expose.
+- Settings: `LEXVAY_LLM_BASE_URL` (required), `LEXVAY_LLM_MODEL` (required, **no default**), `LEXVAY_LLM_API_KEY`
+  (optional, sent as a bearer token only when set, never logged), `LEXVAY_LLM_TIMEOUT_SECONDS` (default 120, applies to
+  the connection and to the whole request) and `LEXVAY_LLM_ALLOWED_HOSTS` (default `localhost,127.0.0.1,::1`).
+- The base URL follows the OpenAI client convention: it ends before `/chat/completions` and so includes `/v1`
+  (`http://localhost:8089/v1`, `http://localhost:11434/v1`). Appending a fixed `/v1/chat/completions` would break the
+  address people copy from a server's own documentation.
+- A base URL whose host is not in the allowed list fails startup with a message that names the host and the variable.
+  The comparison is on the whole host, case-insensitive, with the brackets of an IPv6 literal removed, so `evil-localhost`
+  never matches `localhost`. A remote server needs an explicit entry, and the one startup line (`LLM provider
+  openai-compatible: model M at host H ...`) names the host. Redirects are never followed, so a server cannot send a
+  prompt on to a host that was not listed. The client speaks HTTP/1.1, which every such server does.
+- `metered()` is false (no per-call fee, so `SpendGate` is not consulted) and `scripted()` is false (a `LIVE` tenant is
+  served). `LlmGateway` is unchanged: it already decides from those two methods, and a test sends a `LIVE` tenant's call
+  through the real client and checks that neither the tenant's mode nor the gate is read.
+- The model id the client reports is the configured one, not the `model` field of the answer, which some servers fill
+  with a file path. `application.yml` no longer defaults `lexvay.llm.model`; `LlmConfig` supplies
+  `claude-sonnet-5-5` for `anthropic` only when it is empty, so a local run can never silently use a Claude model name.
+  `docker-compose.yml` passes the new variables and its model default is now empty for the same reason.
+- A model that does not answer within the timeout, a refusal in the answer (`message.refusal`, the same
+  `LlmRefusedException` as the Claude API's refusal) and an answer without message content fail the call; the job
+  retries as for any provider failure.
+
+**D-617 — Structured output is requested, never trusted; token counts are measured or marked as estimates.**
+- The schema goes in `response_format: {type: "json_schema", json_schema: {name, schema, strict: true}}`. If the server
+  answers HTTP 400 and the body names `response_format`, the call is repeated once without it and with the schema written
+  into the system message. A 400 that does not name it, or any other status, fails the call at once; a second 400 fails it.
+  The answer text is returned as it came. Validation stays where it is for every provider, in the callers
+  (`EvidenceMatcher`, `ExtractRequirementsHandler`) through `JsonSchemaValidator`, so an invalid answer is the same
+  failure as for the Claude API and quote verification (rule 2) is unchanged. `JsonSchemaValidator` loads its schema from
+  the classpath, so validating inside the client would have needed a second validator.
+- `usage.prompt_tokens` and `usage.completion_tokens` are recorded when both are present. When either is absent both are
+  estimated by `LlmResponse.estimateInputTokens` and `estimateOutputTokens` (a quarter of the characters of the user
+  prompt and of the answer, the formula `FakeLlmClient` always used, now in one place) and the response carries
+  `tokensEstimated`. Mixing one reported count with one estimate would produce a figure that is neither.
+- The mark is stored with the call. `llm_call` has no column for it and EV-1 has no migration, so `LlmCallRecorder`
+  adds `"tokensEstimated": true` to the stored `request` document when the response says so (it is absent otherwise).
+  `FakeLlmClient` always estimates, so its calls carry the mark too; `EvalRepository.modelUse` reads it back and the
+  report says when any count is an estimate. If a column is wanted later, the recorder is the one place to change.
+
+**D-618 — An evaluation report says what produced it.** `EvalReport.Mode` is `SCRIPTED`, `LOCAL_LIVE` and `PAID_LIVE`,
+chosen from what the client is (`scripted()`, then `metered()`), not from its class. The header carries the mode with a
+phrase (a `LOCAL_LIVE` model "has not been vetted by Lexvay, so the results describe it alone"), the model, the host
+the model was called at (`LlmClient.endpointHost()`, empty for the scripted model and the Claude API, printed as `n/a`)
+and the date from the injected `Clock`. `eval/thresholds.yml` keeps two sets of limits, now named `scripted` and `live`
+(the former `fake`); `live` serves both live modes and stays "unmeasured first values", with the values it had, until a
+measured run sets them. A run in `LOCAL_LIVE` also writes its report to `eval/runs/<date>-<model slug>.txt`
+(lower case, runs of other characters become one dash), which is gitignored; a run on the same day with the same model
+replaces that day's file. The report is written whether or not a limit was broken.
+
+**D-619 — `make eval-live` follows `LEXVAY_LLM_PROVIDER`.** `openai-compatible` needs `LEXVAY_LLM_BASE_URL` and
+`LEXVAY_LLM_MODEL` and exits 64 without them (the operator chose it, so a gap is a mistake); it unsets
+`ANTHROPIC_API_KEY` so a real key cannot reach the run. `anthropic` or unset behaves as before (no key: says so, exit 0;
+spend-gate warning). Any other value exits 64. `make eval` is unchanged and still unsets the key and forces `fake`.
+
+**D-620 — The spend gate adds up metered calls only; local runs are repeatable; nothing is downloaded.**
+- `LlmCallRecorder` stores `"metered": <client.metered()>` in the `request` document of every call, beside
+  `tokensEstimated` (D-617), because `llm_call` has no column and EV-1 has no migration. `LlmUsageRepository.meteredThisMonth`
+  (formerly `thisMonthExcluding`) sums only rows whose request says `metered = true` or has no `metered` key, and still
+  leaves out the scripted model by name. A row stored before this change has no key and so counts as metered, which keeps
+  the gate failing closed for them. A local model's rows, which have tokens and no price, therefore never make a billed
+  call `COST_UNKNOWN`, and the earlier caveat "one database, one kind of model" is gone from OPERATIONS. The recorder
+  takes the `LlmClient` bean to ask; the tests build recorders around stub clients to store metered and unmetered rows.
+  Tests: a priced paid model stays allowed within its budget beside a local model's large unpriced rows, and a row with
+  no `metered` key still counts.
+- Every `openai-compatible` request sends `temperature: 0`, and `seed` when `LEXVAY_LLM_SEED` is set (an integer; empty
+  sends none), on the fallback request too, so a run can be repeated on the same server and model. This is part of D-616's
+  client and is documented under "Local inference". Servers that ignore `seed` are not detected, and the report does not
+  record the seed. The Claude API client still sends no sampling parameters.
+- Nothing is downloaded or run by this item, and no model is named in code, tests, configuration or documentation as
+  recommended.

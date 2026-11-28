@@ -4,11 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Shape of eval/thresholds.yml: one set of limits for the scripted model, one for a real model, and the retrieval
- * limits, which do not depend on a model. Quote verification has no entry on purpose: it must be 100 % (product
+ * Shape of eval/thresholds.yml: one set of limits for the scripted model, one for a real model (local or billed), and the
+ * retrieval limits, which do not depend on a model. Quote verification has no entry on purpose: it must be 100 % (product
  * rule 2) and is fixed in code.
  */
-public record Thresholds(Limits fake, Limits live, Retrieval retrieval) {
+public record Thresholds(Limits scripted, Limits live, Retrieval retrieval) {
 
     public record Limits(double maxFalseEvidenceFoundRate, double minRecall, double minNumericAccuracy,
                          double minExtractionAgreement, double minEvidenceAgreement) {
@@ -23,7 +23,7 @@ public record Thresholds(Limits fake, Limits live, Retrieval retrieval) {
     }
 
     public Limits forMode(EvalReport.Mode mode) {
-        return mode == EvalReport.Mode.FAKE ? fake : live;
+        return mode.live() ? live : scripted;
     }
 
     /** Every limit the metrics break, in plain language. Empty means the run passes. */

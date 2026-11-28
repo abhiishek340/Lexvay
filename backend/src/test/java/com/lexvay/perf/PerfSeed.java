@@ -147,6 +147,19 @@ final class PerfSeed {
                 """.formatted(perTenant, extra, tenantId));
     }
 
+    /**
+     * Queues every audit entry that is neither queued nor sealed for the sealer, which is what the application's own
+     * write path does as it writes an entry; {@link #addAuditVolume} inserts as the owner and so bypasses it.
+     */
+    static void queueAuditVolume(Statement admin) throws SQLException {
+        admin.execute("""
+                INSERT INTO audit_unsealed (audit_id, tenant_id, created_at)
+                SELECT a.id, a.tenant_id, a.created_at FROM audit_log a
+                WHERE NOT EXISTS (SELECT 1 FROM audit_unsealed u WHERE u.audit_id = a.id)
+                  AND NOT EXISTS (SELECT 1 FROM audit_seal s WHERE s.audit_id = a.id)
+                """);
+    }
+
     /** Two large finished assessments of one program, see {@link #addLargeAssessments}. */
     record LargeAssessments(UUID beforeRerun, UUID afterRerun) {
     }
@@ -177,10 +190,10 @@ final class PerfSeed {
             span = row.getObject(3, UUID.class);
         }
         admin.execute("""
-                INSERT INTO rule_version (id, tenant_id, jurisdiction_id, license_type, label, source_url, effective_from,
-                                          supersedes_id, document_id)
-                SELECT v.id, rv.tenant_id, rv.jurisdiction_id, rv.license_type, v.label, rv.source_url, rv.effective_from,
-                       v.supersedes_id, rv.document_id
+                INSERT INTO rule_version (id, tenant_id, jurisdiction_id, license_type, label, source_url, legal_status,
+                                          effective_from, dates_basis, supersedes_id, document_id)
+                SELECT v.id, rv.tenant_id, rv.jurisdiction_id, rv.license_type, v.label, rv.source_url, rv.legal_status,
+                       rv.effective_from, rv.dates_basis, v.supersedes_id, rv.document_id
                 FROM (SELECT * FROM rule_version WHERE tenant_id = '%1$s' ORDER BY created_at LIMIT 1) rv
                 CROSS JOIN (VALUES ('%2$s'::uuid, 'Perf rule set v1', NULL::uuid), ('%3$s'::uuid, 'Perf rule set v2', '%2$s'::uuid))
                        v(id, label, supersedes_id)

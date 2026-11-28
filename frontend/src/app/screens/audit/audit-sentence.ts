@@ -1,5 +1,5 @@
-import { DECISION_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, ROLE_LABEL, humanize } from '../../core/labels';
-import { DecisionKind, NumericField, Outcome, Role } from '../../core/models';
+import { DECISION_LABEL, LEGAL_STATUS_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, ROLE_LABEL, humanize } from '../../core/labels';
+import { DecisionKind, LegalStatus, NumericField, Outcome, Role } from '../../core/models';
 
 /** What a sentence is built from: who acted (a name, "System" or "Former user") and the entry's stored detail. */
 export interface SentenceInput {
@@ -52,7 +52,8 @@ const JOB_NOUN: Record<string, string> = {
 const CHECK_RESULT: Record<string, string> = {
   UNCHANGED: 'no change',
   CHANGED: 'new text, a draft rule version was created',
-  DRAFT_EXISTS: 'new text, a draft already waits for review',
+  CHANGED_QUEUED: 'new text, kept behind the draft that waits for review',
+  DRAFT_EXISTS: 'new text, a draft already waited for review (not kept)',
   FETCH_FAILED: 'it could not be fetched',
 };
 
@@ -107,6 +108,10 @@ export const AUDIT_SENTENCES: Record<string, Sentence> = {
     const after = Array.isArray(detail['after']) ? detail['after'].length : null;
     return withCount(`${actor} edited a requirement list`, count(after, 'requirement'));
   },
+  RULE_STATUS_RECORDED: ({ actor, detail }) => {
+    const status = LEGAL_STATUS_LABEL[detail['legalStatus'] as LegalStatus];
+    return status ? `${actor} recorded a rule version as ${status.toLowerCase()}` : `${actor} recorded the legal status of a rule version`;
+  },
   REQUIREMENTS_APPROVED: ({ actor, detail }) => `${actor} approved ${count(number(detail, 'requirementCount'), 'requirement') ?? 'a requirement list'}`,
   RULE_SOURCE_CREATED: ({ actor, detail, jurisdictionName }) =>
     text(detail, 'jurisdiction') ? `${actor} added a rule source for ${jurisdictionName(text(detail, 'jurisdiction')!)}` : `${actor} added a rule source`,
@@ -145,6 +150,13 @@ export const AUDIT_SENTENCES: Record<string, Sentence> = {
     return detail['complete'] === false
       ? `${actor} started an audit trail download that stopped${rows ? ` after ${rows}` : ''}`
       : withCount(`${actor} downloaded the audit trail`, rows);
+  },
+  AUDIT_VERIFIED: ({ actor, detail }) => {
+    const base = `${actor} verified the audit trail`;
+    if (detail['intact'] === true) { return `${base}: intact`; }
+    if (detail['intact'] !== false) { return base; }
+    const entry = number(detail, 'firstBrokenSeq');
+    return `${base}: broken${entry === null ? '' : ` at entry ${entry}`}`;
   },
   CHANGE_EVENT_CREATED: ({ actor, detail }) => {
     const base = `${actor} recorded a new ${isRule(detail) ? 'rule' : 'course'} version`;
@@ -208,6 +220,7 @@ export const ACTION_LABEL: Record<string, string> = {
   REQUIREMENTS_EXTRACTED: 'Requirements extracted',
   REQUIREMENTS_REPLACED: 'Requirement list replaced',
   REQUIREMENTS_APPROVED: 'Requirement list approved',
+  RULE_STATUS_RECORDED: 'Rule status recorded',
   RULE_SOURCE_CREATED: 'Rule source added',
   RULE_SOURCE_CHECK_REQUESTED: 'Rule source check requested',
   RULE_SOURCE_ACTIVE_CHANGED: 'Rule source paused or resumed',
@@ -220,6 +233,7 @@ export const ACTION_LABEL: Record<string, string> = {
   DETERMINATION_REOPENED: 'Determination reopened',
   REGISTER_EXPORTED: 'Register downloaded',
   AUDIT_EXPORTED: 'Audit trail downloaded',
+  AUDIT_VERIFIED: 'Audit trail verified',
   CHANGE_EVENT_CREATED: 'Change recorded',
   CHANGE_RERUN_REQUESTED: 'Re-run requested',
   CHANGE_RERUN: 'Re-run finished',
