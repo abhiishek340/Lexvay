@@ -29,7 +29,7 @@ runs, sandbox, authorized real data or production.
 ### Order and owners (one branch each; migration numbers reserved)
 | ID | Work package | Depends on | Model | Migration | Status |
 |---|---|---|---|---|---|
-| RG-1 | Legal time and status model; fix fetch-date-as-effective-date (P0); keep every observed change (A→B→C) | — | Sonnet 5.5 | V021 | in progress |
+| RG-1 | Legal time and status model; fix fetch-date-as-effective-date (P0); keep every observed change (A→B→C) | — | Sonnet 5.5 | V025 | merged (#55) |
 | MODE-1 | Persisted tenant data mode (DEMO/LIVE) and the spend gate for paid providers | — | Sonnet 5.5 | V022 | merged (#51) |
 | RG-2 | Source registry governance: allowed hosts and paths, authority class, rights and access state, owner, expected identifiers, conditional GET, per-host throttle, robots, block-page detection | RG-1 | Sonnet 5.5 | V023 | queued |
 | RG-3 | Utah official-source adapter (DOPL, R156-60e, Utah Code 58-60-405, State Bulletin), with archived-version replay and an observed-change test | RG-2 | Sonnet 5.5 | — | queued |
@@ -548,7 +548,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI3-3 Rules, requests, setup in v3 | `ui3-rules-requests-setup` | 5 | Opus 5.5 | in progress |
 | SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | merged (#53) |
 | F15 Evidence package | `feat-evidence-package` | 5 | Sonnet 5.5 | merged (#49) |
-| RG-1 Legal time and status model (P0) | `rg-legal-time` | 2 | Sonnet 5.5 | in progress |
+| RG-1 Legal time and status model (P0) | `rg-legal-time` | 2 | Sonnet 5.5 | merged (#55) |
 | MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | merged (#51) |
 | AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | in progress |
 | OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | merged (#54) |
