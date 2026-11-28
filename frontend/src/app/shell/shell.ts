@@ -175,10 +175,18 @@ function findParam(route: ActivatedRouteSnapshot, name: string): string | null {
   return null;
 }
 
-/** Screens render their heading once their data arrives; wait for it briefly, then focus it. */
-function focusHeadingWhenRendered(): void {
+/**
+ * Screens render their heading once their data arrives; wait for it briefly, then focus it. If the person moves focus
+ * while the screen loads (opens a menu, starts typing), the heading leaves it where they put it.
+ */
+export function focusHeadingWhenRendered(): void {
   const started = performance.now();
+  const focusAtStart = document.activeElement;
   const attempt = (): void => {
+    const focus = document.activeElement;
+    if (focus !== focusAtStart && focus !== document.body && focus !== null) {
+      return;
+    }
     const heading = document.querySelector<HTMLElement>('main h1');
     if (heading) {
       heading.setAttribute('tabindex', '-1');
