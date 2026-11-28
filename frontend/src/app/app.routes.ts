@@ -1,5 +1,5 @@
 import { Routes, UrlMatchResult, UrlSegment } from '@angular/router';
-import { authGuard } from './core/auth.guard';
+import { authGuard, landingGuard } from './core/auth.guard';
 
 /**
  * Each screen is its own lazy chunk; the shell, session and theme are the only eager code. A screen that shows icons
@@ -10,7 +10,7 @@ export const routes: Routes = [
   { path: 'login', loadComponent: () => import('./screens/login/login').then((m) => m.Login), title: 'Sign in · Lexvay' },
   // Anonymous: the holder of a setup code chooses a password (F5a); the code is read and cleared from the address there.
   { path: 'setup', loadChildren: () => import('./screens/setup/setup.routes') },
-  { path: '', loadComponent: () => import('./screens/home').then((m) => m.Home), canActivate: [authGuard], pathMatch: 'full', title: 'Programs · Lexvay' },
+  { path: '', loadComponent: () => import('./screens/home').then((m) => m.Home), canActivate: [authGuard, landingGuard], pathMatch: 'full', title: 'Programs · Lexvay' },
   // Program setup: /programs/new and /programs/:programId/setup are one route, so creating a program keeps the screen.
   { matcher: setupMatcher, canActivate: [authGuard], loadChildren: () => import('./screens/program-setup/program-setup.routes') },
   {

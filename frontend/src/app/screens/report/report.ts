@@ -9,6 +9,7 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { OUTCOME_LABEL, licenseLabel } from '../../core/labels';
 import { Mapping } from '../../core/models';
+import { needsJurisdictionParam } from '../../core/navigation';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { registerComponentTokens } from '../../theme/component-tokens';
@@ -119,7 +120,9 @@ export class Report {
     this.jurisdiction.set(code);
     this.mappings.set(null);
     this.error.set(null);
-    this.router.navigate([], { relativeTo: this.route, queryParams: { jurisdiction: code }, replaceUrl: true });
+    if (needsJurisdictionParam(this.route.snapshot.queryParamMap.get('jurisdiction'), code, this.context.program()?.jurisdictions[0])) {
+      this.router.navigate([], { relativeTo: this.route, queryParams: { jurisdiction: code }, replaceUrl: true });
+    }
     try {
       const view = await firstValueFrom(this.api.mappings(assessment.id, code));
       if (this.shown === key) { this.mappings.set(view.mappings); }

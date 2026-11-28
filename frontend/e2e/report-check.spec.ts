@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Page } from '@playwright/test';
-import { DANA, SCREENSHOTS, expect, expectAccessible, goTo, shoot, signIn, stateTab, test } from './support';
+import { DANA, SCREENSHOTS, allowConsoleErrors, expect, expectAccessible, goTo, shoot, signIn, stateTab, test } from './support';
 
 /**
  * F14, checking a report file. Runs after the suite (playwright.config.ts): the report it checks is the PDF of the
@@ -84,6 +84,8 @@ test('a downloaded report matches with its facts, a changed copy does not, and b
   await dialog(page).getByRole('button', { name: 'Check another' }).click();
   await dialog(page).locator('input[type=file]').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('Not a report') });
   await expect(dialog(page).getByTestId('message')).toHaveText('Not a PDF file');
+  // A file named .pdf that is not one reaches the server, which answers 400; Chromium logs it.
+  allowConsoleErrors(page, /status of 400.*\/api\/v1\/reports\/check/);
   await dialog(page).locator('input[type=file]').setInputFiles({ name: 'renamed.pdf', mimeType: 'application/pdf', buffer: Buffer.from('Not a report') });
   await expect(dialog(page).getByTestId('message')).toHaveText('Not a PDF file');
 
