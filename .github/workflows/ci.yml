@@ -1,10 +1,14 @@
 name: ci
 
 # One run per change: pushes to main, and pull requests. A newer commit on the same ref cancels the older run.
+# The perf job also runs every night and on request; the other jobs only run for changes.
 on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
 
 concurrency:
   # Pushes to main queue in order and every one completes, so main always has a verdict per commit; a newer push
@@ -14,27 +18,13 @@ concurrency:
 
 jobs:
   test:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      # The Maven repository is cached with a prefix fallback: a pom.xml change restores the newest cache and downloads
-      # only what changed, instead of everything from Maven Central, which rate-limits busy runners (HTTP 429).
-      - uses: actions/cache@v6
-        with:
-          # The wrapper's own Maven distribution lives in ~/.m2/wrapper; without it every cold run downloads Maven
-          # from Maven Central first, which has failed under rate limiting.
-          path: |
-            ~/.m2/repository
-            ~/.m2/wrapper
-          key: maven-${{ runner.os }}-${{ hashFiles('backend/pom.xml', 'backend/.mvn/wrapper/maven-wrapper.properties') }}
-          restore-keys: maven-${{ runner.os }}-
+      - uses: ./.github/actions/setup-backend
 
       - uses: actions/setup-node@v7
         with:
@@ -63,6 +53,7 @@ jobs:
         run: make eval
 
   infra:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -103,3 +94,70 @@ jobs:
 
       - name: Smoke test the image (sign-in, API, metrics, logs, graceful stop)
         run: scripts/smoke.sh "lexvay:ci-${{ github.sha }}"
+
+  # The arbiter of the read-path budget (CLAUDE.md: p95 under 40 ms on the seeded tenant, docs/PERF.md). It needs a quiet
+  # runner, which a shared developer machine is not. A pull request runs it only when it changes what the budget
+  # measures; the job still passes when it does not, so it can be a required check by convention. Pushes to main report
+  # and are never cancelled by a newer one (the concurrency group above).
+  perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether this change can move the budget
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ "$EVENT" != pull_request ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only "origin/$BASE_REF...HEAD" \
+              | grep -qE '^(backend/src/main/|backend/src/test/java/com/lexvay/perf/|docs/PERF\.md$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No change under backend/src/main, the perf tests or docs/PERF.md: the budget cannot have moved." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - if: steps.changes.outputs.run == 'true'
+        uses: ./.github/actions/setup-backend
+
+      - name: Measure the read paths and check the indexes
+        if: steps.changes.outputs.run == 'true'
+        run: make perf
+
+      # The numbers come from the files the tests write; nothing is recomputed here.
+      - name: Publish the numbers
+        if: ${{ !cancelled() && steps.changes.outputs.run == 'true' }}
+        run: |
+          {
+            echo "## Read-path latency (budget: p95 under 40 ms)"
+            echo
+            cat backend/target/perf/latency.md 2>/dev/null || echo "The latency test wrote no report."
+            echo
+            echo "## Index usage (the planner's choice, with the plan of every index it did not use)"
+            echo
+            cat backend/target/perf/index-usage.md 2>/dev/null || echo "The index test wrote no report."
+            echo
+            for report in backend/target/surefire-reports/*.txt; do
+              if grep -q "FAILURE" "$report" 2>/dev/null; then
+                echo "## Failed: $(basename "$report" .txt)"
+                echo
+                echo '```'
+                grep -v '^\s*at ' "$report" | head -60
+                echo '```'
+              fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the plans
+        if: ${{ !cancelled() && steps.changes.outputs.run == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-reports
+          path: backend/target/perf
+          retention-days: 14
