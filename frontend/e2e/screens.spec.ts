@@ -28,8 +28,8 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await expect(page.getByTestId('evidence-mark')).toBeInViewport();
   await shoot(page, 'review-viewer');
 
-  await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
-  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible();
+  await page.getByRole('button', { name: 'Help' }).click();
+  await expect(page.getByRole('dialog', { name: 'Help' })).toBeVisible();
   await shoot(page, 'review-shortcuts');
   await page.keyboard.press('Escape');
 
@@ -371,5 +371,82 @@ test('UI3-3: the evidence request inbox and the answer sheet at 1440 and 400 px'
     await shoot(page, `ui3-3-requests-drawer-${width}`);
     await page.keyboard.press('Escape');
     await expect(drawer).toBeHidden();
+  }
+});
+
+/**
+ * UI3-1: Review (the list, a found and an ambiguous requirement, the decision footer with its note, the signing dialog)
+ * and Coverage (a state, a cell's card, a flag highlighted) in design v3, at 1440 and 400 px. Arizona is decided through
+ * the API first, as a reviewer would decide it, so that its signing dialog can be shown; the dialog is cancelled.
+ */
+test('UI3-1: Review and Coverage in design v3 at 1440 and 400 px', async ({ page }) => {
+  await signIn(page, DANA);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const programId = await programIdFromUrl(page);
+  const overview = await (await page.request.get(`/api/v1/programs/${programId}/overview`)).json();
+  const az = await (await page.request.get(`/api/v1/assessments/${overview.assessment.id}/mappings?jurisdiction=AZ`)).json();
+  const decisions = { EVIDENCE_FOUND: 'ACCEPTED', AMBIGUOUS: 'EVIDENCE_REQUESTED', EVIDENCE_MISSING: 'GAP_CONFIRMED' } as const;
+  // The suite before this test has re-run matching for the COUN 625 change, so no Arizona requirement is stale any more.
+  for (const m of az.mappings as { id: string; finding: keyof typeof decisions; decision: unknown; stale: boolean }[]) {
+    if (m.decision === null && !m.stale) {
+      const kind = decisions[m.finding];
+      const note = kind === 'ACCEPTED' ? null : 'Recorded for the screenshot review.';
+      expect((await apiPost(page, `/api/v1/mappings/${m.id}/reviews`, { kind, note })).status()).toBe(201);
+    }
+  }
+  // The program's summary was read at sign-in; read it again so the state tabs count the decisions just made.
+  await page.reload();
+  const heading = page.getByTestId('requirement-heading');
+  // Under 1024 px the page scrolls as one column: bring the requirement to the top of the window for its capture.
+  const toRequirement = async (width: number) => {
+    if (width < 1024) { await heading.evaluate((h) => h.scrollIntoView({ block: 'start' })); }
+  };
+
+  for (const [width, height] of [[1440, 900], [400, 860]] as const) {
+    await page.setViewportSize({ width, height });
+    await goTo(page, 'Review');
+    await stateTab(page, 'TX').click();
+    await expect(heading).toHaveAttribute('data-ref', /^TX-/);
+    await shoot(page, `ui3-1-review-list-${width}`);
+
+    await openRequirement(page, 'TX', 'TX-2');
+    await expect(page.getByTestId('proposed-finding')).toContainText('Evidence found');
+    await toRequirement(width);
+    await shoot(page, `ui3-1-review-found-${width}`);
+
+    await openRequirement(page, 'TX', 'TX-6');
+    await expect(page.getByTestId('proposed-finding')).toContainText('Ambiguous');
+    await toRequirement(width);
+    await shoot(page, `ui3-1-review-ambiguous-${width}`);
+
+    await page.getByRole('button', { name: 'Add note' }).click();
+    await page.getByLabel('Note', { exact: true }).fill('Only one class session covers career development.');
+    await shoot(page, `ui3-1-review-footer-${width}`);
+    await page.getByRole('button', { name: 'Add note' }).click();
+
+    await stateTab(page, 'AZ').click();
+    const sign = page.getByRole('button', { name: 'Sign Arizona' });
+    await expect(sign).toBeVisible();
+    await sign.click();
+    const dialog = page.getByRole('dialog', { name: 'Sign Arizona' });
+    await dialog.getByText('Determined not to meet', { exact: true }).click();
+    await shoot(page, `ui3-1-review-signing-${width}`);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toBeHidden();
+
+    await goTo(page, 'Coverage');
+    await page.getByRole('tab', { name: 'California', exact: true }).click();
+    const matrix = page.getByRole('table', { name: 'Coverage, California' });
+    await expect(matrix).toBeVisible();
+    await shoot(page, `ui3-1-coverage-${width}`);
+
+    await matrix.locator('tbody tr[data-ref="CA-2"]').getByRole('button', { name: /^COUN 605, / }).focus();
+    await expect(page.locator('.lx-cell-card')).toContainText('COUN 605');
+    await shoot(page, `ui3-1-coverage-card-${width}`);
+    await page.keyboard.press('Escape');
+
+    await page.getByRole('tablist', { name: 'Highlight a flag' }).getByRole('tab', { name: /^Rests on one course, \d+$/ }).click();
+    await expect(matrix.locator('tbody tr.lx-dim').first()).toBeVisible();
+    await shoot(page, `ui3-1-coverage-filter-${width}`);
   }
 });

@@ -3,7 +3,6 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DOCUMENT_VIEWER_ICONS } from '../shared/document-viewer/document-viewer';
 import { AUDIT_ICONS } from '../screens/audit/audit';
-import { COVERAGE_ICONS } from '../screens/coverage/coverage';
 import { REGISTER_ICONS } from '../screens/register/register';
 import { REQUESTS_ICONS } from '../screens/requests/requests';
 import { REPORT_CHECK_ICONS } from '../screens/report/report-check-dialog';
@@ -40,7 +39,7 @@ const UNITS: Unit[] = [
       'shell/shell-toast.ts'],
   },
   { name: 'review', entries: ['screens/review/review.ts'], registered: REVIEW_ICONS },
-  { name: 'coverage', entries: ['screens/coverage/coverage.ts'], registered: COVERAGE_ICONS },
+  { name: 'coverage', entries: ['screens/coverage/coverage.ts'], registered: {} },
   { name: 'requests', entries: ['screens/requests/requests.ts'], registered: REQUESTS_ICONS },
   { name: 'rules', entries: ['screens/rules/rules.ts'], registered: RULES_ICONS },
   { name: 'program setup', entries: ['screens/program-setup/program-setup.ts'], registered: PROGRAM_SETUP_ICONS },

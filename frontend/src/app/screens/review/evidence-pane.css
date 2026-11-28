@@ -1,40 +1,31 @@
 :host { display: flex; flex-direction: column; min-height: 0; }
-.lx-evidence { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.lx-evidence { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.lx-evidence > h2 { margin-bottom: 4px; }
 
-.lx-evidence-meta { display: flex; flex-wrap: wrap; gap: 2px 14px; padding: 0 4px; font-size: 12px; line-height: 18px; color: var(--p-lx-ink-2); }
-.lx-evidence-meta div { display: flex; gap: 4px; min-width: 0; }
+/* Where the passage sits: file and course where the viewer does not name them, then page and characters in mono. */
+.lx-evidence-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
+.lx-evidence-meta div { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
 .lx-evidence-meta dd { color: var(--p-lx-ink); word-break: break-word; }
 
-.lx-quote-only { padding: 0 4px; }
+/* The quote alone, closed by default: Document type on a 2 px line-strong rule, like the rule text. */
 .lx-quote-only summary {
-  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; border-radius: 4px;
-  font-size: 13px; font-weight: 550; color: var(--p-lx-ink);
+  display: inline-flex; align-items: center; gap: 4px; cursor: pointer; list-style: none; border-radius: 4px;
+  font-size: 13px; line-height: 20px; font-weight: 500; color: var(--p-lx-ink);
 }
 .lx-quote-only summary::-webkit-details-marker { display: none; }
-.lx-quote-only summary ng-icon { transition: transform var(--lx-t-fast) var(--lx-ease); }
+.lx-quote-only summary ng-icon { color: var(--p-lx-ink-2); transition: transform var(--lx-t-fast) var(--lx-ease); }
 .lx-quote-only[open] summary ng-icon { transform: rotate(90deg); }
-.lx-quote-only blockquote {
-  margin-top: 8px; padding: 12px 16px; border-radius: var(--lx-r-control); background: var(--p-lx-sunken); color: var(--p-lx-ink);
-  white-space: pre-wrap; overflow-wrap: anywhere;
-}
+.lx-quote-only blockquote { margin-top: 8px; padding-left: 16px; border-left: 2px solid var(--p-lx-line-strong); white-space: pre-wrap; overflow-wrap: anywhere; }
 .lx-show-on-page { align-self: flex-start; }
+.lx-none { color: var(--p-lx-ink-2); }
 
-/* In the three-pane layout the viewer takes the rest of the pane and its page scrolls inside it. */
+/* In the three-column layout the viewer takes the rest of the column and its page scrolls inside it. */
 @media (min-width: 1024px) {
   .lx-evidence-page { flex: 1; min-height: 16rem; display: flex; flex-direction: column; }
   .lx-evidence-page lx-document-viewer { flex: 1; --lx-document-max-height: none; }
   .lx-provided { flex: 1; min-height: 0; }
 }
 
-/* Evidence people provided (F4): under the system's evidence, set apart by space and named by who and when. */
-.lx-provided { display: flex; flex-direction: column; gap: 10px; padding-top: 20px; }
-.lx-provided-label { display: flex; align-items: center; gap: 6px; padding: 0 4px; font-size: 13px; line-height: 18px; font-weight: 600; }
-.lx-provided-comment {
-  padding: 12px 16px; border-left: 2px solid var(--p-lx-line-strong);
-  white-space: pre-wrap; overflow-wrap: anywhere;
-}
-
-.lx-no-evidence {
-  display: flex; align-items: center; gap: 8px; padding: 16px; border-radius: var(--lx-r-control);
-  border: 1px dashed var(--p-lx-line-strong); color: var(--p-lx-ink-2); font-weight: 500;
-}
+/* Evidence people provided (F4): under the system's evidence, after a hairline, named by who and when. */
+.lx-provided { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; padding-top: 24px; border-top: 1px solid var(--p-lx-line); }
+.lx-provided-comment { padding-left: 16px; border-left: 2px solid var(--p-lx-line-strong); white-space: pre-wrap; overflow-wrap: anywhere; }
