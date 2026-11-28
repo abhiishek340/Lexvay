@@ -96,7 +96,7 @@ class OpenAiCompatibleLlmClientTest {
     }
 
     OpenAiCompatibleLlmClient client(String apiKey, Duration timeout) {
-        return new OpenAiCompatibleLlmClient(baseUrl(), MODEL, apiKey, timeout, List.of("localhost", "127.0.0.1", "::1"));
+        return new OpenAiCompatibleLlmClient(baseUrl(), MODEL, apiKey, timeout, List.of("localhost", "127.0.0.1", "::1"), null);
     }
 
     @Test
@@ -123,6 +123,21 @@ class OpenAiCompatibleLlmClientTest {
         assertThat(format.path("json_schema").path("strict").asBoolean()).isTrue();
         assertThat(format.path("json_schema").path("schema")).isEqualTo(request.outputSchema());
         assertThat(seen.get(0).authorization()).as("no key configured, none sent").isNull();
+        assertThat(body.path("temperature").asInt(-1)).as("a repeatable run asks for temperature 0").isZero();
+        assertThat(body.has("seed")).as("no seed configured, none sent").isFalse();
+    }
+
+    @Test
+    void sendsTheConfiguredSeedOnTheRequestAndOnTheFallbackRequest() {
+        replies.add(Reply.status(400, "response_format is unsupported"));
+        replies.add(Reply.ok(VALID_ANSWER, null));
+
+        new OpenAiCompatibleLlmClient(baseUrl(), MODEL, "", Duration.ofSeconds(5), List.of("127.0.0.1"), 42L).complete(request);
+
+        assertThat(seen).hasSize(2).allSatisfy(s -> {
+            assertThat(s.body().path("seed").asLong()).isEqualTo(42L);
+            assertThat(s.body().path("temperature").asInt(-1)).isZero();
+        });
     }
 
     @Test
@@ -245,7 +260,7 @@ class OpenAiCompatibleLlmClientTest {
     void aUrlWithATrailingSlashReachesTheSameEndpoint() {
         replies.add(Reply.ok(VALID_ANSWER, null));
 
-        new OpenAiCompatibleLlmClient(baseUrl() + "/", MODEL, "", Duration.ofSeconds(5), List.of("127.0.0.1")).complete(request);
+        new OpenAiCompatibleLlmClient(baseUrl() + "/", MODEL, "", Duration.ofSeconds(5), List.of("127.0.0.1"), null).complete(request);
 
         assertThat(seen).hasSize(1);
     }
@@ -279,7 +294,7 @@ class OpenAiCompatibleLlmClientTest {
     @Test
     void aHostOutsideTheAllowedListFailsConstructionNamingTheHostAndTheVariable() {
         assertThatThrownBy(() -> new OpenAiCompatibleLlmClient("https://models.example.org/v1", MODEL, "", Duration.ofSeconds(5),
-                List.of("localhost", "127.0.0.1", "::1")))
+                List.of("localhost", "127.0.0.1", "::1"), null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("models.example.org").hasMessageContaining("LEXVAY_LLM_ALLOWED_HOSTS");
     }
@@ -287,7 +302,7 @@ class OpenAiCompatibleLlmClientTest {
     @Test
     void aRemoteHostListedExplicitlyIsAccepted() {
         OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient("https://Models.Example.org:8443/v1", MODEL, "", Duration.ofSeconds(5),
-                List.of("models.example.org"));
+                List.of("models.example.org"), null);
 
         assertThat(client.endpointHost()).contains("models.example.org");
     }
@@ -295,25 +310,25 @@ class OpenAiCompatibleLlmClientTest {
     @Test
     void anIpv6LoopbackUrlMatchesTheBareAddressInTheList() {
         OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient("http://[::1]:8089/v1", MODEL, "", Duration.ofSeconds(5),
-                List.of("localhost", "127.0.0.1", "::1"));
+                List.of("localhost", "127.0.0.1", "::1"), null);
 
         assertThat(client.endpointHost()).contains("::1");
     }
 
     @Test
     void anAllowedNameThatOnlyEndsTheSameWayIsNotAMatch() {
-        assertThatThrownBy(() -> new OpenAiCompatibleLlmClient("http://evil-localhost/v1", MODEL, "", Duration.ofSeconds(5), List.of("localhost")))
+        assertThatThrownBy(() -> new OpenAiCompatibleLlmClient("http://evil-localhost/v1", MODEL, "", Duration.ofSeconds(5), List.of("localhost"), null))
                 .hasMessageContaining("evil-localhost");
     }
 
     @Test
     void theBaseUrlAndTheModelAreRequiredAndTheModelHasNoDefault() {
         List<String> hosts = List.of("localhost");
-        assertThatThrownBy(() -> new OpenAiCompatibleLlmClient("", MODEL, "", Duration.ofSeconds(5), hosts))
+        assertThatThrownBy(() -> new OpenAiCompatibleLlmClient("", MODEL, "", Duration.ofSeconds(5), hosts, null))
                 .hasMessageContaining("LEXVAY_LLM_BASE_URL must be set");
-        assertThatThrownBy(() -> new OpenAiCompatibleLlmClient("http://localhost:8089/v1", " ", "", Duration.ofSeconds(5), hosts))
+        assertThatThrownBy(() -> new OpenAiCompatibleLlmClient("http://localhost:8089/v1", " ", "", Duration.ofSeconds(5), hosts, null))
                 .hasMessageContaining("LEXVAY_LLM_MODEL must be set");
-        assertThatThrownBy(() -> new OpenAiCompatibleLlmClient("localhost:8089/v1", MODEL, "", Duration.ofSeconds(5), hosts))
+        assertThatThrownBy(() -> new OpenAiCompatibleLlmClient("localhost:8089/v1", MODEL, "", Duration.ofSeconds(5), hosts, null))
                 .hasMessageContaining("http or https");
     }
 }

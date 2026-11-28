@@ -27,7 +27,8 @@ import tools.jackson.databind.node.ObjectNode;
  * answers HTTP 400 naming {@code response_format}; the call is then repeated once with the schema in the system message
  * instead. Either way the caller validates the answer against the schema, as it does for any provider (D-617). The base
  * URL's host must be one the operator listed in {@code LEXVAY_LLM_ALLOWED_HOSTS}, so a prompt never leaves the machine
- * by a typing mistake, and redirects are never followed.
+ * by a typing mistake, and redirects are never followed. Every request asks for temperature 0 and, when
+ * {@code LEXVAY_LLM_SEED} is set, a seed, so a run can be repeated on the same server and model (D-616).
  */
 public class OpenAiCompatibleLlmClient implements LlmClient {
 
@@ -41,8 +42,11 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
     private final String model;
     private final String apiKey;
     private final Duration timeout;
+    private final Long seed;
 
-    public OpenAiCompatibleLlmClient(String baseUrl, String model, String apiKey, Duration timeout, List<String> allowedHosts) {
+    /** {@code seed} is sent with every request when not null; every request also asks for temperature 0 (D-616). */
+    public OpenAiCompatibleLlmClient(String baseUrl, String model, String apiKey, Duration timeout, List<String> allowedHosts,
+                                     Long seed) {
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new IllegalArgumentException("LEXVAY_LLM_BASE_URL must be set for LEXVAY_LLM_PROVIDER=openai-compatible");
         }
@@ -63,6 +67,7 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
         this.model = model.strip();
         this.apiKey = apiKey == null ? "" : apiKey.strip();
         this.timeout = timeout;
+        this.seed = seed;
         this.http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(timeout)
                 .followRedirects(HttpClient.Redirect.NEVER).build();
         log.info("LLM provider openai-compatible: model {} at host {}, no per-call fee, prompts are sent to that host", this.model, host);
@@ -102,6 +107,10 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
         ObjectNode body = MAPPER.createObjectNode();
         body.put("model", model);
         body.put("max_tokens", request.maxOutputTokens());
+        body.put("temperature", 0);
+        if (seed != null) {
+            body.put("seed", seed);
+        }
         var messages = body.putArray("messages");
         String system = withResponseFormat ? request.systemPrompt()
                 : request.systemPrompt() + "\n\nAnswer with one JSON object that conforms to this JSON schema, and nothing else:\n"

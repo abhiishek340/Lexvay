@@ -17,5 +17,9 @@ All of the plan. Files outside the spec's list, each small:
 - `docker-compose.yml`: passes the new variables; the model default is empty.
 - `.gitignore`: `eval/runs/`.
 
+After review (D-620): `LlmCallRecorder` stores `metered` in the request and takes the `LlmClient`; `SpendGate` sums metered calls
+only (`LlmUsageRepository.meteredThisMonth`, renamed from `thisMonthExcluding`; `SpendGateTest` and `SpendGateDatabaseTest` follow);
+every local request sends `temperature: 0` and `seed` when `LEXVAY_LLM_SEED` is set.
+
 ## Tests
 See the PR for the commands and results.

@@ -88,7 +88,7 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 | `LEXVAY_SHUTDOWN_GRACE` | Time a stop waits for open requests and the running job | 30s |
 | `LEXVAY_DB_URL`, `LEXVAY_DB_OWNER_*`, `LEXVAY_DB_APP_*` | PostgreSQL URL and the two roles (D-013, D-034) | see `.env.example` |
 | `LEXVAY_LLM_PROVIDER`, `LEXVAY_LLM_MODEL`, `LEXVAY_LLM_EFFORT`, `ANTHROPIC_API_KEY` | Model (D-033). `fake` is for demos only; `anthropic` is billed; `openai-compatible` is a server you run (see "Local inference"). The model is empty for `anthropic` (it then uses its default) and required for `openai-compatible` | `fake` |
-| `LEXVAY_LLM_BASE_URL`, `LEXVAY_LLM_API_KEY`, `LEXVAY_LLM_TIMEOUT_SECONDS`, `LEXVAY_LLM_ALLOWED_HOSTS` | The `openai-compatible` provider (EV-1, D-616): the server's base URL (required), an optional bearer token, the seconds a call may take, and the hosts the base URL may name | empty, empty, `120`, `localhost,127.0.0.1,::1` |
+| `LEXVAY_LLM_BASE_URL`, `LEXVAY_LLM_API_KEY`, `LEXVAY_LLM_TIMEOUT_SECONDS`, `LEXVAY_LLM_ALLOWED_HOSTS`, `LEXVAY_LLM_SEED` | The `openai-compatible` provider (EV-1, D-616): the server's base URL (required), an optional bearer token, the seconds a call may take, the hosts the base URL may name, and an optional integer sent as `seed` | empty, empty, `120`, `localhost,127.0.0.1,::1`, empty |
 | `LEXVAY_LLM_PAID_APPROVED`, `LEXVAY_LLM_MONTHLY_BUDGET_USD`, `LEXVAY_LLM_RATES` | The spend gate for a metered provider and the one price table (see "Data mode and the spend gate"). `LEXVAY_LLM_RATES` replaces `LEXVAY_LLM_PRICE_INPUT_PER_MTOK` and `LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK`, which are no longer read | `false`, `0`, empty |
 | `LEXVAY_FILESTORE`, `LEXVAY_FILESTORE_PATH`, `LEXVAY_S3_BUCKET` | Where documents are stored | image: `/var/lexvay/files` |
 | `SPRING_PROFILES_ACTIVE` (compose: `LEXVAY_PROFILES`) | The image sets `prod` (structured logs); use `prod,oidc` for single sign-on, because setting only `oidc` drops the production log format | `prod` |
@@ -208,10 +208,14 @@ model, `LOCAL_LIVE` is a model you run, `PAID_LIVE` is a billed provider. A `LOC
 not been vetted by Lexvay, and it describes that model, on that day, on that machine, only. The limits for a real model
 in `eval/thresholds.yml` are unmeasured first values until a measured run sets them.
 
-**One database, one kind of model.** The spend gate adds up the tokens of every stored call except the scripted model's
-and needs a price for every model among them. The calls of a local model have tokens and no price, so while any exist in
-the month the gate refuses every billed call (it fails closed). Do not use a local model and a billed provider against the
-same database in the same month.
+**Repeatable runs.** Every request asks for `temperature: 0`. Set `LEXVAY_LLM_SEED` to an integer and it is sent as
+`seed` too. On the same server, model file and settings that makes a run repeatable, as far as the server honours them:
+some servers ignore `seed`, and a different quantisation, context length or server version changes the answers. The
+report does not record the seed, so note it with the report you keep.
+
+**Local calls and the spend gate.** Each stored call says whether its client costs money (`metered` in the stored
+request). The spend gate adds up only metered calls, so a local model's calls, which have tokens and no price, never
+make a billed call's cost unknown. A call stored before this was recorded has no such entry and counts as metered.
 
 ## Users and sessions
 

@@ -26,13 +26,14 @@ public class LlmConfig {
                         @Value("${lexvay.llm.base-url:}") String baseUrl,
                         @Value("${lexvay.llm.api-key:}") String apiKey,
                         @Value("${lexvay.llm.timeout-seconds:120}") long timeoutSeconds,
-                        @Value("${lexvay.llm.allowed-hosts:localhost,127.0.0.1,::1}") String allowedHosts) {
+                        @Value("${lexvay.llm.allowed-hosts:localhost,127.0.0.1,::1}") String allowedHosts,
+                        @Value("${lexvay.llm.seed:}") String seed) {
         return switch (provider) {
             case "fake" -> new FakeLlmClient();
             case "anthropic" -> new AnthropicLlmClient(AnthropicOkHttpClient.fromEnv(),
                     model.isBlank() ? ANTHROPIC_DEFAULT_MODEL : model, effort);
             case "openai-compatible" -> new OpenAiCompatibleLlmClient(baseUrl, model, apiKey, Duration.ofSeconds(timeoutSeconds),
-                    List.of(allowedHosts.split(",")));
+                    List.of(allowedHosts.split(",")), seed.isBlank() ? null : Long.valueOf(seed.strip()));
             default -> throw new IllegalArgumentException("Unknown LEXVAY_LLM_PROVIDER value: " + provider);
         };
     }

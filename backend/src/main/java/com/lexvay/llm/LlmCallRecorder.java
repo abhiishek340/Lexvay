@@ -15,7 +15,8 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Stores every model call with its raw input and output (D-014). Writes in its own transaction so the
  * record survives when the surrounding job fails and rolls back. A call whose token counts were estimated, not reported
- * by the provider, says so in its stored request ({@code tokensEstimated}); {@code llm_call} has no column for it (D-617).
+ * by the provider, says so in its stored request ({@code tokensEstimated}), and so does a call that costs money
+ * ({@code metered}, which is what {@link SpendGate} adds up); {@code llm_call} has no column for either (D-617, D-620).
  */
 @Service
 public class LlmCallRecorder {
@@ -23,10 +24,12 @@ public class LlmCallRecorder {
     private final JdbcClient jdbc;
     private final ObjectMapper json;
     private final TransactionTemplate newTransaction;
+    private final LlmClient client;
 
-    public LlmCallRecorder(JdbcClient jdbc, ObjectMapper json, PlatformTransactionManager transactionManager) {
+    public LlmCallRecorder(JdbcClient jdbc, ObjectMapper json, PlatformTransactionManager transactionManager, LlmClient client) {
         this.jdbc = jdbc;
         this.json = json;
+        this.client = client;
         this.newTransaction = new TransactionTemplate(transactionManager);
         this.newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -41,6 +44,7 @@ public class LlmCallRecorder {
         stored.put("user", request.userPrompt());
         stored.put("outputSchema", request.outputSchema());
         stored.put("maxOutputTokens", request.maxOutputTokens());
+        stored.put("metered", client.metered());
         if (response.tokensEstimated()) {
             stored.put("tokensEstimated", true);
         }

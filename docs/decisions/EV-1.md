@@ -61,13 +61,19 @@ replaces that day's file. The report is written whether or not a limit was broke
 `ANTHROPIC_API_KEY` so a real key cannot reach the run. `anthropic` or unset behaves as before (no key: says so, exit 0;
 spend-gate warning). Any other value exits 64. `make eval` is unchanged and still unsets the key and forces `fake`.
 
-**D-620 — Limits of this item, stated so nobody finds them by surprise.**
-- The spend gate prices every non-scripted model that has tokens in this month's `llm_call` rows and refuses a billed call
-  when one has no price (D-562). A local model's rows have tokens and no price, so using a local model and a billed
-  provider against one database in one month makes the gate refuse the billed calls. That is the safe direction and is
-  documented in OPERATIONS; excluding unbilled models from the sum needs a column or a rate of zero, which D-562 forbids,
-  so it is left for the orchestrator.
-- No sampling parameters are sent, as for the Claude API, so a local run uses the server's defaults and its results can
-  vary between runs.
+**D-620 — The spend gate adds up metered calls only; local runs are repeatable; nothing is downloaded.**
+- `LlmCallRecorder` stores `"metered": <client.metered()>` in the `request` document of every call, beside
+  `tokensEstimated` (D-617), because `llm_call` has no column and EV-1 has no migration. `LlmUsageRepository.meteredThisMonth`
+  (formerly `thisMonthExcluding`) sums only rows whose request says `metered = true` or has no `metered` key, and still
+  leaves out the scripted model by name. A row stored before this change has no key and so counts as metered, which keeps
+  the gate failing closed for them. A local model's rows, which have tokens and no price, therefore never make a billed
+  call `COST_UNKNOWN`, and the earlier caveat "one database, one kind of model" is gone from OPERATIONS. The recorder
+  takes the `LlmClient` bean to ask; the tests build recorders around stub clients to store metered and unmetered rows.
+  Tests: a priced paid model stays allowed within its budget beside a local model's large unpriced rows, and a row with
+  no `metered` key still counts.
+- Every `openai-compatible` request sends `temperature: 0`, and `seed` when `LEXVAY_LLM_SEED` is set (an integer; empty
+  sends none), on the fallback request too, so a run can be repeated on the same server and model. This is part of D-616's
+  client and is documented under "Local inference". Servers that ignore `seed` are not detected, and the report does not
+  record the seed. The Claude API client still sends no sampling parameters.
 - Nothing is downloaded or run by this item, and no model is named in code, tests, configuration or documentation as
   recommended.
