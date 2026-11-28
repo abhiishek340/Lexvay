@@ -66,8 +66,8 @@ CREATE TABLE rule_version_status (
   CONSTRAINT rule_version_status_dates_need_basis CHECK (dates_basis IS NOT NULL OR
       (effective_from IS NULL AND effective_to IS NULL AND published_at IS NULL AND adopted_at IS NULL))
 );
--- The current status of a version is its newest row.
-CREATE INDEX rule_version_status_latest_idx ON rule_version_status (rule_version_id, recorded_at DESC, id DESC);
+-- No index on (rule_version_id, recorded_at): a version has a handful of status rows, and the planner reads them through
+-- the tenant index below (IndexUsageTest tried one and ignored it, V008's rule is to create only what it chooses).
 
 ALTER TABLE rule_version_status ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rule_version_status FORCE ROW LEVEL SECURITY;
@@ -108,5 +108,5 @@ ALTER TABLE rule_source_check
     CHECK ((outcome IN ('CHANGED', 'CHANGED_QUEUED')) = (document_id IS NOT NULL AND rule_version_id IS NOT NULL)),
   ADD CONSTRAINT rule_source_check_only_changed_has_either
     CHECK (outcome IN ('CHANGED', 'CHANGED_QUEUED') OR (document_id IS NULL AND rule_version_id IS NULL));
--- The observations queued behind a draft, oldest first.
-CREATE INDEX rule_source_check_queued_idx ON rule_source_check (rule_version_id, checked_at, id) WHERE outcome = 'CHANGED_QUEUED';
+-- The observations queued behind a draft are read through the tenant index too: a source has a few checks a year
+-- (IndexUsageTest tried a partial index on them and the planner ignored it).

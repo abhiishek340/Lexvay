@@ -42,7 +42,7 @@ the CHECK and in `CheckOutcome` and is documented as no longer written.
 When the text changed and a draft already waits, the handler stores the document and records a `CHANGED_QUEUED` check
 whose `rule_version_id` is the waiting draft. `CHANGED` and `CHANGED_QUEUED` both carry a document and a version (the
 V021 constraints keep the V011 names). The draft's view lists its `queuedObservations`, oldest first, from one statement
-for a whole list (partial index `rule_source_check_queued_idx`). Decision on the baseline: it stays the drafted text
+for a whole list (no new index: the planner ignores a partial one at this size, as `IndexUsageTest` showed). Decision on the baseline: it stays the drafted text
 (it moves only on `CHANGED`). Moving it on a queued change would leave B and C stored but never drafted once A is
 decided, which loses the old behaviour that the next check after approval drafts the page as it then reads. To avoid
 recording the same text on every interval, a change equal to the newest text already queued by this source behind the
