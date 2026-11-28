@@ -65,7 +65,7 @@ resource "aws_iam_role" "task" {
 data "aws_iam_policy_document" "task" {
   statement {
     sid       = "ReadAndWriteDocuments"
-    actions   = ["s3:GetObject", "s3:PutObject"]
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:AbortMultipartUpload"]
     resources = ["${aws_s3_bucket.files.arn}/*"]
   }
 

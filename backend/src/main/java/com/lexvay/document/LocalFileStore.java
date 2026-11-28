@@ -1,6 +1,7 @@
 package com.lexvay.document;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,14 +23,32 @@ public class LocalFileStore implements FileStore {
         }
     }
 
+    /** Writes into a temporary file beside the target and moves it into place, so a reader never sees half an object. */
+    private interface Fill {
+        void into(Path temp) throws IOException;
+    }
+
     @Override
     public void put(String key, byte[] content) {
+        store(key, temp -> Files.write(temp, content));
+    }
+
+    @Override
+    public void put(String key, Path file) {
+        store(key, temp -> Files.copy(file, temp, StandardCopyOption.REPLACE_EXISTING));
+    }
+
+    private void store(String key, Fill fill) {
         Path target = resolve(key);
         try {
             Files.createDirectories(target.getParent());
             Path temp = Files.createTempFile(target.getParent(), ".upload-", ".tmp");
-            Files.write(temp, content);
-            Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            try {
+                fill.into(temp);
+                Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } finally {
+                Files.deleteIfExists(temp);
+            }
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot store " + key, e);
         }
@@ -39,6 +58,15 @@ public class LocalFileStore implements FileStore {
     public byte[] get(String key) {
         try {
             return Files.readAllBytes(resolve(key));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Cannot read " + key, e);
+        }
+    }
+
+    @Override
+    public InputStream open(String key) {
+        try {
+            return Files.newInputStream(resolve(key));
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read " + key, e);
         }

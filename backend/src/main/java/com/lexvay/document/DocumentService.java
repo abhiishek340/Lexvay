@@ -188,8 +188,13 @@ public class DocumentService {
     }
 
     public static String sha256(byte[] bytes) {
+        return HexFormat.of().formatHex(sha256Digest().digest(bytes));
+    }
+
+    /** A fresh SHA-256 digest, for content that is hashed as it streams past. */
+    public static MessageDigest sha256Digest() {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+            return MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }

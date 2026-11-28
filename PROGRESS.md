@@ -2755,3 +2755,35 @@ frame in its stylesheet (`fileupload-tokens.ts` is main's). The report check spe
 depends on, and opens screens with `goTo` (the More menu at 400 px). `LEXVAY_E2E_SLOT=3 make test`, exit 0: backend
 `Tests run: 1103, Failures: 0, Errors: 0, Skipped: 0`, frontend `Test Files 41 passed (41)`, end-to-end
 `58 passed (9.0m)`, 7 skipped (the screenshot tests).
+
+## F15 — Evidence package (PR #49)
+
+Branch `feat-evidence-package`, migration `V020__evidence_package.sql`, decisions D-540 to D-549 in
+`docs/decisions/F15.md`.
+
+## Built
+
+- V020: `evidence_package` with forced RLS, a trigger that finishes a row once (QUEUED to READY or FAILED, file columns
+  only), no deletes, a CHECK that the file columns are set exactly when READY, index `(determination_id, created_at DESC)`.
+- `FileStore.put(key, Path)` and `open(key)`: local (temporary file, atomic move) and S3 (single put up to 16 MiB,
+  multipart above, abort on failure, `GetObject` stream). `s3:AbortMultipartUpload` added to the task role.
+- API: `POST /determinations/{id}/package` (202), `GET /packages/{id}`, `GET /packages/{id}/file`; audited
+  `PACKAGE_REQUESTED`, `PACKAGE_READY` (actor null) and `PACKAGE_DOWNLOADED`, in `Rule9_AuditCoverageTest`,
+  `InputValidationTableTest` and `audit-sentence.ts` with its spec (plus the `BUILD_PACKAGE` job noun).
+- Job `BUILD_PACKAGE`: `PackageSnapshotLoader` reads the records, `PackageBuilder` writes the deterministic ZIP through
+  `PackageZip` into a temporary file, the handler stores it with one `put` and marks it READY; `JobHandler.onFailed`
+  marks it FAILED. Size limit `LEXVAY_PACKAGE_MAX_BYTES` enforced while writing.
+- Shared with the F5a export through `AuditCsv`; `DocumentService.sha256Digest()` next to `sha256`; a `Clock` bean.
+- Docs: `docs/OPERATIONS.md` "Evidence packages" and the new variable, `docs/RULES.md` section, `.env.example`.
+
+## Tests
+
+`PackageApiTest` (seeded-scenario package, unzip and manifest, report bytes, page hashes against `document_page`,
+refusals, other tenant 404, determinism), `PackageSeedTest` (the Northfield seed with real PDFs),
+`PackageSizeLimitTest` (FAILED with a message, nothing stored, no temporary file), `PackageEntriesTest`,
+`Rule5_EvidencePackageImmutabilityTest`, local and S3 streaming tests, the `onFailed` hook in `JobRunnerTest`.
+
+## Not done here
+
+The button on the Evidence report and in the register is UI3-2 or later. `seq` and `row_hash` are not in `audit.csv`
+because SEC-3 has not merged (D-545).

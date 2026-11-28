@@ -22,6 +22,7 @@ class ForbiddenWordsTest {
         scan(Path.of("..", "frontend", "src"), List.of(".ts", ".html"), offenders);
         scan(Path.of("src", "main", "resources", "llm"), List.of(".txt", ".json"), offenders);
         scan(Path.of("src", "main", "java"), List.of(".java"), offenders);
+        scan(Path.of("src", "main", "resources", "evidence-package"), List.of(".txt"), offenders);
         scan(Path.of("..", "seed"), List.of(".md", ".yml"), offenders);
         assertThat(offenders).isEmpty();
     }
