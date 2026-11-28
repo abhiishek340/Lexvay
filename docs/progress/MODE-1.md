@@ -28,7 +28,22 @@ All of the plan. Changes outside the spec's list of files, each small:
   deployment is visibly fail-closed. Terraform is not installed on this machine, so `make infra-validate` was not run; CI's infra job validates it.
 - `LEXVAY_LLM_PRICE_*_PER_MTOK` and the Terraform variables behind them are removed; `LEXVAY_LLM_RATES` is the one price table (D-562).
 
-## Test runs
+## After review (merge with F15, one price table, Terraform)
+- Merged origin/main (F14, F15 with V020 and the shared `AuditCsv`, the setup URL fix). The two conflicts (audit export service and
+  its test) keep both sides: the demo notice row, then `AuditCsv.header`.
+- Evidence package: `README.txt` of a DEMO tenant starts with "Fictional demo data."; `manifest.json` has `"dataMode"` (`DEMO` or
+  `LIVE`); a LIVE README is unchanged; still deterministic (`PackageApiTest`).
+- `LlmRates`/`TokenPrice` are the only price table and cost formula; `AssessmentUsageService` and `EvalService` use them and the
+  `LEXVAY_LLM_PRICE_*` settings and Terraform variables are removed (D-562).
+- `infra/ecs.tf` and `variables.tf`: `LEXVAY_LLM_PAID_APPROVED=false`, `LEXVAY_LLM_MONTHLY_BUDGET_USD=0`, empty `LEXVAY_LLM_RATES`.
+  Terraform is not installed here, so `make infra-validate` was not run; CI's infra job validates it.
+
+## Test runs after the merge
+- `LEXVAY_E2E_SLOT=8 make test`: backend 1182 tests, 0 failures; frontend 425 passed; end-to-end 44 passed, 2 failed
+  (`evidence-requests.spec.ts:14` and `:170`, an Enter key on a focused toggle not expanding the row), 13 did not run.
+- `make e2e` alone: 58 passed, 7 skipped, exit 0.
+
+## Test runs before the merge
 All with `LEXVAY_E2E_SLOT=8` on 2026-11-27, tree equal to origin/main (7b04d82 plus the docs commit 4eb75fa) plus this branch.
 
 - `make test`, first run: backend 1151 tests, 0 failures; frontend 42 files, 425 tests passed; end-to-end 55 passed, 7 skipped, 1 failed
