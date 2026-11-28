@@ -25,7 +25,7 @@ async function capture(page: Page, name: string): Promise<void> {
   const size = page.viewportSize();
   for (const width of [1440, 400]) {
     await page.setViewportSize({ width, height: width === 1440 ? 900 : 860 });
-    await shoot(page, `ui2-4-${name}-${width}`);
+    await shoot(page, `ui3-3-${name}-${width}`);
   }
   if (size) { await page.setViewportSize(size); }
 }
@@ -78,7 +78,7 @@ test('a contributor sets up a program from nothing to its first assessment', asy
   await capture(page, 'setup-details');
   await page.getByRole('button', { name: 'Next' }).click();
 
-  // States: at least one, chosen in the MultiSelect, drawn on the mini map.
+  // States: at least one, chosen in the MultiSelect.
   await expect(step(page, /^2\. States/)).toHaveAttribute('aria-current', 'step');
   await page.getByRole('button', { name: 'Create program' }).click();
   await expect(page.getByTestId('states-error')).toHaveText('Choose at least one state.');
@@ -197,10 +197,11 @@ test('a contributor sets up a program from nothing to its first assessment', asy
   // Readiness: nothing blocks; the two hours not recorded are a warning that says what will happen.
   await step(page, /^6\. Readiness/).click();
   const checks = page.getByRole('list', { name: 'Readiness checks' });
-  await expect(checks.locator('[data-check="RULES"]')).toHaveAttribute('data-tone', 'found');
-  await expect(checks.locator('[data-check="COURSE_DOCUMENTS"]')).toHaveAttribute('data-tone', 'found');
-  await expect(checks.locator('[data-check="READING"]')).toHaveAttribute('data-tone', 'found');
-  await expect(checks.locator('[data-check="FACTS"]')).toHaveAttribute('data-tone', 'ambiguous');
+  await expect(checks.locator('[data-check="RULES"]')).toHaveAttribute('data-state', 'done');
+  await expect(checks.locator('[data-check="COURSE_DOCUMENTS"]')).toHaveAttribute('data-state', 'done');
+  await expect(checks.locator('[data-check="READING"]')).toHaveAttribute('data-state', 'done');
+  await expect(checks.locator('[data-check="FACTS"]')).toHaveAttribute('data-state', 'warning');
+  await expect(checks.locator('[data-check="FACTS"]')).toContainText('Does not block');
   await expect(checks.locator('[data-check="FACTS"]')).toContainText('the rules engine will report them as missing evidence');
   await expect(step(page, /^6\. Readiness, Ready/)).toBeVisible();
   await expectAccessible(page, 'Readiness');

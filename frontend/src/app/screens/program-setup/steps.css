@@ -1,107 +1,125 @@
 /* Shared by the setup steps (each step is its own component on this one stylesheet). */
 :host { display: block; }
-.lx-step-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-.lx-step-head .lx-panel-title { margin: 0; }
-.lx-step-head button { gap: 6px; }
-.lx-panel-title { font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.012em; }
+.lx-step-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; min-height: 32px; margin-bottom: 16px; }
 .lx-panel-skeleton { display: flex; flex-direction: column; gap: 8px; }
 .lx-strong { font-weight: 500; }
 .lx-nowrap { white-space: nowrap; }
-.lx-row-action { text-align: right; }
-.lx-row-action button { gap: 6px; }
+.lx-end { text-align: right; }
+.lx-code { margin-right: 8px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .lx-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.lx-actions button { gap: 6px; }
 
 .lx-form { display: flex; flex-direction: column; gap: 16px; }
-.lx-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.lx-field label, .lx-field-label { font-weight: 500; font-size: 13px; line-height: 20px; }
+.lx-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lx-field label, .lx-field-label { font-size: 13px; line-height: 20px; font-weight: 500; }
 .lx-field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
-.lx-fixed-value { padding: 9px 0; }
+.lx-fixed-value { padding: 6px 0; }
 .lx-switch { display: flex; align-items: center; gap: 8px; }
-.lx-switch label { font-size: 13px; }
+.lx-switch label { font-size: 13px; line-height: 20px; }
 .lx-version-course { font-weight: 500; }
 
-/* Documents: the drop zone, the files on their way, then the program's documents by course. */
-.lx-upload { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
-.lx-upload-target { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.lx-target-select { min-width: min(22rem, 100%); }
-:host ::ng-deep .lx-dropzone .p-fileupload-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-:host ::ng-deep .lx-dropzone .p-fileupload-header button { gap: 6px; }
-:host ::ng-deep .lx-dropzone.p-fileupload { border: 2px dashed var(--p-lx-line-strong); transition: border-color var(--lx-t-fast) var(--lx-ease); }
-:host ::ng-deep .lx-dropzone .p-fileupload-content { border: 0; }
-:host ::ng-deep .lx-dropzone .p-fileupload-highlight { outline: 2px solid var(--p-lx-accent); outline-offset: -2px; }
-.lx-drop-hint { color: var(--p-lx-ink-2); font-size: 13px; }
-.lx-queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.lx-queue-row {
-  display: grid; grid-template-columns: auto minmax(10rem, 1fr) auto auto minmax(9rem, auto) auto; align-items: center; gap: 8px 12px;
-  padding: 10px 12px; border-radius: 10px; background: var(--p-lx-surface); box-shadow: inset 0 0 0 1px var(--p-lx-line);
+/* Courses: a table of 40 px rows; the code in tabular figures, the status a Label, one text action. */
+.lx-courses .lx-code { margin-right: 0; white-space: nowrap; }
+
+/*
+ * Documents: the drop zone as one dashed frame (the button, then where files may be dropped), the files on their way as
+ * rows between hairlines, then the program's documents as one table grouped by course.
+ */
+.lx-upload { display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px; }
+.lx-upload-target { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lx-target-select { width: min(22rem, 100%); }
+:host ::ng-deep .lx-dropzone.p-fileupload {
+  display: flex; align-items: stretch; border: 1px dashed var(--p-lx-line-strong); border-radius: var(--lx-r-control); background: transparent;
+  transition: border-color var(--lx-t-fast) var(--lx-ease);
 }
-.lx-file-icon { color: var(--p-lx-ink-2); }
+:host ::ng-deep .lx-dropzone .p-fileupload-header { flex: none; display: flex; align-items: center; padding: 12px 0 12px 12px; }
+:host ::ng-deep .lx-dropzone .p-fileupload-content { flex: 1; display: flex; flex-direction: row; justify-content: flex-start; align-items: center; padding: 12px 16px; border: 0; }
+:host ::ng-deep .lx-dropzone .p-fileupload-highlight { outline: 2px solid var(--p-lx-accent); outline-offset: -2px; }
+.lx-drop-hint { color: var(--p-lx-ink-2); }
+.lx-queue { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--p-lx-line-strong); }
+.lx-queue-row {
+  display: grid; grid-template-columns: minmax(10rem, 1fr) auto auto minmax(9rem, auto) auto; align-items: center; gap: 8px 12px;
+  min-height: 40px; padding: 8px 0; border-bottom: 1px solid var(--p-lx-line);
+}
 .lx-queue-name { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .lx-queue-kind { min-width: 9rem; }
 .lx-queue-course { min-width: 10rem; }
-.lx-queue-kind-text { font-size: 13px; color: var(--p-lx-ink-2); }
-.lx-queue-state { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.lx-queue-message { font-size: 12px; line-height: 16px; color: var(--p-lx-missing); max-width: 28ch; }
-.lx-queue-row[data-state='READY'] { box-shadow: inset 0 0 0 1px var(--p-lx-line), inset 3px 0 0 var(--p-lx-found); }
+.lx-queue-kind-text { color: var(--p-lx-ink-2); }
+.lx-queue-state { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.lx-upload-word { color: var(--p-lx-ink-2); }
+.lx-queue-row[data-state='READY'] .lx-upload-word { color: var(--p-lx-ink); }
+.lx-queue-row[data-state='FAILED'] .lx-upload-word, .lx-queue-message { color: var(--p-lx-missing); }
+.lx-queue-message { font-size: 12px; line-height: 16px; max-width: 28ch; }
 
-.lx-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); gap: 12px; }
-.lx-doc-group { padding: 14px 16px; border-radius: var(--lx-r-control); background: var(--p-lx-sunken); display: flex; flex-direction: column; gap: 8px; }
-.lx-section-title { display: flex; align-items: baseline; gap: 8px; font-size: 14px; line-height: 20px; font-weight: 600; }
-.lx-docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.lx-doc-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.lx-documents tbody { border-bottom: 1px solid var(--p-lx-line); }
+.lx-documents .lx-doc-course { width: 36%; font-weight: 400; vertical-align: top; padding-top: 10px; }
+.lx-documents .lx-doc-course .lx-code { font-weight: 500; }
 .lx-doc-open {
-  display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px; margin-left: -4px; border: 0; border-radius: 6px; background: transparent;
-  color: var(--p-lx-accent); font: inherit; font-weight: 500; cursor: pointer; text-align: left; overflow-wrap: anywhere;
+  padding: 0; border: 0; background: transparent; color: var(--p-lx-accent); font: inherit; font-weight: 500; cursor: pointer; text-align: left; overflow-wrap: anywhere;
 }
-.lx-doc-open:hover:not(:disabled) { text-decoration: underline; }
+.lx-doc-open:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
 .lx-doc-open:disabled { color: var(--p-lx-ink); cursor: default; }
-.lx-doc-name { min-width: 0; }
+.lx-doc-state { color: var(--p-lx-ink-2); white-space: nowrap; }
+.lx-doc-state[data-state='FAILED'] { color: var(--p-lx-missing); }
 
-/* Program facts: one card per number, the value large, its quote in Document type. */
-.lx-facts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-.lx-fact { padding: 16px 18px; border-radius: var(--lx-r-control); background: var(--p-lx-surface); box-shadow: inset 0 0 0 1px var(--p-lx-line); display: flex; flex-direction: column; gap: 10px; }
-.lx-fact-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.lx-fact-name { font-size: 15px; line-height: 22px; }
-.lx-fact-body { display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
-.lx-fact-source { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 20rem; }
-.lx-fact-quote { font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; overflow-wrap: anywhere; }
-.lx-fact-missing { display: flex; align-items: center; gap: 6px; color: var(--p-lx-ink-2); }
-.lx-fact-missing ng-icon { color: var(--p-lx-ink-2); }
-.lx-history summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--p-lx-ink-2); }
-.lx-history[open] summary ng-icon { transform: rotate(180deg); }
-.lx-history ul { margin: 8px 0 0; padding-left: 20px; font-size: 13px; line-height: 22px; color: var(--p-lx-ink-2); }
-:host ::ng-deep .lx-fact-input { font-size: 18px; width: 10rem; }
+/*
+ * Program facts: one row per number between hairlines: its name, the value in tabular figures, the quote that backs it
+ * in Document type (where it came from in meta below), and one text action.
+ */
+.lx-facts { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--p-lx-line-strong); }
+.lx-fact {
+  display: grid; grid-template-columns: 160px 96px minmax(0, 1fr) auto; column-gap: 16px; align-items: baseline;
+  padding: 12px 0; border-bottom: 1px solid var(--p-lx-line);
+}
+.lx-fact-name { font-size: 14px; line-height: 20px; font-weight: 500; }
+.lx-fact-value { font-size: 15px; line-height: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lx-fact-missing { font-size: 14px; line-height: 20px; font-weight: 400; }
+.lx-fact-source { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lx-fact-quote { font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; overflow-wrap: anywhere; max-width: 60ch; }
+.lx-fact-action { text-align: right; }
+.lx-history summary { width: max-content; cursor: pointer; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--p-lx-ink-2); }
+.lx-history ul { margin: 8px 0 0; padding-left: 16px; font-size: 12px; line-height: 20px; color: var(--p-lx-ink-2); }
+:host ::ng-deep .lx-fact-input { width: 10rem; font-variant-numeric: tabular-nums; }
 
-.lx-record { display: grid; gap: 24px 28px; grid-template-columns: minmax(0, 1fr); }
-.lx-record-form { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.lx-record { display: grid; gap: 24px 32px; grid-template-columns: minmax(0, 1fr); }
+.lx-record-form { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 @media (min-width: 1024px) {
   .lx-record { grid-template-columns: minmax(18rem, 2fr) minmax(0, 3fr); align-items: start; }
   .lx-record-page { position: sticky; top: 0; }
   .lx-record-page lx-document-viewer { --lx-document-max-height: calc(100vh - 12rem); }
 }
 
-/* Readiness: one line per check, the icon and its words; then the run. */
-.lx-checks { list-style: none; margin: 0 0 24px; padding: 0; display: flex; flex-direction: column; gap: 8px; max-width: 48rem; }
-.lx-check { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; background: var(--p-lx-sunken); }
-.lx-check[data-tone='found'] ng-icon { color: var(--p-lx-found); }
-.lx-check[data-tone='missing'] ng-icon { color: var(--p-lx-missing); }
-.lx-check[data-tone='ambiguous'] ng-icon { color: var(--p-lx-ink-2); }
-.lx-check ng-icon { flex: none; }
+/*
+ * Readiness: one 40 px line per check between hairlines, a neutral check or cross (not a requirement's status mark),
+ * its words, and for an open line whether it blocks the run and where to fix it. Then the run.
+ */
+.lx-checks { list-style: none; margin: 0 0 32px; padding: 0; max-width: 56rem; border-top: 1px solid var(--p-lx-line-strong); }
+.lx-check { display: flex; align-items: baseline; gap: 12px; min-height: 40px; box-sizing: border-box; padding: 10px 0 9px; border-bottom: 1px solid var(--p-lx-line); }
+.lx-check-mark { flex: none; align-self: center; color: var(--p-lx-ink-2); }
+.lx-check[data-state='blocking'] .lx-check-mark { color: var(--p-lx-ink); }
 .lx-check-text { flex: 1; min-width: 0; }
-.lx-run { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.lx-run-progress { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: var(--lx-r-control); background: var(--p-lx-surface); box-shadow: inset 0 0 0 1px var(--p-lx-line); }
-.lx-run-text { display: flex; flex-direction: column; }
+.lx-check[data-state='done'] .lx-check-text { color: var(--p-lx-ink-2); }
+.lx-check-verdict { flex: none; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
+.lx-check[data-state='blocking'] .lx-check-verdict { color: var(--p-lx-ink); }
+.lx-run { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.lx-run-progress { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 
 @media (max-width: 720px) {
-  /* The courses table becomes one card per course. */
-  :host ::ng-deep .lx-setup-table thead { display: none; }
-  :host ::ng-deep .lx-setup-table tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--p-lx-line); }
-  :host ::ng-deep .lx-setup-table tbody td { display: block; border: 0; padding: 0; }
-  :host ::ng-deep .lx-setup-table tbody td.lx-strong { flex-basis: 100%; order: -1; }
-  :host ::ng-deep .lx-setup-table tbody td.lx-row-action { margin-left: auto; }
-  .lx-queue-row { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .lx-queue-kind, .lx-queue-course, .lx-queue-kind-text, .lx-queue-state { grid-column: 2 / -1; }
+  .lx-queue-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .lx-queue-kind, .lx-queue-course, .lx-queue-kind-text, .lx-queue-state { grid-column: 1 / -1; }
   .lx-field-row { grid-template-columns: minmax(0, 1fr); }
-  .lx-sections { grid-template-columns: minmax(0, 1fr); }
+  :host ::ng-deep .lx-dropzone.p-fileupload { flex-direction: column; }
+  :host ::ng-deep .lx-dropzone .p-fileupload-header { padding: 12px 12px 0; }
+  .lx-courses thead, .lx-documents thead { display: none; }
+  .lx-courses tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--p-lx-line); }
+  .lx-courses tbody th, .lx-courses tbody td { display: block; height: auto; padding: 0; border: 0; }
+  .lx-courses tbody td.lx-strong { flex-basis: 100%; order: 1; }
+  .lx-courses tbody td.lx-end { margin-left: auto; }
+  .lx-documents tbody { display: block; padding: 12px 0; }
+  .lx-documents tbody tr { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 4px 0; }
+  .lx-documents tbody th, .lx-documents tbody td { display: block; width: auto; height: auto; padding: 0; border: 0; }
+  .lx-documents .lx-doc-course { flex-basis: 100%; padding: 0 0 4px; }
+  .lx-fact { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
+  .lx-fact-source { grid-column: 1 / -1; }
+  .lx-fact-action { grid-column: 2; grid-row: 1; }
+  .lx-check { flex-wrap: wrap; }
 }

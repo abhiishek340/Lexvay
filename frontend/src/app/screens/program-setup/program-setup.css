@@ -1,71 +1,73 @@
 :host { display: block; }
-.lx-setup-subtitle { margin-top: 4px; color: var(--p-lx-ink-2); }
 
-/* The stepper is the screen's hero: the six steps across the top of one raised panel, the open step below. */
-.lx-setup-hero { padding: 12px 12px 28px; }
-:host ::ng-deep .lx-step-list.p-steplist { padding: 4px 4px 16px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
-:host ::ng-deep .lx-step-list .p-step { flex: 1 1 0; min-width: 0; }
-:host ::ng-deep .lx-step-list .p-stepper-separator { flex: 1 1 12px; min-width: 12px; transition: background-color var(--lx-t) var(--lx-ease); }
-/* The panel's content sits flush with the steps (Aura indents it for a vertical stepper). */
+/*
+ * Two columns under a hairline, divided by a vertical hairline: the six steps as a numbered text list (the number in
+ * tabular ink-2, the open step in ink on sunken with a 2 px ink rule at its left, as the rail marks its screen), and the
+ * open step's form or table. The list's rows bleed 12 px into the gutter so their words align with the title.
+ */
+.lx-setup-columns { border-top: 1px solid var(--p-lx-line); }
+:host ::ng-deep .lx-setup-stepper { display: grid; grid-template-columns: 212px minmax(0, 1fr); align-items: stretch; }
+:host ::ng-deep .lx-step-list.p-steplist {
+  margin-left: -12px; padding: 16px 0 24px; display: flex; flex-direction: column; align-items: stretch; gap: 0;
+  position: sticky; top: 0; align-self: start;
+}
+:host ::ng-deep .lx-step-list .p-step { flex: none; padding: 0; }
+:host ::ng-deep .lx-step-list .p-stepper-separator { display: none; }
+/* 16 px above the step's 32 px heading row puts its heading on the first step's baseline. */
+:host ::ng-deep .p-steppanels { min-width: 0; padding: 16px 0 0 32px; border-left: 1px solid var(--p-lx-line); }
 :host ::ng-deep .p-steppanel-content { margin-inline-start: 0; min-width: 0; }
 
 .lx-step {
-  display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 8px 10px; border: 0; border-radius: 12px;
-  background: transparent; color: var(--p-lx-ink); font: inherit; text-align: left; cursor: pointer;
-  transition: background-color var(--lx-t-fast) var(--lx-ease), box-shadow var(--lx-t) var(--lx-ease);
+  display: grid; grid-template-columns: 20px minmax(0, 1fr); column-gap: 8px; align-items: baseline; width: 100%; min-width: 0;
+  padding: 8px 16px 8px 12px; border: 0; border-radius: 0; background: transparent; color: var(--p-lx-ink); font: inherit; text-align: left; cursor: pointer;
+  transition: background-color var(--lx-t-fast) var(--lx-ease);
 }
 .lx-step:hover:not(:disabled) { background: var(--p-lx-sunken); }
-.lx-step:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: 2px; }
+.lx-step:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: -2px; }
 .lx-step:disabled { cursor: not-allowed; }
-.lx-step:disabled .lx-step-title, .lx-step:disabled .lx-step-status { color: var(--p-lx-ink-2); }
+.lx-step:disabled .lx-step-n, .lx-step:disabled .lx-step-title, .lx-step:disabled .lx-step-status { color: var(--p-lx-ink-3); }
 .lx-step-active, .lx-step-active:hover:not(:disabled) { background: var(--p-lx-sunken); box-shadow: inset 2px 0 0 var(--p-lx-ink); }
-.lx-step-n {
-  width: 28px; height: 28px; border-radius: 50%; flex: none; display: inline-grid; place-items: center;
-  background: var(--p-lx-sunken); color: var(--p-lx-ink-2); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
-  transition: background-color var(--lx-t) var(--lx-ease), color var(--lx-t) var(--lx-ease);
-}
-.lx-step-done .lx-step-n { background: var(--p-lx-sunken); color: var(--p-lx-found); }
-.lx-step-active .lx-step-n { background: var(--p-lx-ink); color: var(--p-lx-paper); }
+.lx-step-n { font-size: 13px; line-height: 20px; font-weight: 500; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums; }
+.lx-step-active .lx-step-n { color: var(--p-lx-ink); }
 .lx-step-text { display: flex; flex-direction: column; min-width: 0; }
-.lx-step-title { font-size: 14px; line-height: 20px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lx-step-status { font-size: 12px; line-height: 16px; color: var(--p-lx-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lx-step-title { font-size: 13px; line-height: 20px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lx-step-status { margin-top: 2px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* The open step enters from where the person is going (right), short and calm. */
-.lx-step-panel { padding: 8px 16px 0; animation: lx-panel-in var(--lx-t) var(--lx-ease) both; }
-@keyframes lx-panel-in { from { opacity: 0; transform: translateX(12px); } }
-.lx-panel-title { font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.012em; margin-bottom: 16px; }
+.lx-step-panel { padding-bottom: 8px; }
+/* The same 32 px heading row as the steps that have an action beside their heading (steps.css). */
+.lx-panel-title { padding: 4px 0; margin-bottom: 16px; }
 .lx-panel-skeleton { display: flex; flex-direction: column; gap: 8px; max-width: 40rem; }
 
 .lx-form { display: flex; flex-direction: column; gap: 16px; max-width: 40rem; }
 .lx-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.lx-field label, .lx-field-label { font-weight: 500; font-size: 13px; line-height: 20px; }
+.lx-field label, .lx-field-label { font-size: 13px; line-height: 20px; font-weight: 500; }
 .lx-label-row { display: flex; align-items: center; gap: 4px; }
 .lx-field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 12rem); gap: 16px; }
 .lx-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.lx-actions button { gap: 6px; }
 
-.lx-fixed { display: grid; grid-template-columns: max-content 1fr; gap: 8px 24px; max-width: 40rem; }
+/* The fixed details as a two-column definition list on the 40 px rhythm of a table. */
+.lx-fixed { display: grid; grid-template-columns: 160px minmax(0, 1fr); max-width: 40rem; border-top: 1px solid var(--p-lx-line-strong); }
 .lx-fixed div { display: contents; }
-.lx-fixed dt { color: var(--p-lx-ink-2); }
-.lx-fixed dd { font-weight: 500; }
-.lx-fixed-note { display: flex; align-items: center; gap: 6px; margin-top: 16px; font-size: 13px; color: var(--p-lx-ink-2); }
+.lx-fixed dt, .lx-fixed dd { padding: 10px 0 9px; border-bottom: 1px solid var(--p-lx-line); }
+.lx-fixed dt { font-size: 12px; line-height: 20px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
+.lx-fixed-note { margin-top: 12px; }
 
 .lx-states { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px 40px; align-items: start; }
 .lx-states-pick { display: flex; flex-direction: column; gap: 16px; max-width: 32rem; }
 .lx-states-count { align-self: end; }
-.lx-state-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.lx-state-list li { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.lx-state-table tbody th { font-weight: 500; }
 
-@media (max-width: 900px) {
-  /* Numbers only: the open step's name is the panel's title right below. */
-  .lx-step-text { display: none; }
-  .lx-step { padding: 4px; }
-  :host ::ng-deep .lx-step-list .p-step { flex: 0 0 auto; padding: 0; }
-  :host ::ng-deep .lx-step-list .p-stepper-separator { flex: 1 1 6px; min-width: 6px; }
+/* Under 900 px the steps become a grid of numbered words above the step (three across, two under 640 px). */
+@media (max-width: 899px) {
+  :host ::ng-deep .lx-setup-stepper { grid-template-columns: minmax(0, 1fr); }
+  :host ::ng-deep .lx-step-list.p-steplist { position: static; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 12px 0; margin-left: 0; }
+  :host ::ng-deep .p-steppanels { padding-left: 0; border-left: 0; border-top: 1px solid var(--p-lx-line); }
+  .lx-step { padding: 6px 8px; }
+  .lx-step-status { display: none; }
   .lx-states { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
-  .lx-setup-hero { padding: 8px 4px 20px; }
-  .lx-step-panel { padding: 8px 8px 0; }
+  :host ::ng-deep .lx-step-list.p-steplist { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lx-field-row { grid-template-columns: minmax(0, 1fr); }
+  .lx-fixed { grid-template-columns: 120px minmax(0, 1fr); }
 }

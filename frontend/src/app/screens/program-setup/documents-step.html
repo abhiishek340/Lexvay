@@ -12,11 +12,10 @@
     <p-fileupload #uploader mode="advanced" [multiple]="true" accept=".pdf,.docx,.txt" [customUpload]="true" [auto]="false" (onSelect)="chosen($event)"
                   styleClass="lx-dropzone">
       <ng-template #header let-choose="chooseCallback">
-        <button pButton type="button" severity="secondary" (click)="choose()"><span pButtonLabel>Choose files</span></button>
-        <span class="lx-help">PDF, Word or text</span>
+        <button pButton type="button" severity="secondary" [outlined]="true" (click)="choose()"><span pButtonLabel>Choose files</span></button>
       </ng-template>
       <ng-template #content>
-        <p class="lx-drop-hint" aria-hidden="true">or drop them here</p>
+        <p class="lx-drop-hint">PDF, Word or text<span aria-hidden="true">, or drop them here</span></p>
       </ng-template>
     </p-fileupload>
 
@@ -24,10 +23,9 @@
       <ul class="lx-queue" aria-label="Files to upload">
         @for (entry of store.queue.entries(); track entry.key; let i = $index) {
           <li class="lx-queue-row" [attr.data-state]="entry.state" [attr.data-file]="entry.file.name">
-            <ng-icon [name]="entry.file.name.toLowerCase().endsWith('.pdf') ? 'phosphorFilePdf' : 'phosphorFileDoc'" size="20" aria-hidden="true" class="lx-file-icon" />
             <span class="lx-queue-name">
               <span class="lx-strong">{{ entry.file.name }}</span>
-              <span class="lx-help">{{ size(entry.file.size) }}</span>
+              <span class="lx-meta">{{ size(entry.file.size) }}</span>
             </span>
             @if (entry.state === 'WAITING') {
               <p-select [options]="kinds" optionLabel="label" optionValue="value" [ngModel]="entry.kind" (ngModelChange)="store.queue.choose(entry.key, { kind: $event })"
@@ -41,7 +39,7 @@
               <span class="lx-queue-kind-text">{{ kindLabel(entry.kind) }}</span>
             }
             <span class="lx-queue-state" data-testid="upload-state">
-              <lx-label>{{ uploadLabel(entry) }}</lx-label>
+              <span class="lx-upload-word">{{ uploadLabel(entry) }}</span>
               @if (entry.state === 'FAILED') { <span class="lx-queue-message" role="status">{{ entry.message }}</span> }
               @if (entry.state === 'DUPLICATE' && entry.existingDocumentId; as existing) {
                 <button pButton type="button" [link]="true" size="small" (click)="open(existing, filenameOf(existing), $event.target)">
@@ -66,33 +64,40 @@
 }
 
 @if (sections(); as list) {
-  <div class="lx-sections">
-    @for (section of list; track section.key; let i = $index) {
-      <section class="lx-doc-group" [attr.aria-labelledby]="'section-' + section.key">
-        <h3 class="lx-section-title" [id]="'section-' + section.key">
-          @if (section.code) { <span class="lx-mono">{{ section.code }}</span> }{{ section.label }}
-        </h3>
-        @if (section.documents.length === 0) {
-          <p class="lx-help">{{ section.code ? 'No syllabus yet' : 'No program documents yet' }}</p>
-        } @else {
-          <ul class="lx-docs">
-            @for (d of section.documents; track d.document.id) {
-              @let ds = documentState[d.state];
-              <li class="lx-doc-row" [attr.data-state]="d.state">
-                <button type="button" class="lx-doc-open" (click)="open(d.document.id, d.document.filename, $event.target)" [disabled]="d.state !== 'READY'"
-                        [attr.aria-label]="'Read ' + d.document.filename">
-                  <ng-icon [name]="d.document.filename.toLowerCase().endsWith('.pdf') ? 'phosphorFilePdf' : 'phosphorFileDoc'" size="18" aria-hidden="true" />
-                  <span class="lx-doc-name">{{ d.document.filename }}</span>
-                </button>
-                <span class="lx-help">{{ kindLabel(d.document.kind) }}@if (!d.current) { , catalog year {{ d.document.catalogYear }} }</span>
-                <lx-label>{{ d.state === 'READY' ? ds.label + ', ' + d.document.pageCount + (d.document.pageCount === 1 ? ' page' : ' pages') : ds.label }}</lx-label>
-              </li>
+  <table class="lx-table lx-documents" aria-label="Documents">
+    <thead>
+      <tr>
+        <th scope="col">Course</th>
+        <th scope="col">Document</th>
+        <th scope="col">Kind</th>
+        <th scope="col">State</th>
+      </tr>
+    </thead>
+    @for (section of list; track section.key) {
+      <tbody [attr.data-section]="section.key">
+        @for (d of section.documents; track d.document.id; let first = $first) {
+          <tr [attr.data-state]="d.state">
+            @if (first) {
+              <th scope="rowgroup" class="lx-doc-course" [attr.rowspan]="section.documents.length">
+                @if (section.code) { <span class="lx-code">{{ section.code }}</span> }{{ section.label }}
+              </th>
             }
-          </ul>
+            <td>
+              <button type="button" class="lx-doc-open" (click)="open(d.document.id, d.document.filename, $event.target)" [disabled]="d.state !== 'READY'"
+                      [attr.aria-label]="'Read ' + d.document.filename">{{ d.document.filename }}</button>
+            </td>
+            <td class="lx-muted">{{ kindLabel(d.document.kind) }}@if (!d.current) { , catalog year {{ d.document.catalogYear }} }</td>
+            <td class="lx-doc-state" [attr.data-state]="d.state">{{ d.state === 'READY' ? documentState.READY.label + ', ' + d.document.pageCount + (d.document.pageCount === 1 ? ' page' : ' pages') : documentState[d.state].label }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <th scope="row" class="lx-doc-course">@if (section.code) { <span class="lx-code">{{ section.code }}</span> }{{ section.label }}</th>
+            <td colspan="3" class="lx-muted">{{ section.code ? 'No syllabus yet' : 'No program documents yet' }}</td>
+          </tr>
         }
-      </section>
+      </tbody>
     }
-  </div>
+  </table>
 } @else {
   <div class="lx-panel-skeleton" role="status" aria-busy="true" aria-label="Loading documents">@for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="3rem" /> }</div>
 }

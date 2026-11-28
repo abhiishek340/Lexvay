@@ -1,9 +1,10 @@
-.lx-form { display: flex; flex-direction: column; gap: 14px; }
+.lx-form { display: flex; flex-direction: column; gap: 16px; }
 .lx-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.lx-field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 12rem); gap: 14px; }
-.lx-field-label { font-weight: 500; font-size: 13px; }
+.lx-field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 12rem); gap: 16px; }
+.lx-field-label { font-size: 13px; line-height: 20px; font-weight: 500; }
 .lx-label-row { display: flex; align-items: center; gap: 4px; }
-.lx-rule-input { font-size: 12px; line-height: 18px; }
+/* The rule text in Document type, as it is read everywhere else. */
+.lx-rule-input { font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; }
 
 @media (max-width: 640px) {
   .lx-field-row { grid-template-columns: minmax(0, 1fr); }
