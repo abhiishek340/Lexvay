@@ -698,7 +698,8 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | merged (#59) |
 | RG-2 Source registry governance | `rg-source-governance` | 6 | Sonnet 5.5 | in progress |
 | EV-2 Evaluation lab | `ev-lab` | 8 | Sonnet 5.5 | in progress |
-| RG-3, AC-2, AC-3, UX-1 | see Real-data validation track | — | — | queued |
+| AC-2 Governed academic export ingestion | `ac-academic-export` | 3 | Sonnet 5.5 | in progress |
+| RG-3, AC-3, UX-1 | see Real-data validation track | — | — | queued |
 | SP-1 SharePoint spike, DOM-1 expert review | — | — | — | blocked (founder) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
