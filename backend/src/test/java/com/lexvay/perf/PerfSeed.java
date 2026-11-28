@@ -147,6 +147,19 @@ final class PerfSeed {
                 """.formatted(perTenant, extra, tenantId));
     }
 
+    /**
+     * Queues every audit entry that is neither queued nor sealed for the sealer, which is what the application's own
+     * write path does as it writes an entry; {@link #addAuditVolume} inserts as the owner and so bypasses it.
+     */
+    static void queueAuditVolume(Statement admin) throws SQLException {
+        admin.execute("""
+                INSERT INTO audit_unsealed (audit_id, tenant_id, created_at)
+                SELECT a.id, a.tenant_id, a.created_at FROM audit_log a
+                WHERE NOT EXISTS (SELECT 1 FROM audit_unsealed u WHERE u.audit_id = a.id)
+                  AND NOT EXISTS (SELECT 1 FROM audit_seal s WHERE s.audit_id = a.id)
+                """);
+    }
+
     /** Two large finished assessments of one program, see {@link #addLargeAssessments}. */
     record LargeAssessments(UUID beforeRerun, UUID afterRerun) {
     }
