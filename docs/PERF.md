@@ -1,7 +1,15 @@
 # Read-path performance
 
 Budget (CLAUDE.md): p95 under 40 ms for every read endpoint on the seeded tenant. `make perf` enforces it and
-runs the index check; `make backend-test` runs everything else. Decisions and rejected alternatives:
+runs the index check; `make backend-test` runs everything else.
+
+**CI is the arbiter of the budget (OPS-3).** The `perf` job of `.github/workflows/ci.yml` runs `make perf` on a fresh
+runner, on every push to `main`, every night at 07:00 UTC, on request (`workflow_dispatch`) and on pull requests that
+change `backend/src/main/**`, `backend/src/test/java/com/lexvay/perf/**` or this file. Its job summary lists the p95 of
+every endpoint and the planner's choice for every index, and the plans are kept as the `perf-reports` artifact. A run
+on a developer machine that is busy with other builds is not evidence either way: unrelated endpoints such as
+`GET /jurisdictions` then exceed the budget too. `make perf` runs both tests even when the first fails, so one run
+reports both. Treat a pull request's `perf` job as a required check by convention (no GitHub setting enforces it). Decisions and rejected alternatives:
 `DECISIONS.md (D-110 to D-119)` (D-110 to D-119).
 
 ## How it is measured
