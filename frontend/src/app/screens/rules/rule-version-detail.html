@@ -1,48 +1,51 @@
 @let v = version();
 <article class="lx-detail" aria-labelledby="version-heading">
   <header class="lx-detail-head">
-    <div class="lx-detail-main">
-      <p class="lx-detail-state"><span class="lx-state-code">{{ v.jurisdiction }}</span>{{ jurisdictionName() }}</p>
-      <h2 id="version-heading" class="lx-detail-title" tabindex="-1">{{ v.label }}</h2>
-      <ul class="lx-pills" aria-label="Version facts">
-        <li class="lx-pill">{{ license() }}</li>
-        <li class="lx-pill"><span class="lx-pill-key">Legal status</span>{{ legalStatus() }}</li>
-        <li class="lx-pill"><span class="lx-pill-key">Effective</span><span class="lx-mono">{{ v.effectiveFrom ?? 'Not recorded' }}</span></li>
-        <li class="lx-pill">
-          <a [href]="v.sourceUrl" target="_blank" rel="noopener noreferrer" class="lx-pill-link">Source<ng-icon name="phosphorArrowSquareOut" size="12" aria-hidden="true" /><span class="lx-sr-only">(opens in a new tab)</span></a>
-        </li>
-      </ul>
-      <p class="lx-muted" data-testid="version-legal">
+    <h2 id="version-heading" class="lx-detail-title" tabindex="-1">{{ v.label }}</h2>
+    <p class="lx-meta lx-detail-meta">
+      <span>{{ jurisdictionName() }}</span><span aria-hidden="true">·</span><span>{{ license() }}</span><span aria-hidden="true">·</span>
+      <span>{{ legalStatus() }}</span><span aria-hidden="true">·</span>
+      <span>{{ v.effectiveFrom ? 'Effective ' + v.effectiveFrom : 'Effective date not recorded' }}</span><span aria-hidden="true">·</span>
+      <a [href]="v.sourceUrl" target="_blank" rel="noopener noreferrer">Source<span class="lx-sr-only"> (opens in a new tab)</span></a>
+    </p>
+    <!-- RG-1's provenance of the dates and text, as plain meta text; nothing when none is recorded. -->
+    @if (v.datesBasis || v.observedAt || v.queuedObservations.length > 0) {
+      <p class="lx-meta" data-testid="version-legal">
         @if (v.datesBasis) { Dates from {{ v.datesBasis }}. }
         @if (v.observedAt) { Text observed {{ v.observedAt | date: 'yyyy-MM-dd' }}. }
         @if (v.queuedObservations.length > 0) { {{ v.queuedObservations.length }} later {{ v.queuedObservations.length === 1 ? 'change' : 'changes' }} kept behind this draft. }
       </p>
-      <p class="lx-state" data-testid="version-state">
-        <lx-label>{{ statusView().label }}</lx-label>
+    }
+    <!-- Approved says who and when in the mark's own words; any other status adds where the approval stands. -->
+    <p class="lx-detail-state" data-testid="version-state">
+      @if (status() === 'APPROVED' && v.approval) {
+        <lx-status-mark [status]="statusView().mark" [tone]="statusView().tone ?? null" [label]="'Approved by ' + approverName() + ' on ' + (v.approval.at | date: 'yyyy-MM-dd')" />
+      } @else {
+        <lx-status-mark [status]="statusView().mark" [tone]="statusView().tone ?? null" [label]="statusView().label" />
+        <span class="lx-muted" aria-hidden="true">·</span>
         @if (v.approval; as a) {
-          <span>Approved by {{ approverName() }} on <time class="lx-mono" [attr.datetime]="a.at">{{ a.at | date: 'yyyy-MM-dd' }}</time></span>
+          <span class="lx-muted">Approved by {{ approverName() }} on {{ a.at | date: 'yyyy-MM-dd' }}</span>
         } @else {
           <span class="lx-muted">Not approved</span>
         }
-      </p>
-    </div>
-    <lx-figure class="lx-detail-stat" [value]="v.requirementCount" label="Requirements" />
-  </header>
-  @if (status() === 'EXTRACTION_FAILED') {
-    <div class="lx-extraction-failed" data-testid="extraction-failed">
-      <p-message severity="warn" size="small">Requirement extraction did not produce a list. A reviewer can enter the list by hand with Edit list.</p-message>
-      @if (v.extraction?.error; as technical) {
-        <details class="lx-technical">
-          <summary>Technical detail</summary>
-          <p class="lx-mono">{{ technical }}</p>
-        </details>
       }
-    </div>
-  }
+    </p>
+    @if (status() === 'EXTRACTION_FAILED') {
+      <div class="lx-extraction-failed" data-testid="extraction-failed">
+        <p-message severity="error">Requirement extraction did not produce a list. A reviewer can enter the list by hand with Edit list.</p-message>
+        @if (v.extraction?.error; as technical) {
+          <details class="lx-technical">
+            <summary>Technical detail</summary>
+            <p class="lx-mono">{{ technical }}</p>
+          </details>
+        }
+      </div>
+    }
+  </header>
 
   <p-tabs class="lx-detail-tabs" [value]="tab()" (valueChange)="selectTab($event)">
     <p-tablist>
-      <p-tab value="requirements">Requirements</p-tab>
+      <p-tab value="requirements">Requirements<span class="lx-tab-count" aria-hidden="true">{{ v.requirementCount }}</span></p-tab>
       <p-tab value="text">Rule text</p-tab>
       <p-tab value="compare">Compare</p-tab>
     </p-tablist>

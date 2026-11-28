@@ -295,8 +295,8 @@ test('screenshots of changes, the audit trail and the evidence report at 1440 an
   }
 });
 
-/** UI2-4: the evidence request inbox and the answer drawer with a selected passage, at 1440 and 400 px. */
-test('UI2-4: the evidence request inbox and the answer drawer at 1440 and 400 px', async ({ page }) => {
+/** UI3-3: the evidence request inbox and the answer sheet with a selected passage, at 1440 and 400 px. */
+test('UI3-3: the evidence request inbox and the answer sheet at 1440 and 400 px', async ({ page }) => {
   await signIn(page, JORDAN);
   for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await page.setViewportSize({ width, height });
@@ -304,7 +304,7 @@ test('UI2-4: the evidence request inbox and the answer drawer at 1440 and 400 px
     await page.locator('p-selectbutton').getByText('All').click();
     const open = page.getByRole('table', { name: 'Evidence requests' }).getByRole('button', { name: /^Provide evidence for / }).first();
     await expect(open).toBeVisible();
-    await shoot(page, `ui2-4-requests-inbox-${width}`);
+    await shoot(page, `ui3-3-requests-inbox-${width}`);
     await open.click();
     const drawer = page.getByRole('dialog', { name: 'Provide evidence' });
     await drawer.getByRole('combobox', { name: 'Program document' }).click();
@@ -321,7 +321,7 @@ test('UI2-4: the evidence request inbox and the answer drawer at 1440 and 400 px
       pre.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
     });
     await expect(drawer.getByTestId('selected-passage').locator('blockquote')).toBeVisible();
-    await shoot(page, `ui2-4-requests-drawer-${width}`);
+    await shoot(page, `ui3-3-requests-drawer-${width}`);
     await page.keyboard.press('Escape');
     await expect(drawer).toBeHidden();
   }

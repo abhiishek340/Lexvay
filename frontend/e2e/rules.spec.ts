@@ -41,22 +41,14 @@ async function expectNoSidewaysScroll(page: Page, widths: number[]): Promise<voi
   if (size) { await page.setViewportSize(size); }
 }
 
-/** UI2-4: both themes at 1440 and 400 px, named ui2-4-<name>-<width>. */
-async function captureV2(page: Page, name: string): Promise<void> {
+/** UI3-3: both themes at 1440 and 400 px, named ui3-3-rules-<name>-<width>, then back to the size the test runs at. */
+async function capture(page: Page, name: string): Promise<void> {
   if (!SCREENSHOTS) { return; }
   const size = page.viewportSize();
   for (const width of [1440, 400]) {
     await page.setViewportSize({ width, height: width === 1440 ? 900 : 860 });
-    await shoot(page, `ui2-4-${name}-${width}`);
+    await shoot(page, `ui3-3-rules-${name}-${width}`);
   }
-  if (size) { await page.setViewportSize(size); }
-}
-
-async function capture(page: Page, name: string): Promise<void> {
-  if (!SCREENSHOTS) { return; }
-  const size = page.viewportSize();
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await shoot(page, name);
   if (size) { await page.setViewportSize(size); }
 }
 
@@ -82,14 +74,14 @@ test('a reviewer reads the seeded Colorado revision: its list, its rule text and
   await expect(revision).toContainText('Approved');
   await expect(versions(page).getByRole('option', { name: /Colorado \(fictional\) 2026, effective/ })).toContainText('Superseded');
   await expectAccessible(page, 'Rules list');
-  await capture(page, 'rules-list');
-  await captureV2(page, 'rules-list');
+  await capture(page, 'list');
 
   await revision.click();
   await expect(page).toHaveURL(/\/rules\/[0-9a-f-]{36}$/);
   await expect(revision).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('heading', { level: 2, name: 'Demo rule set - Colorado (fictional) 2026 revision 2' })).toBeVisible();
   await expect(page.getByTestId('version-state')).toContainText(/Approved by Dr\. Priya Raman on \d{4}-\d{2}-\d{2}/);
+  await capture(page, 'detail');
 
   // An approved list has no edit controls at all.
   const requirements = page.getByRole('table', { name: 'Requirements' });
@@ -104,11 +96,14 @@ test('a reviewer reads the seeded Colorado revision: its list, its rule text and
   await expect(page.getByTestId('page-position')).toHaveText(/Page\s+1\s+of\s+1/);
   await expectAccessible(page, 'Rule text');
 
-  // Compare defaults to the superseded version: exactly one changed requirement, CO-5, number and text.
+  // Compare defaults to the superseded version: exactly one changed requirement, CO-5, number and text. What changed is
+  // listed first; the eight unchanged requirements wait behind one disclosure.
   await page.getByRole('tab', { name: 'Compare' }).click();
   await expect(page.getByTestId('compare-summary')).toHaveText(/1 changed\s*·\s*0 added\s*·\s*0 removed\s*·\s*8 unchanged/);
   const changes = page.getByRole('table', { name: 'Requirement changes' });
-  await expect(changes.locator('tbody tr')).toHaveCount(9);
+  await expect(changes.getByTestId('compare-row')).toHaveCount(1);
+  const unchanged = page.getByRole('button', { name: 'Show 8 unchanged' });
+  await expect(unchanged).toHaveAttribute('aria-expanded', 'false');
   const changed = changes.locator('tr[data-status="CHANGED"]');
   await expect(changed).toHaveCount(1);
   await expect(changed).toContainText('CO-5');
@@ -116,13 +111,19 @@ test('a reviewer reads the seeded Colorado revision: its list, its rule text and
   await expect(changed.getByTestId('numeric-change').locator('ins')).toHaveText('Internship hours >= 700');
   await expect(changed.getByTestId('text-diff').locator('del')).toHaveText('600');
   await expect(changed.getByTestId('text-diff').locator('ins')).toHaveText('700');
-  await capture(page, 'rules-compare');
-  await captureV2(page, 'rules-compare');
+  await capture(page, 'compare');
   await page.getByRole('button', { name: 'Rule text' }).click();
   const ruleTextDiff = page.getByTestId('rule-text-diff');
   await expect(ruleTextDiff.locator('ins', { hasText: '700' })).toHaveCount(1);
   await expect(ruleTextDiff.locator('del', { hasText: '600' })).toHaveCount(1);
   await expectAccessible(page, 'Compare');
+  await unchanged.click();
+  await expect(page.getByRole('button', { name: 'Hide 8 unchanged' })).toHaveAttribute('aria-expanded', 'true');
+  await expect(changes.getByTestId('compare-row')).toHaveCount(9);
+  await expect(changes.locator('tr[data-status="UNCHANGED"]')).toHaveCount(8);
+  await expectAccessible(page, 'Compare with the unchanged requirements');
+  await page.getByRole('button', { name: 'Hide 8 unchanged' }).click();
+  await expect(changes.getByTestId('compare-row')).toHaveCount(1);
 
   // The list is a listbox: arrow keys move, Enter opens. The original version supersedes nothing.
   await versions(page).focus();
@@ -185,7 +186,7 @@ test('a contributor enters a new rule version and its extraction proposes a list
   await expect(dialog.getByText(/^\d[\d ]* of 500 000 characters$/)).toBeVisible();
   await expect(dialog.getByRole('combobox', { name: 'Supersedes (optional)' })).toBeDisabled();
   await expectAccessible(page, 'New rule version dialog');
-  await capture(page, 'rules-new-version');
+  await capture(page, 'new-version');
 
   await submitVersion(page);
 
@@ -282,8 +283,7 @@ test('a reviewer enters the list by hand, corrects it, saves, reloads and approv
   await expectAccessible(page, 'Edit grid with a row problem');
 
   await grid.getByRole('textbox', { name: 'OR-2 title' }).fill('Ethics coursework');
-  await capture(page, 'rules-edit');
-  await captureV2(page, 'rules-edit-terms');
+  await capture(page, 'edit');
   await page.getByRole('button', { name: 'Save list' }).click();
   await expect(page.getByTestId('message')).toContainText('Requirement list saved');
   // The server keeps no term whose words are all the requirement's own ("credit hours" is its title) and says so.
@@ -322,8 +322,7 @@ test('a reviewer enters the list by hand, corrects it, saves, reloads and approv
   const dialog = page.getByRole('dialog', { name: 'Approve requirements' });
   await expect(dialog).toContainText('Approving locks this list. Assessments for Oregon will use these 2 requirements. The list can no longer be edited.');
   await expectAccessible(page, 'Approve dialog');
-  await capture(page, 'rules-approve');
-  await captureV2(page, 'rules-approve');
+  await capture(page, 'approve');
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(approve).toBeFocused();
@@ -386,5 +385,5 @@ test('a change to search terms alone is its own aspect in Compare', async ({ pag
   await expect(change.locator('del')).toHaveCount(1);
   await expect(change.locator('ins')).toHaveText('added: professional identity');
   await expectAccessible(page, 'Compare with a search terms change');
-  await captureV2(page, 'rules-compare-terms');
+  await capture(page, 'compare-terms');
 });

@@ -24,7 +24,7 @@
     <div class="lx-field-row">
       <div class="lx-field">
         <label for="rv-licenseType" class="lx-field-label">License type</label>
-        <input pInputText id="rv-licenseType" class="lx-mono" [ngModel]="f.licenseType" [ngModelOptions]="{ standalone: true }"
+        <input pInputText id="rv-licenseType" [ngModel]="f.licenseType" [ngModelOptions]="{ standalone: true }"
                (ngModelChange)="set('licenseType', $event)" [invalid]="!!p.licenseType" [attr.aria-describedby]="p.licenseType ? 'rv-licenseType-error' : null" [fluid]="true" />
         @if (p.licenseType; as e) { <p-message id="rv-licenseType-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
       </div>
@@ -32,7 +32,7 @@
         <label for="rv-effectiveFrom" class="lx-field-label">Effective date</label>
         <p-datepicker inputId="rv-effectiveFrom" [ngModel]="f.effectiveFrom" [ngModelOptions]="{ standalone: true }" (ngModelChange)="set('effectiveFrom', $event)"
                       dataType="string" dateFormat="yy-mm-dd" placeholder="yyyy-mm-dd" [invalid]="!!p.effectiveFrom" appendTo="body" [fluid]="true"
-                      inputStyleClass="lx-mono" />
+                      />
         @if (p.effectiveFrom; as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
       </div>
     </div>
@@ -73,10 +73,10 @@
       <span class="lx-label-row">
         <label for="rv-text" class="lx-field-label">Rule text</label>
       </span>
-      <textarea pTextarea id="rv-text" class="lx-mono lx-rule-input" rows="10" [ngModel]="f.text" [ngModelOptions]="{ standalone: true }"
+      <textarea pTextarea id="rv-text" class="lx-rule-input" rows="8" [ngModel]="f.text" [ngModelOptions]="{ standalone: true }"
                 (ngModelChange)="set('text', $event)" [invalid]="!!p.text" [attr.maxlength]="max" [fluid]="true"
                 [attr.aria-describedby]="p.text ? 'rv-text-count rv-text-error' : 'rv-text-count'"></textarea>
-      <p class="lx-help lx-mono" id="rv-text-count">{{ textCount() }} of 500 000 characters</p>
+      <p class="lx-meta" id="rv-text-count">{{ textCount() }} of 500 000 characters</p>
       @if (p.text; as e) { <p-message id="rv-text-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
     </div>
   </form>

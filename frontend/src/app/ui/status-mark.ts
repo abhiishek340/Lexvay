@@ -3,14 +3,20 @@ import { DECISION_LABEL, FINDING_LABEL } from '../core/labels';
 import { DecisionKind, Finding } from '../core/models';
 import { MarkShape, MarkShapeIcon } from './mark-shape';
 
+/** The shapes live with the drawing (ui/mark-shape.ts); callers that pair a shape with a tone may name it from here. */
+export type { MarkShape } from './mark-shape';
+
 /**
  * Every status a mark stands for (DESIGN.md "Status marks"): the three findings, the three decisions, and the states
  * around them. A Finding or a DecisionKind is a Status as it is.
  */
 export type Status = Finding | DecisionKind | 'NOT_REVIEWED' | 'OUTDATED' | 'BLOCKED';
 
-/** found and missing take their colour; neutral is ink-2; quiet is an ink-3 mark beside an ink-2 word. */
-export type MarkTone = 'found' | 'missing' | 'neutral' | 'quiet';
+/**
+ * found and missing take their colour; neutral is ink-2; quiet is an ink-3 mark beside an ink-2 word. ink is only ever
+ * an override: a state that borrows a shape but must not borrow evidence's colour (a rule version's approval).
+ */
+export type MarkTone = 'found' | 'missing' | 'neutral' | 'quiet' | 'ink';
 
 export interface MarkSpec { readonly shape: MarkShape; readonly tone: MarkTone; readonly word: string }
 
@@ -30,7 +36,8 @@ export const STATUS_MARK: Readonly<Record<Status, MarkSpec>> = {
 /**
  * A status as a mark and a word: <lx-status-mark status="EVIDENCE_FOUND" />. `label` replaces the word where a screen
  * says more ("Evidence found, not reviewed"); `quiet` keeps the word for assistive technology only, for a dense row
- * whose neighbouring text already says it. The mark itself is always hidden from assistive technology.
+ * whose neighbouring text already says it; `tone` replaces the colour where the shape is borrowed for a state that is
+ * not a finding or a decision. The mark itself is always hidden from assistive technology.
  */
 @Component({
   selector: 'lx-status-mark',
@@ -39,13 +46,14 @@ export const STATUS_MARK: Readonly<Record<Status, MarkSpec>> = {
     <lx-mark-shape class="lx-mark" [shape]="spec().shape" />
     <span class="lx-word" [class.lx-sr-only]="quiet()">{{ label() ?? spec().word }}</span>
   `,
-  host: { '[attr.data-status]': 'status()', '[attr.data-tone]': 'spec().tone' },
+  host: { '[attr.data-status]': 'status()', '[attr.data-tone]': 'tone() ?? spec().tone' },
   styles: `
     :host { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
     :host([data-tone='found']) .lx-mark { color: var(--p-lx-found); }
     :host([data-tone='missing']) .lx-mark { color: var(--p-lx-missing); }
     :host([data-tone='neutral']) .lx-mark { color: var(--p-lx-ink-2); }
     :host([data-tone='quiet']) .lx-mark { color: var(--p-lx-ink-3); }
+    :host([data-tone='ink']) .lx-mark { color: var(--p-lx-ink); }
     :host([data-tone='quiet']) .lx-word { color: var(--p-lx-ink-2); }
   `,
 })
@@ -53,5 +61,6 @@ export class StatusMark {
   readonly status = input.required<Status>();
   readonly label = input<string | null>(null);
   readonly quiet = input(false);
+  readonly tone = input<MarkTone | null>(null);
   readonly spec = computed(() => STATUS_MARK[this.status()]);
 }

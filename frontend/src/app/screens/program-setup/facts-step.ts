@@ -2,7 +2,6 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, linkedSignal, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NgIcon } from '@ng-icons/core';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { InputNumber } from 'primeng/inputnumber';
 import { Message } from 'primeng/message';
@@ -27,7 +26,7 @@ import { SetupNotice, SetupStore } from './setup-store';
  */
 @Component({
   selector: 'lx-setup-facts',
-  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, InputNumber, Message, Skeleton, DocumentPicker, DocumentViewer, Sheet, StatusMark],
+  imports: [DatePipe, FormsModule, ButtonDirective, ButtonLabel, InputNumber, Message, Skeleton, DocumentPicker, DocumentViewer, Sheet, StatusMark],
   templateUrl: './facts-step.html',
   styleUrl: './steps.css',
 })
