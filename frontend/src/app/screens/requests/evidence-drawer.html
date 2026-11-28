@@ -3,18 +3,15 @@
     <div class="lx-answer">
       <section class="lx-answer-requirement" aria-labelledby="answer-requirement">
         <h3 id="answer-requirement" class="lx-answer-ref">
-          <span class="lx-state-code">{{ row.jurisdiction }}</span><span class="lx-mono">{{ row.requirementRef }}</span><span>{{ row.requirementTitle }}</span>
+          <span class="lx-state-code">{{ row.jurisdiction }}</span><span class="lx-answer-ref-id">{{ row.requirementRef }}</span><span>{{ row.requirementTitle }}</span>
         </h3>
         @if (requirement.value(); as r) {
           <blockquote class="lx-answer-rule">{{ r.text }}</blockquote>
         } @else if (requirement.isLoading()) {
-          <div class="lx-answer-rule" aria-hidden="true"><p-skeleton aria-hidden="true" height="0.875rem" /><p-skeleton aria-hidden="true" width="80%" height="0.875rem" /></div>
+          <div class="lx-answer-rule" aria-hidden="true"><p-skeleton aria-hidden="true" height="1rem" /><p-skeleton aria-hidden="true" width="80%" height="1rem" /></div>
         }
         <figure class="lx-answer-ask">
-          <figcaption class="lx-answer-asker">
-            <span class="lx-answer-avatar" aria-hidden="true">{{ initials(row.requestedByName ?? '') }}</span>
-            <span>Asked by {{ row.requestedByName ?? 'an unknown user' }}, {{ row.requestedAt | date: 'd MMM y' }}</span>
-          </figcaption>
+          <figcaption class="lx-meta">Asked by {{ row.requestedByName ?? 'an unknown user' }}, {{ row.requestedAt | date: 'd MMM y' }}</figcaption>
           <p class="lx-answer-note">{{ row.requestNote ?? 'The reviewer gave no note.' }}</p>
         </figure>
       </section>
@@ -40,9 +37,9 @@
         <div aria-live="polite" data-testid="selected-passage">
           @if (selection(); as s) {
             <blockquote class="lx-passage">{{ s.quote }}</blockquote>
-            <p class="lx-help">Page <span class="lx-mono">{{ s.pageNumber }}</span>, characters <span class="lx-mono">{{ s.charStart }}–{{ s.charEnd }}</span></p>
+            <p class="lx-meta">Page {{ s.pageNumber }}, characters <span class="lx-mono">{{ s.charStart }}–{{ s.charEnd }}</span></p>
           } @else {
-            <p class="lx-help">Select text on the page, or use "Select passage by character range".</p>
+            <p class="lx-muted">Select text on the page, or use "Select passage by character range".</p>
           }
         </div>
         @if (quoteError(); as e) {
@@ -54,7 +51,7 @@
         <label for="evidence-comment" class="lx-numbered"><span class="lx-numbered-n" aria-hidden="true">3</span>Comment <span class="lx-muted">(optional)</span></label>
         <textarea pTextarea id="evidence-comment" rows="4" [maxlength]="commentMax" [ngModel]="comment()" (ngModelChange)="comment.set($event)"
                   aria-describedby="comment-count" [fluid]="true"></textarea>
-        <p id="comment-count" class="lx-help">{{ comment().length }} of {{ commentMax }} characters</p>
+        <p id="comment-count" class="lx-meta">{{ comment().length }} of {{ commentMax }} characters</p>
       </div>
 
       @if (failure(); as e) {

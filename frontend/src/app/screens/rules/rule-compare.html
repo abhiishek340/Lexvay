@@ -14,82 +14,96 @@
   @if (!against()) {
     <p class="lx-muted" data-testid="compare-empty">This is the first version for {{ jurisdictionName() }}; choose a version to compare with.</p>
   } @else if (diff(); as d) {
-    <p class="lx-summary" data-testid="compare-summary">
-      @for (s of summary(); track s.status; let last = $last; let i = $index) {
-        <span class="lx-summary-item" [attr.data-status]="s.status"><ng-icon [name]="s.icon" size="16" aria-hidden="true" /><span class="lx-summary-count">{{ s.count }}</span> {{ s.label.toLowerCase() }}</span>
-        @if (!last) { <span class="lx-summary-sep" aria-hidden="true">·</span> }
-      }
-    </p>
-    <p class="lx-compare-span">
-      <span class="lx-compare-version"><span class="lx-mono">{{ d.from.effectiveFrom }}</span>{{ d.from.label }}</span>
-      <ng-icon name="phosphorArrowRight" size="14" aria-hidden="true" /><span class="lx-sr-only">to</span>
-      <span class="lx-compare-version"><span class="lx-mono">{{ d.to.effectiveFrom }}</span>{{ d.to.label }}</span>
-    </p>
+    <div class="lx-compare-head">
+      <p class="lx-summary" data-testid="compare-summary">
+        @for (s of summary(); track s.status; let last = $last) {
+          <span [class.lx-summary-none]="s.count === 0"><span class="lx-summary-count">{{ s.count }}</span> {{ s.label.toLowerCase() }}</span>
+          @if (!last) { <span class="lx-muted" aria-hidden="true">·</span> }
+        }
+      </p>
+      <p class="lx-meta">From {{ d.from.label }}, effective {{ effective(d.from) }}, to {{ d.to.label }}, effective {{ effective(d.to) }}</p>
+    </div>
 
-    <p-table [value]="rows()" [scrollable]="true" [tableStyle]="{ 'min-width': '40rem' }" [pt]="{ table: { 'aria-label': 'Requirement changes' }, tableContainer: { tabindex: '0' } }">
-      <ng-template #header>
+    <table class="lx-table lx-changes" aria-label="Requirement changes">
+      <thead>
         <tr>
           <th scope="col">Status</th>
           <th scope="col">Requirement</th>
           <th scope="col">What changed</th>
         </tr>
-      </ng-template>
-      <ng-template #body let-row>
-        @let s = statusOf(row);
-        <tr [attr.data-status]="row.status" data-testid="compare-row">
-          <td class="lx-status-cell">
-            <lx-label>{{ s.label }}</lx-label>
-            @if (row.refChanged) { <lx-label class="lx-ref-changed">ref changed</lx-label> }
-          </td>
-          <td><div class="lx-requirement">
-            @if (row.refChanged) {
-              <span class="lx-mono lx-inline">{{ row.before?.ref }}<ng-icon name="phosphorArrowRight" size="12" aria-hidden="true" /><span class="lx-sr-only">renumbered as</span>{{ row.after?.ref }}</span>
-            } @else {
-              <span class="lx-mono">{{ ref(row) }}</span>
-            }
-            <span class="lx-req-title">{{ title(row) }}</span>
-          </div></td>
-          <td><div class="lx-change">
-            @if (row.status === 'CHANGED') {
-              @if (row.changes.includes('TITLE')) {
-                @let t = replaced(row.before?.title, row.after?.title);
-                <p class="lx-aspect"><span class="lx-aspect-name">Title</span><lx-diff-text [segments]="t.before" /><ng-icon name="phosphorArrowRight" size="12" aria-hidden="true" /><span class="lx-sr-only">becomes</span><lx-diff-text [segments]="t.after" /></p>
+      </thead>
+      <tbody>
+        @for (row of changedRows(); track $index) {
+          <ng-container *ngTemplateOutlet="diffRow; context: { $implicit: row }" />
+        } @empty {
+          <tr><td colspan="3" class="lx-muted">No requirement changed.</td></tr>
+        }
+      </tbody>
+      <tbody id="compare-unchanged" [hidden]="!showUnchanged()">
+        @if (showUnchanged()) {
+          @for (row of unchangedRows(); track $index) {
+            <ng-container *ngTemplateOutlet="diffRow; context: { $implicit: row }" />
+          }
+        }
+      </tbody>
+    </table>
+    @if (unchangedRows().length > 0) {
+      <button type="button" class="lx-row-action lx-unchanged-toggle" aria-controls="compare-unchanged" [attr.aria-expanded]="showUnchanged()"
+              (click)="showUnchanged.set(!showUnchanged())">{{ showUnchanged() ? 'Hide' : 'Show' }} {{ unchangedRows().length }} unchanged</button>
+    }
+
+    <ng-template #diffRow let-row>
+          <tr [attr.data-status]="row.status" data-testid="compare-row">
+            <td class="lx-status-cell">
+              <span class="lx-status-word">{{ statusOf(row).label }}</span>
+              @if (row.refChanged) { <span class="lx-meta">Ref changed</span> }
+            </td>
+            <th scope="row" class="lx-requirement">
+              @if (row.refChanged) {
+                @let r = replaced(row.before?.ref, row.after?.ref);
+                <span class="lx-ref"><lx-diff-text [segments]="r.before" /><span class="lx-sr-only"> renumbered as </span> <lx-diff-text [segments]="r.after" /></span>
+              } @else {
+                <span class="lx-ref">{{ ref(row) }}</span>
               }
-              @if (row.changes.includes('TYPE')) {
-                @let ty = replaced(typeOf(row, 'before'), typeOf(row, 'after'));
-                <p class="lx-aspect"><span class="lx-aspect-name">Type</span><lx-diff-text [segments]="ty.before" /><ng-icon name="phosphorArrowRight" size="12" aria-hidden="true" /><span class="lx-sr-only">becomes</span><lx-diff-text [segments]="ty.after" /></p>
+              <span class="lx-req-title">{{ title(row) }}</span>
+            </th>
+            <td class="lx-change">
+              @if (row.status === 'CHANGED') {
+                @if (row.changes.includes('TITLE')) {
+                  @let t = replaced(row.before?.title, row.after?.title);
+                  <p class="lx-aspect"><span class="lx-aspect-name">Title</span><span class="lx-aspect-value"><lx-diff-text [segments]="t.before" /><span class="lx-sr-only"> becomes </span> <lx-diff-text [segments]="t.after" /></span></p>
+                }
+                @if (row.changes.includes('TYPE')) {
+                  @let ty = replaced(typeOf(row, 'before'), typeOf(row, 'after'));
+                  <p class="lx-aspect"><span class="lx-aspect-name">Type</span><span class="lx-aspect-value"><lx-diff-text [segments]="ty.before" /><span class="lx-sr-only"> becomes </span> <lx-diff-text [segments]="ty.after" /></span></p>
+                }
+                @if (row.changes.includes('NUMERIC')) {
+                  @let n = replaced(check(row, 'before'), check(row, 'after'));
+                  <p class="lx-aspect" data-testid="numeric-change"><span class="lx-aspect-name">Check</span><span class="lx-aspect-value"><lx-diff-text [segments]="n.before" /><span class="lx-sr-only"> becomes </span> <lx-diff-text [segments]="n.after" /></span></p>
+                }
+                @if (row.changes.includes('SEARCH_TERMS')) {
+                  @let td = terms(row);
+                  <div class="lx-aspect" data-testid="terms-change">
+                    <span class="lx-aspect-name">Search terms</span>
+                    <span class="lx-aspect-value lx-term-list">
+                      @for (m of td.before; track m.term) {
+                        @if (m.changed) { <lx-label><del><span class="lx-sr-only">removed: </span>{{ m.term }}</del></lx-label> }
+                      }
+                      @for (m of td.after; track m.term) {
+                        @if (m.changed) { <lx-label><ins><span class="lx-sr-only">added: </span>{{ m.term }}</ins></lx-label> } @else { <lx-label>{{ m.term }}</lx-label> }
+                      }
+                    </span>
+                  </div>
+                }
+                @if (row.textDiff) {
+                  <lx-diff-text class="lx-doc lx-change-text" [segments]="row.textDiff" data-testid="text-diff" />
+                }
+              } @else {
+                <lx-diff-text class="lx-doc lx-change-text" [class.lx-muted]="row.status === 'UNCHANGED'" [segments]="whole(row)" />
               }
-              @if (row.changes.includes('NUMERIC')) {
-                @let n = replaced(check(row, 'before'), check(row, 'after'));
-                <p class="lx-aspect lx-mono" data-testid="numeric-change"><span class="lx-aspect-name">Check</span><lx-diff-text [segments]="n.before" /><ng-icon name="phosphorArrowRight" size="12" aria-hidden="true" /><span class="lx-sr-only">becomes</span><lx-diff-text [segments]="n.after" /></p>
-              }
-              @if (row.changes.includes('SEARCH_TERMS')) {
-                @let td = terms(row);
-                <div class="lx-aspect" data-testid="terms-change">
-                  <span class="lx-aspect-name">Search terms</span>
-                  <span class="lx-term-list">
-                    @for (m of td.before; track m.term) {
-                      @if (m.changed) { <del class="lx-term lx-term-del"><span class="lx-sr-only">removed: </span>{{ m.term }}</del> } @else { <span class="lx-term">{{ m.term }}</span> }
-                    } @empty { <span class="lx-muted">none</span> }
-                  </span>
-                  <ng-icon name="phosphorArrowRight" size="12" aria-hidden="true" /><span class="lx-sr-only">becomes</span>
-                  <span class="lx-term-list">
-                    @for (m of td.after; track m.term) {
-                      @if (m.changed) { <ins class="lx-term lx-term-ins"><span class="lx-sr-only">added: </span>{{ m.term }}</ins> } @else { <span class="lx-term">{{ m.term }}</span> }
-                    } @empty { <span class="lx-muted">none</span> }
-                  </span>
-                </div>
-              }
-              @if (row.textDiff) {
-                <lx-diff-text class="lx-doc lx-change-text" [segments]="row.textDiff" data-testid="text-diff" />
-              }
-            } @else {
-              <p class="lx-doc lx-change-text" [class.lx-muted]="row.status === 'UNCHANGED'">{{ text(row) }}</p>
-            }
-          </div></td>
-        </tr>
-      </ng-template>
-    </p-table>
+            </td>
+          </tr>
+    </ng-template>
 
     <p-accordion class="lx-rule-text-diff">
       <p-accordion-panel value="rule-text">
@@ -102,7 +116,7 @@
   } @else if (loading()) {
     <div role="status" aria-busy="true" aria-label="Loading the comparison" class="lx-compare-skeleton">
       <p-skeleton aria-hidden="true" width="22rem" height="1.25rem" />
-      @for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="2.75rem" /> }
+      @for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="2.5rem" /> }
     </div>
   }
 </div>

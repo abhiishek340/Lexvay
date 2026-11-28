@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
-import { STATUS_MARK, Status, StatusMark } from './status-mark';
+import { MarkTone, STATUS_MARK, Status, StatusMark } from './status-mark';
 
 /** What DESIGN.md "Status marks" fixes for each status: the shape drawn, its colour family, and the word beside it. */
 const TABLE: [Status, string, string, string][] = [
@@ -15,11 +15,12 @@ const TABLE: [Status, string, string, string][] = [
   ['BLOCKED', 'open-square', 'neutral', 'Blocked'],
 ];
 
-function render(status: Status, inputs: { label?: string; quiet?: boolean } = {}): HTMLElement {
+function render(status: Status, inputs: { label?: string; quiet?: boolean; tone?: MarkTone } = {}): HTMLElement {
   const fixture = TestBed.createComponent(StatusMark);
   fixture.componentRef.setInput('status', status);
   if (inputs.label) { fixture.componentRef.setInput('label', inputs.label); }
   if (inputs.quiet) { fixture.componentRef.setInput('quiet', true); }
+  if (inputs.tone) { fixture.componentRef.setInput('tone', inputs.tone); }
   fixture.detectChanges();
   return fixture.nativeElement as HTMLElement;
 }
@@ -48,6 +49,12 @@ describe('StatusMark', () => {
     expect(drawings.get('square')).toBe('rect.lx-fill');
     expect(drawings.get('ring')).toBe('circle.lx-stroke');
     expect(drawings.get('dashed-ring')).toBe('circle.lx-stroke.dashed');
+  });
+
+  it('takes another tone where a borrowed shape must not carry its colour, keeping the shape', () => {
+    const el = render('ACCEPTED', { label: 'Approved', tone: 'ink' });
+    expect(el.getAttribute('data-tone')).toBe('ink');
+    expect(drawing(el)).toBe('circle.lx-fill');
   });
 
   it('hides the mark from assistive technology and always keeps the word', () => {

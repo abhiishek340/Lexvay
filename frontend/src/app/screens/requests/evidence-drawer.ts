@@ -3,7 +3,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { NgIcon } from '@ng-icons/core';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { Skeleton } from 'primeng/skeleton';
@@ -17,7 +16,6 @@ import { DocumentPicker } from '../../shared/document-picker/document-picker';
 import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
 import { Sheet } from '../../shared/sheet/sheet';
 import { PassageSelection } from '../../shared/document-viewer/page-text';
-import { initials } from '../../ui/initials';
 import { COMMENT_MAX, responseBody } from './answer';
 
 /**
@@ -27,7 +25,7 @@ import { COMMENT_MAX, responseBody } from './answer';
  */
 @Component({
   selector: 'lx-evidence-drawer',
-  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, Skeleton, Textarea, DocumentPicker, DocumentViewer, Sheet],
+  imports: [DatePipe, FormsModule, ButtonDirective, ButtonLabel, Message, Skeleton, Textarea, DocumentPicker, DocumentViewer, Sheet],
   templateUrl: './evidence-drawer.html',
   styleUrl: './evidence-drawer.css',
 })
@@ -45,7 +43,6 @@ export class EvidenceDrawer {
   readonly conflicted = output<void>();
 
   readonly commentMax = COMMENT_MAX;
-  readonly initials = initials;
 
   readonly documents = rxResource({
     params: () => (this.open() ? this.programId() : undefined),

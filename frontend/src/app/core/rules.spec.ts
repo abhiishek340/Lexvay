@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RULE_STATUS } from '../screens/rules/rule-status';
+import { RULE_STATUS, ruleStatusShape, ruleStatusTone } from '../screens/rules/rule-status';
 import { RuleVersionView } from './models';
 import { anyExtracting, comparableVersions, effectiveText, groupRuleVersions, openingVersion, ruleVersionStatus, versionsWaitingForApproval } from './rules';
 
@@ -52,8 +52,17 @@ describe('ruleVersionStatus', () => {
     expect(ruleVersionStatus(draft, [old, draft])).toBe('EXTRACTING');
   });
 
-  it('every status has its own word', () => {
-    expect(new Set(Object.values(RULE_STATUS).map((s) => s.label)).size).toBe(5);
+  it('every status has its own word and its own mark shape', () => {
+    const statuses = Object.keys(RULE_STATUS) as (keyof typeof RULE_STATUS)[];
+    expect(new Set(statuses.map((s) => RULE_STATUS[s].label)).size).toBe(5);
+    expect(new Set(statuses.map(ruleStatusShape)).size).toBe(5);
+  });
+
+  it('never draws an approval in the colour of evidence; only a failed extraction, an error, takes a colour', () => {
+    expect(ruleStatusTone('APPROVED')).toBe('ink');
+    const statuses = Object.keys(RULE_STATUS) as (keyof typeof RULE_STATUS)[];
+    expect(statuses.filter((s) => ruleStatusTone(s) === 'found')).toEqual([]);
+    expect(statuses.filter((s) => ruleStatusTone(s) === 'missing')).toEqual(['EXTRACTION_FAILED']);
   });
 });
 

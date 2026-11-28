@@ -114,6 +114,11 @@ kbd {
 /* The title row: the title and its meta line on the left, the screen's actions (and its one Help) on the right. */
 .lx-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--lx-space-4); flex-wrap: wrap; margin-bottom: var(--lx-space-5); }
 .lx-page-header p { color: var(--p-lx-ink-2); margin-top: var(--lx-space-1); max-width: 72ch; }
+/* The title and its meta line take the room the actions leave, so a long meta line wraps under the title rather than
+   pushing the actions (and the one Help) onto a line of their own. */
+.lx-page-header > :first-child { flex: 1 1 16rem; min-width: 0; }
+/* A meta line is a list of short facts, not prose: it runs the width of the title row. */
+.lx-page-header p.lx-meta { max-width: none; }
 /* The right end of a title row: the screen's actions, then its one Help. */
 .lx-title-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; flex: 0 1 auto; min-width: 0; }
 /* A section of a page: 40 px from the one before, a hairline between them. */
