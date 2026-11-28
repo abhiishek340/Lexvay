@@ -1,5 +1,6 @@
 package com.lexvay.determination;
 
+import com.lexvay.report.ReportRepository;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -9,16 +10,21 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class DeterminationRepository {
 
+    /**
+     * One row per determination, with its newest ready report folded in by a lateral join (D-515): a program's list is
+     * still one statement, never a query per determination.
+     */
     private static final String SELECT = """
             SELECT d.id, d.program_id, j.code AS jurisdiction, d.jurisdiction_id, d.rule_version_id, rv.label AS rule_version_label,
                    d.assessment_id, d.outcome, d.signed_by, u.display_name AS signed_by_name, d.signed_at, d.status, d.versions_hash,
                    ARRAY(SELECT dcv.course_version_id FROM determination_course_version dcv
-                         WHERE dcv.determination_id = d.id ORDER BY dcv.course_version_id) AS course_version_ids
+                         WHERE dcv.determination_id = d.id ORDER BY dcv.course_version_id) AS course_version_ids,
+                   lr.id AS latest_ready_report_id, lr.created_at AS latest_ready_report_at
             FROM determination d
             JOIN jurisdiction j ON j.id = d.jurisdiction_id
             JOIN rule_version rv ON rv.id = d.rule_version_id
             JOIN app_user u ON u.id = d.signed_by
-            """;
+            """ + "LEFT JOIN LATERAL (" + ReportRepository.latestReady("d.id", "id, created_at") + ") lr ON true\n";
 
     /**
      * A SIGNED determination exists for an assessment and a jurisdiction (D-361). The single definition behind
@@ -85,7 +91,8 @@ public class DeterminationRepository {
                 rs.getObject("jurisdiction_id", UUID.class), rs.getObject("rule_version_id", UUID.class), rs.getString("rule_version_label"),
                 rs.getObject("assessment_id", UUID.class), Outcome.valueOf(rs.getString("outcome")), rs.getObject("signed_by", UUID.class),
                 rs.getString("signed_by_name"), rs.getObject("signed_at", java.time.OffsetDateTime.class),
-                DeterminationStatus.valueOf(rs.getString("status")), rs.getString("versions_hash"), courseVersions);
+                DeterminationStatus.valueOf(rs.getString("status")), rs.getString("versions_hash"), courseVersions,
+                rs.getObject("latest_ready_report_id", UUID.class), rs.getObject("latest_ready_report_at", java.time.OffsetDateTime.class));
     }
 
     /** Newest version of every course in the program: what the determination is locked to. */

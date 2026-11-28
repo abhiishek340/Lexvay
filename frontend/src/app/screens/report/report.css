@@ -1,57 +1,58 @@
-:host ::ng-deep .lx-jurisdiction.p-select { min-width: 15rem; max-width: calc(100vw - 40px); }
+/* The title row, the state tabs and the sheet share one measure: the sheet's 816 px (US Letter at 96 dpi). */
+.lx-report { max-width: calc(816px + 2 * var(--lx-gutter)); }
+.lx-error { display: block; margin-bottom: var(--lx-space-4); }
+.lx-tabs { display: block; margin-bottom: var(--lx-space-5); }
+:host ::ng-deep .lx-panels.p-tabpanels { padding: 0; background: transparent; }
 
-.lx-report-body { max-width: 880px; }
-
-/* The document: the app's one card, a sheet on paper in Document type with the overlay elevation. */
+/* The document: the app's one card, a sheet on paper with the overlay elevation, its body in Document type. */
 .lx-sheet {
-  box-sizing: border-box; max-width: 880px; padding: 48px 56px 56px; border-radius: var(--lx-r-overlay);
+  box-sizing: border-box; padding: var(--lx-space-8); border-radius: var(--lx-r-overlay);
   background: var(--p-lx-surface); box-shadow: var(--p-lx-overlay);
 }
-.lx-sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
-.lx-sheet-heading { min-width: 0; }
-.lx-kicker { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
-.lx-sheet-head h2 { margin-top: 4px; font-family: var(--lx-font-serif); font-size: 24px; line-height: 32px; font-weight: 500; letter-spacing: -0.012em; }
-.lx-sheet-head h2 .lx-mono { margin-left: 6px; font-size: 12px; color: var(--p-lx-ink-2); vertical-align: middle; }
-.lx-sheet-sub { margin-top: 4px; font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; color: var(--p-lx-ink-2); }
-
+.lx-sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--lx-space-5); }
+.lx-sheet-heading { min-width: 0; display: flex; flex-direction: column; gap: var(--lx-space-1); }
+.lx-sheet-head h2 { font-size: 24px; line-height: 32px; font-weight: 600; letter-spacing: -0.012em; }
 /* Top right: the Seal once signed, the meta word Draft before. */
 .lx-stamp { flex: none; }
-.lx-draft { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
 
 .lx-signature {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 24px; margin-top: 32px; padding: 24px 0;
-  border-top: 1px solid var(--p-lx-line); border-bottom: 1px solid var(--p-lx-line);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--lx-space-4) var(--lx-space-5);
+  margin-top: var(--lx-space-6); padding: var(--lx-space-5) 0; border-top: 1px solid var(--p-lx-line); border-bottom: 1px solid var(--p-lx-line);
 }
-.lx-signature dt { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--p-lx-ink-2); }
-.lx-signature dd { margin-top: 4px; }
-.lx-signature strong { font-weight: 600; }
+.lx-signature dt { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
+.lx-signature dd { margin-top: var(--lx-space-1); }
+.lx-outcome { font-weight: 600; }
 .lx-wide { grid-column: 1 / -1; }
 .lx-hash { word-break: break-all; }
 
-.lx-requirements-title { margin: 40px 0 4px; }
+.lx-requirements { margin-top: var(--lx-space-7); }
+.lx-requirements h3 { font-size: 15px; line-height: 24px; font-weight: 600; letter-spacing: -0.004em; margin-bottom: var(--lx-space-2); }
 
-/* The requirements as a clean list: ref, title and one status, then the quote in Document type. */
-.lx-reqs { list-style: none; margin: 0; padding: 0; }
-.lx-req { padding: 20px 0; }
+/* Each requirement: ref, title and one status on a line, then the quote in Document type on a left rule, then its source. */
+.lx-reqs { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--p-lx-line-strong); }
+.lx-req { padding: var(--lx-space-5) 0; }
 .lx-req + .lx-req { border-top: 1px solid var(--p-lx-line); }
-.lx-req-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.lx-ref { flex: none; font-size: 13px; line-height: 20px; font-weight: 500; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums; }
-.lx-req-title { flex: 1; min-width: 12rem; margin: 0; font-size: 15px; line-height: 24px; font-weight: 600; }
+.lx-req-head { display: flex; align-items: baseline; gap: var(--lx-space-3); flex-wrap: wrap; }
+.lx-ref { flex: none; min-width: 40px; font-size: 13px; line-height: 20px; font-weight: 500; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums; }
+.lx-req-title { flex: 1; min-width: 12rem; font-size: 15px; line-height: 24px; font-weight: 600; letter-spacing: -0.004em; }
 .lx-req-status { flex: none; align-self: center; }
 .lx-quote {
-  margin: 12px 0 0; padding-left: 16px; border-left: 2px solid var(--p-lx-line);
+  margin: var(--lx-space-3) 0 0; padding-left: var(--lx-space-4); border-left: 2px solid var(--p-lx-line-strong);
   font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px;
 }
-.lx-cite { margin-top: 6px; font-size: 13px; line-height: 20px; color: var(--p-lx-ink-2); }
+.lx-cite { margin-top: var(--lx-space-2); font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
 .lx-quote + .lx-cite { padding-left: 18px; }
-.lx-note { margin-top: 8px; font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; }
-.lx-note-label { font-family: var(--lx-font-sans); font-size: 12px; font-weight: 500; color: var(--p-lx-ink-2); margin-right: 6px; }
+.lx-note { margin-top: var(--lx-space-3); font-family: var(--lx-font-serif); font-size: 16px; line-height: 26px; }
+.lx-note .lx-meta { font-family: var(--lx-font-sans); margin-right: var(--lx-space-2); }
 
-.lx-skeleton { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
-.lx-skeleton.lx-sheet { margin-top: 0; }
+lx-skeleton-rows { margin-top: var(--lx-space-3); }
+.lx-sheet-skeleton { margin-top: 0; }
 
 @media (max-width: 640px) {
-  .lx-sheet { padding: 24px 20px 28px; }
-  .lx-sheet-head { flex-direction: column-reverse; gap: 16px; }
+  /* The actions take the row under the title and share each line they wrap onto, so every line ends flush right. */
+  .lx-title-actions { flex: 1 1 100%; }
+  .lx-title-actions > .p-button { flex: 1 1 auto; }
+  .lx-sheet { padding: var(--lx-space-5) 20px var(--lx-space-6); }
+  .lx-sheet-head { flex-direction: column-reverse; gap: var(--lx-space-4); }
   .lx-signature { grid-template-columns: minmax(0, 1fr); }
 }

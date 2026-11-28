@@ -2,9 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorArrowCounterClockwise, phosphorKey, phosphorProhibit, phosphorUserGear } from '@ng-icons/phosphor-icons/regular';
 import { ConfirmationService, MenuItem, MessageService } from 'primeng/api';
-import { Avatar } from 'primeng/avatar';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { IconField } from 'primeng/iconfield';
@@ -13,7 +11,6 @@ import { InputText } from 'primeng/inputtext';
 import { Menu } from 'primeng/menu';
 import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
-import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
@@ -22,19 +19,15 @@ import { Account, Role } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import type { IconName } from '../../theme/icons';
 import { Help, HelpTerm } from '../../ui/help';
-import { initials } from '../../ui/initials';
 import { Label } from '../../ui/label';
+import { SkeletonRows } from '../../ui/skeleton-rows';
 import { PEOPLE_TOKENS } from './people-theme';
 import {
   NO_PEOPLE_QUERY, PERSON_STATUS, PeopleQuery, PersonAction, ROLES, ROLE_DESCRIPTION, ROLE_OPTIONS, STATUS_OPTIONS, filterPeople, filtered, peopleCount,
   personActions, personStatus, upsert,
 } from './people-view';
 import { PersonDialog } from './person-dialog';
-
-/** The icons People shows beyond SHELL_ICONS, its dialogs included, provided by its route (people.routes.ts). */
-export const PEOPLE_ICONS = { phosphorArrowCounterClockwise, phosphorKey, phosphorProhibit, phosphorUserGear };
 
 /** People's definitions, behind its one Help button: how accounts work, then what each role may do. */
 const HELP: readonly HelpTerm[] = [
@@ -48,11 +41,12 @@ type Pending =
   | { readonly kind: 'role'; readonly account: Account }
   | { readonly kind: 'access'; readonly account: Account; readonly active: boolean };
 
-const ACTION_MENU: Record<PersonAction, { label: string; icon: IconName }> = {
-  'role': { label: 'Change role', icon: 'phosphorUserGear' },
-  'deactivate': { label: 'Deactivate', icon: 'phosphorProhibit' },
-  'reactivate': { label: 'Reactivate', icon: 'phosphorArrowCounterClockwise' },
-  'setup-code': { label: 'New setup code', icon: 'phosphorKey' },
+/** The row menu's entries: verbs only. */
+const ACTION_LABEL: Record<PersonAction, string> = {
+  'role': 'Change role',
+  'deactivate': 'Deactivate',
+  'reactivate': 'Reactivate',
+  'setup-code': 'New setup code',
 };
 
 /**
@@ -63,8 +57,8 @@ const ACTION_MENU: Record<PersonAction, { label: string; icon: IconName }> = {
 @Component({
   selector: 'lx-people',
   imports: [
-    DatePipe, FormsModule, NgIcon, Avatar, ButtonDirective, ButtonLabel, ConfirmDialog, IconField, InputIcon, InputText, Menu, Message, Select, Skeleton,
-    TableModule, Help, Label, PersonDialog,
+    DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, ConfirmDialog, IconField, InputIcon, InputText, Menu, Message, Select, TableModule,
+    Help, Label, PersonDialog, SkeletonRows,
   ],
   providers: [ConfirmationService],
   templateUrl: './people.html',
@@ -79,7 +73,6 @@ export class People {
 
   readonly roleOptions = ROLE_OPTIONS;
   readonly statusOptions = STATUS_OPTIONS;
-  readonly initials = initials;
 
   readonly accounts = signal<Account[] | null>(null);
   readonly error = signal<string | null>(null);
@@ -135,7 +128,7 @@ export class People {
 
   openMenu(event: Event, account: Account): void {
     this.menuItems.set(personActions(account, this.selfId()).map((action): MenuItem => ({
-      id: action, label: ACTION_MENU[action].label, icon: ACTION_MENU[action].icon, command: () => this.run(action, account),
+      id: action, label: ACTION_LABEL[action], command: () => this.run(action, account),
     })));
     this.menuFor.set(account.id);
     this.menu().toggle(event);

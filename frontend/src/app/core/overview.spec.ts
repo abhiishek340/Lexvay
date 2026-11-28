@@ -11,7 +11,7 @@ const assessment: AssessmentView = {
   ],
 };
 const signed: Determination = { id: 'd', programId: 'p', jurisdiction: 'CA', ruleVersionId: 'r', ruleVersionLabel: 'Demo', assessmentId: 'a', outcome: 'MEETS',
-  signedBy: 'u', signedByName: 'Dana', signedAt: '', status: 'SIGNED', versionsHash: 'h', courseVersionIds: [] };
+  signedBy: 'u', signedByName: 'Dana', signedAt: '', status: 'SIGNED', versionsHash: 'h', courseVersionIds: [], latestReadyReportId: null, latestReadyReportAt: null };
 
 describe('overview counts', () => {
   it('sums requirements and waiting-for-review across jurisdictions', () => {

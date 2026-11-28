@@ -10,18 +10,19 @@
 :host ::ng-deep .p-inputicon { pointer-events: auto; }
 
 /* Strength: one bar that fills by quarters, with its word; the colour always travels with the word. */
-.lx-strength { display: flex; align-items: center; gap: 12px; margin-top: 4px; min-height: 20px; }
+.lx-strength { display: flex; align-items: center; gap: var(--lx-space-3); margin-top: var(--lx-space-1); min-height: 20px; }
 .lx-meter { flex: 1; }
-.lx-strength-label { min-width: 5em; text-align: right; font-size: 13px; line-height: 20px; font-weight: 500; color: var(--p-lx-ink-2); }
+.lx-strength-label { min-width: 5em; text-align: right; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); }
 .lx-strength-label[data-level='1'] { color: var(--p-lx-missing); }
 .lx-strength-label[data-level='2'] { color: var(--p-lx-ink-2); }
 .lx-strength-label[data-level='3'], .lx-strength-label[data-level='4'] { color: var(--p-lx-found); }
 
-/* The rules as a checklist: an empty circle until a rule holds, then a check in the found colour. */
-.lx-rules { list-style: none; margin: -4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 20px; color: var(--p-lx-ink-2); }
-.lx-rules li { display: flex; align-items: center; gap: 8px; transition: color var(--lx-t) var(--lx-ease); }
+/* The rules as a checklist in UI type: an empty circle until a rule holds, then a check in the found colour. */
+.lx-rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--lx-space-1); font-size: 13px; line-height: 20px; color: var(--p-lx-ink-2); }
+.lx-rules li { display: flex; align-items: center; gap: var(--lx-space-2); transition: color var(--lx-t) var(--lx-ease); }
 .lx-rules li.lx-met { color: var(--p-lx-ink); }
 .lx-rules li.lx-met ng-icon { color: var(--p-lx-found); }
 .lx-rules ng-icon { flex: none; transition: color var(--lx-t) var(--lx-ease); }
 
-.lx-invalid { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.lx-invalid { display: flex; flex-direction: column; align-items: flex-start; gap: var(--lx-space-3); }
+.lx-invalid a { margin-top: var(--lx-space-3); }

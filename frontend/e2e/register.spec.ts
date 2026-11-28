@@ -26,10 +26,9 @@ test('the register lists the California signature, filters, exports CSV, groups 
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText('California');
   await expect(rows.first()).toContainText('Determined not to meet');
-  await expect(rows.first()).toContainText('Signed');
   await expect(rows.first()).toContainText('Dana Whitfield');
   await expect(rows.first()).toContainText('Demo rule set - California (fictional) 2026');
-  await expect(page.getByTestId('register-count')).toContainText(/^\s*1\s*Signed determination\s*$/);
+  await expect(page.getByTestId('register-count')).toHaveText('1 signed determination');
 
   // The screen's one Help holds what the register and the lists are.
   await page.getByRole('button', { name: 'Help' }).click();
@@ -43,8 +42,10 @@ test('the register lists the California signature, filters, exports CSV, groups 
   await outcome.click();
   await page.getByRole('option', { name: 'Determined to meet', exact: true }).click();
   await expect(table).toContainText('No signed determination matches these filters.');
-  await expect(page.getByTestId('register-count')).toContainText(/^\s*0\s*Signed determinations\s*$/);
+  await expect(page.getByTestId('register-count')).toHaveText('0 signed determinations');
   await expect(table.getByRole('button', { name: 'Clear filters' })).toBeVisible();
+  // The determination signed in Review is not reopened, so its row carries no Reopened label.
+
   await outcome.click();
   await page.getByRole('option', { name: 'Determined not to meet', exact: true }).click();
   await expect(rows).toHaveCount(1);

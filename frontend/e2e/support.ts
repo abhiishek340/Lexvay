@@ -134,6 +134,11 @@ export async function switchUser(page: Page, email: string): Promise<void> {
 /** The seeded program's target states: Review names its state pills by their full names. */
 export const STATE: Record<string, string> = { AZ: 'Arizona', CA: 'California', CO: 'Colorado', TX: 'Texas', UT: 'Utah' };
 
+/** The rows of the Changes log, across its days. */
+export function changeRows(page: Page) {
+  return page.getByRole('main').getByRole('listitem');
+}
+
 /** A state pill in Review's header (a tab named by the state's full name). */
 export function stateTab(page: Page, code: string) {
   return page.getByRole('tab', { name: STATE[code], exact: true });
@@ -145,9 +150,11 @@ export function nav(page: Page, name: string) {
 
 /**
  * Opens a screen from the rail, or, in the bottom tab bar under 640 px where it may not fit, from the "More" menu
- * (shell tabBarOverflow).
+ * (shell tabBarOverflow). Right after a viewport change the shell moves its links on the next frames, so it waits two
+ * frames before asking where the link is.
  */
 export async function goTo(page: Page, name: string): Promise<void> {
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const link = nav(page, name);
   if (await link.isVisible()) {
     await link.click();

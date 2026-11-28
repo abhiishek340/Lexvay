@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AuditEntry, UserSummary } from '../../core/models';
 import {
-  ACTION_OPTIONS, NO_QUERY, RECORD_TYPE_OPTIONS, auditCsvUrl, auditParams, auditRows, detailRows, groupByDay, periodStart, personOptions,
+  ACTION_OPTIONS, NO_QUERY, RECORD_TYPE_OPTIONS, auditCsvUrl, auditParams, auditRows, detailRows, periodStart, personOptions, verificationView,
 } from './audit-view';
 
 const users: UserSummary[] = [
@@ -27,10 +27,8 @@ const entries = [
 describe('audit rows', () => {
   const rows = auditRows(entries, users, names);
 
-  it('resolves actors to names with initials; background work is System, unknown ids a former user', () => {
-    expect(rows.map((r) => [r.actor, r.actorKind, r.initials])).toEqual([
-      ['Dana Whitfield', 'person', 'DW'], ['Dr. Priya Raman', 'person', 'PR'], ['System', 'system', ''], ['Former user', 'former', ''],
-    ]);
+  it('resolves actors to names; background work is System, unknown ids a former user', () => {
+    expect(rows.map((r) => r.actor)).toEqual(['Dana Whitfield', 'Dr. Priya Raman', 'System', 'Former user']);
   });
 
   it('names the person on a sign-out, recorded with its actor since FIX-5 or without one before, never "System"', () => {
@@ -39,14 +37,14 @@ describe('audit rows', () => {
       { ...entry('6', 'LOGOUT', 'app_user', at(26, 12), null), entityId: 'u2' },
       entry('7', 'REPORT_GENERATED', 'report', at(26, 12), null),
     ], users, names);
-    expect([recorded.actor, recorded.actorKind, recorded.sentence]).toEqual(['Dana Whitfield', 'person', 'Dana Whitfield signed out']);
-    expect([legacy.actor, legacy.actorKind, legacy.sentence]).toEqual(['Dr. Priya Raman', 'person', 'Dr. Priya Raman signed out']);
+    expect([recorded.actor, recorded.sentence]).toEqual(['Dana Whitfield', 'Dana Whitfield signed out']);
+    expect([legacy.actor, legacy.sentence]).toEqual(['Dr. Priya Raman', 'Dr. Priya Raman signed out']);
     expect(job.actor).toBe('System');
   });
 
   it('does not borrow an account for other actions recorded without a user', () => {
     const [signIn] = auditRows([{ ...entry('8', 'LOGIN_SUCCEEDED', 'app_user', at(27, 12), null), entityId: 'u1' }], users, names);
-    expect([signIn.actor, signIn.actorKind]).toEqual(['System', 'system']);
+    expect(signIn.actor).toBe('System');
   });
 
   it('carries one sentence per entry and the record type in words', () => {
@@ -96,25 +94,6 @@ describe('detail rows', () => {
   });
 });
 
-describe('timeline grouping', () => {
-  const rows = auditRows(entries, users, names);
-
-  it('groups by local day in the order given, naming today and yesterday', () => {
-    const groups = groupByDay(rows, new Date(2026, 10, 27, 15, 0));
-    expect(groups.map((g) => [g.key, g.label, g.rows.map((r) => r.id)])).toEqual([
-      ['2026-11-27', 'Today', ['1', '2']],
-      ['2026-11-26', 'Yesterday', ['3']],
-      ['2026-11-20', 'Friday 20 November', ['4']],
-    ]);
-  });
-
-  it('adds the year to a day of another year', () => {
-    const [group] = groupByDay(rows.slice(3), new Date(2027, 0, 2, 9, 0));
-    expect(group.label).toBe('Friday 20 November 2026');
-    expect(groupByDay([], new Date())).toEqual([]);
-  });
-});
-
 describe('server-side filters', () => {
   const now = new Date(2026, 10, 27, 15, 30);
 
@@ -138,5 +117,26 @@ describe('server-side filters', () => {
     expect(ACTION_OPTIONS.find((o) => o.value === 'REVIEW_RECORDED')?.label).toBe('Review decision recorded');
     expect(RECORD_TYPE_OPTIONS.map((o) => o.label)).toEqual([...RECORD_TYPE_OPTIONS.map((o) => o.label)].sort((a, b) => a.localeCompare(b)));
     expect(personOptions(users).map((o) => o.label)).toEqual(['Dana Whitfield', 'Dr. Priya Raman']);
+  });
+});
+
+describe('verification', () => {
+  const sealed = {
+    sealed: 1204, pending: 3, intact: true, firstBrokenSeq: null, firstBrokenReason: null, lastSealedAt: '2026-11-28T09:00:00Z', headHash: 'ab'.repeat(32),
+  };
+
+  it('says an intact chain in one sentence, with the head hash shortened', () => {
+    expect(verificationView(sealed)).toEqual({ sentence: 'Intact: 1,204 entries sealed, 3 pending', intact: true, head: { hash: 'ab'.repeat(32), short: 'ab'.repeat(8) } });
+    expect(verificationView({ ...sealed, sealed: 1, pending: 0 }).sentence).toBe('Intact: 1 entry sealed, 0 pending');
+  });
+
+  it('names the first broken seal and its reason', () => {
+    expect(verificationView({ ...sealed, intact: false, firstBrokenSeq: 57, firstBrokenReason: 'the row hash does not match' }))
+      .toMatchObject({ sentence: 'Broken at entry 57: the row hash does not match', intact: false });
+  });
+
+  it('says nothing is sealed yet, without a head hash', () => {
+    expect(verificationView({ ...sealed, sealed: 0, pending: 12, lastSealedAt: null, headHash: null }))
+      .toEqual({ sentence: 'Nothing sealed yet: 12 pending', intact: true, head: null });
   });
 });

@@ -1,4 +1,5 @@
-import { ADMIN, DANA, JORDAN, SCREENSHOTS, apiPost, citedRequirement, expect, goTo, nav, openRequirement, programIdFromUrl, shoot, signIn, stateTab, switchUser, test } from './support';
+import { readFileSync } from 'node:fs';
+import { ADMIN, DANA, JORDAN, SCREENSHOTS, apiPost, changeRows, citedRequirement, expect, goTo, nav, openRequirement, programIdFromUrl, shoot, signIn, stateTab, switchUser, test } from './support';
 
 /**
  * Screenshots of every screen in both themes for docs/screens. Not part of the regular suite:
@@ -65,15 +66,14 @@ test('screenshots of every screen in light and dark', async ({ page }) => {
   await shoot(page, 'review-provided-evidence');
 
   await goTo(page, 'Changes');
-  await expect(page.getByRole('list', { name: 'Change events' })).toBeVisible();
+  await expect(changeRows(page).first()).toBeVisible();
   await shoot(page, 'changes');
 
   await goTo(page, 'Evidence report');
   await expect(page.getByRole('list', { name: /requirements?$/ })).toBeVisible();
   await shoot(page, 'evidence-report');
   // After the review suite has signed California, its report carries the seal.
-  await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
-  await page.getByRole('option', { name: 'California (CA)' }).click();
+  await stateTab(page, 'CA').click();
   await expect(page.getByRole('img', { name: /^Signed by / })).toBeVisible();
   await shoot(page, 'evidence-report-ca');
 
@@ -178,7 +178,7 @@ test('UI3-0: the starting point of every other screen', async ({ page }) => {
   await shoot(page, 'ui3-0-before-requests');
 
   await nav(page, 'Changes').click();
-  await expect(page.getByRole('list', { name: 'Change events' })).toBeVisible();
+  await expect(changeRows(page).first()).toBeVisible();
   await shoot(page, 'ui3-0-before-changes');
 
   await nav(page, 'Rules').click();
@@ -190,8 +190,7 @@ test('UI3-0: the starting point of every other screen', async ({ page }) => {
   await shoot(page, 'ui3-0-before-program-setup');
 
   await nav(page, 'Evidence report').click();
-  await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
-  await page.getByRole('option', { name: 'California (CA)' }).click();
+  await stateTab(page, 'CA').click();
   await expect(page.getByRole('img', { name: /^Signed by / })).toBeVisible();
   await shoot(page, 'ui3-0-before-report');
 
@@ -268,30 +267,78 @@ test('UI2-2: Review, a decided requirement, the gap note and the signing dialog 
   }
 });
 
-/** UI2-3: Changes, the audit trail and the evidence report (draft and signed), at 1440 and 400 px. */
-test('screenshots of changes, the audit trail and the evidence report at 1440 and 400 px', async ({ page }) => {
+/**
+ * UI3-2: Changes, the audit trail, the evidence report (draft, signed, the package being prepared, the check dialog with
+ * a match), the register (both tabs), People and the setup page, at 1440 and 400 px. California is signed by the
+ * review suite. Package status answers are held back while the "Preparing package…" capture is taken.
+ */
+test('UI3-2: changes, audit trail, report, register, people and setup in design v3 at 1440 and 400 px', async ({ page }) => {
   await signIn(page, ADMIN);
   for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await page.setViewportSize({ width, height });
     await goTo(page, 'Changes');
-    const changes = page.getByRole('list', { name: 'Change events' });
-    await expect(changes.getByRole('listitem').first()).toBeVisible();
-    await changes.getByRole('button', { name: 'Details' }).first().click();
-    await shoot(page, `ui2-3-changes-${width}`);
+    await changeRows(page).first().getByRole('button', { name: / changed from / }).click();
+    await shoot(page, `ui3-2-changes-${width}`);
 
     await goTo(page, 'Audit trail');
     const entries = page.getByRole('main').getByRole('listitem');
     await expect(entries.nth(2)).toBeVisible();
     await entries.nth(1).getByRole('button').click();
-    await shoot(page, `ui2-3-audit-${width}`);
+    await page.locator('main').evaluate((main) => main.scrollTo(0, 0));
+    await shoot(page, `ui3-2-audit-${width}`);
+    await page.getByRole('button', { name: 'Verify', exact: true }).click();
+    await expect(page.getByTestId('verification')).toContainText(/^Intact: /);
+    await shoot(page, `ui3-2-audit-verified-${width}`);
 
     await goTo(page, 'Evidence report');
     await expect(page.getByRole('note', { name: 'Draft. Not a determination.' })).toBeVisible();
-    await shoot(page, `ui2-3-report-draft-${width}`);
-    await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
-    await page.getByRole('option', { name: 'California (CA)' }).click();
+    await shoot(page, `ui3-2-report-draft-${width}`);
+    await stateTab(page, 'CA').click();
     await expect(page.getByRole('img', { name: /^Signed by / })).toBeVisible();
-    await shoot(page, `ui2-3-report-signed-${width}`);
+    await expect(page.getByRole('list', { name: '8 requirements' })).toBeVisible();
+    await shoot(page, `ui3-2-report-signed-${width}`);
+
+    const pdf = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download PDF' }).click();
+    const report = { name: 'report.pdf', mimeType: 'application/pdf', buffer: readFileSync(await (await pdf).path()) };
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    await page.route('**/api/v1/packages/*', async (route) => { await held; await route.continue(); });
+    await page.getByRole('button', { name: 'Download evidence package' }).click();
+    await expect(page.getByRole('button', { name: 'Preparing package…' })).toBeDisabled();
+    await shoot(page, `ui3-2-report-package-${width}`);
+    const zip = page.waitForEvent('download');
+    release();
+    await zip;
+    await page.unroute('**/api/v1/packages/*');
+
+    await page.getByRole('button', { name: 'Check a file' }).click();
+    const check = page.getByRole('dialog', { name: 'Check a file' });
+    await expect(check.getByText('Drop a PDF here')).toBeVisible();
+    await shoot(page, `ui3-2-check-${width}`);
+    await check.locator('input[type=file]').setInputFiles(report);
+    await expect(check.getByTestId('check-result')).toHaveAttribute('data-result', 'signed');
+    await shoot(page, `ui3-2-check-match-${width}`);
+    await page.keyboard.press('Escape');
+
+    await goTo(page, 'Determination register');
+    await expect(page.getByRole('table', { name: 'Determination register' }).locator('tbody tr')).toHaveCount(1);
+    await shoot(page, `ui3-2-register-${width}`);
+    await page.getByRole('tab', { name: 'By program' }).click();
+    await expect(page.getByRole('region', { name: 'No determination made', exact: true })).toBeVisible();
+    await shoot(page, `ui3-2-register-by-program-${width}`);
+
+    await goTo(page, 'People');
+    await expect(page.getByRole('table', { name: 'People' }).locator('tbody tr').first()).toBeVisible();
+    await shoot(page, `ui3-2-people-${width}`);
+  }
+
+  await page.context().clearCookies();
+  for (const [width, height] of [[1440, 900], [400, 860]] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto('/setup#code=screenshot');
+    await page.getByLabel('New password', { exact: true }).fill('Granite river lantern');
+    await shoot(page, `ui3-2-setup-${width}`);
   }
 });
 

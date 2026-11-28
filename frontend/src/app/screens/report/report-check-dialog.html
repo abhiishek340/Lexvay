@@ -10,20 +10,20 @@
         }
         <h3 #headline class="lx-result-headline" [class.lx-quiet]="v.kind === 'reopened'" tabindex="-1">{{ v.headline }}</h3>
         @if (v.kind === 'signed') {
-          <ul class="lx-meta" aria-label="Report facts">
+          <ul class="lx-facts" aria-label="Report facts">
             <li>{{ v.place }}</li>
             <li>{{ v.signature }}</li>
             <li>{{ v.ruleVersion }}</li>
           </ul>
-          <a class="lx-open" [routerLink]="['/programs', v.report.programId, 'report']" [queryParams]="{ jurisdiction: v.report.jurisdiction }"
+          <a class="lx-row-action lx-open" [routerLink]="['/programs', v.report.programId, 'report']" [queryParams]="{ jurisdiction: v.report.jurisdiction }"
              (click)="open.set(false)">Open report</a>
         } @else if (v.kind === 'reopened') {
-          <ul class="lx-meta" aria-label="Report facts"><li>{{ v.place }}</li></ul>
+          <ul class="lx-facts" aria-label="Report facts"><li>{{ v.place }}</li></ul>
         } @else {
-          <p class="lx-meta">Any change to the file, even saving it again, changes its fingerprint.</p>
+          <p class="lx-facts">Any change to the file, even saving it again, changes its fingerprint.</p>
         }
         <p class="lx-fingerprint">
-          <span>SHA-256</span>
+          <span class="lx-meta">SHA-256</span>
           <span class="lx-mono" [attr.title]="v.fingerprint.sha256" data-testid="check-sha">{{ v.fingerprint.short }}</span>
           <button pButton type="button" [text]="true" severity="secondary" size="small" aria-label="Copy SHA-256" (click)="copy(v.fingerprint.sha256)">
             <ng-icon name="phosphorCopy" size="16" aria-hidden="true" />

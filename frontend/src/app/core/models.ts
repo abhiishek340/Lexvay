@@ -56,7 +56,9 @@ export interface Mapping { id: string; assessmentId: string; jurisdictionId: str
   responseCount: number; }
 export interface MappingsView { assessmentId: string; jurisdiction: string | null; mappings: Mapping[]; }
 
-export interface Determination { id: string; programId: string; jurisdiction: string; ruleVersionId: string; ruleVersionLabel: string; assessmentId: string; outcome: Outcome; signedBy: string; signedByName: string; signedAt: string; status: 'SIGNED' | 'REOPENED'; versionsHash: string; courseVersionIds: string[]; }
+export interface Determination { id: string; programId: string; jurisdiction: string; ruleVersionId: string; ruleVersionLabel: string; assessmentId: string; outcome: Outcome; signedBy: string; signedByName: string; signedAt: string; status: 'SIGNED' | 'REOPENED'; versionsHash: string; courseVersionIds: string[];
+  /** Its newest READY evidence report, null until one has been generated (D-515). */
+  latestReadyReportId: string | null; latestReadyReportAt: string | null; }
 export type DeterminationStatus = Determination['status'];
 
 /** GET /determinations/register: one signed determination exactly as signed (F8). */
@@ -91,6 +93,11 @@ export interface ChangeEvent {
   reopenedDeterminationIds: string[];
 }
 export interface ReportStatusView { id: string; determinationId: string; status: 'QUEUED' | 'READY' | 'FAILED'; }
+/** GET /packages/{id}: the evidence package of a signed determination, built by a job (F15); `error` only when it failed. */
+export interface EvidencePackageView {
+  id: string; determinationId: string; status: 'QUEUED' | 'READY' | 'FAILED'; sizeBytes: number | null; sha256: string | null;
+  createdAt: string; error: string | null;
+}
 /** The report a checked file is exactly, and its determination as it stands now (POST /reports/check, F14). */
 export interface ReportCheckMatch {
   reportId: string; generatedAt: string; determinationId: string; programId: string; programName: string; jurisdictionCode: string;
@@ -99,6 +106,14 @@ export interface ReportCheckMatch {
 }
 export interface ReportCheck { match: boolean; sha256: string; matchDetails: ReportCheckMatch | null; }
 export interface AuditEntry { id: string; userId: string | null; action: string; entityType: string; entityId: string | null; detail: Record<string, unknown>; createdAt: string; }
+/**
+ * GET /audit/verify (SEC-3): a walk over the tenant's seals. `pending` entries are written but not sealed yet; when
+ * `intact` is false the first broken seal is named; nothing sealed gives a null `lastSealedAt` and `headHash`.
+ */
+export interface AuditVerification {
+  sealed: number; pending: number; intact: boolean; firstBrokenSeq: number | null; firstBrokenReason: string | null;
+  lastSealedAt: string | null; headHash: string | null;
+}
 export type JobStatus = 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED';
 /** Where a rule version stands in law; a person records it with the source of its dates, nothing derives it from a fetch. */
 export type LegalStatus = 'PROPOSED' | 'FINAL_NOT_EFFECTIVE' | 'IN_FORCE' | 'SUPERSEDED' | 'REPEALED' | 'WITHDRAWN' | 'UNKNOWN';

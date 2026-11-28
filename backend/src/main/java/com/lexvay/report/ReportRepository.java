@@ -66,9 +66,18 @@ public class ReportRepository {
     }
 
     /** The report that is current for a determination: the newest one whose PDF exists. */
+    /**
+     * The newest READY report of a determination ({@code determinationId} is an SQL expression: a bind parameter or the
+     * column of the row it is read for), with the given columns: one row or none. The single definition behind
+     * {@link #findLatestReady} (F15's package) and the determination read model's latest ready report (D-515).
+     */
+    public static String latestReady(String determinationId, String columns) {
+        return "SELECT " + columns + " FROM report WHERE determination_id = " + determinationId
+                + " AND status = 'READY' ORDER BY created_at DESC, id DESC LIMIT 1";
+    }
+
     public Optional<Report> findLatestReady(UUID determinationId) {
-        return jdbc.sql("SELECT id, determination_id, storage_key, status, created_at, created_by FROM report "
-                        + "WHERE determination_id = :d AND status = 'READY' ORDER BY created_at DESC, id DESC LIMIT 1")
+        return jdbc.sql(latestReady(":d", "id, determination_id, storage_key, status, created_at, created_by"))
                 .param("d", determinationId).query(ROW).optional();
     }
 
