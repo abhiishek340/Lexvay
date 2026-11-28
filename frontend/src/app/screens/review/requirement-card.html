@@ -10,7 +10,7 @@
     @if (ruleVersion(); as rv) {
       <figcaption class="lx-rule-source">
         <span>{{ rv.label }}</span>
-        <span>Effective {{ rv.effectiveFrom | date: 'd MMMM y' }}</span>
+        @if (rv.effectiveFrom) { <span>Effective {{ rv.effectiveFrom | date: 'd MMMM y' }}</span> }
         <a [href]="rv.sourceUrl" target="_blank" rel="noopener noreferrer" class="lx-inline">Source<ng-icon name="phosphorArrowSquareOut" size="12" aria-hidden="true" /><span class="lx-sr-only">(opens in a new tab)</span></a>
       </figcaption>
     }

@@ -11,12 +11,13 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
-import { comparableVersions } from '../../core/rules';
+import { comparableVersions, effectiveText } from '../../core/rules';
 import { InfoTip } from '../../ui/info-tip';
-import { FieldProblems, MAX_RULE_TEXT, RuleVersionField, RuleVersionForm, emptyForm, formProblems, problemField, toNewRuleVersion } from './rule-version-form';
+import { LEGAL_STATUS_LABEL } from '../../core/labels';
+import { ENTERABLE_STATUSES, FieldProblems, MAX_RULE_TEXT, RuleVersionField, RuleVersionForm, emptyForm, formProblems, problemField, toNewRuleVersion } from './rule-version-form';
 
 /** The order fields are checked in, which is also the order focus goes to the first one with a problem. */
-const FIELD_ORDER: RuleVersionField[] = ['jurisdiction', 'licenseType', 'label', 'sourceUrl', 'effectiveFrom', 'supersedesId', 'text'];
+const FIELD_ORDER: RuleVersionField[] = ['jurisdiction', 'licenseType', 'label', 'sourceUrl', 'legalStatus', 'effectiveFrom', 'datesBasis', 'supersedesId', 'text'];
 
 /** "New rule version": a contributor enters the rule text; the server stores it and queues extraction (202). */
 @Component({
@@ -36,6 +37,8 @@ export class NewRuleVersionDialog {
   readonly closed = output<void>();
 
   readonly max = MAX_RULE_TEXT;
+  /** What a person entering a version can state: a rule that is still proposed, final, or in force. */
+  readonly legalStatuses = ENTERABLE_STATUSES.map((value) => ({ value, label: LEGAL_STATUS_LABEL[value] }));
   readonly form = signal<RuleVersionForm>(emptyForm(''));
   readonly problems = signal<FieldProblems>({});
   readonly general = signal<string | null>(null);
@@ -45,7 +48,7 @@ export class NewRuleVersionDialog {
   readonly supersedable = computed(() => {
     const f = this.form();
     return f.jurisdiction
-      ? comparableVersions(this.context.ruleVersions(), f.jurisdiction, f.licenseType.trim(), null).map((v) => ({ id: v.id, label: `${v.label} (effective ${v.effectiveFrom})` }))
+      ? comparableVersions(this.context.ruleVersions(), f.jurisdiction, f.licenseType.trim(), null).map((v) => ({ id: v.id, label: `${v.label} (effective ${effectiveText(v)})` }))
       : [];
   });
   readonly textCount = computed(() => this.form().text.length.toLocaleString('en-US').replace(/,/g, ' '));

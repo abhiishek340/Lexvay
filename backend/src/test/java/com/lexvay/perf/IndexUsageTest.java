@@ -380,6 +380,11 @@ class IndexUsageTest extends AbstractDatabaseTest {
                                 + ruleVersion + "', '" + otherRuleVersion + "') ORDER BY entity_id, created_at DESC"),
                 Candidate.eitherOf("job_claim_idx", "job_entity_idx", "is a check of a rule source already queued (manual check: the queued jobs of V001 or the one source of V013)",
                         RuleSourceRepository.ENQUEUE.formatted("rs.id = '" + ruleSource + "'").replace(":createdBy", "NULL")),
+                new Candidate("rule_version_status_latest_idx", "the current legal status of a rule version (rule_version_current, V021)",
+                        "SELECT legal_status, effective_from FROM rule_version_current WHERE id = '" + ruleVersion + "'"),
+                new Candidate("rule_source_check_queued_idx", "the changes queued behind each rule version of the list (V021)",
+                        "SELECT rule_version_id, id, checked_at FROM rule_source_check WHERE outcome = 'CHANGED_QUEUED' "
+                                + "AND rule_version_id IN ('" + ruleVersion + "', '" + otherRuleVersion + "') ORDER BY checked_at, id"),
                 new Candidate("requirement_ordinal_key", "requirements of a rule version (existing unique index, so V008 adds none)",
                         "SELECT id FROM requirement WHERE rule_version_id = '" + ruleVersion + "' ORDER BY ordinal"),
                 new Candidate(REPORT_CHECK_INDEX, "the report with the content of a checked file (V018)", reportCheck(reportHash)));

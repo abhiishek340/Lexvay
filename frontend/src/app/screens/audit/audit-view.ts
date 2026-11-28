@@ -1,5 +1,5 @@
-import { DECISION_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, ROLE_LABEL, humanize } from '../../core/labels';
-import { AuditEntry, DecisionKind, NumericField, Outcome, Role, UserSummary } from '../../core/models';
+import { DECISION_LABEL, LEGAL_STATUS_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, ROLE_LABEL, humanize } from '../../core/labels';
+import { AuditEntry, DecisionKind, LegalStatus, NumericField, Outcome, Role, UserSummary } from '../../core/models';
 import { initials } from '../../ui/initials';
 import { ACTION_LABEL, auditSentence, capitalize } from './audit-sentence';
 
@@ -88,6 +88,14 @@ const DETAIL_KEYS: Record<string, DetailKey> = {
   value: { label: 'Value' },
   licenseType: { label: 'License', format: (v) => capitalize(humanize(String(v))) },
   effectiveFrom: { label: 'Effective from' },
+  effectiveTo: { label: 'Effective until' },
+  publishedAt: { label: 'Published' },
+  adoptedAt: { label: 'Adopted' },
+  datesBasis: { label: 'Source of the dates' },
+  observedAt: { label: 'Text observed' },
+  legalStatus: { label: 'Legal status', format: (v) => LEGAL_STATUS_LABEL[v as LegalStatus] ?? capitalize(humanize(String(v))) },
+  previousLegalStatus: { label: 'Before', format: (v) => LEGAL_STATUS_LABEL[v as LegalStatus] ?? capitalize(humanize(String(v))) },
+  assessmentAsOf: { label: 'Assessed as of' },
   jurisdictions: { label: 'Jurisdictions', format: (v) => (Array.isArray(v) ? v.join(', ') : String(v)) },
   requirementCount: { label: 'Requirements' },
   before: { label: 'Before', format: listOf('requirement') },

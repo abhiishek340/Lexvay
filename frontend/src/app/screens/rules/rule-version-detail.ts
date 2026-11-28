@@ -4,7 +4,7 @@ import { NgIcon } from '@ng-icons/core';
 import { Message } from 'primeng/message';
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
 import { Tag } from 'primeng/tag';
-import { licenseLabel } from '../../core/labels';
+import { LEGAL_STATUS_LABEL, licenseLabel } from '../../core/labels';
 import { RuleVersionView, UserSummary } from '../../core/models';
 import { ProgramContext } from '../../core/program-context';
 import { ruleVersionStatus } from '../../core/rules';
@@ -40,6 +40,7 @@ export class RuleVersionDetail {
   readonly statusView = computed(() => RULE_STATUS[this.status()]);
   readonly jurisdictionName = computed(() => this.context.jurisdictionName(this.version().jurisdiction));
   readonly license = computed(() => licenseLabel(this.version()));
+  readonly legalStatus = computed(() => LEGAL_STATUS_LABEL[this.version().legalStatus]);
   readonly approverName = computed(() => {
     const approval = this.version().approval;
     return approval ? (this.users().find((u) => u.id === approval.by)?.displayName ?? 'a former user') : null;
