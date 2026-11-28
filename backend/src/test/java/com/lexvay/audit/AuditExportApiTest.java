@@ -8,6 +8,7 @@ import com.lexvay.auth.LexvayUser;
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
 import com.lexvay.common.TestTenants;
+import com.lexvay.tenant.DataMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -93,13 +94,25 @@ class AuditExportApiTest extends AbstractDatabaseTest {
     private List<List<String>> rows(MvcTestResult result) throws Exception {
         assertThat(result).hasStatus(200);
         List<List<String>> records = parse(result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
-        assertThat(records.get(0)).isEqualTo(HEADER);
-        return records.subList(1, records.size());
+        assertThat(records.get(0)).as("a DEMO tenant's file says first that its data is fictional").containsExactly("Fictional demo data");
+        assertThat(records.get(1)).isEqualTo(HEADER);
+        return records.subList(2, records.size());
     }
 
     private List<AuditEntry> exportsOf() {
         return TenantContext.runAs(t.tenantId(), () -> repository.newestFirst(
                 new AuditFilter("AUDIT_EXPORTED", null, null, null, null, null), 100, 0));
+    }
+
+    @Test
+    void aTenantWithRealDataGetsTheFileWithoutTheDemoNotice() throws Exception {
+        var live = tenants.create("auditexport-live", DataMode.LIVE);
+
+        var result = export(live.admin(), "");
+
+        assertThat(result).hasStatus(200);
+        List<List<String>> records = parse(result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(records.get(0)).isEqualTo(HEADER);
     }
 
     @Test

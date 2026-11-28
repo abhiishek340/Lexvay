@@ -11,6 +11,7 @@ import com.lexvay.audit.AuditRepository;
 import com.lexvay.common.TenantContext;
 import com.lexvay.determination.VersionsHash;
 import com.lexvay.review.ReviewFixtures;
+import com.lexvay.tenant.DataMode;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -248,19 +249,20 @@ class RegisterApiTest extends AbstractAssessmentTest {
                 .isEqualTo("attachment; filename=\"lexvay-determination-register-" + LocalDate.now(ZoneOffset.UTC) + ".csv\"");
         String csv = new String(result.getResponse().getContentAsByteArray(), StandardCharsets.UTF_8);
         String[] lines = csv.split("\r\n", -1);
-        assertThat(lines).as("the header and four records, each ending with CRLF").hasSize(6);
-        assertThat(lines[5]).isEmpty();
-        assertThat(lines[0]).isEqualTo("\"Determination ID\",\"Program ID\",\"Program\",\"License type\",\"Catalog year\",\"Jurisdiction code\","
+        assertThat(lines).as("the demo notice, the header and four records, each ending with CRLF").hasSize(7);
+        assertThat(lines[6]).isEmpty();
+        assertThat(lines[0]).as("the tenant is a DEMO tenant, so the file says its data is fictional").isEqualTo("\"Fictional demo data\"");
+        assertThat(lines[1]).isEqualTo("\"Determination ID\",\"Program ID\",\"Program\",\"License type\",\"Catalog year\",\"Jurisdiction code\","
                 + "\"Jurisdiction\",\"Outcome\",\"Status\",\"Signed by (user ID)\",\"Signed by\",\"Signed at\",\"Rule version ID\","
                 + "\"Rule version\",\"Rule effective from\",\"Versions hash\",\"Assessment ID\",\"Course versions\"");
-        assertThat(lines[2]).startsWith("\"" + signed.get("CA") + "\",\"" + program + "\",\"M.S. Clinical Mental Health Counseling\",")
+        assertThat(lines[3]).startsWith("\"" + signed.get("CA") + "\",\"" + program + "\",\"M.S. Clinical Mental Health Counseling\",")
                 .contains(",\"CA\",\"California\",\"Determined to meet\",\"Signed\",\"" + t.signer().id() + "\",\""
                         + t.signer().displayName() + "\",")
                 .contains("\"2026-01-01\",\"" + VersionsHash.compute(ruleVersions.get("CA"), List.of(courseVersion)) + "\"")
                 .endsWith(",\"1\"");
-        assertThat(lines[3]).contains("\"Colorado\",\"Determined to meet\",\"Reopened\"");
-        assertThat(lines[1]).contains("\"No determination made\"");
-        assertThat(lines[4]).contains("\"Determined not to meet\"");
+        assertThat(lines[4]).contains("\"Colorado\",\"Determined to meet\",\"Reopened\"");
+        assertThat(lines[2]).contains("\"No determination made\"");
+        assertThat(lines[5]).contains("\"Determined not to meet\"");
 
         var entries = TenantContext.runAs(t.tenantId(), () -> audit.newestFirst(
                 new AuditFilter("REGISTER_EXPORTED", null, null, null, null, null), 10, 0));
@@ -273,6 +275,18 @@ class RegisterApiTest extends AbstractAssessmentTest {
     }
 
     @Test
+    void aTenantWithRealDataGetsTheFileWithoutTheDemoNotice() {
+        var live = tenants.create("register-live", DataMode.LIVE);
+
+        var csv = mvc.get().uri("/api/v1/determinations/register.csv").with(user(live.admin())).exchange();
+
+        assertThat(csv).hasStatus(200);
+        String[] lines = new String(csv.getResponse().getContentAsByteArray(), StandardCharsets.UTF_8).split("\r\n");
+        assertThat(lines).as("only the header").hasSize(1);
+        assertThat(lines[0]).startsWith("\"Determination ID\",");
+    }
+
+    @Test
     void anotherTenantSeesNothing() {
         var other = tenants.create("register-other");
         var register = mvc.get().uri("/api/v1/determinations/register?current=false").with(user(other.admin())).exchange();
@@ -281,6 +295,6 @@ class RegisterApiTest extends AbstractAssessmentTest {
         assertThat(mvc.get().uri("/api/v1/programs/" + program + "/determination-lists").with(user(other.admin())).exchange()).hasStatus(404);
         var csv = mvc.get().uri("/api/v1/determinations/register.csv").with(user(other.admin())).exchange();
         assertThat(csv).hasStatus(200);
-        assertThat(new String(csv.getResponse().getContentAsByteArray(), StandardCharsets.UTF_8).split("\r\n")).hasSize(1);
+        assertThat(new String(csv.getResponse().getContentAsByteArray(), StandardCharsets.UTF_8).split("\r\n")).as("the notice and the header").hasSize(2);
     }
 }
