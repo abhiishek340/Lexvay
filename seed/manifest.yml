@@ -25,10 +25,14 @@ tenants:
       - { code: COUN 650, title: Addictions Counseling, required: false, credits: 3, syllabus: coun650-syllabus.pdf }
       - { code: COUN 655, title: Psychopharmacology for Counselors, required: false, credits: 3, syllabus: coun655-syllabus.pdf }
       - { code: COUN 645, title: Marriage, Couple and Family Counseling, required: false, credits: 3 }   # no syllabus on purpose
-      - { code: COUN 660, title: Counseling Practicum and Internship, required: true, credits: 6 }   # no syllabus on purpose
-    # The graduation paths of catalog year 2026-27 (AC-1): every required course, and two of the three electives.
+      - { code: COUN 660, title: Counseling Practicum and Internship, required: true, credits: 9 }   # no syllabus on purpose
+      - { code: COUN 670, title: Counseling Capstone, required: true, credits: 6 }   # no syllabus on purpose
+      - { code: COUN 675, title: Advanced Clinical Internship, required: true, credits: 9 }   # no syllabus on purpose
+      - { code: COUN 680, title: Applied Research Project, required: true, credits: 6 }   # no syllabus on purpose
+    # Creating a course puts it in "Required courses" or "Electives" of the program's catalog year (AC-1, D-588). The degree plan
+    # makes students choose two of the three electives, so the seed replaces the electives group by one that says so. The courses
+    # add up to the 60 credits of the degree plan: 8 core courses of 3, 9 + 6 + 9 + 6 of clinical and capstone work, 2 electives of 3.
     pathwayGroups:
-      - { label: Required courses, kind: ALL_OF, courses: [COUN 605, COUN 610, COUN 615, COUN 620, COUN 625, COUN 630, COUN 635, COUN 640, COUN 660] }
       - { label: "Electives: choose 2 of 3", kind: CHOOSE_COUNT, minCount: 2, courses: [COUN 645, COUN 650, COUN 655] }
     documents:
       - { file: degree-plan.pdf, kind: DEGREE_PLAN }

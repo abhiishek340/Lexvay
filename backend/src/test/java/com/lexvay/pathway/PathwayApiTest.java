@@ -35,9 +35,10 @@ class PathwayApiTest extends AbstractAssessmentTest {
     void setUp() {
         programId = fx.program(t, List.of("CA"));
         for (String code : List.of("COUN 605", "COUN 610", "COUN 650", "COUN 655", "COUN 645")) {
-            fx.courseOnly(t, programId, code, code.compareTo("COUN 640") < 0, code.equals("COUN 610") ? "6" : "3");
+            fx.course(t, programId, code, code.compareTo("COUN 640") < 0, code.equals("COUN 610") ? "6" : "3");
         }
         course = fx.courseIds(t, programId);
+        fx.clearPathway(t, programId);
     }
 
     private List<UUID> ids(String... codes) {
@@ -142,7 +143,7 @@ class PathwayApiTest extends AbstractAssessmentTest {
     @Test
     void aGroupMustAgreeWithItsKindAndItsProgram() {
         UUID other = fx.program(t, List.of("TX"));
-        fx.courseOnly(t, other, "COUN 900", true, "3");
+        fx.course(t, other, "COUN 900", true, "3");
         UUID foreignCourse = fx.courseIds(t, other).get("COUN 900");
 
         assertBadRequest(fx.pathwayGroupResult(t, programId, "2026-27", "G", "ALL_OF", 1, null, ids("COUN 605"), null), "minCount belongs");
@@ -188,7 +189,7 @@ class PathwayApiTest extends AbstractAssessmentTest {
         assertThat(entries).filteredOn(e -> e.action().equals("PATHWAY_GROUP_RETIRED")).singleElement()
                 .satisfies(e -> assertThat(e.detail()).containsEntry("reason", "The handbook says two of the three").containsEntry("label", "Electives"));
         TenantContext.runAs(t.tenantId(), () -> {
-            assertThat(jdbc.sql("SELECT count(*) FROM pathway_group WHERE program_id = :p").param("p", programId).query(Long.class).single()).isEqualTo(2);
+            assertThat(jdbc.sql("SELECT count(*) FROM pathway_group WHERE id = :g").param("g", oldGroup).query(Long.class).single()).as("the retired group is still there").isEqualTo(1);
             assertThat(jdbc.sql("SELECT count(*) FROM pathway_group_course WHERE group_id = :g").param("g", oldGroup).query(Long.class).single()).isEqualTo(3);
             assertThat(jdbc.sql("SELECT reason FROM pathway_group_retirement WHERE group_id = :g").param("g", oldGroup).query(String.class).single())
                     .isEqualTo("The handbook says two of the three");
@@ -217,28 +218,95 @@ class PathwayApiTest extends AbstractAssessmentTest {
         assertThat(entries).filteredOn(e -> e.action().equals("COURSE_VERSION_ADDED")).singleElement()
                 .satisfies(e -> assertThat(e.detail()).containsEntry("credits", "4").containsEntry("creditUnit", "QUARTER"));
 
-        // The 2026-27 pathway still reads the credits of the 2026-27 version; there is no 2027-28 group yet.
+        // The 2026-27 pathway still reads the credits of the 2026-27 version. The new version put the course in the 2027-28 group.
         var year1 = pathway("?catalogYear=2026-27");
         assertThat(member(group(year1, "Required courses"), "COUN 605").get("credits").decimalValue()).isEqualByComparingTo("3");
         assertThat(year1.get("minimumCredits").decimalValue()).isEqualByComparingTo("9");
-        fx.pathwayGroup(t, programId, "2027-28", "Required courses", "ALL_OF", null, null, ids("COUN 605", "COUN 610"));
         var year2 = pathway("?catalogYear=2027-28");
         assertThat(member(group(year2, "Required courses"), "COUN 605").get("credits").decimalValue()).isEqualByComparingTo("4");
         assertThat(member(group(year2, "Required courses"), "COUN 605").get("creditUnit").asString()).isEqualTo("QUARTER");
-        assertThat(year2.get("minimumCredits").isNull()).isTrue();
-        assertThat(year2.get("unknowns").get(0).asString()).startsWith("credits are recorded in more than one unit");
+        assertThat(year2.get("minimumCredits").decimalValue()).isEqualByComparingTo("4");
+        assertThat(year2.get("minimumCreditsUnit").asString()).isEqualTo("QUARTER");
         assertThat(pathway("").get("catalogYear").asString()).isEqualTo("2026-27");
     }
 
     @Test
     void aCourseWithoutCreditsHasUnknownCreditsAndAUnitOfSemesters() {
-        fx.courseOnly(t, programId, "COUN 700", true, null);
+        fx.course(t, programId, "COUN 700", true, null);
         var courseId = fx.courseIds(t, programId).get("COUN 700");
+        fx.clearPathway(t, programId);
         fx.pathwayGroup(t, programId, "2026-27", "Required courses", "ALL_OF", null, null, List.of(courseId));
         var view = pathway("");
         assertThat(member(group(view, "Required courses"), "COUN 700").get("credits").isNull()).isTrue();
         assertThat(view.get("minimumCredits").isNull()).isTrue();
         assertThat(view.get("unknowns").get(0).asString()).isEqualTo("Required courses: credits not recorded for COUN 700");
+    }
+
+    @Test
+    void aNewCourseJoinsTheGroupItsFlagNamesAndTheGroupIsMadeWhenItIsMissing() {
+        UUID program = fx.program(t, List.of("CA"));
+        fx.course(t, program, "COUN 605", true, "3");
+        fx.course(t, program, "COUN 610", true, "3");
+        fx.course(t, program, "COUN 650", false, "3");
+
+        var view = fx.pathway(t, program);
+
+        assertThat(view.get("groups")).hasSize(2);
+        var required = group(view, "Required courses");
+        assertThat(required.get("kind").asString()).isEqualTo("ALL_OF");
+        assertThat(required.get("members")).extracting(m -> m.get("code").asString()).containsExactly("COUN 605", "COUN 610");
+        var electives = group(view, "Electives");
+        assertThat(electives.get("kind").asString()).isEqualTo("CHOOSE_COUNT");
+        assertThat(electives.get("minCount").isNull()).as("the minimum is not recorded until a person records it").isTrue();
+        assertThat(electives.get("members")).extracting(m -> m.get("code").asString()).containsExactly("COUN 650");
+        assertThat(view.get("unknowns").get(0).asString()).isEqualTo("Electives: minimum not recorded");
+
+        UUID first = fx.courseIds(t, program).get("COUN 605");
+        UUID second = fx.courseIds(t, program).get("COUN 610");
+        var firstEntries = TenantContext.runAs(t.tenantId(), () -> audit.forEntity(first));
+        assertThat(firstEntries).singleElement().satisfies(e -> assertThat(e.detail()).containsEntry("pathwayGroup", "Required courses"));
+        var secondEntries = TenantContext.runAs(t.tenantId(), () -> audit.forEntity(second));
+        assertThat(secondEntries).singleElement().satisfies(e -> assertThat(e.detail()).containsEntry("pathwayGroup", "Required courses")
+                .containsEntry("pathwayGroupId", required.get("id").asString()));
+        UUID requiredId = UUID.fromString(required.get("id").asString());
+        assertThat(TenantContext.runAs(t.tenantId(), () -> audit.forEntity(requiredId))).extracting(e -> e.action())
+                .as("the group was made once, by the first course").containsExactly("PATHWAY_GROUP_CREATED");
+    }
+
+    @Test
+    void aNewCatalogYearJoinsTheGroupOfThatYearAndARetiredGroupIsMadeAgain() {
+        UUID program = fx.program(t, List.of("CA"));
+        fx.course(t, program, "COUN 605", true, "3");
+        UUID courseId = fx.courseIds(t, program).get("COUN 605");
+        var added = mvc.post().uri("/api/v1/courses/" + courseId + "/versions").with(user(t.contributor())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("catalogYear", "2027-28", "required", false))).exchange();
+        assertThat(added).hasStatus(201);
+
+        var next = fx.read(mvc.get().uri("/api/v1/programs/" + program + "/pathway?catalogYear=2027-28").with(user(t.reviewer())).exchange());
+        assertThat(next.get("groups")).hasSize(1);
+        assertThat(next.get("groups").get(0).get("label").asString()).isEqualTo("Electives");
+        assertThat(fx.pathway(t, program).get("groups")).as("the 2026-27 pathway is unchanged").hasSize(1);
+
+        fx.clearPathway(t, program);
+        fx.course(t, program, "COUN 610", true, "3");
+        var again = fx.pathway(t, program);
+        assertThat(again.get("groups")).hasSize(1);
+        assertThat(again.get("groups").get(0).get("members")).extracting(m -> m.get("code").asString()).containsExactly("COUN 610");
+    }
+
+    @Test
+    void aCourseThatAGroupAlreadyHoldsStaysWhereAPersonPutIt() {
+        UUID program = fx.program(t, List.of("CA"));
+        fx.course(t, program, "COUN 605", true, "3");
+        UUID courseId = fx.courseIds(t, program).get("COUN 605");
+        var added = mvc.post().uri("/api/v1/courses/" + courseId + "/versions").with(user(t.contributor())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("catalogYear", "2026-27", "required", false))).exchange();
+        assertThat(added).hasStatus(201);
+        var view = fx.pathway(t, program);
+        assertThat(view.get("groups")).hasSize(1);
+        assertThat(view.get("groups").get(0).get("label").asString()).isEqualTo("Required courses");
     }
 
     @Test

@@ -56,20 +56,13 @@ public class AssessmentFixtures {
         return UUID.fromString(read(result).get("id").asString());
     }
 
-    /**
-     * Returns the course version id. The course has no credits, and the program's pathway stays what V024's backfill
-     * would make of its courses ({@link #backfilledPathway}), so a test about something else need not describe one.
-     */
+    /** Returns the course version id. The course has no credits; creating it put it in "Required courses" or "Electives" (D-588). */
     public UUID course(TestTenants.TenantWithUsers t, UUID programId, String code, boolean required) {
-        UUID version = courseOnly(t, programId, code, required, null);
-        var active = pathway(t, programId).get("groups");
-        active.forEach(g -> assertThat(retirePathwayGroup(t, UUID.fromString(g.get("id").asString()), "A course was added")).hasStatus(200));
-        backfilledPathway(t, programId);
-        return version;
+        return course(t, programId, code, required, null);
     }
 
-    /** Returns the course version id; {@code credits} (semester credits) may be null. The course is in no pathway group. */
-    public UUID courseOnly(TestTenants.TenantWithUsers t, UUID programId, String code, boolean required, String credits) {
+    /** Returns the course version id; {@code credits} (semester credits) may be null. */
+    public UUID course(TestTenants.TenantWithUsers t, UUID programId, String code, boolean required, String credits) {
         var body = new HashMap<String, Object>(Map.of("code", code, "title", "Course " + code, "required", required));
         if (credits != null) {
             body.put("credits", credits);
@@ -134,21 +127,10 @@ public class AssessmentFixtures {
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("reason", reason))).exchange();
     }
 
-    /**
-     * Puts every course of the program in a group the way V024's backfill does: the required ones in "Required courses",
-     * the others in "Electives" with no minimum. For tests that are about something other than the pathway.
-     */
-    public void backfilledPathway(TestTenants.TenantWithUsers t, UUID programId) {
-        var courses = read(mvc.get().uri("/api/v1/programs/" + programId + "/courses").with(user(t.reviewer())).exchange());
-        var required = new java.util.ArrayList<UUID>();
-        var electives = new java.util.ArrayList<UUID>();
-        courses.forEach(c -> (c.get("versions").get(0).get("required").asBoolean() ? required : electives).add(UUID.fromString(c.get("id").asString())));
-        if (!required.isEmpty()) {
-            pathwayGroup(t, programId, "2026-27", "Required courses", "ALL_OF", null, null, required);
-        }
-        if (!electives.isEmpty()) {
-            pathwayGroup(t, programId, "2026-27", "Electives", "CHOOSE_COUNT", null, null, electives);
-        }
+    /** Retires every active group of the program's catalog year, so that a test can describe the pathway itself. */
+    public void clearPathway(TestTenants.TenantWithUsers t, UUID programId) {
+        pathway(t, programId).get("groups")
+                .forEach(g -> assertThat(retirePathwayGroup(t, UUID.fromString(g.get("id").asString()), "The test describes the pathway")).hasStatus(200));
     }
 
     /** Uploads a TXT document and runs ingest. Returns the document id. */

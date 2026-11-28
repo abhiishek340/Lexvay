@@ -41,8 +41,8 @@ class EvalServiceTest extends AbstractDatabaseTest {
         assertThat(report.passed()).isTrue();
         assertThat(report.mismatches()).isEmpty();
         Metrics m = report.metrics();
-        assertThat(m.falseEvidenceFound()).isEqualTo(new Ratio(0, 28));
-        assertThat(m.recall()).isEqualTo(new Ratio(28, 28));
+        assertThat(m.falseEvidenceFound()).isEqualTo(new Ratio(0, 33));
+        assertThat(m.recall()).isEqualTo(new Ratio(33, 33));
         assertThat(m.numericAccuracy()).isEqualTo(new Ratio(11, 11));
         assertThat(m.extractionAgreement()).isEqualTo(new Ratio(42, 42));
         assertThat(m.evidenceAgreement()).isEqualTo(new Ratio(39, 39));
@@ -67,7 +67,7 @@ class EvalServiceTest extends AbstractDatabaseTest {
 
         assertThat(report.passed()).isFalse();
         assertThat(report.breaches()).anyMatch(b -> b.startsWith("false EVIDENCE_FOUND rate"));
-        assertThat(report.metrics().falseEvidenceFound()).isEqualTo(new Ratio(1, 28));
+        assertThat(report.metrics().falseEvidenceFound()).isEqualTo(new Ratio(1, 33));
         assertThat(report.mismatches()).extracting(EvalScorer.Mismatch::subject).contains("UT/UT-2");
         assertThat(report.render()).contains("RESULT: FAIL", "UT/UT-2");
     }
@@ -80,7 +80,7 @@ class EvalServiceTest extends AbstractDatabaseTest {
         EvalReport report = service.run(SEED, new Golden(true, wrong), thresholds);
 
         assertThat(report.passed()).isFalse();
-        assertThat(report.metrics().recall()).isEqualTo(new Ratio(28, 29));
+        assertThat(report.metrics().recall()).isEqualTo(new Ratio(33, 34));
         assertThat(report.metrics().falseEvidenceFound().numerator()).isZero();
     }
 

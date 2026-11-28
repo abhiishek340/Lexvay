@@ -18,7 +18,10 @@ orchestrator when the item merges.
 - **Assessment**: `DowngradeRule.notOnEveryPath` replaces `notRequiredCourse`; `RulesEngine` compares a total of credits
   with the pathway minimum (AMBIGUOUS when both are known and differ). The pathway is read once per run.
 - **Coverage**: `ELECTIVE_ONLY` now means a path avoids every cited course; new `PATHS_UNKNOWN`; still one statement.
-- **Seed**: credits, COUN 645, "Electives: choose 2 of 3" (Northfield) and "Electives: choose 1 of 2" (Westbrook).
+- **Courses join groups**: creating a course or a course version puts it in "Required courses" or "Electives" of its catalog
+  year, making the group when it is missing (D-588).
+- **Seed**: credits that add up to 60, COUN 645 and the capstone courses, "Electives: choose 2 of 3" (Northfield) and
+  "Electives: choose 1 of 2" (Westbrook).
 - **Frontend**: read-only "Graduation paths" block on the Courses step, the `PATHS_UNKNOWN` flag, audit sentences.
 
 ## Tests added or changed
@@ -30,8 +33,8 @@ plan check in `IndexUsageTest`, frontend `setup-model.spec.ts`, `coverage-view.s
 
 ## Golden set
 
-UT-1, CO-1, AZ-1, CA-1 and TX-1 (credit hours) go from `EVIDENCE_FOUND` to `AMBIGUOUS`: the program fact is 60 and the
-cheapest graduation path of the seeded courses is 36 semester credits. Nothing else changes; no threshold was loosened.
+No change to the credit-hours entries. The seed's fictional data was made consistent instead (D-590): the degree plan lists a
+capstone sequence, and the course credits add up to the program fact of 60 on the cheapest path.
 
 ## Results
 

@@ -16,9 +16,10 @@ class Rule4_ElectiveCourseForcesAmbiguousTest extends AbstractAssessmentTest {
     @Test
     void evidenceFromAnElectiveOfAChoiceIsDowngradedToAmbiguous() throws Exception {
         UUID programId = fx.program(t, List.of("UT"));
-        UUID cv650 = fx.courseOnly(t, programId, "COUN 650", false, "3");
-        fx.courseOnly(t, programId, "COUN 655", false, "3");
+        UUID cv650 = fx.course(t, programId, "COUN 650", false, "3");
+        fx.course(t, programId, "COUN 655", false, "3");
         var ids = fx.courseIds(t, programId);
+        fx.clearPathway(t, programId);
         fx.pathwayGroup(t, programId, "2026-27", "Electives: choose 1 of 2", "CHOOSE_COUNT", 1, null, List.of(ids.get("COUN 650"), ids.get("COUN 655")));
         UUID syllabus = fx.document(t, programId, "coun650.txt", "SYLLABUS", cv650, SYLLABUS_650);
         fx.approvedRuleVersion(t, "UT", "Demo rule set Utah elective", "Fictional.", fx.requirements("UT", List.of(

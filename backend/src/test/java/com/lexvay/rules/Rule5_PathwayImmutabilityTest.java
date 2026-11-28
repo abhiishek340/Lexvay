@@ -23,10 +23,9 @@ class Rule5_PathwayImmutabilityTest extends AbstractAssessmentTest {
     @BeforeEach
     void setUp() {
         UUID programId = fx.program(t, List.of("CA"));
-        fx.courseOnly(t, programId, "COUN 605", true, "3");
+        fx.course(t, programId, "COUN 605", true, "3");
         courseId = fx.courseIds(t, programId).get("COUN 605");
-        var made = fx.pathwayGroup(t, programId, "2026-27", "Required courses", "ALL_OF", null, null, List.of(courseId));
-        groupId = UUID.fromString(made.get("groups").get(0).get("id").asString());
+        groupId = UUID.fromString(fx.pathway(t, programId).get("groups").get(0).get("id").asString());
         assertThat(fx.retirePathwayGroup(t, groupId, "Superseded by a corrected group")).hasStatus(200);
     }
 

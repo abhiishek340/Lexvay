@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,14 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class PathwayService {
+
+    /** The groups a course joins when it is created, as V024's backfill names them (D-588). */
+    public static final String REQUIRED_LABEL = "Required courses";
+    public static final String ELECTIVES_LABEL = "Electives";
+
+    /** The group a new course joined; {@code created} when the course had to make the group first. */
+    public record Placement(UUID groupId, String label, boolean created) {
+    }
 
     private final PathwayRepository pathways;
     private final ProgramService programs;
@@ -76,6 +85,31 @@ public class PathwayService {
         pathways.insertMembers(id, tenantId, courseIds);
         audit.record("PATHWAY_GROUP_CREATED", "pathway_group", id, detail);
         return read(programId, catalogYear);
+    }
+
+    /**
+     * Puts a course that a person has just created, or given a new catalog year, in the group its flag names, as V024's
+     * backfill would: a required course in the ALL_OF "Required courses" group, any other in the CHOOSE_COUNT "Electives"
+     * group, whose minimum stays unknown until a person records it. A group that does not exist, or that was retired, is
+     * made first. Membership rows are only ever added (D-586), so a new member is an append. A course that an active group
+     * of that catalog year already holds stays where a person put it. Call it inside the transaction that creates the course.
+     */
+    public Optional<Placement> place(UUID programId, String catalogYear, UUID courseId, boolean required) {
+        if (pathways.isPlaced(programId, catalogYear, courseId)) {
+            return Optional.empty();
+        }
+        String label = required ? REQUIRED_LABEL : ELECTIVES_LABEL;
+        GroupKind kind = required ? GroupKind.ALL_OF : GroupKind.CHOOSE_COUNT;
+        UUID tenantId = TenantContext.require();
+        Optional<UUID> existing = pathways.findActiveGroup(programId, catalogYear, label, kind);
+        UUID groupId = existing.orElseGet(UUID::randomUUID);
+        if (existing.isEmpty()) {
+            pathways.insertGroup(groupId, tenantId, programId, catalogYear, label, kind, null, null, null, CurrentUser.require().id());
+            audit.record("PATHWAY_GROUP_CREATED", "pathway_group", groupId, Map.of("programId", programId.toString(),
+                    "catalogYear", catalogYear, "label", label, "kind", kind.name(), "courseIds", List.of(courseId.toString())));
+        }
+        pathways.insertMembers(groupId, tenantId, List.of(courseId));
+        return Optional.of(new Placement(groupId, label, existing.isEmpty()));
     }
 
     @Transactional

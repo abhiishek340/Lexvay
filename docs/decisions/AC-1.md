@@ -18,11 +18,20 @@ members in two units make every answer that needs their credits UNKNOWN. Convers
 item. A pathway member's credits are those of the version of the group's own catalog year, else the course's newest
 version (`PathwayRepository.ACTIVE_GROUPS`), so a 2027-28 version does not rewrite the 2026-27 pathway.
 
-**D-588 — The backfill assumes nothing.** V024 groups, per program and per catalog year of its course versions, the courses
-with `required = true` as one `ALL_OF` "Required courses" group and the others as one `CHOOSE_COUNT` "Electives" group
-with `min_count` NULL. How many electives a graduate takes is not in the old data, so the evaluator answers UNKNOWN for
-them until a person records it. `PathwayBackfillTest` runs the migration's own statements. A course created later through
-`POST /programs/{id}/courses` is in no group (decided in D-591) until a person adds it to one.
+**D-588 — The backfill assumes nothing, and a new course joins a group the same way.** V024 groups, per program and per
+catalog year of its course versions, the courses with `required = true` as one `ALL_OF` "Required courses" group and the
+others as one `CHOOSE_COUNT` "Electives" group with `min_count` NULL. How many electives a graduate takes is not in the old
+data, so the evaluator answers UNKNOWN for them until a person records it. `PathwayBackfillTest` runs the migration's own
+statements. The same rule applies to what is created afterwards (`PathwayService.place`, called by `CourseService.create` and
+`addVersion` in their transaction): a course joins the active "Required courses" or "Electives" group of its catalog year
+(the program's year for a new course, the version's year for a new version), and the group is made first when it does not
+exist or a person retired it. Membership rows are only ever added (D-586), so a new member is an append; the group stays
+what a person made it, and an "Electives" group whose minimum a person recorded keeps that minimum for a larger pool. A
+course that an active group of that year already holds stays where a person put it. The join is audited in the course's own
+entry (`pathwayGroup`, `pathwayGroupId`), and a group made this way is audited `PATHWAY_GROUP_CREATED`. An elective's quote
+stays honestly AMBIGUOUS ("Electives: minimum not recorded") until a person records the minimum; a required course's quote
+is not downgraded. Rejected: leaving a new course in no group (every program built in the application would get ambiguous
+quotes), and keeping `required` as a second source of truth beside the groups.
 
 **D-589 — The evaluator reasons about one group at a time and never enumerates paths.** `PathwayCoverage` is pure
 (unit-tested without a database). A set of courses S is on every valid path when every path contains at least one course of
@@ -40,26 +49,31 @@ minimum, exact, over hundredths). The minimum is UNKNOWN when any credit of a gr
 could be the cheap one), when units are mixed, when no group exists, or when two groups hold the same course (a course taken
 once counts once, and telling which group it counts for would mean enumerating paths).
 
-**D-590 — Seed and golden set.** Northfield's courses get credits (3 each, the clinical sequence COUN 660 six), a third
-elective COUN 645 (no syllabus, the "additional elective approved by the program director" of the degree plan) so that
-"Electives: choose 2 of 3" is a real choice, and two groups in `seed/manifest.yml` (`pathwayGroups`). Westbrook, which had no
-courses, gets COUN 500 and COUN 510 and "Electives: choose 1 of 2"; the seed loader returns before documents for a tenant
-without rule versions. The golden set changes only where the new rule changes a proposal:
-UT-1, CO-1, AZ-1, CA-1 and TX-1 (credit hours) go from `EVIDENCE_FOUND` to `AMBIGUOUS`, see D-592. No other finding changes:
-the required courses are on every path, and the three electives stay ambiguous (the path "choose 2 of 3" avoids any one).
-No threshold was loosened. Note for the owner: the degree plan document says the clinical sequence is 9 credits and the
-courses it lists add up to far fewer than 60; the spec's 6 credits for COUN 660 and the seeded courses give a pathway minimum of 36.
-Either way the program total of 60 and the pathway differ, and the cross-check says so.
+**D-590 — The seed's courses add up to its program fact.** The fictional Northfield data contradicted itself: the degree plan
+states 60 credits, but the courses it lists (eight core courses of 3, the clinical sequence of 9, two electives) add up to
+39, and the seed had credits that disagreed with the plan. The code was right to flag that, and the demo should not look
+broken because of fictional data, so the data is made consistent instead of the golden set changing. `degree-plan.md` (still
+labelled fictional) now also lists a capstone sequence, COUN 670 Counseling Capstone (6), COUN 675 Advanced Clinical Internship
+(9) and COUN 680 Applied Research Project (6), and lists COUN 645 among the electives ("choose two, 3 credits each"); its
+60 credits quote and every other quote are unchanged, and `seed/pdf/degree-plan.pdf` was regenerated (`make seed-pdfs`; the
+other PDFs were left as they were because the generator is not byte-stable). Seed credits: the eight core courses 3 each, COUN
+660 nine (as the plan says), the three capstone courses 6, 9 and 6, the three electives 3 each. The cheapest path is therefore
+24 + 9 + 21 + 6 = 60, equal to the program fact, and the credit cross-check finds nothing to flag. The new courses have no
+syllabus on purpose, like COUN 660. Creating a course puts it in a group (D-588); the seed replaces the electives group by
+"Electives: choose 2 of 3" (`SeedLoader.replaceGroups` retires the groups that hold its courses first). Westbrook, which had
+no courses, gets COUN 500 and COUN 510 and "Electives: choose 1 of 2"; the seed loader returns before documents for a tenant
+without rule versions. The golden set does not change: the five credit-hours entries stay EVIDENCE_FOUND, and the only edit is
+the header comment, which now names COUN 645. No threshold was loosened. The deliberate mismatch (60 against 9) is in
+`PathwayAssessmentTest`, not in the seed.
 
-**D-591 — The assessment asks the pathway, and a program without one is unknown, not fine.** `DowngradeRule.notRequiredCourse`
-is replaced by `notOnEveryPath`: FALSE gives "the cited course COUN 650 is not on every graduation path", UNKNOWN gives
-"the program's graduation paths are not fully known (Electives: minimum not recorded)", both AMBIGUOUS. A page of a
-program-level document names no course and is not judged. The pathway is read once per assessment run (`MappingProducer.Basis`
-with the program facts), not per requirement. The course's `required` flag is still stored and still shown in the prompt as
-"(required)" or "(elective)" (prompt version unchanged), but no code decides on it. A course that is in no group makes its
-quote AMBIGUOUS ("COUN 650 is not placed in a graduation group"): the setup screen shows the pathway read only for now and
-UI3-3 designs the editor, so until then a contributor adds groups through the API. Test fixtures that are not about the
-pathway use `AssessmentFixtures.course`, which keeps the pathway as V024's backfill would leave it.
+**D-591 — The assessment asks the pathway.** `DowngradeRule.notRequiredCourse` is replaced by `notOnEveryPath`: FALSE gives
+"the cited course COUN 650 is not on every graduation path", UNKNOWN gives "the program's graduation paths are not fully known
+(Electives: minimum not recorded)", both AMBIGUOUS. A page of a program-level document names no course and is not judged. The
+pathway is read once per assessment run (`MappingProducer.Basis` with the program facts), not per requirement. The course's
+`required` flag is still stored and still shown in the prompt as "(required)" or "(elective)" (prompt version unchanged), but
+no code decides on it. A course that no active group holds (a person retired its group, or it was only ever added to a
+retired one) makes its quote AMBIGUOUS ("COUN 650 is not placed in a graduation group"). The setup screen shows the pathway
+read only for now and UI3-3 designs the editor, so until then a contributor changes groups through the API.
 
 **D-592 — The credit cross-check is the rules engine's arithmetic.** For a `TOTAL_CREDITS` requirement with a recorded
 program fact, `RulesEngine` compares the fact with the pathway minimum (`PathwayCoverage.minimumCredits`). If the minimum is

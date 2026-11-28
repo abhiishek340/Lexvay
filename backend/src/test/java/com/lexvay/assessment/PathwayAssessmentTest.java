@@ -22,11 +22,12 @@ class PathwayAssessmentTest extends AbstractAssessmentTest {
     @BeforeEach
     void setUp() throws Exception {
         programId = fx.program(t, List.of("UT"));
-        fx.courseOnly(t, programId, "COUN 605", true, "3");
-        UUID cv650 = fx.courseOnly(t, programId, "COUN 650", false, "3");
-        fx.courseOnly(t, programId, "COUN 655", false, "3");
-        fx.courseOnly(t, programId, "COUN 645", false, "3");
+        fx.course(t, programId, "COUN 605", true, "3");
+        UUID cv650 = fx.course(t, programId, "COUN 650", false, "3");
+        fx.course(t, programId, "COUN 655", false, "3");
+        fx.course(t, programId, "COUN 645", false, "3");
         syllabus650 = fx.document(t, programId, "coun650.txt", "SYLLABUS", cv650, SYLLABUS_650);
+        fx.clearPathway(t, programId);
     }
 
     private List<UUID> courses(String... codes) {
@@ -40,6 +41,35 @@ class PathwayAssessmentTest extends AbstractAssessmentTest {
                 AssessmentFixtures.subject("Addictions", "coursework in addictions and substance use disorders"))));
         fake.script("MATCH:UT-1", fx.matchOutput("EVIDENCE_FOUND", syllabus650, 1, QUOTE, "The course covers addictions directly."));
         return fx.mappingFor(fx.mappings(t, fx.runAssessment(t, programId), "UT"), "UT-1");
+    }
+
+    @Test
+    void anElectiveCreatedThroughTheApiIsAmbiguousUntilThePathwayRecordsTheMinimum() throws Exception {
+        programId = fx.program(t, List.of("UT"));
+        fx.course(t, programId, "COUN 605", true, "3");
+        UUID cv650 = fx.course(t, programId, "COUN 650", false, "3");
+        syllabus650 = fx.document(t, programId, "coun650-api.txt", "SYLLABUS", cv650, SYLLABUS_650);
+
+        var mapping = addictions();
+
+        assertThat(mapping.get("finding").asString()).isEqualTo("AMBIGUOUS");
+        assertThat(mapping.get("rationale").asString())
+                .contains("the program's graduation paths are not fully known (Electives: minimum not recorded).");
+    }
+
+    @Test
+    void aRequiredCourseCreatedThroughTheApiIsOnEveryPath() throws Exception {
+        programId = fx.program(t, List.of("UT"));
+        UUID cv605 = fx.course(t, programId, "COUN 605", true, "3");
+        UUID syllabus = fx.document(t, programId, "coun605-api.txt", "SYLLABUS", cv605, SYLLABUS_605);
+        fx.approvedRuleVersion(t, "UT", "Demo rule set Utah pathway required", "Fictional.", fx.requirements("UT", List.of(
+                AssessmentFixtures.subject("Ethics", "coursework in professional ethics and legal standards"))));
+        fake.script("MATCH:UT-1", fx.matchOutput("EVIDENCE_FOUND", syllabus, 1,
+                "legal standards, confidentiality, duty to warn,\nand professional identity of clinical mental health counselors.", "Ethics content."));
+
+        var mapping = fx.mappingFor(fx.mappings(t, fx.runAssessment(t, programId), "UT"), "UT-1");
+
+        assertThat(mapping.get("finding").asString()).isEqualTo("EVIDENCE_FOUND");
     }
 
     @Test

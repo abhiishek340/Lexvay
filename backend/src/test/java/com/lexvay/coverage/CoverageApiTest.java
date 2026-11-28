@@ -176,7 +176,7 @@ class CoverageApiTest extends AbstractAssessmentTest {
 
     /** Replaces the electives group of the scenario by "choose 1 of 2" with a second elective, COUN 655. */
     private UUID chooseOneOfTwoElectives() {
-        fx.courseOnly(t, s.programId(), "COUN 655", false, "3");
+        fx.course(t, s.programId(), "COUN 655", false, "3");
         var ids = fx.courseIds(t, s.programId());
         fx.pathway(t, s.programId()).get("groups").forEach(g -> {
             if (g.get("label").asString().equals("Electives")) {

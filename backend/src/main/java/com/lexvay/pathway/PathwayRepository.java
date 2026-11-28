@@ -107,6 +107,24 @@ public class PathwayRepository {
                 .param("programId", programId).param("ids", courseIds).query(UUID.class).set();
     }
 
+    /** The active group of the program and catalog year with this label and kind, if a person has not retired it. */
+    public Optional<UUID> findActiveGroup(UUID programId, String catalogYear, String label, GroupKind kind) {
+        return jdbc.sql("SELECT g.id FROM pathway_group g WHERE g.program_id = :programId AND g.catalog_year = :catalogYear "
+                        + "AND g.label = :label AND g.kind = :kind AND NOT EXISTS (SELECT 1 FROM pathway_group_retirement r WHERE r.group_id = g.id) "
+                        + "ORDER BY g.created_at, g.id LIMIT 1")
+                .param("programId", programId).param("catalogYear", catalogYear).param("label", label).param("kind", kind.name())
+                .query(UUID.class).optional();
+    }
+
+    /** Whether an active group of the program and catalog year already holds the course. */
+    public boolean isPlaced(UUID programId, String catalogYear, UUID courseId) {
+        return jdbc.sql("SELECT EXISTS (SELECT 1 FROM pathway_group g JOIN pathway_group_course gc ON gc.group_id = g.id "
+                        + "WHERE g.program_id = :programId AND g.catalog_year = :catalogYear AND gc.course_id = :courseId "
+                        + "AND NOT EXISTS (SELECT 1 FROM pathway_group_retirement r WHERE r.group_id = g.id))")
+                .param("programId", programId).param("catalogYear", catalogYear).param("courseId", courseId)
+                .query(Boolean.class).single();
+    }
+
     public Optional<Stored> findGroup(UUID id) {
         return jdbc.sql(GROUP).param("id", id).query((rs, i) -> new Stored(rs.getObject("id", UUID.class),
                 rs.getObject("program_id", UUID.class), rs.getString("catalog_year"), rs.getString("label"),

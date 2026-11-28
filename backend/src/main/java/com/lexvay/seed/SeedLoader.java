@@ -11,6 +11,8 @@ import com.lexvay.job.JobRunner;
 import com.lexvay.pathway.CreatePathwayGroupRequest;
 import com.lexvay.pathway.GroupKind;
 import com.lexvay.pathway.PathwayService;
+import com.lexvay.pathway.PathwayView;
+import com.lexvay.pathway.RetirePathwayGroupRequest;
 import com.lexvay.program.AddCourseVersionRequest;
 import com.lexvay.program.CourseService;
 import com.lexvay.program.CreateCourseRequest;
@@ -145,9 +147,8 @@ public class SeedLoader {
                 courseByCode.put(c.code(), course.id());
             }
             for (SeedManifest.PathwayGroup g : t.pathwayGroups()) {
-                as(contributor, () -> pathways.create(programId, new CreatePathwayGroupRequest(t.program().catalogYear(), g.label(),
-                        GroupKind.valueOf(g.kind()), g.minCount(), g.minCredits(),
-                        g.courses().stream().map(courseByCode::get).toList(), null)));
+                List<UUID> members = g.courses().stream().map(courseByCode::get).toList();
+                as(contributor, () -> replaceGroups(programId, t.program().catalogYear(), members, g));
             }
             if (t.ruleVersions() == null) {
                 return new Result(t.name(), false, tenantId, programId, null, 0, 0);
@@ -262,6 +263,20 @@ public class SeedLoader {
         }
         return as(as, () -> documents.upload(programId, new BytesMultipartFile(pdf.getFileName().toString(), "application/pdf", bytes), kind,
                 courseVersionId).documentId());
+    }
+
+    /**
+     * A seeded group stands in for the groups that hold its courses: creating a course put it in "Required courses" or
+     * "Electives", and the seed says better for these (D-590).
+     */
+    private PathwayView replaceGroups(UUID programId, String catalogYear, List<UUID> members, SeedManifest.PathwayGroup group) {
+        for (PathwayView.Group existing : pathways.read(programId, catalogYear).groups()) {
+            if (existing.members().stream().anyMatch(m -> members.contains(m.courseId()))) {
+                pathways.retire(existing.id(), new RetirePathwayGroupRequest("Replaced by " + group.label()));
+            }
+        }
+        return pathways.create(programId, new CreatePathwayGroupRequest(catalogYear, group.label(), GroupKind.valueOf(group.kind()),
+                group.minCount(), group.minCredits(), members, null));
     }
 
     /** Runs an action with the given seeded user authenticated, so audit rows name a real person. */

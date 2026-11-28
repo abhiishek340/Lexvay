@@ -76,7 +76,7 @@ class SeedLoaderTest extends AbstractDatabaseTest {
             totals.merge("missing", j.get("evidenceMissing").asInt(), Integer::sum);
             totals.merge("ambiguous", j.get("ambiguous").asInt(), Integer::sum);
         }
-        assertThat(totals).containsEntry("found", 28).containsEntry("ambiguous", 11).containsEntry("missing", 3);
+        assertThat(totals).containsEntry("found", 33).containsEntry("ambiguous", 6).containsEntry("missing", 3);
 
         JsonNode ca = json.readTree(mvc.get().uri("/api/v1/assessments/" + northfield.assessmentId() + "/mappings?jurisdiction=CA")
                 .with(user(dana)).exchange().getResponse().getContentAsString()).get("mappings");
@@ -85,8 +85,7 @@ class SeedLoaderTest extends AbstractDatabaseTest {
         for (JsonNode m : ca) {
             findings.put(m.get("requirement").get("ref").asString(), m.get("finding").asString());
         }
-        // The program total of 60 differs from the 36 credits of the cheapest graduation path (D-590).
-        assertThat(findings).containsEntry("CA-1", "AMBIGUOUS").containsEntry("CA-2", "EVIDENCE_FOUND")
+        assertThat(findings).containsEntry("CA-1", "EVIDENCE_FOUND").containsEntry("CA-2", "EVIDENCE_FOUND")
                 .containsEntry("CA-6", "AMBIGUOUS").containsEntry("CA-7", "EVIDENCE_MISSING");
         for (JsonNode m : ca) {
             if (m.get("requirement").get("ref").asString().equals("CA-6")) {

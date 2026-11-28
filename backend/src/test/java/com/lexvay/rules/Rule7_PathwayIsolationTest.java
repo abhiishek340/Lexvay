@@ -28,10 +28,9 @@ class Rule7_PathwayIsolationTest extends AbstractAssessmentTest {
     @BeforeEach
     void setUp() {
         programId = fx.program(t, List.of("CA"));
-        fx.courseOnly(t, programId, "COUN 605", true, "3");
+        fx.course(t, programId, "COUN 605", true, "3");
         courseId = fx.courseIds(t, programId).get("COUN 605");
-        groupId = UUID.fromString(fx.pathwayGroup(t, programId, "2026-27", "Required courses", "ALL_OF", null, null, List.of(courseId))
-                .get("groups").get(0).get("id").asString());
+        groupId = UUID.fromString(fx.pathway(t, programId).get("groups").get(0).get("id").asString());
         fx.retirePathwayGroup(t, groupId, "Retired for the test");
         otherTenantId = tenants.create("pathway-isolation").tenantId();
     }
