@@ -405,6 +405,75 @@ fictional and says so. Real keys come from DOM-1, the domain expert.
    two-labeller and adjudication flow, the holdout discipline, and that results without denominators and
    independent labels are not claims. Decisions go in `docs/decisions/EV-2.md`, progress in `docs/progress/EV-2.md`.
 
+### AC-2 — Governed academic export ingestion (backend; slot 3; Sonnet 5.5; next free migration at merge; D-596 to D-605)
+Master prompt M4: the first private-data pilot should use an export the institution already produces, delivered on a
+schedule to a drop location or a read-only SFTP account. There is one-time authorization and no repeated manual
+upload. No student data, ever (rule 8). Decided design:
+1. **Manifest v1:**
+   - JSON, with a JSON schema at `backend/src/main/resources/schemas/academic-export-v1.json`. Top-level fields:
+     `schemaVersion: 1`, `exportId`, `sourceId`, `generatedAt`, `mode` (`FULL` or `DELTA`), `programs[]`,
+     `courses[]`, `pathwayGroups[]` (optional), `documents[]` and `deletedIds[]`.
+   - **Programs:** external id, name, license type, catalog year.
+   - **Courses:** external id, program external id, code, title, catalog year, credits, credit unit, required.
+   - **Pathway groups:** the AC-1 shape, by external ids.
+   - **Documents:** external id, version, SHA-256, `relativePath`, type (`SYLLABUS`, `DEGREE_PLAN`, `HANDBOOK` or
+     `ACCREDITATION`), and the course or program external id.
+   - **Strict schema:** `additionalProperties: false` everywhere. A key anywhere that matches
+     `/student|grade|roster|enrol|ssn|dob|transcript/i` rejects the whole manifest with a clear reason (rule 8).
+2. **Sources** (a new table, `academic_source`):
+   - Fields: tenant, label, kind (`DROP_FOLDER` or `SFTP`), program scope, `schedule_minutes`, health fields (last
+     attempt, last success, last error, consecutive failures), and the last committed checkpoint (`exportId`,
+     `generatedAt`).
+   - `DROP_FOLDER`: a path under `LEXVAY_ACADEMIC_DROP_ROOT` only; traversal outside it is refused.
+   - `SFTP`: host, port, user, remote directory, a **pinned host key fingerprint** (required; no trust on first use),
+     and the private key read from a file path named by an environment variable (the secret never enters the
+     database).
+   - ADMIN only. Audited as `ACADEMIC_SOURCE_CREATED` and `ACADEMIC_SOURCE_CHANGED`.
+3. **Sync job `SYNC_ACADEMIC_SOURCE`:**
+   - It is scheduled and also runnable by hand (ADMIN), audited as `ACADEMIC_SYNC_REQUESTED`.
+   - It reads `manifest.json`. If the `exportId` equals the checkpoint, it does nothing.
+   - It validates against the schema and verifies every document's SHA-256 before using it.
+   - `relativePath` must stay inside the export directory: no `..`, no absolute paths, no symlinks followed.
+   - Allowed types are PDF, DOCX, TXT and HTML, under the existing upload size limit.
+   - **Mapping:** maps external ids to Lexvay entities through a new `external_ref (tenant, source_id, kind,
+     external_id, entity_id)` table. New programs, courses and versions go through the existing services, so audit,
+     AC-1 group placement and course versioning all apply. Documents go through the existing upload and ingest
+     pipeline and deduplicate by SHA-256.
+   - **FULL mode:** an entity missing from the export is not deleted. It is recorded as `NOT_IN_LAST_FULL` in the
+     sync report.
+   - **Deletion:** only `deletedIds` withdraw an entity. A withdrawal is recorded as an append-only
+     `academic_tombstone` row and shown as withdrawn. Nothing is removed, because documents and versions are
+     immutable (rule 5).
+   - **Checkpoint:** committed only after every item has been processed, in the same transaction as the last write.
+     A failure leaves the checkpoint where it was, and the next run retries. Idempotency comes from SHA-256 and
+     external refs.
+   - Result is audited as `ACADEMIC_SYNC_COMPLETED` (with counts) or `ACADEMIC_SYNC_FAILED` (with the reason, never
+     document text).
+4. **SFTP client:**
+   - Apache MINA SSHD (`sshd-sftp`). Pin its exact version from Maven Central and record it in D-002.
+   - Read-only use; connect and read timeouts; the host key is checked against the pinned fingerprint before
+     authentication.
+   - Tests use an in-process MINA SSHD server on loopback (a test dependency), never the network.
+5. **API:** `GET /academic-sources` (with health) and `GET /academic-sources/{id}/syncs` (sync reports). Add rows to
+   Rule 9, `InputValidationTableTest` and `audit-sentence.ts`. The UI is a later item.
+6. **Tests:**
+   - a valid FULL then DELTA;
+   - a replay of the same `exportId` is a no-op;
+   - a changed document makes a new version;
+   - a SHA mismatch is refused;
+   - path traversal is refused;
+   - a symlink is refused;
+   - a student-data key is refused;
+   - an unknown field is refused;
+   - `deletedIds` produce tombstones, and a missing entity is not deleted;
+   - failure midway keeps the checkpoint, and the retry completes;
+   - a wrong SFTP host key is refused before authentication;
+   - a revoked key gives a FAILED sync and the health changes;
+   - RLS on the new tables.
+7. **Docs:** "Academic exports" in OPERATIONS, covering the manifest contract, a sample manifest (fictional), how an
+   institution sets up the drop or SFTP, and the no-student-data rule. Decisions go in `docs/decisions/AC-2.md`,
+   progress in `docs/progress/AC-2.md`.
+
 ## Design system v3 "Ledger" (owner directive 2026-11-27: "not AI slop", professional, human craft)
 The owner reviewed v2 on the running app and rejected it: yellow and orange accents, icon-heavy pills and cards, a
 palette and card art that look generated. `docs/DESIGN.md` is rewritten as v3 and is the contract. Every screen
