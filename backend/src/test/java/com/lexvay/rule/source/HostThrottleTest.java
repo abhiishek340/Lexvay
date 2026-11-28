@@ -54,7 +54,7 @@ class HostThrottleTest extends AbstractRuleSourceTest {
     @BeforeEach
     void throttledRunner() {
         var admission = new HostAdmission(hosts, fetcher, THIRTY_SECONDS);
-        var handler = new CheckRuleSourceHandler(sources, ruleVersions, ruleVersionService, documents, extractor, fetcher, admission, auditService);
+        var handler = new CheckRuleSourceHandler(sources, ruleVersions, ruleVersionService, documents, extractor, fetcher, admission, THIRTY_SECONDS, auditService);
         throttled = new JobRunner(jobs, List.of(handler), transactionTemplate, mapper, auditService, metrics, 3);
     }
 

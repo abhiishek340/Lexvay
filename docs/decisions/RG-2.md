@@ -15,11 +15,13 @@ edited with `PUT /rule-sources/{id}/governance` (ADMIN), which replaces the whol
 excludes the source's own host or path, accepts as owner only an active user of the same tenant (a foreign key alone
 would accept another tenant's user), lower-cases and de-duplicates hosts, and is audited as
 `RULE_SOURCE_GOVERNANCE_CHANGED` with `before` and `after` in the detail. Every request is `LexvayMonitor/<version>
-(+<LEXVAY_MONITOR_CONTACT_URL>)` (`MonitorSettings`; the version comes from the build info). The scheduler refuses to
-start when monitoring is enabled and the contact URL is unset or not an http(s) address that fits in a header. Reading
-the spec literally ("required for the scheduler to run"), a check a person asks for by hand, and the first check a
-person asks for by registering a source, still goes out without the contact part when none is configured: it names the
-monitor and its version, never pretends to be a browser. Test: `SourceGovernanceApiTest`, `MonitorSettingsTest`.
+(+<LEXVAY_MONITOR_CONTACT_URL>)` (`MonitorSettings`; the version comes from the build info). Every outbound fetch identifies
+itself with the contact, not only scheduled ones (orchestrator review of PR #65, replacing the first reading of the
+spec). Without a configured contact URL: the scheduler refuses to start; "Check now" and registering a source (whose
+first check a person asks for) answer 409 "Set LEXVAY_MONITOR_CONTACT_URL before fetching", the registration rolled
+back; a check job queued earlier fails permanently before any request, not even robots.txt; and `MonitorSettings` has
+no User-Agent to give. A contact that is set but not an http(s) address that fits in a header stops the service at start.
+Tests: `SourceGovernanceApiTest`, `MonitorSettingsTest`, `MonitorContactRequiredTest`.
 
 ## D-567 Where a fetch may go, and conditional GET
 `FetchScope(allowedHosts, allowedPathPrefixes)` is checked by `JdkHttpFetcher` on the first address and on every
@@ -111,7 +113,7 @@ takes the baseline hash and the validators together. `UNCHANGED`, `NOT_MODIFIED`
 ## D-575 Frontend, tests and what is not here
 Only `audit-sentence.ts` and its spec change on the frontend (the three outcomes, the access of an unreviewed check, and
 the governance sentence, which says "from not reviewed to permitted" when the access changed); the screens for
-governance and health are UX-1. Test infrastructure: the shared `FakeHttpFetcher` answers an unscripted `/robots.txt`
+governance and health are UX-1. Test infrastructure: every database test and the e2e stack set the fictional contact `https://example.invalid/lexvay-contact`; the shared `FakeHttpFetcher` answers an unscripted `/robots.txt`
 with 404 and is reset, with the host rows, before every rule source test; every database test runs with a host interval
 of 0 so checks do not wait for each other, and `HostThrottleTest` runs the real 30. Not done, by the spec's boundary: no
 UI, no real fetch, no change to the one-draft-per-source promotion rule of D-555.

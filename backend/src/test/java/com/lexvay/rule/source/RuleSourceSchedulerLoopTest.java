@@ -17,8 +17,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * The scheduler running for real, as it does when {@code LEXVAY_RULE_SOURCES_ENABLED} is true. The context is closed
  * afterwards so that no other test class has a scheduler queueing jobs behind its back.
  */
-@TestPropertySource(properties = {"lexvay.rule-sources.enabled=true", "lexvay.rule-sources.poll-interval-ms=100",
-        "lexvay.rule-sources.contact-url=https://monitor.example.test/about"})
+@TestPropertySource(properties = {"lexvay.rule-sources.enabled=true", "lexvay.rule-sources.poll-interval-ms=100"})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class RuleSourceSchedulerLoopTest extends AbstractRuleSourceTest {
 

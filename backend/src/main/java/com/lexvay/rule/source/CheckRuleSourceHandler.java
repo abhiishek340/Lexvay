@@ -42,7 +42,8 @@ import org.springframework.stereotype.Component;
  * draft, so no observation is lost; the baseline stays the drafted text, so once that draft is approved the next check
  * drafts the page as it then reads (D-555). A page that cannot be fetched or read is a recorded check, not a failed
  * job: the source is checked again after a short, growing delay (D-381). A source whose access is RESTRICTED or
- * BLOCKED is never fetched, whoever asks (D-568).
+ * BLOCKED is never fetched, whoever asks (D-568), and nothing is fetched when no monitoring contact URL is configured
+ * (D-566): the job fails before any request is made.
  */
 @Component
 public class CheckRuleSourceHandler implements JobHandler {
@@ -54,11 +55,12 @@ public class CheckRuleSourceHandler implements JobHandler {
     private final TextExtractor extractor;
     private final HttpFetcher fetcher;
     private final HostAdmission admission;
+    private final MonitorSettings settings;
     private final AuditService audit;
 
     public CheckRuleSourceHandler(RuleSourceRepository sources, RuleVersionRepository ruleVersions,
                                   RuleVersionService ruleVersionService, DocumentService documents, TextExtractor extractor,
-                                  HttpFetcher fetcher, HostAdmission admission, AuditService audit) {
+                                  HttpFetcher fetcher, HostAdmission admission, MonitorSettings settings, AuditService audit) {
         this.sources = sources;
         this.ruleVersions = ruleVersions;
         this.ruleVersionService = ruleVersionService;
@@ -66,6 +68,7 @@ public class CheckRuleSourceHandler implements JobHandler {
         this.extractor = extractor;
         this.fetcher = fetcher;
         this.admission = admission;
+        this.settings = settings;
         this.audit = audit;
     }
 
@@ -76,6 +79,9 @@ public class CheckRuleSourceHandler implements JobHandler {
 
     @Override
     public void handle(Job job, Map<String, Object> payload) {
+        if (!settings.hasContactUrl()) {
+            throw new PermanentJobFailure(MonitorSettings.MISSING_CONTACT);
+        }
         UUID sourceId = UUID.fromString(String.valueOf(payload.get("ruleSourceId")));
         RuleSource source = sources.findById(sourceId)
                 .orElseThrow(() -> new PermanentJobFailure("Rule source " + sourceId + " not found"));

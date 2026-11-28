@@ -176,7 +176,6 @@ class JdkHttpFetcherTest {
         fetcher().fetch(get("/old"));
 
         assertThat(agents).containsExactly("LexvayMonitor/9.9.9 (+https://monitor.example.test/about)");
-        assertThat(new MonitorSettings("", 30, "1.2.3").userAgent()).as("no contact configured").isEqualTo("LexvayMonitor/1.2.3");
     }
 
     @Test

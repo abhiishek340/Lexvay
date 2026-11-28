@@ -11,7 +11,8 @@ Decisions: `docs/decisions/RG-2.md` (D-566 to D-575).
 - `PUT /api/v1/rule-sources/{id}/governance` (ADMIN), audited `RULE_SOURCE_GOVERNANCE_CHANGED` with before and after.
 - Only `PERMITTED` sources are queued by the scheduler; `UNREVIEWED` ones can be checked by hand and the check records
   that; `RESTRICTED` and `BLOCKED` ones are never fetched (409 on request, a queued job fails before any request).
-- Polite fetching: `LexvayMonitor/<version> (+contact)` User-Agent, contact required for the scheduler; conditional GET
+- Polite fetching: `LexvayMonitor/<version> (+contact)` User-Agent, with a contact URL required for any fetch (409,
+  failed job, scheduler refusing to start); conditional GET
   with `NOT_MODIFIED`; per-host throttle across instances whose waiting jobs return to the queue (`JobDeferred`);
   robots.txt per host per day with longest match; Retry-After holds the host.
 - Content validation: expected identifiers, form and challenge-page shapes, format promised by the address; a suspect
@@ -34,5 +35,4 @@ table that is not tenant data.
 - No real board's robots.txt, terms or response shapes have been seen, so `BLOCK_PAGE_SHAPES` and the form rule are
   fixtures of what challenge pages usually look like, to be tuned on evidence from the first reviewed sources.
 - A redirect hop is held to the reviewed hosts and paths but not asked robots.txt again (D-571).
-- Compose does not pass `LEXVAY_RULE_SOURCES_ENABLED` or the two new variables to the app container; an installation
-  that enables monitoring sets them in its own environment.
+- Compose passes `LEXVAY_RULE_SOURCES_ENABLED` (false), `LEXVAY_MONITOR_CONTACT_URL` (empty) and the throttle (30).

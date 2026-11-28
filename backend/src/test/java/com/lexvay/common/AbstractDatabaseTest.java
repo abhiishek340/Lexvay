@@ -30,7 +30,8 @@ import org.testcontainers.utility.MountableFile;
         "lexvay.ratelimit.login-per-minute=100000",
         "lexvay.ratelimit.api-per-minute=100000",
         "lexvay.ratelimit.upload-per-minute=100000",
-        "lexvay.rule-sources.min-host-interval-seconds=0"})
+        "lexvay.rule-sources.min-host-interval-seconds=0",
+        "lexvay.rule-sources.contact-url=https://example.invalid/lexvay-contact"})
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @Import({TestTenants.class, SchemaFixtures.class, FakeOcrEngine.class, FakeHttpFetcher.class, FakeHostResolver.class})

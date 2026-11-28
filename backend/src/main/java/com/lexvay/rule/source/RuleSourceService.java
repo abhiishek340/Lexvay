@@ -37,25 +37,29 @@ public class RuleSourceService {
     private final JurisdictionRepository jurisdictions;
     private final AppUserRepository users;
     private final UrlPolicy urlPolicy;
+    private final MonitorSettings settings;
     private final AuditService audit;
     private final Clock clock;
 
     public RuleSourceService(RuleSourceRepository sources, JurisdictionRepository jurisdictions, AppUserRepository users,
-                             UrlPolicy urlPolicy, AuditService audit, Clock clock) {
+                             UrlPolicy urlPolicy, MonitorSettings settings, AuditService audit, Clock clock) {
         this.sources = sources;
         this.jurisdictions = jurisdictions;
         this.users = users;
         this.urlPolicy = urlPolicy;
+        this.settings = settings;
         this.audit = audit;
         this.clock = clock;
     }
 
     /**
      * Registers a source after the {@link UrlPolicy} accepts its address, and queues its first check. A person
-     * registering the source is a person asking for that check, so it runs although access is not yet reviewed.
+     * registering the source is a person asking for that check, so it runs although access is not yet reviewed; it is
+     * refused, and the source not registered, while no monitoring contact URL is configured (D-566).
      */
     @Transactional
     public Created create(CreateRuleSourceRequest request) {
+        requireContactUrl();
         try {
             urlPolicy.requireAllowed(URI.create(request.url()));
         } catch (FetchRejected e) {
@@ -108,10 +112,12 @@ public class RuleSourceService {
 
     /**
      * A person asks for a check now, whether or not the source is due or active, and whether or not its access was
-     * reviewed. A source whose access is RESTRICTED or BLOCKED is never fetched, so no check is queued.
+     * reviewed. A source whose access is RESTRICTED or BLOCKED is never fetched, so no check is queued, and nothing is
+     * fetched without a monitoring contact URL.
      */
     @Transactional
     public CheckQueued checkNow(UUID id) {
+        requireContactUrl();
         RuleSource source = sources.findById(id).orElseThrow(() -> new NotFoundException("Rule source not found"));
         AccessStatus access = source.governance().accessStatus();
         if (access.neverFetched()) {
@@ -155,6 +161,12 @@ public class RuleSourceService {
         audit.record("RULE_SOURCE_GOVERNANCE_CHANGED", "rule_source", id,
                 Map.of("before", describe(source.governance()), "after", describe(after)));
         return after;
+    }
+
+    private void requireContactUrl() {
+        if (!settings.hasContactUrl()) {
+            throw new ConflictException(MonitorSettings.MISSING_CONTACT);
+        }
     }
 
     private static Map<String, Object> describe(SourceGovernance governance) {

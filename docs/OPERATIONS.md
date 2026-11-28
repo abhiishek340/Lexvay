@@ -98,7 +98,7 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 | `LEXVAY_RATELIMIT_LOGIN_PER_MINUTE`, `LEXVAY_RATELIMIT_API_PER_MINUTE`, `LEXVAY_RATELIMIT_UPLOAD_PER_MINUTE`, `LEXVAY_UPLOAD_MAX_MB` | Rate limits and upload size (WS-SEC) | 10, 600, 30, 25 |
 | `LEXVAY_PACKAGE_MAX_BYTES` | Largest evidence package, in bytes; a larger one fails its job with a message and nothing is stored (F15) | 536870912 (512 MB) |
 | `LEXVAY_RULE_SOURCES_ENABLED`, `LEXVAY_RULE_SOURCES_POLL_INTERVAL_MS` | Whether the service queues checks of permitted rule sources on a schedule, and how often it looks for due ones (F12). Off by default. See "Monitoring etiquette" | `false`, 300000 |
-| `LEXVAY_MONITOR_CONTACT_URL` | An http(s) page where a board's webmaster can reach whoever runs this service. It is part of every request's User-Agent, and the scheduler refuses to start without it (RG-2, D-566) | empty |
+| `LEXVAY_MONITOR_CONTACT_URL` | An http(s) page where a board's webmaster can reach whoever runs this service. It is part of every request's User-Agent, and without it nothing is fetched (RG-2, D-566) | empty |
 | `LEXVAY_SOURCE_MIN_HOST_INTERVAL_SECONDS` | The least time between two requests to one host, across all instances and tenants (RG-2, D-569) | 30 |
 | `LEXVAY_PASSWORD_HASH_CONCURRENCY` | How many password hashes (sign-in, choosing a password) may run at once, 32 MiB of heap each; a caller that waits 2 seconds gets 503 with `Retry-After: 2` (D-407) | processors, at least 2 |
 | `LEXVAY_AUDIT_SEAL_INTERVAL_MS` | How often the sealer chains new audit entries into the tamper-evident trail (SEC-3, D-533); an entry is sealed within about this time of being written | 2000 |
@@ -359,9 +359,10 @@ of date, never that they did not change. Nothing here fetches a real site until 
 `LEXVAY_RULE_SOURCES_ENABLED=true`, and the demo and the tests never do.
 
 - **Who we are.** Every request carries `User-Agent: LexvayMonitor/<version> (+<LEXVAY_MONITOR_CONTACT_URL>)`. Set the
-  contact URL to a page that says who runs this installation and how to write to them. With monitoring enabled and no
-  contact URL the service does not start. A check a person asks for by hand (and the first check of a new source, which
-  a person asked for by registering it) goes out without the contact part when none is configured.
+  contact URL to a page that says who runs this installation and how to write to them. Without
+  one nothing is fetched at all: the service does not start with monitoring enabled, "Check now" and registering a source
+  answer 409 "Set LEXVAY_MONITOR_CONTACT_URL before fetching", and a check job that was queued earlier fails before any
+  request is made. No request is ever anonymous.
 - **One request at a time per host.** `LEXVAY_SOURCE_MIN_HOST_INTERVAL_SECONDS` (default 30) is the least time between two
   requests to one host, counted across every instance and tenant in `source_host_fetch`, under a row lock. A check that
   would come sooner is not slept on: its job goes back to the queue and is claimed again when its time has come

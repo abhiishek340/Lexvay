@@ -20,12 +20,13 @@ class MonitorSettingsTest {
     }
 
     @Test
-    void withoutAContactTheAgentStillNamesTheMonitorButTheSchedulerMustNotStart() {
+    void withoutAContactThereIsNoUserAgentAndTheSchedulerMustNotStart() {
         var settings = new MonitorSettings("", 30, "1.4.0");
 
-        assertThat(settings.userAgent()).isEqualTo("LexvayMonitor/1.4.0");
         assertThat(settings.hasContactUrl()).isFalse();
         assertThat(new MonitorSettings(null, 30, "1.4.0").hasContactUrl()).isFalse();
+        assertThatThrownBy(settings::userAgent).as("a request is never sent anonymously").isInstanceOf(IllegalStateException.class)
+                .hasMessage("Set LEXVAY_MONITOR_CONTACT_URL before fetching");
         assertThatThrownBy(() -> new RuleSourceScheduler(null, settings)).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("LEXVAY_MONITOR_CONTACT_URL");
     }

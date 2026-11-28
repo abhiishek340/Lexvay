@@ -15,6 +15,8 @@ export LEXVAY_MANAGEMENT_PORT=$((9091 + SLOT))
 export LEXVAY_E2E_BACKEND_PORT="$BACKEND_PORT"
 export LEXVAY_E2E_WEB_PORT="$WEB_PORT"
 export LEXVAY_LLM_PROVIDER=fake
+# Nothing is fetched without a monitoring contact; this one is fictional and the e2e stack never reaches a real site.
+export LEXVAY_MONITOR_CONTACT_URL=https://example.invalid/lexvay-contact
 # The browser tests create rule versions; the seed's extraction scripts plus the e2e fixture's let extraction succeed for them.
 export LEXVAY_LLM_FAKE_SCRIPTS=seed/fake-llm.yml,frontend/e2e/fixtures/fake-llm.e2e.yml
 # Every browser test signs in from 127.0.0.1; the production login budget (10 per minute) would trip them.
