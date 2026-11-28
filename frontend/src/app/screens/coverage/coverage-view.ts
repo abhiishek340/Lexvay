@@ -45,9 +45,17 @@ export interface OutdatedPart { readonly catalogYear: string; readonly source: C
 export type CellKind = 'SYSTEM' | 'PERSON' | 'BOTH' | 'OUTDATED';
 export const CELL_SHAPE: Readonly<Record<CellKind, MarkShape>> = { SYSTEM: 'disc', PERSON: 'ring', BOTH: 'ring-dot', OUTDATED: 'dashed-ring' };
 
+/** How a cell's mark is drawn: its kind's shape, inside a dashed ring when current evidence is joined by outdated evidence. */
+export interface CellMark { readonly shape: MarkShape; readonly outdated: boolean }
+
+export function cellMark(kind: CellKind, outdated: readonly OutdatedPart[]): CellMark {
+  return { shape: CELL_SHAPE[kind], outdated: kind !== 'OUTDATED' && outdated.length > 0 };
+}
+
 export interface Cell {
   readonly column: Column;
   readonly kind: CellKind;
+  readonly mark: CellMark;
   /** Distinct verified quotes per source on the current course version (always 0 in the program column). */
   readonly system: number;
   readonly person: number;
@@ -96,7 +104,7 @@ function courseCell(column: Column, r: CoverageRequirement): Cell | null {
   if (mine.length === 0 && outdated.length === 0) { return null; }
   const kind: CellKind = system > 0 && person > 0 ? 'BOTH' : system > 0 ? 'SYSTEM' : person > 0 ? 'PERSON' : 'OUTDATED';
   const words = [currentWords(system, person), outdatedWords(outdated)].filter((w) => w !== null).join(', and ');
-  return { column, kind, system, person, outdated, documents: [], name: `${column.code}, ${words}` };
+  return { column, kind, mark: cellMark(kind, outdated), system, person, outdated, documents: [], name: `${column.code}, ${words}` };
 }
 
 function programCell(column: Column, r: CoverageRequirement): Cell | null {
@@ -107,7 +115,7 @@ function programCell(column: Column, r: CoverageRequirement): Cell | null {
   const kind: CellKind = system && person ? 'BOTH' : system ? 'SYSTEM' : 'PERSON';
   const from = [system ? 'the system' : null, person ? 'a person' : null].filter((p) => p !== null).join(' and from ');
   const files = [...new Set(documents.map((d) => d.filename))].join(', ');
-  return { column, kind, system: 0, person: 0, outdated: [], documents, name: `Program documents, evidence from ${from}, ${files}` };
+  return { column, kind, mark: cellMark(kind, []), system: 0, person: 0, outdated: [], documents, name: `Program documents, evidence from ${from}, ${files}` };
 }
 
 /** Adjacent columns with the same `required` value, in column order; the program column belongs to none. */

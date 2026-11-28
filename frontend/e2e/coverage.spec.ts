@@ -30,6 +30,8 @@ test('California shows each course carrying the evidence and the flags; Utah sho
   await openCoverage(page);
   await expect(state(page, 'California')).toHaveAttribute('aria-selected', 'true');
   await expect(state(page, 'California')).toHaveAccessibleDescription(/^\d+ of 8 with no flag$/);
+  // The ink bar under the active tab moves at once: DESIGN.md allows motion of transform and opacity only.
+  expect(await page.locator('.p-tablist-active-bar').first().evaluate((bar) => getComputedStyle(bar).transitionProperty)).toBe('none');
 
   const ethics = row(page, 'CA-2').getByRole('button', { name: 'COUN 605, evidence from the system, 1 quote' });
   await expect(ethics).toBeVisible();

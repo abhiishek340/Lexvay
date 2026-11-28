@@ -86,7 +86,7 @@
                                                   [class.lx-cell-open]="previewed()?.cell === cell" [attr.aria-label]="cell.name" [tabindex]="isStop(r, c) ? 0 : -1"
                                                   (focus)="onFocus(r, c, cellEl)" (blur)="scheduleClose()" (mouseenter)="onEnter(r, c, cellEl)" (mouseleave)="onLeave()"
                                                   (click)="onFocus(r, c, cellEl)">
-                                            <lx-mark-shape class="lx-cell-mark" [attr.data-kind]="cell.kind" [shape]="cellShape[cell.kind]" />
+                                            <lx-mark-shape class="lx-cell-mark" [attr.data-kind]="cell.kind" [shape]="cell.mark.shape" [outdated]="cell.mark.outdated" />
                                           </button>
                                         }
                                       </td>

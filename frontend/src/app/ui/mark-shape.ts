@@ -8,11 +8,16 @@ export type MarkShape = 'disc' | 'square' | 'half' | 'ring' | 'ring-dot' | 'dash
  * the places that use the same shapes for something other than a review status (Coverage's cells and flags). The words
  * that say what it means always travel beside it.
  *   <lx-mark-shape shape="dashed-ring" />
+ * `outdated` draws the shape inside the dashed ring of the outdated mark, scaled up around it: the same 1.5 px stroke and
+ * the same eight dashes (the dash pattern grows with the radius), 2.5 px clear of the shape, for evidence that is partly
+ * current and partly on a superseded version. The mark grows to 18 px.
  */
 @Component({
   selector: 'lx-mark-shape',
   template: `
-    <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" focusable="false">
+    <svg [attr.viewBox]="outdated() ? '-4 -4 18 18' : '0 0 10 10'" [attr.width]="outdated() ? 18 : 10" [attr.height]="outdated() ? 18 : 10"
+         aria-hidden="true" focusable="false">
+      @if (outdated()) { <circle cx="5" cy="5" r="8.25" class="lx-stroke" stroke-dasharray="3.88 2.6" /> }
       @switch (shape()) {
         @case ('disc') { <circle cx="5" cy="5" r="5" class="lx-fill" /> }
         @case ('square') { <rect x="0.5" y="0.5" width="9" height="9" rx="1" class="lx-fill" /> }
@@ -24,7 +29,7 @@ export type MarkShape = 'disc' | 'square' | 'half' | 'ring' | 'ring-dot' | 'dash
       }
     </svg>
   `,
-  host: { '[attr.data-shape]': 'shape()', 'aria-hidden': 'true' },
+  host: { '[attr.data-shape]': 'shape()', '[attr.data-outdated]': 'outdated() || null', 'aria-hidden': 'true' },
   styles: `
     :host { display: inline-flex; flex: none; line-height: 0; }
     svg { overflow: visible; }
@@ -34,4 +39,6 @@ export type MarkShape = 'disc' | 'square' | 'half' | 'ring' | 'ring-dot' | 'dash
 })
 export class MarkShapeIcon {
   readonly shape = input.required<MarkShape>();
+  /** Draws the shape inside a dashed ring: some of the evidence it stands for is outdated. */
+  readonly outdated = input(false);
 }

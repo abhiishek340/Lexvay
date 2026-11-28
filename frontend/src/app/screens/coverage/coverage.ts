@@ -16,13 +16,14 @@ import { Help, HelpTerm } from '../../ui/help';
 import { MarkShapeIcon } from '../../ui/mark-shape';
 import { StateTab, StateTabs } from '../../ui/state-tabs';
 import { COVERAGE_TOKENS } from './coverage-theme';
-import { CELL_SHAPE, Cell, FLAGS, FLAG_ORDER, Flag, MoveKey, Position, Row, coverageView, firstCell, flagCounts, matchesFlag, move, unflaggedShare } from './coverage-view';
+import { Cell, FLAGS, FLAG_ORDER, Flag, MoveKey, Position, Row, coverageView, firstCell, flagCounts, matchesFlag, move, unflaggedShare } from './coverage-view';
 
 const HELP: readonly HelpTerm[] = [
   { term: 'Filled circle', definition: "A quote the system verified in the course's documents." },
   { term: 'Outline circle', definition: 'A passage a person provided.' },
   { term: 'Ring with a dot', definition: 'Both: a verified quote and a passage a person provided.' },
   { term: 'Dashed circle', definition: 'A quote on an older version of the course.' },
+  { term: 'Mark in a dashed ring', definition: 'Some of the evidence is outdated: the rest is on the current version.' },
   { term: 'Flags', definition: 'Say where the evidence sits, never whether it is enough. People decide that in Review.' },
 ];
 
@@ -58,7 +59,6 @@ export class Coverage {
   readonly jurisdictionParam = input<string | undefined>(undefined, { alias: 'jurisdiction' });
 
   readonly flags = FLAGS;
-  readonly cellShape = CELL_SHAPE;
   readonly help = HELP;
   readonly all = ALL;
   /** Every filter tab's value, for the panels: All, then each flag. */
