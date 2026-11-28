@@ -557,6 +557,25 @@ the API service and models, and `audit-sentence.ts` if a sentence is missing. Do
 8. **Docs:** add a "Sources" screen entry to DESIGN.md's screen list (a few lines). Decisions go in
    `docs/decisions/UX-1.md`, progress in `docs/progress/UX-1.md`, with screenshots in light, dark and 400 px.
 
+### FIX-10 — "New rule version" dialog closes mid-fill under load (frontend tests; slot 8; Sonnet 5.5; no migration; D-651 to D-653)
+`e2e/rules.spec.ts:171`, and `:236` which depends on it, fail under machine load. Partway through `fillVersion`, the
+character count or the "Supersedes" combobox is not found, as if the dialog had closed. The test waits 90 s for the
+"Enter rule version" button. It was seen in 3 of 4 local full runs during FIX-9 and twice during EV-2. Main's CI is green.
+
+Method, as in FIX-9:
+- Reproduce with `--repeat-each=20` under CPU hogs, and with CDP CPU throttling.
+- Probe focus, dialog visibility and `document.activeElement` at each `fillVersion` step.
+- Name the root cause with evidence. Suspects to rule in or out:
+  - the date picker's Escape or outside-click reaching the dialog (PrimeNG Dialog `closeOnEscape` and `dismissableMask`);
+  - an `appendTo="body"` overlay stealing a click;
+  - the unsaved-changes guard;
+  - a late re-render resetting the form.
+
+Fix the product if the product is at fault: a user under a slow machine would lose a half-filled form, which is a real
+defect. Fix only the test if the test is at fault. Never lengthen a timeout or add a retry. Add a deterministic test
+that fails on the old code. Prove it with 20/20 under load. Decisions go in `docs/decisions/FIX-10.md`, progress in
+`docs/progress/FIX-10.md`.
+
 ### EV-2 — Evaluation lab (backend and tooling; slot 8; Sonnet 5.5; no migration; D-621 to D-630)
 Master prompt §5.5 and M7. Accuracy claims need independent labels, frozen held-out cases, denominators, uncertainty and
 a comparison against a strong generic baseline. `make eval` today is a scripted regression against a single golden file.
