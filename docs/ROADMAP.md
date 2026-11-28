@@ -2021,6 +2021,9 @@ self-verifying ZIP built by a job.
    or later, not here.
 
 ## Follow-ups recorded from reviews
+- AC-1 (rule 6): a signed determination does not yet name the pathway groups it was assessed against. Add the active
+  pathway group ids to the determination's dependency snapshot and its versions hash, so a later group change marks it
+  for reassessment like a course or rule change.
 - FIX-5 (rule 9): `LOGOUT` is audited after the session is cleared, so its audit entry has no actor. Capture the
   user before the logout handler clears the context and record `LOGOUT` with that user as actor and `entity_id`;
   `Rule9_AuditCoverageTest` asserts the actor. UI2-3's `audit-sentence.spec.ts` now fails for any new audited action
