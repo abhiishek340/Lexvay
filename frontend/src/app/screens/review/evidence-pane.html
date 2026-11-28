@@ -1,20 +1,14 @@
 <section class="lx-evidence" aria-labelledby="evidence-heading">
-  <h2 id="evidence-heading" class="lx-sr-only">Evidence</h2>
+  <h2 id="evidence-heading">Evidence</h2>
   @if (mapping().evidence; as ev) {
     <ng-container *ngTemplateOutlet="passageTpl; context: { $implicit: ev, key: 'system' }" />
   } @else {
-    <div class="lx-no-evidence">
-      <ng-icon name="phosphorFileText" size="20" aria-hidden="true" />
-      <p>No quoted evidence</p>
-    </div>
+    <p class="lx-none">No passage is quoted for this requirement.</p>
   }
   @if (view(); as v) {
     @for (r of v.provided; track r.id) {
       <section class="lx-provided" [attr.aria-labelledby]="'provided-' + r.id" data-testid="provided-evidence">
-        <h3 class="lx-provided-label" [id]="'provided-' + r.id">
-          <ng-icon name="phosphorUser" size="16" aria-hidden="true" />
-          Evidence provided by {{ r.providedByName }}, {{ r.createdAt | date: 'd MMM y' }}
-        </h3>
+        <h3 [id]="'provided-' + r.id">Evidence provided by {{ r.providedByName }}, {{ r.createdAt | date: 'd MMM y' }}</h3>
         <ng-container *ngTemplateOutlet="passageTpl; context: { $implicit: r, key: r.id }" />
         @if (r.comment) {
           <blockquote class="lx-provided-comment">{{ r.comment }}</blockquote>
@@ -32,7 +26,7 @@
   @let system = key === 'system';
   <dl class="lx-evidence-meta" [attr.data-testid]="system ? 'evidence-meta' : null">
     @if (!wide()) {
-      <!-- In the three-pane layout the viewer's own header names the file. -->
+      <!-- In the three-column layout the viewer's own header names the file. -->
       <div><dt class="lx-sr-only">File</dt><dd>{{ ev.filename }}</dd></div>
     }
     @if (ev.courseCode) {
@@ -45,7 +39,7 @@
     <p-message severity="warn" size="small">From an elective. Not every student takes it.</p-message>
   }
   <details class="lx-quote-only">
-    <summary><ng-icon name="phosphorCaretRight" size="14" aria-hidden="true" />Quote only</summary>
+    <summary><ng-icon name="phosphorCaretRight" size="16" aria-hidden="true" />Quote only</summary>
     <blockquote class="lx-doc" [attr.data-testid]="system ? 'evidence-quote' : 'provided-quote'">{{ ev.quote }}</blockquote>
   </details>
   @if (!wide()) {

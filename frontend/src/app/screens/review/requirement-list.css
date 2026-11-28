@@ -1,33 +1,44 @@
 :host { display: flex; flex-direction: column; min-height: 0; }
 .lx-list { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.lx-list-head { flex: none; padding: 16px 16px 8px var(--lx-gutter); }
-:host ::ng-deep .lx-filters.p-selectbutton { display: flex; width: 100%; }
-:host ::ng-deep .lx-filters .p-togglebutton { flex: 1; }
-:host ::ng-deep .lx-filters .p-togglebutton-content { padding: 5px 0; justify-content: center; }
-.lx-filter-icon { display: inline-grid; place-items: center; }
+:host ::ng-deep .lx-filter.p-tabs { flex: 1; min-height: 0; }
 
-.lx-list-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 0 8px; }
+/* The filter: a text tab row with counts that wraps inside the 280 px column. Each tab draws its own 2 px ink rule,
+   because PrimeNG's single sliding bar cannot follow a tab onto a second line. */
+:host ::ng-deep .lx-filter-tabs.p-tablist { flex: none; padding: 16px 16px 0 var(--lx-gutter); }
+:host ::ng-deep .lx-filter-tabs .p-tablist-content { flex-wrap: wrap; column-gap: 16px; row-gap: 0; overflow: visible; }
+:host ::ng-deep .lx-filter-tabs .p-tablist-active-bar { display: none; }
+:host ::ng-deep .lx-filter-tab.p-tab { display: inline-flex; align-items: baseline; gap: 4px; padding: 8px 0; font-size: 13px; line-height: 20px; }
+:host ::ng-deep .lx-filter-tab.p-tab-active::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--p-lx-ink); }
+.lx-filter-count { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums; }
+
+:host ::ng-deep .lx-list-body.p-tabpanels { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 0; }
 .lx-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .lx-row {
   all: unset; box-sizing: border-box; width: 100%; cursor: pointer; position: relative;
-  display: grid; grid-template-columns: 3.25rem minmax(0, 1fr) auto auto; align-items: center; gap: 8px;
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto auto; align-items: center; column-gap: 8px;
   min-height: 40px; padding: 10px 16px 10px var(--lx-gutter);
   font-size: 13px; line-height: 20px; color: var(--p-lx-ink);
-  transition: background-color var(--lx-t-fast) var(--lx-ease);
+  transition: background-color var(--lx-t-fast) var(--lx-ease), box-shadow var(--lx-t-fast) var(--lx-ease);
 }
 .lx-row:hover { background: var(--p-lx-sunken); }
 .lx-row:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: -2px; }
+/* The selection moves without sliding: the wash and the 2 px accent rule cross-fade from one row to the next. */
 .lx-row-current, .lx-row-current:hover { background: var(--p-lx-accent-wash); box-shadow: inset 2px 0 0 var(--p-lx-accent); }
 .lx-row-ref { color: var(--p-lx-ink-2); font-weight: 500; font-variant-numeric: tabular-nums; }
 .lx-row-current .lx-row-ref { color: var(--p-lx-ink); }
 .lx-row-title { font-weight: 500; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .lx-row-provided { display: inline-flex; color: var(--p-lx-ink-2); }
 .lx-row-status { justify-self: end; }
+/* A decision lands: the row's new mark fades in over 120 ms (DESIGN.md "Motion"); nothing else moves. */
+.lx-landed { animation: lx-mark-in var(--lx-t-fast) var(--lx-ease) both; }
+@keyframes lx-mark-in { from { opacity: 0; } }
 
-.lx-row-skeleton { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px 12px var(--lx-gutter); }
-.lx-empty { padding: 16px 16px 16px var(--lx-gutter); color: var(--p-lx-ink-2); }
+.lx-row-skeleton { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; column-gap: 8px; height: 40px; padding: 0 16px 0 var(--lx-gutter); }
+.lx-empty { padding: 12px 16px 12px var(--lx-gutter); color: var(--p-lx-ink-2); }
 
 @media (max-width: 1023px) {
-  .lx-list-head, .lx-row, .lx-row-skeleton, .lx-empty { padding-left: 0; padding-right: 0; }
-  .lx-list-body { max-height: min(40vh, 280px); }
+  :host ::ng-deep .lx-filter-tabs.p-tablist { padding: 0; }
+  .lx-row, .lx-row-skeleton { padding-left: 8px; padding-right: 8px; }
+  .lx-empty { padding-left: 0; padding-right: 0; }
+  :host ::ng-deep .lx-list-body.p-tabpanels { max-height: min(40vh, 280px); }
 }

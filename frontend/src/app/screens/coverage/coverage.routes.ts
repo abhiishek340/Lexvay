@@ -1,6 +1,5 @@
 import { Routes } from '@angular/router';
-import { provideIcons } from '@ng-icons/core';
-import { COVERAGE_ICONS, Coverage } from './coverage';
+import { Coverage } from './coverage';
 
-/** The screen with its own icons, in one lazy chunk: route providers are built when the app starts, so they live here. */
-export default [{ path: '', component: Coverage, providers: [provideIcons(COVERAGE_ICONS)], title: 'Coverage · Lexvay' }] satisfies Routes;
+/** The screen in one lazy chunk. It shows no icons beyond the shell's: its marks are drawn shapes (ui/mark-shape.ts). */
+export default [{ path: '', component: Coverage, title: 'Coverage · Lexvay' }] satisfies Routes;

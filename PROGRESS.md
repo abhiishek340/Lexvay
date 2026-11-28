@@ -3133,3 +3133,27 @@ slot-5 stack. A full screenshot run earlier passed 60 tests; F14's report-check 
 screenshot-only test outside these screens), and because the setup project depends on it, setup's captures were taken
 in the targeted run instead. After the review the `ui3-3-rules-*` captures were retaken on 7261a5d (`rules.spec.ts`
 with `LEXVAY_SCREENSHOTS=1`).
+
+## UI3-1 — Review and Coverage in v3 (PR #58)
+
+Branch `ui3-review-coverage`, decisions D-500 to D-509 in `docs/decisions/UI3-1.md`. Frontend only.
+
+### Spec points
+1. **Three hairline columns** (D-500): list 280 px, requirement, evidence 420 px; the decision footer fixed at the foot of
+   the centre column.
+2. **State switcher** as the underlined tab row with "3 of 8" (UI3-0's `StateTabs`); the header says "3 of 8 decided"
+   beside the 120 px Meter (D-502).
+3. **List filter** as a text tab row with counts, wrapping inside the column (D-501).
+4. **Requirement column**: ref and title, rule text on a 2 px left rule, source in meta, Finding as a section (D-503).
+5. **Decision footer**: plain footer, Accept primary, Request secondary, Gap secondary in missing (D-500).
+6. **Signing dialog**: radio list of the three outcomes, one line each, line-art Seal preview (D-506).
+7. **Coverage**: matrix on surface with status-mark shapes, flags as words with a mark, the flag filter as a text tab
+   row (D-507, D-508).
+8. UI3-0's self-critique: no slide, a 120 ms mark fade and a selection move (D-504); the filter is text tabs (D-501);
+   `tooltipEvent="both"` on the one `.lx-term`; skeletons are named statuses; the source scan is green and local class
+   names no longer collide with globals (D-509). One help affordance on Review (D-505).
+
+### Screenshots
+`docs/screens/ui3-1-*` at 1440 and 400 px, light and dark: `review-list`, `review-found`, `review-ambiguous`,
+`review-footer` (the note open), `review-signing`, `coverage`, `coverage-card`, `coverage-filter`. Taken by the
+`UI3-1` test in `screens.spec.ts`.

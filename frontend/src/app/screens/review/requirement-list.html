@@ -1,38 +1,49 @@
 @let w = workspace();
 <section class="lx-list" aria-label="Requirements">
-  <div class="lx-list-head">
-    <span id="filter-label" class="lx-sr-only">Show</span>
-    <p-selectbutton class="lx-filters" [options]="w.filterOptions()" optionLabel="label" optionValue="value" [allowEmpty]="false" size="small"
-                    [ngModel]="w.filter()" (ngModelChange)="setFilter($event)" ariaLabelledBy="filter-label">
-      <ng-template #item let-option>
-        <span class="lx-filter-icon" [pTooltip]="option.label" tooltipPosition="bottom" [showDelay]="300">
-          <ng-icon [name]="option.icon" size="18" aria-hidden="true" />
-        </span>
-      </ng-template>
-    </p-selectbutton>
-  </div>
-  <div class="lx-list-body" #body>
-    @if (loading()) {
-      @for (i of [1, 2, 3, 4, 5, 6]; track i) { <div class="lx-row-skeleton"><p-skeleton aria-hidden="true" width="2.5rem" height="0.75rem" /><p-skeleton aria-hidden="true" height="0.875rem" /></div> }
-    } @else if (w.visible().length === 0) {
-      <p class="lx-empty">No requirements match this filter.</p>
-    } @else {
-      <ul class="lx-rows">
-        @for (m of w.visible(); track m.id) {
-          <li>
-            <button type="button" class="lx-row" [class.lx-row-current]="m.id === w.selectedId()"
-                    [attr.aria-current]="m.id === w.selectedId() ? 'true' : null" (click)="selectRequirement.emit(m.id)">
-              <span class="lx-row-ref">{{ m.requirement.ref }}</span>
-              <span class="lx-row-title">{{ m.requirement.title }}</span>
-              @if (m.responseCount > 0) {
-                <span class="lx-row-provided"><ng-icon name="phosphorChatCircleText" size="14" aria-hidden="true" /><span class="lx-sr-only">evidence provided</span></span>
-              }
-              @let s = status(m.finding, m.decision?.kind ?? null, m.stale);
-              <lx-status-mark class="lx-row-status" [status]="s.status" [label]="s.label" [quiet]="true" />
-            </button>
-          </li>
-        }
-      </ul>
-    }
-  </div>
+  <p-tabs class="lx-filter" [value]="w.filter()" (valueChange)="setFilter($event)" [selectOnFocus]="true">
+    <p-tablist class="lx-filter-tabs" [pt]="{ content: { 'aria-label': 'Show' } }">
+      @for (f of w.filterTabs(); track f.value) {
+        <p-tab [value]="f.value" class="lx-filter-tab" [attr.aria-label]="f.name">
+          <span>{{ f.label }}</span><span class="lx-filter-count" aria-hidden="true">{{ f.count }}</span>
+        </p-tab>
+      }
+    </p-tablist>
+    <p-tabpanels class="lx-list-body" #body>
+      @for (f of w.filterTabs(); track f.value) {
+        <p-tabpanel [value]="f.value">
+          @if (f.value === w.filter()) {
+            @if (loading()) {
+              <div class="lx-rows-skeleton" role="status" aria-busy="true" aria-label="Loading the requirements">
+                @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+                  <div class="lx-row-skeleton"><p-skeleton aria-hidden="true" width="2rem" height="0.75rem" /><p-skeleton aria-hidden="true" height="0.75rem" /></div>
+                }
+              </div>
+            } @else if (w.visible().length === 0) {
+              <p class="lx-empty">No requirements match this filter.</p>
+            } @else {
+              <ul class="lx-rows">
+                @for (m of w.visible(); track m.id) {
+                  <li>
+                    <button type="button" class="lx-row" [class.lx-row-current]="m.id === w.selectedId()"
+                            [attr.aria-current]="m.id === w.selectedId() ? 'true' : null" (click)="selectRequirement.emit(m.id)">
+                      <span class="lx-row-ref">{{ m.requirement.ref }}</span>
+                      <span class="lx-row-title">{{ m.requirement.title }}</span>
+                      @if (m.responseCount > 0) {
+                        <span class="lx-row-provided"><ng-icon name="phosphorChatCircleText" size="16" aria-hidden="true" /><span class="lx-sr-only">evidence provided</span></span>
+                      }
+                      @let s = status(m.finding, m.decision?.kind ?? null, m.stale);
+                      <!-- Keyed by status: a decision replaces the mark, and the row whose decision just landed fades it in. -->
+                      @for (key of [s.status]; track key) {
+                        <lx-status-mark class="lx-row-status" [class.lx-landed]="m.id === w.landed()" [status]="s.status" [label]="s.label" [quiet]="true" />
+                      }
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          }
+        </p-tabpanel>
+      }
+    </p-tabpanels>
+  </p-tabs>
 </section>
