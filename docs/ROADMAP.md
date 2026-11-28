@@ -609,7 +609,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | in progress |
 | OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | merged (#54) |
 | OPS-2b Stack lock race on Ubuntu 26.04 (uutils mkdir) | `ops-stack-lock-fix` | — | Sonnet 5.5 | merged (#60) |
-| OPS-3 Performance budget on CI | `ops-perf-ci` | — | Sonnet 5.5 | in progress |
+| OPS-3 Performance budget on CI | `ops-perf-ci` | — | Sonnet 5.5 | merged (#56) |
 | EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | merged (#59) |
 | RG-2 Source registry governance | `rg-source-governance` | 6 | Sonnet 5.5 | in progress |
 | EV-2 Evaluation lab | `ev-lab` | 8 | Sonnet 5.5 | in progress |
@@ -2080,6 +2080,8 @@ self-verifying ZIP built by a job.
    or later, not here.
 
 ## Follow-ups recorded from reviews
+- OPS-3: `AuditSealPerfTest` (SEC-3) writes no `target/perf` file, so its numbers are not in the CI perf summary; have it
+  write `target/perf/audit-seal.md` (verify and seal timings) like the other perf tests.
 - AC-1 (rule 6): a signed determination does not yet name the pathway groups it was assessed against. Add the active
   pathway group ids to the determination's dependency snapshot and its versions hash, so a later group change marks it
   for reassessment like a course or rule change.
