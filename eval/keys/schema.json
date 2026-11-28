@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Lexvay answer key",
+  "description": "What qualified people, labelling independently of the system, say each requirement of one program's approved rule versions finds in that program's documents (docs/OPERATIONS.md, Evaluation lab).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["split", "provenance", "requirements"],
+  "properties": {
+    "split": { "enum": ["dev", "holdout"], "description": "dev keys are tuned against; a holdout key is frozen by eval/holdout.lock and read only by make eval-holdout" },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fictional", "date", "labellers", "sourceBundle"],
+      "properties": {
+        "fictional": { "type": "boolean" },
+        "date": { "$ref": "#/$defs/date" },
+        "labellers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "role", "independent"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[A-Za-z0-9]{1,8}$", "description": "A label for this key only, never a name" },
+              "role": { "type": "string", "minLength": 1, "description": "What qualified the labeller, never a name" },
+              "independent": { "type": "boolean", "description": "True only when the labeller did not see the system's output and did not write the sources or the seed" }
+            }
+          }
+        },
+        "sourceBundle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["program", "ruleVersions", "documents"],
+          "properties": {
+            "program": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "catalogYear"],
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "catalogYear": { "type": "string", "minLength": 1 }
+              }
+            },
+            "ruleVersions": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["jurisdiction", "label", "effectiveFrom"],
+                "properties": {
+                  "jurisdiction": { "type": "string", "minLength": 1 },
+                  "label": { "type": "string", "minLength": 1 },
+                  "effectiveFrom": { "$ref": "#/$defs/date" }
+                }
+              }
+            },
+            "documents": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["file", "sha256"],
+                "properties": {
+                  "file": { "type": "string", "minLength": 1 },
+                  "sha256": { "$ref": "#/$defs/sha256" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "jurisdiction", "title", "text", "type", "expected", "severity"],
+        "properties": {
+          "ref": { "type": "string", "minLength": 1 },
+          "jurisdiction": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1, "description": "The approved requirement text the labels were made against" },
+          "type": { "enum": ["NUMERIC", "SUBJECT", "SUPERVISED_HOURS", "ACCREDITATION", "JURISDICTION_SPECIFIC"] },
+          "numeric": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["field", "operator", "value"],
+            "properties": {
+              "field": { "enum": ["TOTAL_CREDITS", "PRACTICUM_HOURS", "INTERNSHIP_HOURS"] },
+              "operator": { "enum": [">=", "<=", "=", ">", "<"] },
+              "value": { "type": "number" }
+            }
+          },
+          "searchTerms": { "type": "array", "maxItems": 8, "items": { "type": "string", "minLength": 1, "maxLength": 40 } },
+          "expected": { "enum": ["EVIDENCE_FOUND", "EVIDENCE_MISSING", "AMBIGUOUS", "NOT_APPLICABLE"] },
+          "severity": { "enum": ["CRITICAL", "STANDARD"] },
+          "spans": {
+            "type": "array",
+            "description": "Passages a labeller accepts as the evidence: a character range of one page of one document (by SHA-256). A cited span that overlaps one by at least half of the shorter span counts as a match.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["document", "page", "charStart", "charEnd"],
+              "properties": {
+                "document": { "$ref": "#/$defs/sha256" },
+                "page": { "type": "integer", "minimum": 1 },
+                "charStart": { "type": "integer", "minimum": 0 },
+                "charEnd": { "type": "integer", "minimum": 1 }
+              }
+            }
+          },
+          "notes": { "type": "string" },
+          "adjudication": {
+            "type": "object",
+            "description": "Present exactly when two labellers disagreed: what each said, and the final label the requirement carries.",
+            "additionalProperties": false,
+            "required": ["labels", "final", "adjudicator"],
+            "properties": {
+              "labels": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["labeller", "finding"],
+                  "properties": {
+                    "labeller": { "type": "string", "minLength": 1 },
+                    "finding": { "enum": ["EVIDENCE_FOUND", "EVIDENCE_MISSING", "AMBIGUOUS", "NOT_APPLICABLE"] }
+                  }
+                }
+              },
+              "final": { "enum": ["EVIDENCE_FOUND", "EVIDENCE_MISSING", "AMBIGUOUS", "NOT_APPLICABLE"] },
+              "adjudicator": { "type": "string", "minLength": 1, "description": "A role, never a name" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

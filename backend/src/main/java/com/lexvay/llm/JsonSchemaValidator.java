@@ -25,14 +25,22 @@ public class JsonSchemaValidator {
     private final Schema schema;
 
     public JsonSchemaValidator(ObjectMapper json, String classpathLocation) {
+        this(json, readClasspath(json, classpathLocation));
+    }
+
+    public JsonSchemaValidator(ObjectMapper json, JsonNode schemaNode) {
         this.json = json;
+        this.schemaNode = schemaNode;
+        this.schema = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12)
+                .getSchema(json.writeValueAsString(schemaNode));
+    }
+
+    private static JsonNode readClasspath(ObjectMapper json, String classpathLocation) {
         try {
-            this.schemaNode = json.readTree(new ClassPathResource(classpathLocation).getInputStream());
+            return json.readTree(new ClassPathResource(classpathLocation).getInputStream());
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read schema " + classpathLocation, e);
         }
-        this.schema = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12)
-                .getSchema(json.writeValueAsString(schemaNode));
     }
 
     public JsonNode schema() {
@@ -47,6 +55,11 @@ public class JsonSchemaValidator {
         } catch (RuntimeException e) {
             return new Result(null, List.of("Output is not valid JSON: " + firstLine(e.getMessage())));
         }
+        return validate(node);
+    }
+
+    /** Validates a document that is already parsed. */
+    public Result validate(JsonNode node) {
         List<Error> errors = schema.validate(node);
         return new Result(node, errors.stream()
                 .map(e -> e.getInstanceLocation() + ": " + e.getMessage())

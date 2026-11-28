@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -53,22 +54,39 @@ public class EvalService {
         this.clock = clock;
     }
 
+    /** The pipeline's answers for one fresh demo tenant, readable while {@link #assessed} runs: the tenant is the current one. */
+    record Assessed(EvalReport.Mode mode, String tenant, UUID assessmentId, EvalModel model) {
+    }
+
     public EvalReport run(Path seedDir, Golden golden, Thresholds thresholds) {
         if (!golden.fictional()) {
             throw new IllegalStateException("eval/golden.yml must declare fictional: true");
         }
+        return assessed(seedDir, golden, a -> report(a.mode(), a.tenant(), a.assessmentId(), golden, thresholds, a.model()));
+    }
+
+    /**
+     * Loads the demo program into a fresh, uniquely named tenant, lets the pipeline assess it, and hands the finished
+     * assessment to {@code use} with that tenant current. A live model's extraction is replaced by {@code approved}, so its
+     * matching is scored requirement by requirement; the scripted model keeps the seed's own extraction.
+     */
+    <T> T assessed(Path seedDir, RequirementList approved, Function<Assessed, T> use) {
         EvalReport.Mode mode = mode();
         EvalModel model = new EvalModel(mode.live() ? ModelStrategy.NONE : ScriptedFakeModel.load(seedDir, llm, json),
-                ruleVersions, json, mode.live() ? golden : null);
-        SeedManifest.Tenant tenant = seeds.manifest(seedDir).tenants().stream().filter(SeedManifest.Tenant::demo).findFirst()
-                .orElseThrow(() -> new IllegalStateException("seed/manifest.yml has no demo tenant"))
-                .isolated(UUID.randomUUID().toString().substring(0, 8));
+                ruleVersions, json, mode.live() ? approved : null);
+        SeedManifest.Tenant tenant = demoTenant(seedDir).isolated(UUID.randomUUID().toString().substring(0, 8));
         SeedLoader.Result loaded = seeds.loadTenant(tenant, seedDir, UUID.randomUUID().toString(), model);
-        return TenantContext.runAs(loaded.tenantId(), () -> report(mode, tenant.name(), loaded.assessmentId(), golden, thresholds, model));
+        return TenantContext.runAs(loaded.tenantId(), () -> use.apply(new Assessed(mode, tenant.name(), loaded.assessmentId(), model)));
+    }
+
+    /** The seed's demo tenant: the program an evaluation assesses, as the manifest declares it. */
+    SeedManifest.Tenant demoTenant(Path seedDir) {
+        return seeds.manifest(seedDir).tenants().stream().filter(SeedManifest.Tenant::demo).findFirst()
+                .orElseThrow(() -> new IllegalStateException("seed/manifest.yml has no demo tenant"));
     }
 
     /** What the client is decides the label: scripted answers, a model that costs nothing per call, or a billed one. */
-    private EvalReport.Mode mode() {
+    EvalReport.Mode mode() {
         if (llm.scripted()) {
             return EvalReport.Mode.SCRIPTED;
         }
@@ -90,10 +108,19 @@ public class EvalService {
     }
 
     private EvalReport.Usage usage(Assessment assessment) {
-        EvalRepository.ModelUse use = repository.modelUse();
-        BigDecimal cost = rates.priceOf(llm.modelId()).map(p -> p.cost(use.inputTokens(), use.outputTokens())).orElse(null);
         Duration wall = assessment.startedAt() == null || assessment.finishedAt() == null ? Duration.ZERO
                 : Duration.between(assessment.startedAt(), assessment.finishedAt());
+        return usage(repository.modelUse(false), wall);
+    }
+
+    /** The calls, tokens and, when the model has a price, the cost of a set of model calls. */
+    EvalReport.Usage usage(EvalRepository.ModelUse use, Duration wall) {
+        BigDecimal cost = rates.priceOf(llm.modelId()).map(p -> p.cost(use.inputTokens(), use.outputTokens())).orElse(null);
         return new EvalReport.Usage(use.calls(), use.inputTokens(), use.outputTokens(), use.tokensEstimated(), cost, wall);
+    }
+
+    /** The pipeline's model use for the assessment, as the report prints it. */
+    EvalReport.Usage pipelineUsage(UUID assessmentId) {
+        return usage(assessments.require(assessmentId));
     }
 }

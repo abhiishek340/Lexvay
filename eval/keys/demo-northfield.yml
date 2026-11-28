@@ -1,0 +1,505 @@
+# Answer key for the fictional Northfield University seed (EV-2). Fictional: the program, rules, courses and findings do not exist,
+# so this key demonstrates the format and the lab; it is NOT evidence of the system's accuracy.
+#
+# The labeller is the engineer who wrote the seed, so the labels are not independent (a claim needs at least two independent
+# labellers). The spans are the sentences of the seed PDFs' stored page text that a person would accept as the evidence.
+# A real key is written by qualified people from real sources (DOM-1); see docs/OPERATIONS.md, "Evaluation lab".
+split: dev
+provenance:
+  fictional: true
+  date: 2026-11-28
+  labellers:
+    - { id: A, role: "Fictional demo author (wrote the seed)", independent: false }
+  sourceBundle:
+    program: { name: "M.S. Clinical Mental Health Counseling", catalogYear: "2026-27" }
+    ruleVersions:
+      - { jurisdiction: UT, label: "Demo rule set - Utah (fictional) 2026", effectiveFrom: 2026-07-01 }
+      - { jurisdiction: CO, label: "Demo rule set - Colorado (fictional) 2026", effectiveFrom: 2026-07-01 }
+      - { jurisdiction: AZ, label: "Demo rule set - Arizona (fictional) 2026", effectiveFrom: 2026-07-01 }
+      - { jurisdiction: CA, label: "Demo rule set - California (fictional) 2026", effectiveFrom: 2026-07-01 }
+      - { jurisdiction: TX, label: "Demo rule set - Texas (fictional) 2026", effectiveFrom: 2026-07-01 }
+    documents:
+      - { file: accreditation-letter.pdf, sha256: 043d02426baeb97fdb41dac15e3880c46dadbf2ceb4815923cf1dcee929e4227 }
+      - { file: clinical-handbook.pdf, sha256: 5415417fc77026a07045e0d9fa7f7d97e43e6dc3bd7424ad386b60ea80433e7f }
+      - { file: coun605-syllabus.pdf, sha256: fa589a3684c497994e9d7ea46323e641fc90ca4d1e22b60c1ee8d3405eccac80 }
+      - { file: coun610-syllabus.pdf, sha256: ff1aae5c9ddb872cbff1090ae8e686858a2e29a436ad3aae78688d7ad7bdb6df }
+      - { file: coun615-syllabus.pdf, sha256: adfb2dd90f4c22867c0d9d9fe4af3bd911f022ea88ca98d3cfade35a4b33a63d }
+      - { file: coun620-syllabus.pdf, sha256: 41cf4ec00b9ea4e4021a4799f1e620e2640a5c57cda7e0c5c0ebbd546370269c }
+      - { file: coun625-syllabus.pdf, sha256: dfd69f3d80253be8984a3543c00d8c5f0e11f11a6568085f1aefa0fde0489644 }
+      - { file: coun630-syllabus.pdf, sha256: 99c26d460ed0548472b680dfa874e2a1c90eb59146c191719f2ee4ff3cc966df }
+      - { file: coun635-syllabus.pdf, sha256: 1981ac1551f9def13671b0ddaeedae502a9d2a9958d93bf6b78b4e8c37d537e1 }
+      - { file: coun640-syllabus.pdf, sha256: 2fabc6a86998f76ad7b11a733015c5d15c4f102c44beb83dece57bb6e483e094 }
+      - { file: coun650-syllabus.pdf, sha256: 0f12dd1b0b0918df5ec642d42c90a9406d8f9c47728fdea6a4f684389a8535a9 }
+      - { file: coun655-syllabus.pdf, sha256: c855a1154cec59eb0db1f8edc3b958c08ebff55632d0f555ca7dcecbdb9488e0 }
+      - { file: degree-plan.pdf, sha256: ad0841a0711ecd9f47529919bde78d49e40d2685043e0f8ea0962c8391016150 }
+requirements:
+  - ref: UT-1
+    jurisdiction: UT
+    title: "Credit hours"
+    text: "a graduate degree in counseling of at least 60 semester credit hours"
+    type: NUMERIC
+    numeric: { field: TOTAL_CREDITS, operator: ">=", value: 60 }
+    searchTerms: ["program of study", "degree plan", "graduation requirements", "total credits"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: ad0841a0711ecd9f47529919bde78d49e40d2685043e0f8ea0962c8391016150, page: 1, charStart: 187, charEnd: 251 }
+    notes: "The degree plan states 60 credits; 60 >= 60."
+  - ref: UT-2
+    jurisdiction: UT
+    title: "Ethics coursework"
+    text: "coursework in professional ethics and legal standards for counselors"
+    type: SUBJECT
+    searchTerms: ["code of ethics", "confidentiality", "professional conduct", "informed consent"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: fa589a3684c497994e9d7ea46323e641fc90ca4d1e22b60c1ee8d3405eccac80, page: 1, charStart: 251, charEnd: 414 }
+    notes: "COUN 605 is a required ethics and legal standards course."
+  - ref: UT-3
+    jurisdiction: UT
+    title: "Human growth"
+    text: "coursework in human growth and development across the lifespan"
+    type: SUBJECT
+    searchTerms: ["developmental stages", "child and adolescent", "aging", "developmental theory"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: ff1aae5c9ddb872cbff1090ae8e686858a2e29a436ad3aae78688d7ad7bdb6df, page: 1, charStart: 234, charEnd: 413 }
+    notes: "COUN 610 is a required lifespan development course."
+  - ref: UT-4
+    jurisdiction: UT
+    title: "Diagnosis"
+    text: "coursework in the diagnosis and treatment planning of mental disorders"
+    type: SUBJECT
+    searchTerms: ["psychopathology", "dsm", "differential diagnosis", "case formulation"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: adfb2dd90f4c22867c0d9d9fe4af3bd911f022ea88ca98d3cfade35a4b33a63d, page: 1, charStart: 238, charEnd: 402 }
+    notes: "COUN 615 is a required diagnosis and treatment planning course."
+  - ref: UT-5
+    jurisdiction: UT
+    title: "Internship hours"
+    text: "at least 600 clock hours of supervised internship"
+    type: SUPERVISED_HOURS
+    numeric: { field: INTERNSHIP_HOURS, operator: ">=", value: 600 }
+    searchTerms: ["clinical placement", "supervised clinical experience", "site supervisor", "field experience"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: 5415417fc77026a07045e0d9fa7f7d97e43e6dc3bd7424ad386b60ea80433e7f, page: 1, charStart: 395, charEnd: 497 }
+    notes: "The clinical handbook states 600 internship hours; 600 >= 600."
+  - ref: UT-6
+    jurisdiction: UT
+    title: "Accreditation"
+    text: "accredited by a counseling program accrediting body recognized by the board"
+    type: ACCREDITATION
+    searchTerms: ["accreditation council", "programmatic accreditation", "accreditation status", "accreditation term"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: 043d02426baeb97fdb41dac15e3880c46dadbf2ceb4815923cf1dcee929e4227, page: 1, charStart: 165, charEnd: 339 }
+    notes: "The accreditation letter names the accrediting council and its term."
+  - ref: UT-7
+    jurisdiction: UT
+    title: "Group counseling"
+    text: "coursework in group counseling theory and practice"
+    type: SUBJECT
+    searchTerms: ["group dynamics", "group process", "therapeutic groups", "group facilitation"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: dfd69f3d80253be8984a3543c00d8c5f0e11f11a6568085f1aefa0fde0489644, page: 1, charStart: 222, charEnd: 386 }
+    notes: "COUN 625 is a required group counseling course."
+  - ref: UT-8
+    jurisdiction: UT
+    title: "Addictions"
+    text: "coursework in substance use and addictive disorders"
+    type: SUBJECT
+    searchTerms: ["addiction", "dependence", "recovery", "relapse prevention"]
+    expected: AMBIGUOUS
+    severity: STANDARD
+    spans:
+      - { document: 0f12dd1b0b0918df5ec642d42c90a9406d8f9c47728fdea6a4f684389a8535a9, page: 1, charStart: 227, charEnd: 403 }
+    notes: "Only COUN 650 covers addictions and it is an elective."
+  - ref: UT-9
+    jurisdiction: UT
+    title: "State law course"
+    text: "a course on the Utah Mental Health Professional Practice Act (fictional)"
+    type: JURISDICTION_SPECIFIC
+    searchTerms: ["licensure law", "state statutes", "practice regulations", "jurisdictional requirements"]
+    expected: EVIDENCE_MISSING
+    severity: CRITICAL
+    spans: []
+    notes: "No document mentions the Utah act."
+  - ref: CO-1
+    jurisdiction: CO
+    title: "Credit hours"
+    text: "a graduate counseling degree of at least 60 semester credit hours"
+    type: NUMERIC
+    numeric: { field: TOTAL_CREDITS, operator: ">=", value: 60 }
+    searchTerms: ["program of study", "degree plan", "graduation requirements", "total credits"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: ad0841a0711ecd9f47529919bde78d49e40d2685043e0f8ea0962c8391016150, page: 1, charStart: 187, charEnd: 251 }
+    notes: "The degree plan states 60 credits; 60 >= 60."
+  - ref: CO-2
+    jurisdiction: CO
+    title: "Ethics coursework"
+    text: "coursework in professional ethics and legal issues in counseling"
+    type: SUBJECT
+    searchTerms: ["code of ethics", "confidentiality", "professional conduct", "informed consent"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: fa589a3684c497994e9d7ea46323e641fc90ca4d1e22b60c1ee8d3405eccac80, page: 1, charStart: 251, charEnd: 414 }
+    notes: "COUN 605 is a required ethics and legal standards course."
+  - ref: CO-3
+    jurisdiction: CO
+    title: "Crisis and trauma"
+    text: "coursework in crisis intervention and trauma-informed counseling"
+    type: SUBJECT
+    searchTerms: ["suicide risk", "crisis response", "disaster response", "risk assessment"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: 41cf4ec00b9ea4e4021a4799f1e620e2640a5c57cda7e0c5c0ebbd546370269c, page: 1, charStart: 242, charEnd: 407 }
+    notes: "COUN 620 is a required crisis and trauma course."
+  - ref: CO-4
+    jurisdiction: CO
+    title: "Practicum hours"
+    text: "at least 100 clock hours of supervised practicum"
+    type: SUPERVISED_HOURS
+    numeric: { field: PRACTICUM_HOURS, operator: ">=", value: 100 }
+    searchTerms: ["field placement", "clinical experience", "site supervisor", "direct client contact"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: 5415417fc77026a07045e0d9fa7f7d97e43e6dc3bd7424ad386b60ea80433e7f, page: 1, charStart: 180, charEnd: 280 }
+    notes: "The clinical handbook states 100 practicum hours; 100 >= 100."
+  - ref: CO-5
+    jurisdiction: CO
+    title: "Internship hours"
+    text: "at least 600 clock hours of supervised internship"
+    type: SUPERVISED_HOURS
+    numeric: { field: INTERNSHIP_HOURS, operator: ">=", value: 600 }
+    searchTerms: ["clinical placement", "supervised clinical experience", "site supervisor", "field experience"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: 5415417fc77026a07045e0d9fa7f7d97e43e6dc3bd7424ad386b60ea80433e7f, page: 1, charStart: 395, charEnd: 497 }
+    notes: "The clinical handbook states 600 internship hours; 600 >= 600."
+  - ref: CO-6
+    jurisdiction: CO
+    title: "Career development"
+    text: "coursework in career development and career counseling"
+    type: SUBJECT
+    searchTerms: ["vocational", "occupational information", "career theory", "work and life roles"]
+    expected: AMBIGUOUS
+    severity: STANDARD
+    spans:
+      - { document: 99c26d460ed0548472b680dfa874e2a1c90eb59146c191719f2ee4ff3cc966df, page: 1, charStart: 365, charEnd: 465 }
+    notes: "COUN 630 is titled for career development, but the syllabus gives the topic a single class session."
+  - ref: CO-7
+    jurisdiction: CO
+    title: "Research"
+    text: "coursework in research methods and program evaluation"
+    type: SUBJECT
+    searchTerms: ["statistics", "data analysis", "research design", "evidence-based practice"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: 1981ac1551f9def13671b0ddaeedae502a9d2a9958d93bf6b78b4e8c37d537e1, page: 1, charStart: 237, charEnd: 383 }
+    notes: "COUN 635 is a required research and program evaluation course."
+  - ref: CO-8
+    jurisdiction: CO
+    title: "Assessment"
+    text: "coursework in assessment and testing in counseling"
+    type: SUBJECT
+    searchTerms: ["psychological testing", "test instruments", "appraisal", "standardized tests"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: 2fabc6a86998f76ad7b11a733015c5d15c4f102c44beb83dece57bb6e483e094, page: 1, charStart: 242, charEnd: 434 }
+    notes: "COUN 640 is a required assessment and testing course."
+  - ref: CO-9
+    jurisdiction: CO
+    title: "Psychopharmacology"
+    text: "coursework in psychopharmacology for counselors"
+    type: SUBJECT
+    searchTerms: ["psychotropic medications", "medication", "drug classes", "neurobiology"]
+    expected: AMBIGUOUS
+    severity: STANDARD
+    spans:
+      - { document: c855a1154cec59eb0db1f8edc3b958c08ebff55632d0f555ca7dcecbdb9488e0, page: 1, charStart: 239, charEnd: 409 }
+    notes: "Only COUN 655 covers psychopharmacology and it is an elective."
+  - ref: AZ-1
+    jurisdiction: AZ
+    title: "Credit hours"
+    text: "a graduate degree in counseling of at least 60 semester credit hours"
+    type: NUMERIC
+    numeric: { field: TOTAL_CREDITS, operator: ">=", value: 60 }
+    searchTerms: ["program of study", "degree plan", "graduation requirements", "total credits"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: ad0841a0711ecd9f47529919bde78d49e40d2685043e0f8ea0962c8391016150, page: 1, charStart: 187, charEnd: 251 }
+    notes: "The degree plan states 60 credits; 60 >= 60."
+  - ref: AZ-2
+    jurisdiction: AZ
+    title: "Ethics coursework"
+    text: "coursework in professional ethics and the legal standards of counseling practice"
+    type: SUBJECT
+    searchTerms: ["code of ethics", "confidentiality", "professional conduct", "informed consent"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: fa589a3684c497994e9d7ea46323e641fc90ca4d1e22b60c1ee8d3405eccac80, page: 1, charStart: 251, charEnd: 414 }
+    notes: "COUN 605 is a required ethics and legal standards course."
+  - ref: AZ-3
+    jurisdiction: AZ
+    title: "Human growth"
+    text: "coursework in human growth and development"
+    type: SUBJECT
+    searchTerms: ["lifespan development", "developmental stages", "child and adolescent", "aging", "developmental theory"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: ff1aae5c9ddb872cbff1090ae8e686858a2e29a436ad3aae78688d7ad7bdb6df, page: 1, charStart: 234, charEnd: 413 }
+    notes: "COUN 610 is a required lifespan development course."
+  - ref: AZ-4
+    jurisdiction: AZ
+    title: "Group counseling"
+    text: "coursework in group counseling"
+    type: SUBJECT
+    searchTerms: ["group dynamics", "group process", "therapeutic groups", "group facilitation"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: dfd69f3d80253be8984a3543c00d8c5f0e11f11a6568085f1aefa0fde0489644, page: 1, charStart: 222, charEnd: 386 }
+    notes: "COUN 625 is a required group counseling course."
+  - ref: AZ-5
+    jurisdiction: AZ
+    title: "Internship hours"
+    text: "at least 600 clock hours of supervised internship"
+    type: SUPERVISED_HOURS
+    numeric: { field: INTERNSHIP_HOURS, operator: ">=", value: 600 }
+    searchTerms: ["clinical placement", "supervised clinical experience", "site supervisor", "field experience"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: 5415417fc77026a07045e0d9fa7f7d97e43e6dc3bd7424ad386b60ea80433e7f, page: 1, charStart: 395, charEnd: 497 }
+    notes: "The clinical handbook states 600 internship hours; 600 >= 600."
+  - ref: AZ-6
+    jurisdiction: AZ
+    title: "Accreditation"
+    text: "accreditation from a counseling accrediting body recognized by the board"
+    type: ACCREDITATION
+    searchTerms: ["accreditation council", "programmatic accreditation", "accreditation status", "accreditation term"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: 043d02426baeb97fdb41dac15e3880c46dadbf2ceb4815923cf1dcee929e4227, page: 1, charStart: 165, charEnd: 339 }
+    notes: "The accreditation letter names the accrediting council and its term."
+  - ref: AZ-7
+    jurisdiction: AZ
+    title: "Diagnosis"
+    text: "coursework in the diagnosis of mental and emotional disorders"
+    type: SUBJECT
+    searchTerms: ["psychopathology", "dsm", "differential diagnosis", "case formulation"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: adfb2dd90f4c22867c0d9d9fe4af3bd911f022ea88ca98d3cfade35a4b33a63d, page: 1, charStart: 238, charEnd: 402 }
+    notes: "COUN 615 is a required diagnosis and treatment planning course."
+  - ref: AZ-8
+    jurisdiction: AZ
+    title: "Addictions"
+    text: "coursework in addictions counseling"
+    type: SUBJECT
+    searchTerms: ["substance use", "addictive disorders", "dependence", "relapse prevention"]
+    expected: AMBIGUOUS
+    severity: STANDARD
+    spans:
+      - { document: 0f12dd1b0b0918df5ec642d42c90a9406d8f9c47728fdea6a4f684389a8535a9, page: 1, charStart: 227, charEnd: 403 }
+    notes: "Only COUN 650 covers addictions and it is an elective."
+  - ref: CA-1
+    jurisdiction: CA
+    title: "Credit hours"
+    text: "a graduate degree in counseling of at least 60 semester credit hours"
+    type: NUMERIC
+    numeric: { field: TOTAL_CREDITS, operator: ">=", value: 60 }
+    searchTerms: ["program of study", "degree plan", "graduation requirements", "total credits"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: ad0841a0711ecd9f47529919bde78d49e40d2685043e0f8ea0962c8391016150, page: 1, charStart: 187, charEnd: 251 }
+    notes: "The degree plan states 60 credits; 60 >= 60."
+  - ref: CA-2
+    jurisdiction: CA
+    title: "Ethics and law"
+    text: "coursework in professional ethics and law for counselors"
+    type: SUBJECT
+    searchTerms: ["code of ethics", "confidentiality", "professional conduct", "informed consent"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: fa589a3684c497994e9d7ea46323e641fc90ca4d1e22b60c1ee8d3405eccac80, page: 1, charStart: 251, charEnd: 414 }
+    notes: "COUN 605 is a required ethics and legal standards course."
+  - ref: CA-3
+    jurisdiction: CA
+    title: "Human growth"
+    text: "coursework in human growth and development across the lifespan"
+    type: SUBJECT
+    searchTerms: ["developmental stages", "child and adolescent", "aging", "developmental theory"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: ff1aae5c9ddb872cbff1090ae8e686858a2e29a436ad3aae78688d7ad7bdb6df, page: 1, charStart: 234, charEnd: 413 }
+    notes: "COUN 610 is a required lifespan development course."
+  - ref: CA-4
+    jurisdiction: CA
+    title: "Crisis and trauma"
+    text: "coursework in crisis and trauma counseling"
+    type: SUBJECT
+    searchTerms: ["suicide risk", "crisis response", "disaster response", "risk assessment"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: 41cf4ec00b9ea4e4021a4799f1e620e2640a5c57cda7e0c5c0ebbd546370269c, page: 1, charStart: 242, charEnd: 407 }
+    notes: "COUN 620 is a required crisis and trauma course."
+  - ref: CA-5
+    jurisdiction: CA
+    title: "Practicum hours"
+    text: "at least 100 clock hours of supervised practicum"
+    type: SUPERVISED_HOURS
+    numeric: { field: PRACTICUM_HOURS, operator: ">=", value: 100 }
+    searchTerms: ["field placement", "clinical experience", "site supervisor", "direct client contact"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: 5415417fc77026a07045e0d9fa7f7d97e43e6dc3bd7424ad386b60ea80433e7f, page: 1, charStart: 180, charEnd: 280 }
+    notes: "The clinical handbook states 100 practicum hours; 100 >= 100."
+  - ref: CA-6
+    jurisdiction: CA
+    title: "Psychopharmacology"
+    text: "coursework in psychopharmacology"
+    type: SUBJECT
+    searchTerms: ["psychotropic medications", "medication", "drug classes", "neurobiology"]
+    expected: AMBIGUOUS
+    severity: STANDARD
+    spans:
+      - { document: c855a1154cec59eb0db1f8edc3b958c08ebff55632d0f555ca7dcecbdb9488e0, page: 1, charStart: 239, charEnd: 409 }
+    notes: "Only COUN 655 covers psychopharmacology and it is an elective."
+  - ref: CA-7
+    jurisdiction: CA
+    title: "Telehealth training"
+    text: "training in the provision of counseling by telehealth"
+    type: JURISDICTION_SPECIFIC
+    searchTerms: ["distance counseling", "videoconferencing", "technology-assisted counseling", "remote services"]
+    expected: EVIDENCE_MISSING
+    severity: STANDARD
+    spans: []
+    notes: "No 2026-27 document describes telehealth training; only the 2027-28 COUN 625 draft mentions video-delivered groups, and it is not part of this assessment."
+  - ref: CA-8
+    jurisdiction: CA
+    title: "Assessment"
+    text: "coursework in assessment, appraisal and testing"
+    type: SUBJECT
+    searchTerms: ["psychological testing", "test instruments", "standardized tests", "measurement"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: 2fabc6a86998f76ad7b11a733015c5d15c4f102c44beb83dece57bb6e483e094, page: 1, charStart: 242, charEnd: 434 }
+    notes: "COUN 640 is a required assessment and testing course."
+  - ref: TX-1
+    jurisdiction: TX
+    title: "Credit hours"
+    text: "a graduate degree in counseling of at least 60 semester credit hours"
+    type: NUMERIC
+    numeric: { field: TOTAL_CREDITS, operator: ">=", value: 60 }
+    searchTerms: ["program of study", "degree plan", "graduation requirements", "total credits"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: ad0841a0711ecd9f47529919bde78d49e40d2685043e0f8ea0962c8391016150, page: 1, charStart: 187, charEnd: 251 }
+    notes: "The degree plan states 60 credits; 60 >= 60."
+  - ref: TX-2
+    jurisdiction: TX
+    title: "Ethics coursework"
+    text: "coursework in professional ethics and legal responsibilities of counselors"
+    type: SUBJECT
+    searchTerms: ["code of ethics", "confidentiality", "professional conduct", "informed consent"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: fa589a3684c497994e9d7ea46323e641fc90ca4d1e22b60c1ee8d3405eccac80, page: 1, charStart: 251, charEnd: 414 }
+    notes: "COUN 605 is a required ethics and legal standards course."
+  - ref: TX-3
+    jurisdiction: TX
+    title: "Diagnosis"
+    text: "coursework in the diagnosis and treatment of mental disorders"
+    type: SUBJECT
+    searchTerms: ["psychopathology", "dsm", "differential diagnosis", "case formulation"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: adfb2dd90f4c22867c0d9d9fe4af3bd911f022ea88ca98d3cfade35a4b33a63d, page: 1, charStart: 238, charEnd: 402 }
+    notes: "COUN 615 is a required diagnosis and treatment planning course."
+  - ref: TX-4
+    jurisdiction: TX
+    title: "Internship hours"
+    text: "at least 600 clock hours of supervised internship"
+    type: SUPERVISED_HOURS
+    numeric: { field: INTERNSHIP_HOURS, operator: ">=", value: 600 }
+    searchTerms: ["clinical placement", "supervised clinical experience", "site supervisor", "field experience"]
+    expected: EVIDENCE_FOUND
+    severity: CRITICAL
+    spans:
+      - { document: 5415417fc77026a07045e0d9fa7f7d97e43e6dc3bd7424ad386b60ea80433e7f, page: 1, charStart: 395, charEnd: 497 }
+    notes: "The clinical handbook states 600 internship hours; 600 >= 600."
+  - ref: TX-5
+    jurisdiction: TX
+    title: "Research"
+    text: "coursework in research and program evaluation"
+    type: SUBJECT
+    searchTerms: ["statistics", "data analysis", "research design", "evidence-based practice"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: 1981ac1551f9def13671b0ddaeedae502a9d2a9958d93bf6b78b4e8c37d537e1, page: 1, charStart: 237, charEnd: 383 }
+    notes: "COUN 635 is a required research and program evaluation course."
+  - ref: TX-6
+    jurisdiction: TX
+    title: "Career development"
+    text: "coursework in career development"
+    type: SUBJECT
+    searchTerms: ["vocational", "occupational information", "career theory", "work and life roles"]
+    expected: AMBIGUOUS
+    severity: STANDARD
+    spans:
+      - { document: 99c26d460ed0548472b680dfa874e2a1c90eb59146c191719f2ee4ff3cc966df, page: 1, charStart: 365, charEnd: 465 }
+    notes: "COUN 630 is titled for career development, but the syllabus gives the topic a single class session."
+  - ref: TX-7
+    jurisdiction: TX
+    title: "State law course"
+    text: "a course on the Texas counselor licensing rules (fictional)"
+    type: JURISDICTION_SPECIFIC
+    searchTerms: ["licensing board", "state regulations", "licensure law", "professional practice rules"]
+    expected: EVIDENCE_MISSING
+    severity: CRITICAL
+    spans: []
+    notes: "No document mentions the Texas licensing rules as a course; COUN 605 covers licensing law in general only."
+  - ref: TX-8
+    jurisdiction: TX
+    title: "Group counseling"
+    text: "coursework in group counseling"
+    type: SUBJECT
+    searchTerms: ["group dynamics", "group process", "therapeutic groups", "group facilitation"]
+    expected: EVIDENCE_FOUND
+    severity: STANDARD
+    spans:
+      - { document: dfd69f3d80253be8984a3543c00d8c5f0e11f11a6568085f1aefa0fde0489644, page: 1, charStart: 222, charEnd: 386 }
+    notes: "COUN 625 is a required group counseling course."

@@ -12,7 +12,7 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * The evaluation's {@link ModelStrategy}. It remembers what extraction produced, so agreement with the
  * golden set can be scored. When {@code substitute} is set (live mode) it then replaces the model's list with
- * the golden one through the reviewer's replace-requirements path, so matching is scored requirement by
+ * the approved one (the golden set's, or an answer key's) through the reviewer's replace-requirements path, so matching is scored requirement by
  * requirement. It also remembers the search terms the model proposed, to compare them with the golden
  * ones before they are replaced. Preparing the model itself is delegated: scripts for the fake, nothing for a real one.
  */
@@ -21,11 +21,11 @@ final class EvalModel implements ModelStrategy {
     private final ModelStrategy delegate;
     private final RuleVersionService ruleVersions;
     private final ObjectMapper json;
-    private final Golden substitute;
+    private final RequirementList substitute;
     private final Map<String, RequirementType> extracted = new LinkedHashMap<>();
     private final Map<String, List<String>> proposedTerms = new LinkedHashMap<>();
 
-    EvalModel(ModelStrategy delegate, RuleVersionService ruleVersions, ObjectMapper json, Golden substitute) {
+    EvalModel(ModelStrategy delegate, RuleVersionService ruleVersions, ObjectMapper json, RequirementList substitute) {
         this.delegate = delegate;
         this.ruleVersions = ruleVersions;
         this.json = json;

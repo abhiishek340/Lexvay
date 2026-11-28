@@ -221,6 +221,107 @@ report does not record the seed, so note it with the report you keep.
 request). The spend gate adds up only metered calls, so a local model's calls, which have tokens and no price, never
 make a billed call's cost unknown. A call stored before this was recorded has no such entry and counts as metered.
 
+## Evaluation lab
+
+`make eval` is a regression: it checks that the pipeline still reproduces one hand-written golden file with the scripted
+model. It says nothing about accuracy. The lab (EV-2, D-621 to D-630) is how accuracy is measured honestly. A result is a
+claim only with all four of these, and the report says which are missing at the top of every run:
+
+1. **Independent labels.** The answer key was written by qualified people who did not see the system's output and did not
+   write the sources. A key written by the engineer who wrote the seed is a demonstration of the format, nothing more.
+2. **Frozen held-out cases.** Keys you tune against (`split: dev`) are not evidence. A claim rests on a `holdout` key that
+   was locked before the pipeline was changed to suit it and that was read once.
+3. **Denominators and uncertainty.** Every rate is a count out of a count with a 95 % Wilson interval. Zero errors in 42
+   requirements is an upper bound of 8.4 %, not 0 %.
+4. **A comparison with a strong generic model.** The lab can put the same questions to the same model without the pipeline,
+   so the pipeline's value is shown against what the model does on its own.
+
+Without them, a number is not a claim. The demo key (`eval/keys/demo-northfield.yml`) is fictional and labelled so: its
+report starts with "fictional, not evidence of accuracy", and so does anything quoted from it.
+
+### Running it
+
+| Command | What it does |
+|---|---|
+| `make eval-lab` | Scores every `split: dev` key in `eval/keys/` with the configured model (the scripted one by default) and writes `eval/reports/<date>-<mode>-dev.md` and `.json` (gitignored). Exits 1 when a limit in `eval/lab-thresholds.yml` is broken. |
+| `make eval-lab LAB_FLAGS="--live --baseline"` | The same with a real model (`LEXVAY_LLM_PROVIDER`, as for `make eval-live`), and the generic baseline beside it. |
+| `CONFIRM_HOLDOUT=1 make eval-holdout` | Scores the frozen holdout keys. Refused without `CONFIRM_HOLDOUT=1`, and refused when `eval/holdout.lock` does not match the keys. Prints and writes `eval/reports/<date>-<mode>-holdout.*`. |
+| `scripts/eval-diff a.json b.json` | Shows what changed between two lab reports of the same keys and split: every metric with both counts, and each requirement answered differently. Exit 1 when something differs, 64 when the reports are not comparable. |
+
+The header of every report names the mode (`SCRIPTED`, `LOCAL_LIVE`, `PAID_LIVE`; see "Local inference"), the model, the host,
+the date, the split, each key with its provenance, and the reasons no accuracy claim can rest on the run. The spend gate
+applies to the lab's calls exactly as to the product's. The lab loads the key's program and rule versions from `seed/`, which
+is fictional; a key written for other sources is refused (`BLOCKED`), because real sources cannot be loaded by this item.
+
+### What each metric means
+
+Every metric is a count out of a total. Each is also broken down by state, requirement type and severity (and by key when a
+run has several).
+
+| Metric | Numerator out of denominator |
+|---|---|
+| **Severe false assurance** (the headline) | Requirements answered `EVIDENCE_FOUND` where the key says `EVIDENCE_MISSING` or `NOT_APPLICABLE`, or where the quote is from a course that is not on every valid graduation path (or that the program's recorded pathway does not say is) and the requirement is `CRITICAL`; out of every requirement in the key. |
+| **Finding accuracy** | Answers equal to the key; out of the requirements the key does not call `NOT_APPLICABLE` (the system has no such finding). |
+| **Abstention rate** | Requirements answered `AMBIGUOUS`; out of those the key decides (`EVIDENCE_FOUND` or `EVIDENCE_MISSING`). Too high a rate makes the system useless; too low may hide guessing. |
+| **Evidence precision** | Cited spans that overlap a span the key accepts; out of all cited spans. |
+| **Evidence recall** | Requirements where the answer cites a span overlapping an accepted one; out of those for which the key accepts any span. |
+| **Numeric accuracy** | Numeric requirements (credits, hours) answered as the key says; out of numeric requirements the key does not call `NOT_APPLICABLE`. |
+| **Quote verification** | Quotes found in the stored page by the same verifier the product uses (rule 2); must be 100 % for the pipeline. For the baseline it is a finding in itself: how often a generic model quotes text that is not there. |
+
+Two spans overlap when the characters they share are at least half of the shorter span. A requirement the run did not answer
+at all counts as wrong everywhere it is in a denominator, and never as an assurance. Requirements the run has that the key does
+not label are listed in the report and not scored.
+
+`eval/lab-thresholds.yml` holds the pre-agreed limits. A limit is a rate between 0 and 1 or `unset`; an `unset` limit never
+passes or fails a run. Only severe false assurance has one (0.0, product rule 4). Setting another is a deliberate commit that
+records who agreed it and on what evidence; never set a limit after seeing the run it would judge.
+
+### The generic baseline
+
+`--baseline` asks the same model, for each requirement, with the full text of the program's documents (up to
+`LEXVAY_EVAL_BASELINE_TOKEN_BUDGET` tokens, a quarter of the characters; the report says how many pages were given) and one
+generic prompt that asks for the finding and a verbatim quote. It has no retrieval, no downgrade rule, no rules engine and no
+pathway logic. Its quotes go through the same verifier; a quote that is not on the page locates nothing and counts against it,
+but the finding it claimed is scored as claimed. With the scripted model the baseline is reported as `BLOCKED: needs a model`;
+the lab never invents it. A billed model's baseline calls go through the spend gate and can be refused, which blocks only the
+baseline.
+
+### How a domain expert writes a key
+
+A key is `eval/keys/<key-id>.yml`, checked by `eval/keys/schema.json` (a violation names the field) and then for consistency.
+It holds:
+
+- `split`: `dev` or `holdout`.
+- `provenance`: `fictional` (true or false), the `date`, the `labellers` (an `id` that is only a label, a `role` that says what
+  qualified them, never a name, and `independent`), and the `sourceBundle`: the program and catalog year, each approved rule
+  version (jurisdiction, label, effective date) and each document by file name and SHA-256 (`shasum -a 256 file.pdf`).
+- `requirements`: for each approved requirement, its `ref`, `jurisdiction`, `title`, `text` and `type` (and `numeric` for a
+  numeric one), so that a label is tied to the exact text it was made against; the expected finding (`EVIDENCE_FOUND`,
+  `EVIDENCE_MISSING`, `AMBIGUOUS`, `NOT_APPLICABLE`); `severity` (`CRITICAL` or `STANDARD`); the acceptable evidence `spans`
+  (a document SHA-256, a page number and a character range of that page's stored text; required for `EVIDENCE_FOUND`, none for
+  `EVIDENCE_MISSING` and `NOT_APPLICABLE`); and optional `notes`.
+
+Working rules: label from the sources, never from the system's output; mark a requirement `AMBIGUOUS` when a careful reader
+could not tell, as the product does; give a span the full sentence or sentences that support the finding, not a fragment.
+Mark a labeller `independent: true` only if they did not write or tune the sources, the seed or the pipeline.
+
+**Two labellers and adjudication.** Two independent labellers label every requirement separately. Where they agree, the label
+stands. Where they disagree, a third person (the `adjudicator`, a role) decides, and the requirement carries an `adjudication`
+block with both labels and the final one; the final label is also the requirement's `expected`. Keep the disagreements: how
+often independent experts disagree bounds how well any system can score.
+
+### Holdout discipline
+
+- Tune only against `dev` keys. A `holdout` key is frozen: `eval/holdout.lock` lists its file SHA-256
+  (`shasum -a 256 eval/keys/<key-id>.yml`, then `<hash>  <key-id>.yml`).
+- A dev run opens no holdout key beyond its `split` line and never prints one. A key named in the lock is never run as dev.
+- `make eval-holdout` refuses to run when a holdout key is not in the lock, differs from its line, or the lock names a missing
+  file or a key that is not a holdout key. Adding or changing a line of the lock is a deliberate commit of its own, never part
+  of a change to the pipeline, and a holdout run is read once per decision: reading it, changing the pipeline and reading it
+  again turns it into a dev set.
+- This repository holds no held-out key. The demo key is built from the fictional seed the pipeline was developed on, so a
+  split of it would be no holdout. Real keys come from the domain expert (DOM-1).
+
 ## Users and sessions
 
 A tenant administrator adds users, changes their role and withdraws their access through the API (F5a, D-370 to D-379);

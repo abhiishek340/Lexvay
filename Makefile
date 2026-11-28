@@ -10,7 +10,7 @@ DOCKER_HOST ?= $(shell docker context inspect -f '{{(index .Endpoints "docker").
 export DOCKER_HOST
 export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE ?= /var/run/docker.sock
 
-.PHONY: help image smoke db-up db-down dev dev-backend dev-frontend test backend-test frontend-test test-scripts e2e perf seed-pdfs seed eval eval-live infra-validate
+.PHONY: help image smoke db-up db-down dev dev-backend dev-frontend test backend-test frontend-test test-scripts e2e perf seed-pdfs seed eval eval-live eval-lab eval-holdout infra-validate
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -63,8 +63,9 @@ perf: ## Read-path latency benchmark, index-usage check and audit seal check (Te
 	(cd $(BACKEND) && $(PERF_MVN) -Dtest=AuditSealPerfTest) || status=1; \
 	exit $$status
 
-test-scripts: ## Tests of the stack scripts' machine-wide semaphore (no Docker, under 20 s)
+test-scripts: ## Tests of the stack scripts' machine-wide semaphore and of scripts/eval-diff (no Docker, under 20 s)
 	scripts/lib/stack-lock-test.sh
+	scripts/lib/eval-diff-test.sh
 
 e2e: ## End-to-end tests (Playwright + axe) against an isolated seeded stack on ports 5433/8081/4300; at most LEXVAY_STACK_CONCURRENCY (default 2) stacks run on a machine at once
 	scripts/e2e.sh
@@ -74,6 +75,12 @@ eval: ## Score the pipeline against eval/golden.yml with the scripted model (iso
 
 eval-live: ## Same with a real model: LEXVAY_LLM_PROVIDER=openai-compatible (local server, no fee) or anthropic (needs ANTHROPIC_API_KEY and the spend gate)
 	scripts/eval.sh --live
+
+eval-lab: ## Score the dev answer keys in eval/keys, with Wilson intervals; LAB_FLAGS="--live --baseline" adds a real model and the generic baseline; reports in eval/reports/
+	scripts/eval.sh --lab $(LAB_FLAGS)
+
+eval-holdout: ## Score the frozen holdout keys after checking eval/holdout.lock; needs CONFIRM_HOLDOUT=1 (read once per decision, never during development)
+	scripts/eval.sh --holdout $(LAB_FLAGS)
 
 infra-validate: ## Terraform format check, validate and offline tests in infra/ (never plans or applies)
 	terraform -chdir=infra fmt -check -recursive

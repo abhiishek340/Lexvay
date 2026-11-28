@@ -18,6 +18,9 @@ frontend/playwright-report/
 # reports of evaluation runs against a local model, kept by the founder (EV-1)
 eval/runs/
 
+# reports of the evaluation lab, Markdown and JSON (EV-2)
+eval/reports/
+
 # infra
 infra/.terraform/
 infra/*.tfstate*
