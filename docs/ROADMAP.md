@@ -554,7 +554,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | merged (#54) |
 | OPS-2b Stack lock race on Ubuntu 26.04 (uutils mkdir) | `ops-stack-lock-fix` | — | Sonnet 5.5 | merged (#60) |
 | OPS-3 Performance budget on CI | `ops-perf-ci` | — | Sonnet 5.5 | in progress |
-| EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | in progress |
+| EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | merged (#59) |
 | RG-2 Source registry governance | `rg-source-governance` | 6 | Sonnet 5.5 | in progress |
 | RG-3, AC-2, AC-3, EV-2, UX-1 | see Real-data validation track | — | — | queued |
 | SP-1 SharePoint spike, DOM-1 expert review | — | — | — | blocked (founder) |
