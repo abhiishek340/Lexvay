@@ -14,7 +14,7 @@ import { ApiService } from '../../core/api.service';
 import { UserSummary } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
-import { RuleVersionRow, anyExtracting, groupRuleVersions, openingVersion } from '../../core/rules';
+import { RuleVersionRow, anyExtracting } from '../../core/rules';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
 import { NewRuleVersionDialog } from './new-rule-version';
@@ -89,11 +89,9 @@ export class Rules {
   private readonly pageVisible = signal(typeof document === 'undefined' || document.visibilityState === 'visible');
   private readonly newButton = viewChild<ElementRef<HTMLButtonElement>>('newButton');
 
-  private readonly versionGroups = computed(() =>
-    groupRuleVersions(this.context.ruleVersions(), this.context.program()?.jurisdictions ?? [], (code) => this.context.jurisdictionName(code)));
   readonly groups = computed<VersionGroup[]>(() => {
     let index = 0;
-    return this.versionGroups().map((g) => ({
+    return this.context.ruleVersionGroups().map((g) => ({
       code: g.code,
       name: g.name,
       label: `${g.name} (${g.code})`,
@@ -122,15 +120,6 @@ export class Rules {
           this.newOpen.set(true);
           this.router.navigate([], { queryParams: { new: null }, queryParamsHandling: 'merge', replaceUrl: true });
         });
-      }
-    });
-    // Without a version in the address, open the one that needs a person (or the newest approved one), replacing the
-    // address so Back never returns to an empty detail; the query (?new=1) travels along.
-    effect(() => {
-      if (!this.context.ready() || this.context.program()?.id !== this.programId() || this.ruleVersionId()) { return; }
-      const id = openingVersion(this.versionGroups());
-      if (id) {
-        untracked(() => this.router.navigate(['/programs', this.programId(), 'rules', id], { replaceUrl: true, queryParamsHandling: 'preserve' }));
       }
     });
     firstValueFrom(this.api.users()).then((users) => this.users.set(users), () => this.users.set([]));

@@ -471,7 +471,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | FIX-7 One latest-finished ordering | `fix-latest-finished` | 6 | Sonnet 5.5 | merged (#45) |
 | F14 Check a report file | `feat-report-check` | 3 | Opus 5.5 | merged (#47) |
 | INFRA-2 Remote state, WAF, flow logs, egress | `infra-hardening` | — | Sonnet 5.5 | merged (#46) |
-| FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | in progress |
+| FIX-8 No console errors | `fix-console-errors` | 7 | Sonnet 5.5 | merged (#48) |
 | UI3-0 Design v3 foundation, shell, sign-in, overview | `ui3-foundation` | 1 | Opus 5.5 | merged (#52) |
 | UI3-1 Review and Coverage in v3 | `ui3-review-coverage` | 1 | Opus 5.5 | in progress |
 | UI3-2 Changes, audit, report, register, people in v3 | `ui3-records` | 4 | Opus 5.5 | in progress |
