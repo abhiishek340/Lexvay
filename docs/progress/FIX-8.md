@@ -10,4 +10,4 @@ Branch `fix-console-errors`, decisions D-471 to D-474 in `docs/decisions/FIX-8.m
 3. **One navigation per user action** (D-472): `landingGuard` for sign-in and `/`; `openingVersionGuard` for Rules; Review and the report no longer write
    the default state into the URL. Unit tests: `core/auth.guard.spec.ts`, `core/navigation.spec.ts`.
 4. **Whole end-to-end suite** run with the guard: the only application console errors were the view-transition
-   `AbortError`s; seven tests declare an expected 4xx or 5xx (D-474).
+   `AbortError`s; eight tests declare an expected 4xx or 5xx (D-474).
