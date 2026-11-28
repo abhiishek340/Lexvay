@@ -104,6 +104,14 @@ export interface ReportCheckMatch {
 }
 export interface ReportCheck { match: boolean; sha256: string; matchDetails: ReportCheckMatch | null; }
 export interface AuditEntry { id: string; userId: string | null; action: string; entityType: string; entityId: string | null; detail: Record<string, unknown>; createdAt: string; }
+/**
+ * GET /audit/verify (SEC-3): a walk over the tenant's seals. `pending` entries are written but not sealed yet; when
+ * `intact` is false the first broken seal is named; nothing sealed gives a null `lastSealedAt` and `headHash`.
+ */
+export interface AuditVerification {
+  sealed: number; pending: number; intact: boolean; firstBrokenSeq: number | null; firstBrokenReason: string | null;
+  lastSealedAt: string | null; headHash: string | null;
+}
 export type JobStatus = 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED';
 export interface RuleVersionView {
   id: string; jurisdiction: string; licenseType: string; label: string; sourceUrl: string; effectiveFrom: string;

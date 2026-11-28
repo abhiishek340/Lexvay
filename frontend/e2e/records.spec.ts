@@ -42,6 +42,14 @@ test('the audit filter chips ask the server, details open in place, and the admi
   await expect(entries).toContainText('Versions hash');
   await expectAccessible(page, 'Audit trail, filtered, details open');
 
+  // Verify walks the chain of seals; the entries written so far are sealed within seconds (SEC-3), so it holds.
+  await page.getByRole('button', { name: 'Verify', exact: true }).click();
+  const verification = page.getByTestId('verification');
+  await expect(verification).toContainText(/^Intact: [\d,]+ entr(y|ies) sealed, [\d,]+ pending/);
+  await expect(verification.getByTestId('head-hash')).toHaveText(/^[0-9a-f]{16}$/);
+  await expect(verification.getByRole('button', { name: 'Copy head hash' })).toBeVisible();
+  await expectAccessible(page, 'Audit trail, verified');
+
   const download = page.waitForEvent('download');
   await page.getByRole('link', { name: 'Download CSV' }).click();
   const file = await download;

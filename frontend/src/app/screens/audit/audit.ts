@@ -1,6 +1,9 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { NgIcon } from '@ng-icons/core';
+import { phosphorCopy } from '@ng-icons/phosphor-icons/regular';
+import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
@@ -16,12 +19,17 @@ import { Help, HelpTerm } from '../../ui/help';
 import { SkeletonRows } from '../../ui/skeleton-rows';
 import { AUDIT_TOKENS } from './audit-theme';
 import {
-  ACTION_OPTIONS, AuditQuery, NO_QUERY, PERIOD_OPTIONS, RECORD_TYPE_OPTIONS, auditCsvUrl, auditParams, auditRows, personOptions,
+  ACTION_OPTIONS, AuditQuery, NO_QUERY, PERIOD_OPTIONS, RECORD_TYPE_OPTIONS, VerificationView, auditCsvUrl, auditParams, auditRows, personOptions,
+  verificationView,
 } from './audit-view';
+
+/** The icons the Audit trail shows beyond SHELL_ICONS, provided by its route (audit.routes.ts). */
+export const AUDIT_ICONS = { phosphorCopy };
 
 const HELP: readonly HelpTerm[] = [
   { term: 'Audit trail', definition: 'Every action, newest first: who did it, when, what it was and on which record.' },
   { term: 'Append-only', definition: 'Entries are only ever added, never changed or removed.' },
+  { term: 'Verify', definition: 'Recomputes the chain of seals over the entries. Pending entries are written but not sealed yet. The head hash is the newest seal.' },
 ];
 
 /** Entries per request; "Show older" asks for the next page with the same filters. */
@@ -29,17 +37,19 @@ const PAGE = 100;
 
 /**
  * The audit trail (DESIGN.md "Audit trail"): the entries the server returns for the filters on screen, newest first,
- * as a log grouped by day, each entry one sentence with its time that opens below itself to its worded details.
+ * as a log grouped by day, each entry one sentence with its time that opens below itself to its worded details. An
+ * administrator can verify the chain of seals (SEC-3): the result is one sentence under the title, with the head hash.
  */
 @Component({
   selector: 'lx-audit',
-  imports: [DatePipe, FormsModule, ButtonDirective, ButtonLabel, Message, Select, Help, SkeletonRows],
+  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, Message, Select, Help, SkeletonRows],
   templateUrl: './audit.html',
   styleUrl: './audit.css',
 })
 export class Audit {
   readonly help = HELP;
   private readonly api = inject(ApiService);
+  private readonly toast = inject(MessageService);
   readonly session = inject(SessionService);
   private readonly context = inject(ProgramContext);
   readonly programId = input.required<string>();
@@ -58,6 +68,10 @@ export class Audit {
   private readonly pages = signal<AuditEntry[][] | null>(null);
   private readonly loadedAt = signal(new Date());
   private readonly expanded = signal<ReadonlySet<string>>(new Set());
+  /** The last verification, while one runs, and why one failed. */
+  readonly verification = signal<VerificationView | null>(null);
+  readonly verifying = signal(false);
+  readonly verifyError = signal<string | null>(null);
   /** Answers to an earlier filter that arrive late are dropped. */
   private request = 0;
 
@@ -115,6 +129,30 @@ export class Audit {
       if (!next.delete(id)) { next.add(id); }
       return next;
     });
+  }
+
+  /** Asks the server to walk the chain of seals (administrators; the check is itself audited). */
+  async verify(): Promise<void> {
+    if (this.verifying()) { return; }
+    this.verifying.set(true);
+    this.verifyError.set(null);
+    try {
+      this.verification.set(verificationView(await firstValueFrom(this.api.verifyAudit())));
+    } catch (e: unknown) {
+      this.verification.set(null);
+      this.verifyError.set(problemDetail(e, 'The audit trail could not be verified.'));
+    } finally {
+      this.verifying.set(false);
+    }
+  }
+
+  async copy(hash: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(hash);
+      this.toast.add({ severity: 'success', summary: 'Copied', detail: 'The full head hash is on the clipboard.' });
+    } catch {
+      this.toast.add({ severity: 'error', summary: 'The head hash could not be copied', detail: 'Verify again and select it instead.' });
+    }
   }
 
   private async load(query: AuditQuery, offset: number): Promise<void> {

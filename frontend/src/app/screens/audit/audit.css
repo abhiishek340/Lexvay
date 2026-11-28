@@ -2,6 +2,12 @@
 .lx-audit { max-width: calc(880px + 2 * var(--lx-gutter)); }
 .lx-count { min-height: 16px; }
 
+/* Verify's answer: one sentence in found or missing words, then the head hash in mono with its copy button. */
+.lx-verification { display: flex; flex-wrap: wrap; align-items: center; gap: var(--lx-space-1) var(--lx-space-4); margin: calc(-1 * var(--lx-space-2)) 0 var(--lx-space-4); }
+.lx-verification:empty { display: none; }
+.lx-head { display: inline-flex; align-items: center; gap: var(--lx-space-2); }
+.lx-copy { width: 32px; height: 32px; padding: 0; }
+
 .lx-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--lx-space-2); margin-bottom: var(--lx-space-5); }
 
 /* A new filter dims the trail on screen until its answer arrives. */

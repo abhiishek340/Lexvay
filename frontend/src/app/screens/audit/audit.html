@@ -6,11 +6,33 @@
     </div>
     <div class="lx-title-actions">
       @if (session.isAdmin()) {
+        <button pButton type="button" [text]="true" [disabled]="verifying()" [attr.aria-busy]="verifying()" (click)="verify()">
+          <span pButtonLabel>{{ verifying() ? 'Verifying…' : 'Verify' }}</span>
+        </button>
         <a pButton [outlined]="true" [href]="csvUrl()" download><span pButtonLabel>Download CSV</span></a>
       }
       <lx-help [terms]="help" />
     </div>
   </header>
+
+  @if (session.isAdmin()) {
+    <div class="lx-verification" role="status" aria-live="polite" data-testid="verification">
+      @if (verification(); as v) {
+        <span [class]="v.intact ? 'lx-found' : 'lx-missing'">{{ v.sentence }}</span>
+        @if (v.head; as head) {
+          <span class="lx-head">
+            <span class="lx-meta">Head</span>
+            <span class="lx-mono" [attr.title]="head.hash" data-testid="head-hash">{{ head.short }}</span>
+            <button pButton type="button" class="lx-copy" [text]="true" severity="secondary" aria-label="Copy head hash" (click)="copy(head.hash)">
+              <ng-icon name="phosphorCopy" size="16" aria-hidden="true" />
+            </button>
+          </span>
+        }
+      } @else if (verifyError(); as e) {
+        <span class="lx-missing">{{ e }}</span>
+      }
+    </div>
+  }
 
   <div class="lx-filters" role="group" aria-label="Filters">
     <p-select [options]="people()" optionLabel="label" optionValue="value"

@@ -1,5 +1,5 @@
 import { DECISION_LABEL, NUMERIC_FIELD_LABEL, OUTCOME_LABEL, ROLE_LABEL, humanize } from '../../core/labels';
-import { AuditEntry, DecisionKind, NumericField, Outcome, Role, UserSummary } from '../../core/models';
+import { AuditEntry, AuditVerification, DecisionKind, NumericField, Outcome, Role, UserSummary } from '../../core/models';
 import { ACTION_LABEL, auditSentence, capitalize } from './audit-sentence';
 
 /** One detail of an entry, worded: "Decision: Gap confirmed". `mono` for ids and hashes. */
@@ -224,4 +224,26 @@ export const PERIOD_OPTIONS: Option[] = (Object.keys(PERIOD_LABEL) as Period[]).
 /** The tenant's people, by name. */
 export function personOptions(users: UserSummary[]): Option[] {
   return users.map((u) => ({ value: u.id, label: u.displayName })).sort(byLabel);
+}
+
+/** How much of the head hash the result line prints; the copy button copies all of it. */
+export const SHORT_HEAD_LENGTH = 16;
+
+/** The result of "Verify" as the title row shows it: one sentence, whether it holds, and the head hash when one exists. */
+export interface VerificationView { sentence: string; intact: boolean; head: { hash: string; short: string } | null }
+
+const count = (n: number): string => n.toLocaleString('en-US');
+
+/**
+ * "Intact: 1,204 entries sealed, 3 pending", "Broken at entry 57: (the server's reason)", or, before the first seal,
+ * "Nothing sealed yet: 12 pending". The server's reason is shown as it is; the sentence never says more than the walk found.
+ */
+export function verificationView(v: AuditVerification): VerificationView {
+  const head = v.headHash ? { hash: v.headHash, short: v.headHash.slice(0, SHORT_HEAD_LENGTH) } : null;
+  if (!v.intact) {
+    const where = v.firstBrokenSeq === null ? 'Broken' : `Broken at entry ${count(v.firstBrokenSeq)}`;
+    return { sentence: `${where}: ${v.firstBrokenReason ?? 'a seal does not hold'}`, intact: false, head };
+  }
+  if (v.sealed === 0) { return { sentence: `Nothing sealed yet: ${count(v.pending)} pending`, intact: true, head }; }
+  return { sentence: `Intact: ${count(v.sealed)} ${v.sealed === 1 ? 'entry' : 'entries'} sealed, ${count(v.pending)} pending`, intact: true, head };
 }

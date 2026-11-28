@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
-import { Audit } from './audit';
+import { provideIcons } from '@ng-icons/core';
+import { AUDIT_ICONS, Audit } from './audit';
 
-/** The screen in its own lazy chunk; it shows no icons beyond the shell's. */
-export default [{ path: '', component: Audit, title: 'Audit trail · Lexvay' }] satisfies Routes;
+/** The screen with its own icons, in one lazy chunk: route providers are built when the app starts, so they live here. */
+export default [{ path: '', component: Audit, providers: [provideIcons(AUDIT_ICONS)], title: 'Audit trail · Lexvay' }] satisfies Routes;

@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, switchMap } from 'rxjs';
 import {
-  Account, AssessmentView, AuditEntry, ChangeEvent, Course, CoverageMatrix, DecisionKind, Determination, DeterminationLists, DocumentKind, DocumentPage,
+  Account, AssessmentView, AuditEntry, AuditVerification, ChangeEvent, Course, CoverageMatrix, DecisionKind, Determination, DeterminationLists, DocumentKind, DocumentPage,
   DocumentView, EvidencePackageView, EvidenceRequest, EvidenceResponse, EvidenceResponseBody, Jurisdiction, Mapping, MappingsView, NewCourse, NewCourseVersion, NewProgram,
   NewProgramFact, NewRuleVersion, NewUser, Outcome, Program, ProgramDocument, ProgramFact, ProgramOverview, RegisterFilter, RegisterRow, ReportCheck,
   RequirementDraft, RequirementsView, Role, RuleVersionDiff, RuleVersionView, SessionView, UploadResult, UserSetup, UserSummary, UserView, WorkQueue,
@@ -136,6 +136,8 @@ export class ApiService {
   changeRole(userId: string, role: Role): Observable<Account> { return this.http.put<Account>(`${this.base}/users/${userId}/role`, { role }); }
   setActive(userId: string, active: boolean): Observable<Account> { return this.http.put<Account>(`${this.base}/users/${userId}/active`, { active }); }
   /** Newest first; `filters` are the query parameters of audit-view's auditParams, applied by the server (D-116). */
+  /** Recomputes the tenant's audit hash chain (administrators; the check is itself audited, SEC-3). */
+  verifyAudit(): Observable<AuditVerification> { return this.http.get<AuditVerification>(`${this.base}/audit/verify`); }
   audit(filters: Record<string, string>, limit: number, offset: number): Observable<AuditEntry[]> {
     return this.http.get<AuditEntry[]>(`${this.base}/audit`, { params: { ...filters, limit, offset } });
   }

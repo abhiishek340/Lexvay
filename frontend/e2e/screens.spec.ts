@@ -286,6 +286,9 @@ test('UI3-2: changes, audit trail, report, register, people and setup in design 
     await entries.nth(1).getByRole('button').click();
     await page.locator('main').evaluate((main) => main.scrollTo(0, 0));
     await shoot(page, `ui3-2-audit-${width}`);
+    await page.getByRole('button', { name: 'Verify', exact: true }).click();
+    await expect(page.getByTestId('verification')).toContainText(/^Intact: /);
+    await shoot(page, `ui3-2-audit-verified-${width}`);
 
     await goTo(page, 'Evidence report');
     await expect(page.getByRole('note', { name: 'Draft. Not a determination.' })).toBeVisible();

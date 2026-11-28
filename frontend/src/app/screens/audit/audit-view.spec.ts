@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AuditEntry, UserSummary } from '../../core/models';
 import {
-  ACTION_OPTIONS, NO_QUERY, RECORD_TYPE_OPTIONS, auditCsvUrl, auditParams, auditRows, detailRows, periodStart, personOptions,
+  ACTION_OPTIONS, NO_QUERY, RECORD_TYPE_OPTIONS, auditCsvUrl, auditParams, auditRows, detailRows, periodStart, personOptions, verificationView,
 } from './audit-view';
 
 const users: UserSummary[] = [
@@ -117,5 +117,26 @@ describe('server-side filters', () => {
     expect(ACTION_OPTIONS.find((o) => o.value === 'REVIEW_RECORDED')?.label).toBe('Review decision recorded');
     expect(RECORD_TYPE_OPTIONS.map((o) => o.label)).toEqual([...RECORD_TYPE_OPTIONS.map((o) => o.label)].sort((a, b) => a.localeCompare(b)));
     expect(personOptions(users).map((o) => o.label)).toEqual(['Dana Whitfield', 'Dr. Priya Raman']);
+  });
+});
+
+describe('verification', () => {
+  const sealed = {
+    sealed: 1204, pending: 3, intact: true, firstBrokenSeq: null, firstBrokenReason: null, lastSealedAt: '2026-11-28T09:00:00Z', headHash: 'ab'.repeat(32),
+  };
+
+  it('says an intact chain in one sentence, with the head hash shortened', () => {
+    expect(verificationView(sealed)).toEqual({ sentence: 'Intact: 1,204 entries sealed, 3 pending', intact: true, head: { hash: 'ab'.repeat(32), short: 'ab'.repeat(8) } });
+    expect(verificationView({ ...sealed, sealed: 1, pending: 0 }).sentence).toBe('Intact: 1 entry sealed, 0 pending');
+  });
+
+  it('names the first broken seal and its reason', () => {
+    expect(verificationView({ ...sealed, intact: false, firstBrokenSeq: 57, firstBrokenReason: 'the row hash does not match' }))
+      .toMatchObject({ sentence: 'Broken at entry 57: the row hash does not match', intact: false });
+  });
+
+  it('says nothing is sealed yet, without a head hash', () => {
+    expect(verificationView({ ...sealed, sealed: 0, pending: 12, lastSealedAt: null, headHash: null }))
+      .toEqual({ sentence: 'Nothing sealed yet: 12 pending', intact: true, head: null });
   });
 });
