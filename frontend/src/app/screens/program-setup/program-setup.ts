@@ -2,8 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { NgIcon } from '@ng-icons/core';
-import { phosphorCaretDown, phosphorCheck, phosphorFileDoc, phosphorFilePdf, phosphorLockSimple, phosphorX } from '@ng-icons/phosphor-icons/regular';
+import { phosphorCheck, phosphorX } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -36,7 +35,7 @@ const HELP: readonly HelpTerm[] = [
 ];
 
 /** The icons the setup workspace and its steps show beyond SHELL_ICONS, provided by its route (setup.routes.ts). */
-export const PROGRAM_SETUP_ICONS = { phosphorCaretDown, phosphorCheck, phosphorFileDoc, phosphorFilePdf, phosphorLockSimple, phosphorX };
+export const PROGRAM_SETUP_ICONS = { phosphorCheck, phosphorX };
 
 /** The create form of the Details and States steps. */
 interface ProgramForm { name: string; licenseType: string; catalogYear: string; jurisdictions: string[] }
@@ -50,13 +49,13 @@ const STEP_LABEL: Record<SetupStep, string> = {
 /**
  * Program setup (F2): the program, its target states, its courses and their catalog years, its documents with their
  * reading status, the program facts the rules engine needs (each backed by a quote selected on its page, product
- * rule 2), a readiness check and the first assessment. One Stepper is the screen's hero. On /programs/new only the
+ * rule 2), a readiness check and the first assessment. The steps are a numbered list beside the open one. On /programs/new only the
  * create form is open; once the program exists the URL becomes its own and every step is open, for later additions too.
  */
 @Component({
   selector: 'lx-setup',
   imports: [
-    FormsModule, NgIcon, ButtonDirective, ButtonLabel, InputText, Message, MultiSelect, Select, Skeleton, Step, StepList, StepPanel, StepPanels, Stepper,
+    FormsModule, ButtonDirective, ButtonLabel, InputText, Message, MultiSelect, Select, Skeleton, Step, StepList, StepPanel, StepPanels, Stepper,
     Help, CoursesStep, DocumentsStep, FactsStep, ReadinessStep,
   ],
   providers: [SetupStore],

@@ -1,13 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, computed, inject, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NgIcon } from '@ng-icons/core';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
 import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
 import { Skeleton } from 'primeng/skeleton';
-import { TableModule } from 'primeng/table';
 import { ToggleSwitch } from 'primeng/toggleswitch';
 import { Course } from '../../core/models';
 import { problemDetail } from '../../core/problem';
@@ -25,7 +23,7 @@ interface VersionForm { catalogYear: string; required: boolean }
  */
 @Component({
   selector: 'lx-setup-courses',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, Dialog, InputText, Message, Skeleton, TableModule, Label, ToggleSwitch],
+  imports: [FormsModule, ButtonDirective, ButtonLabel, Dialog, InputText, Message, Skeleton, Label, ToggleSwitch],
   templateUrl: './courses-step.html',
   styleUrl: './steps.css',
 })

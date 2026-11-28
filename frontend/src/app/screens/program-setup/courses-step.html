@@ -11,8 +11,8 @@
       <p>No courses yet.</p>
     </div>
   } @else {
-    <p-table [value]="list" [pt]="{ table: { 'aria-label': 'Courses' } }" class="lx-setup-table">
-      <ng-template #header>
+    <table class="lx-table lx-courses" aria-label="Courses">
+      <thead>
         <tr>
           <th scope="col">Code</th>
           <th scope="col">Title</th>
@@ -20,40 +20,44 @@
           <th scope="col">Status</th>
           @if (store.canEdit()) { <th scope="col"><span class="lx-sr-only">Action</span></th> }
         </tr>
-      </ng-template>
-      <ng-template #body let-row let-i="rowIndex">
-        <tr [attr.data-code]="row.course.code">
-          <td class="lx-mono lx-nowrap">{{ row.course.code }}</td>
-          <td class="lx-strong">{{ row.course.title }}</td>
-          <td class="lx-mono lx-nowrap">{{ row.catalogYear }}@if (row.versions > 1) { <span class="lx-muted"> · {{ row.versions }} years</span> }</td>
-          <td><lx-label>{{ row.required ? 'Required' : 'Elective' }}</lx-label></td>
-          @if (store.canEdit()) {
-            <td class="lx-row-action">
-              <button pButton type="button" size="small" severity="secondary" [text]="true" (click)="openVersion(row.course, $event.target)"
-                      [attr.aria-label]="'New catalog year for ' + row.course.code">
-                <span pButtonLabel>New catalog year</span>
-              </button>
-            </td>
-          }
-        </tr>
-      </ng-template>
-    </p-table>
+      </thead>
+      <tbody>
+        @for (row of list; track row.course.id) {
+          <tr [attr.data-code]="row.course.code">
+            <th scope="row" class="lx-code">{{ row.course.code }}</th>
+            <td class="lx-strong">{{ row.course.title }}</td>
+            <td class="lx-nowrap">{{ row.catalogYear }}@if (row.versions > 1) { <span class="lx-muted"> · {{ row.versions }} years</span> }</td>
+            <td><lx-label>{{ row.required ? 'Required' : 'Elective' }}</lx-label></td>
+            @if (store.canEdit()) {
+              <td class="lx-end">
+                <button type="button" class="lx-row-action" (click)="openVersion(row.course, $event.target)" [attr.aria-label]="'New catalog year for ' + row.course.code">New catalog year</button>
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
   }
 
   @if (store.pathway(); as pathway) {
     @if (pathway.groups.length > 0) {
-      <section class="lx-pathway" aria-labelledby="pathway-title" data-testid="pathway">
-        <h3 id="pathway-title" class="lx-pathway-title">Graduation paths</h3>
-        <ul class="lx-pathway-groups">
-          @for (group of pathway.groups; track group.id) {
-            <li>
-              <span class="lx-strong">{{ group.label }}</span>
-              <span class="lx-pathway-rule"> · {{ groupRule(group) }}</span>
-              <span class="lx-mono lx-pathway-members">{{ memberCodes(group) }}</span>
-            </li>
-          }
-        </ul>
-        <p class="lx-pathway-rule" data-testid="pathway-minimum">
+      <section class="lx-section" aria-labelledby="pathway-title" data-testid="pathway">
+        <h3 id="pathway-title" class="lx-panel-title">Graduation paths</h3>
+        <table class="lx-table" aria-label="Graduation paths">
+          <thead>
+            <tr><th scope="col">Group</th><th scope="col">Asks for</th><th scope="col">Courses</th></tr>
+          </thead>
+          <tbody>
+            @for (group of pathway.groups; track group.id) {
+              <tr>
+                <th scope="row">{{ group.label }}</th>
+                <td>{{ groupRule(group) }}</td>
+                <td class="lx-code">{{ memberCodes(group) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <p class="lx-meta" data-testid="pathway-minimum">
           @if (minimumCredits(); as minimum) { Fewest credits on a path: {{ minimum }} } @else { Fewest credits on a path: not known ({{ pathway.unknowns.join('; ') }}) }
         </p>
       </section>
@@ -72,13 +76,13 @@
     <div class="lx-field-row lx-field-row-code">
       <div class="lx-field">
         <label for="course-code">Code</label>
-        <input pInputText id="course-code" class="lx-mono" [ngModel]="c.code" name="code" (ngModelChange)="setCourse('code', $event)" [invalid]="!!p.code"
+        <input pInputText id="course-code" [ngModel]="c.code" name="code" (ngModelChange)="setCourse('code', $event)" [invalid]="!!p.code"
                [attr.aria-describedby]="p.code ? 'course-code-error' : null" [fluid]="true" />
         @if (p.code; as e) { <p-message id="course-code-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
       </div>
       <div class="lx-field">
         <span class="lx-field-label">Catalog year</span>
-        <span class="lx-fixed-value lx-mono" data-testid="course-year">{{ store.program()?.catalogYear }}</span>
+        <span class="lx-fixed-value" data-testid="course-year">{{ store.program()?.catalogYear }}</span>
       </div>
     </div>
     <div class="lx-field">
@@ -102,11 +106,11 @@
           [draggable]="false" [resizable]="false" [style]="{ width: '30rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body" closeAriaLabel="Cancel the new catalog year">
   @if (versionOf(); as course) {
     <form id="add-version-form" class="lx-form" (ngSubmit)="addVersion()" novalidate>
-      <p class="lx-version-course"><span class="lx-mono">{{ course.code }}</span> {{ course.title }}<span class="lx-muted"> · now {{ currentYear(course) }}</span></p>
+      <p class="lx-version-course">{{ course.code }} {{ course.title }}<span class="lx-muted"> · now {{ currentYear(course) }}</span></p>
       @if (general(); as g) { <p-message severity="error">{{ g }}</p-message> }
       <div class="lx-field">
         <label for="version-year">Catalog year</label>
-        <input pInputText id="version-year" class="lx-mono" placeholder="2027-28" [ngModel]="version().catalogYear" name="catalogYear"
+        <input pInputText id="version-year" placeholder="2027-28" [ngModel]="version().catalogYear" name="catalogYear"
                (ngModelChange)="setVersion('catalogYear', $event)" [invalid]="!!versionProblem()" [attr.aria-describedby]="versionProblem() ? 'version-year-error' : 'version-year-note'" [fluid]="true" />
         @if (versionProblem(); as e) { <p-message id="version-year-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
       </div>
@@ -114,7 +118,7 @@
         <p-toggleswitch inputId="version-required" [ngModel]="version().required" name="required" (ngModelChange)="setVersion('required', $event)" />
         <label for="version-required">Required course</label>
       </div>
-      <p id="version-year-note" class="lx-help">Opens a change for every assessment that cited the {{ currentYear(course) }} version.</p>
+      <p id="version-year-note" class="lx-meta">Opens a change for every assessment that cited the {{ currentYear(course) }} version.</p>
     </form>
   }
   <ng-template #footer>

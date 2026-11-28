@@ -82,6 +82,14 @@ export interface ReadinessCheck {
 }
 export interface Readiness { readonly checks: readonly ReadinessCheck[]; readonly ready: boolean; readonly fieldsUsed: readonly NumericField[] }
 
+/** Where a line of the checklist stands: done, open and blocking the run, or open without blocking it (a warning). */
+export type CheckState = 'done' | 'blocking' | 'warning';
+
+export function checkState(check: ReadinessCheck): CheckState {
+  if (check.ok) { return 'done'; }
+  return check.blocking ? 'blocking' : 'warning';
+}
+
 export interface SetupDocument { readonly document: ProgramDocument; readonly state: DocumentState }
 
 const list = (items: readonly string[]): string => items.join(', ');

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Course, PathwayGroup, Program, ProgramDocument, ProgramFact, RequirementView, RuleVersionView } from '../../core/models';
 import {
-  SetupDocument, assessedVersion, currentVersion, documentState, factHistory, firstOpenStep, groupRule, licenseTypes, memberCodes, minimumCreditsLabel, numericFieldsUsed,
-  programReadiness, quoteShowsValue,
+  SetupDocument, assessedVersion, checkState, currentVersion, documentState, factHistory, firstOpenStep, groupRule, licenseTypes, memberCodes,
+  minimumCreditsLabel, numericFieldsUsed, programReadiness, quoteShowsValue,
 } from './setup-model';
 
 const TODAY = '2026-11-27';
@@ -143,6 +143,12 @@ describe('programReadiness', () => {
     const r = programReadiness(program, [], [ready(doc('plan', null))], facts, rules, requirements, TODAY);
     expect(r.checks[1]).toMatchObject({ ok: false, blocking: false, text: 'No courses yet' });
     expect(r.ready).toBe(true);
+  });
+
+  it('says of each line whether it is done, blocks the run or only warns', () => {
+    const r = programReadiness(program, courses, [...documents, { document: doc('new', null, 0), state: 'READING' }], [fact('TOTAL_CREDITS', 'f1', true)],
+      rules, requirements, TODAY);
+    expect(r.checks.map(checkState)).toEqual(['done', 'done', 'blocking', 'warning']);
   });
 
   it('starts at the first step that needs work', () => {
