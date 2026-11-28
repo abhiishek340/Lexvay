@@ -1,6 +1,7 @@
 package com.lexvay.coverage;
 
 import com.lexvay.common.NotFoundException;
+import com.lexvay.pathway.PathwayCoverage;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,6 @@ public class CoverageService {
         if (!found.target()) {
             throw new IllegalArgumentException("Jurisdiction " + jurisdiction + " is not a target of this program");
         }
-        return found.matrix();
+        return found.matrix().withPathwayRisks(new PathwayCoverage(found.pathway()));
     }
 }

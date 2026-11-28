@@ -9,7 +9,7 @@ import { Skeleton } from 'primeng/skeleton';
 import { ToggleSwitch } from 'primeng/toggleswitch';
 import { Course } from '../../core/models';
 import { problemDetail } from '../../core/problem';
-import { currentVersion } from './setup-model';
+import { currentVersion, groupRule, memberCodes, minimumCreditsLabel } from './setup-model';
 import { SetupNotice, SetupStore } from './setup-store';
 import { Label } from '../../ui/label';
 
@@ -126,6 +126,13 @@ export class CoursesStep {
     this.opener = null;
     requestAnimationFrame(() => opener?.focus());
   }
+
+  readonly groupRule = groupRule;
+  readonly memberCodes = memberCodes;
+  readonly minimumCredits = computed(() => {
+    const pathway = this.store.pathway();
+    return pathway ? minimumCreditsLabel(pathway) : null;
+  });
 
   currentYear(course: Course | null): string {
     return course ? (currentVersion(course)?.catalogYear ?? '') : '';

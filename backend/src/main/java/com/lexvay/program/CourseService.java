@@ -5,8 +5,12 @@ import com.lexvay.change.ChangeService;
 import com.lexvay.common.NotFoundException;
 import com.lexvay.auth.CurrentUser;
 import com.lexvay.common.TenantContext;
+import com.lexvay.pathway.PathwayService;
+import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,12 +22,15 @@ public class CourseService {
     private final ProgramService programs;
     private final AuditService audit;
     private final ChangeService changes;
+    private final PathwayService pathways;
 
-    public CourseService(CourseRepository courses, ProgramService programs, AuditService audit, ChangeService changes) {
+    public CourseService(CourseRepository courses, ProgramService programs, AuditService audit, ChangeService changes,
+                         PathwayService pathways) {
         this.courses = courses;
         this.programs = programs;
         this.audit = audit;
         this.changes = changes;
+        this.pathways = pathways;
     }
 
     /** A new catalog-year version of a course (spec section 7). Defaults to superseding the newest version (D-068). */
@@ -43,11 +50,15 @@ public class CourseService {
         UUID tenantId = TenantContext.require();
         UUID actor = CurrentUser.require().id();
         UUID versionId = UUID.randomUUID();
-        courses.insertVersion(versionId, tenantId, courseId, request.catalogYear().trim(), request.required(), previous.id(), actor);
+        courses.insertVersion(versionId, tenantId, courseId, request.catalogYear().trim(), request.required(), request.credits(),
+                request.creditUnit(), previous.id(), actor);
         UUID eventId = changes.onCourseVersionAdded(previous.id(), versionId, course.code());
-        audit.record("COURSE_VERSION_ADDED", "course", courseId, Map.of("courseVersionId", versionId.toString(),
+        Map<String, Object> detail = new LinkedHashMap<>(Map.of("courseVersionId", versionId.toString(),
                 "supersedesId", previous.id().toString(), "catalogYear", request.catalogYear().trim(), "required", request.required(),
                 "changeEventId", eventId.toString()));
+        putCredits(detail, request.credits(), request.creditUnit());
+        putPlacement(detail, pathways.place(course.programId(), request.catalogYear().trim(), courseId, request.required()));
+        audit.record("COURSE_VERSION_ADDED", "course", courseId, detail);
         return courses.findById(courseId).orElseThrow();
     }
 
@@ -60,11 +71,31 @@ public class CourseService {
         UUID courseId = UUID.randomUUID();
         UUID versionId = UUID.randomUUID();
         courses.insertCourse(courseId, tenantId, programId, request.code().trim(), request.title().trim(), actor);
-        courses.insertVersion(versionId, tenantId, courseId, program.catalogYear(), request.required(), null, actor);
-        audit.record("COURSE_CREATED", "course", courseId, Map.of(
+        courses.insertVersion(versionId, tenantId, courseId, program.catalogYear(), request.required(), request.credits(),
+                request.creditUnit(), null, actor);
+        Map<String, Object> detail = new LinkedHashMap<>(Map.of(
                 "programId", programId.toString(), "code", request.code().trim(), "title", request.title().trim(),
                 "required", request.required(), "courseVersionId", versionId.toString()));
+        putCredits(detail, request.credits(), request.creditUnit());
+        putPlacement(detail, pathways.place(programId, program.catalogYear(), courseId, request.required()));
+        audit.record("COURSE_CREATED", "course", courseId, detail);
         return courses.findById(courseId).orElseThrow();
+    }
+
+    /** The pathway group the course joined is audited with the course. */
+    private static void putPlacement(Map<String, Object> detail, Optional<PathwayService.Placement> placement) {
+        placement.ifPresent(p -> {
+            detail.put("pathwayGroupId", p.groupId().toString());
+            detail.put("pathwayGroup", p.label());
+        });
+    }
+
+    /** Credits are audited when recorded; a version without them says nothing about them. */
+    private static void putCredits(Map<String, Object> detail, BigDecimal credits, CreditUnit unit) {
+        if (credits != null) {
+            detail.put("credits", credits.toPlainString());
+            detail.put("creditUnit", unit.name());
+        }
     }
 
     @Transactional(readOnly = true)

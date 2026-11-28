@@ -15,6 +15,7 @@ export type FlagTone = 'neutral' | 'missing';
  */
 export const FLAGS: Readonly<Record<Flag, { label: string; shape: MarkShape; tone: FlagTone }>> = {
   ELECTIVE_ONLY: { label: 'Rests on an elective', shape: 'half', tone: 'neutral' },
+  PATHS_UNKNOWN: { label: 'Graduation paths not fully known', shape: 'ring', tone: 'neutral' },
   SINGLE_COURSE: { label: 'Rests on one course', shape: 'open-square', tone: 'neutral' },
   OUTDATED_EVIDENCE: { label: 'Outdated evidence', shape: 'dashed-ring', tone: 'neutral' },
   NO_EVIDENCE: { label: 'No evidence cited', shape: 'square', tone: 'missing' },

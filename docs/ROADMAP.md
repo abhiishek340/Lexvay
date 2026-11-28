@@ -33,7 +33,7 @@ runs, sandbox, authorized real data or production.
 | MODE-1 | Persisted tenant data mode (DEMO/LIVE) and the spend gate for paid providers | — | Sonnet 5.5 | V022 | merged (#51) |
 | RG-2 | Source registry governance: allowed hosts and paths, authority class, rights and access state, owner, expected identifiers, conditional GET, per-host throttle, robots, block-page detection | RG-1 | Sonnet 5.5 | V023 | queued |
 | RG-3 | Utah official-source adapter (DOPL, R156-60e, Utah Code 58-60-405, State Bulletin), with archived-version replay and an observed-change test | RG-2 | Sonnet 5.5 | — | queued |
-| AC-1 | Academic pathway model: catalog version, credits, choice groups, substitutions, and "every valid graduation path" evaluated with three-valued logic | — | Sonnet 5.5 | V024 | in progress |
+| AC-1 | Academic pathway model: catalog version, credits, choice groups, substitutions, and "every valid graduation path" evaluated with three-valued logic | — | Sonnet 5.5 | V026 | merged (#61) |
 | AC-2 | Governed export ingestion: manifest v1, local drop folder and read-only SFTP (Apache MINA SSHD), full and delta, tombstones, checkpoints | AC-1 | Sonnet 5.5 | V025 | queued |
 | AC-3 | Public catalog feasibility adapter (University of Utah CMHC program requirements and handbooks): proposed facts with citations and a missing-evidence manifest; no university text committed | RG-2, AC-1 | Sonnet 5.5 | — | queued |
 | EV-1 | Local inference adapter (OpenAI-compatible endpoint for a locally run model), configured explicitly and never defaulted; evaluation runs labelled scripted, replay, local-live or paid-live | MODE-1 | Sonnet 5.5 | — | queued |
@@ -690,7 +690,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | F15 Evidence package | `feat-evidence-package` | 5 | Sonnet 5.5 | merged (#49) |
 | RG-1 Legal time and status model (P0) | `rg-legal-time` | 2 | Sonnet 5.5 | merged (#55) |
 | MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | merged (#51) |
-| AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | in progress |
+| AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | merged (#61) |
 | OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | merged (#54) |
 | OPS-2b Stack lock race on Ubuntu 26.04 (uutils mkdir) | `ops-stack-lock-fix` | — | Sonnet 5.5 | merged (#60) |
 | OPS-3 Performance budget on CI | `ops-perf-ci` | — | Sonnet 5.5 | merged (#56) |
@@ -698,7 +698,8 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | merged (#59) |
 | RG-2 Source registry governance | `rg-source-governance` | 6 | Sonnet 5.5 | in progress |
 | EV-2 Evaluation lab | `ev-lab` | 8 | Sonnet 5.5 | in progress |
-| RG-3, AC-2, AC-3, UX-1 | see Real-data validation track | — | — | queued |
+| AC-2 Governed academic export ingestion | `ac-academic-export` | 3 | Sonnet 5.5 | in progress |
+| RG-3, AC-3, UX-1 | see Real-data validation track | — | — | queued |
 | SP-1 SharePoint spike, DOM-1 expert review | — | — | — | blocked (founder) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
