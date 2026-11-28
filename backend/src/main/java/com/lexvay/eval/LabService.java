@@ -5,6 +5,8 @@ import com.lexvay.assessment.Mapping;
 import com.lexvay.document.DocumentService;
 import com.lexvay.llm.LlmCallBlockedException;
 import com.lexvay.llm.LlmClient;
+import com.lexvay.pathway.PathwayCoverage;
+import com.lexvay.pathway.PathwayRepository;
 import com.lexvay.seed.SeedManifest;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -51,15 +53,17 @@ public class LabService {
     private final EvalService eval;
     private final AssessmentService assessments;
     private final EvalRepository repository;
+    private final PathwayRepository pathways;
     private final GenericBaseline baseline;
     private final LlmClient llm;
     private final Clock clock;
 
-    LabService(EvalService eval, AssessmentService assessments, EvalRepository repository, GenericBaseline baseline, LlmClient llm,
-               Clock clock) {
+    LabService(EvalService eval, AssessmentService assessments, EvalRepository repository, PathwayRepository pathways,
+               GenericBaseline baseline, LlmClient llm, Clock clock) {
         this.eval = eval;
         this.assessments = assessments;
         this.repository = repository;
+        this.pathways = pathways;
         this.baseline = baseline;
         this.llm = llm;
         this.clock = clock;
@@ -112,11 +116,12 @@ public class LabService {
     private KeyRun measure(EvalService.Assessed assessed, AnswerKeys.Loaded loaded, boolean askBaseline) {
         List<Mapping> mappings = assessments.mappings(assessed.assessmentId(), null).mappings();
         List<EvalRepository.PageText> pages = repository.pages();
+        PathwayCoverage pathway = new PathwayCoverage(pathways.activeGroups(assessments.require(assessed.assessmentId()).programId()));
         Map<UUID, EvalRepository.PageText> documents = new HashMap<>();
         pages.forEach(p -> documents.putIfAbsent(p.documentId(), p));
         Map<String, LabScorer.Answer> answers = new HashMap<>();
         for (Mapping m : mappings) {
-            answers.put(Golden.key(m.jurisdiction(), m.requirement().ref()), answer(m, documents));
+            answers.put(Golden.key(m.jurisdiction(), m.requirement().ref()), answer(m, documents, pathway));
         }
         List<LabScorer.Row> rows = rows(loaded, answers);
         long unlabelled = mappings.stream().map(m -> Golden.key(m.jurisdiction(), m.requirement().ref()))
@@ -125,7 +130,7 @@ public class LabService {
                 + loaded.id() + " and are not scored");
         Ratio quotes = EvalScorer.verifiedQuotes(repository.spans(), new ArrayList<>());
         EvalReport.Usage usage = eval.pipelineUsage(assessed.assessmentId());
-        BaselineRun compared = askBaseline ? compare(assessed.assessmentId(), loaded, mappings, pages) : null;
+        BaselineRun compared = askBaseline ? compare(assessed.assessmentId(), loaded, mappings, pages, pathway) : null;
         return new KeyRun(rows, quotes, usage, notes, compared);
     }
 
@@ -135,24 +140,25 @@ public class LabService {
     }
 
     /** The finding and the located evidence the pipeline stored for one requirement. */
-    private static LabScorer.Answer answer(Mapping mapping, Map<UUID, EvalRepository.PageText> documents) {
+    private static LabScorer.Answer answer(Mapping mapping, Map<UUID, EvalRepository.PageText> documents, PathwayCoverage pathway) {
         Mapping.Evidence e = mapping.evidence();
         if (e == null) {
             return new LabScorer.Answer(mapping.finding(), null);
         }
         EvalRepository.PageText document = documents.get(e.documentId());
         return new LabScorer.Answer(mapping.finding(), new LabScorer.Cited(document.sha256(), e.pageNumber(), e.charStart(), e.charEnd(),
-                !Boolean.FALSE.equals(e.courseRequired())));
+                document.onEveryPath(pathway)));
     }
 
     /**
      * The generic model's answers for the same requirements. A call the product refuses (the spend gate, for a billed model) is
      * not an error of the run: it leaves the comparison blocked, with the reason, and the pipeline's numbers stand.
      */
-    private BaselineRun compare(UUID assessmentId, AnswerKeys.Loaded loaded, List<Mapping> mappings, List<EvalRepository.PageText> pages) {
+    private BaselineRun compare(UUID assessmentId, AnswerKeys.Loaded loaded, List<Mapping> mappings, List<EvalRepository.PageText> pages,
+                                PathwayCoverage pathway) {
         GenericBaseline.Run run;
         try {
-            run = baseline.run(assessmentId, mappings, pages);
+            run = baseline.run(assessmentId, mappings, pages, pathway);
         } catch (LlmCallBlockedException blocked) {
             return BaselineRun.blocked(blocked.getMessage());
         }

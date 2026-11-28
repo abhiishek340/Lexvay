@@ -19,6 +19,10 @@ import com.lexvay.llm.LlmPurpose;
 import com.lexvay.llm.LlmRefusedException;
 import com.lexvay.llm.LlmRequest;
 import com.lexvay.llm.LlmResponse;
+import com.lexvay.pathway.GroupKind;
+import com.lexvay.pathway.PathwayCoverage;
+import com.lexvay.pathway.PathwayGroup;
+import com.lexvay.pathway.Tri;
 import com.lexvay.rule.RequirementType;
 import java.util.List;
 import java.util.UUID;
@@ -33,11 +37,23 @@ class GenericBaselineTest {
     static final UUID ASSESSMENT = UUID.randomUUID();
     static final String ETHICS = "Students examine the ACA Code of Ethics, state licensing law, confidentiality and duty to warn.";
 
-    static final EvalRepository.PageText SYLLABUS = new EvalRepository.PageText(UUID.randomUUID(), "coun605-syllabus.pdf", "a".repeat(64), true, 1,
+    static final UUID COUN_605 = UUID.nameUUIDFromBytes("COUN 605".getBytes());
+    static final UUID COUN_650 = UUID.nameUUIDFromBytes("COUN 650".getBytes());
+    static final UUID COUN_655 = UUID.nameUUIDFromBytes("COUN 655".getBytes());
+
+    /** COUN 605 is on every path; of COUN 650 and COUN 655 a graduate takes one, so neither is. */
+    static final PathwayCoverage PATHWAY = new PathwayCoverage(List.of(
+            new PathwayGroup(UUID.randomUUID(), "Core", GroupKind.ALL_OF, null, null,
+                    List.of(new PathwayGroup.Member(COUN_605, "COUN 605", "Ethics", null, null)), null),
+            new PathwayGroup(UUID.randomUUID(), "Electives", GroupKind.CHOOSE_COUNT, 1, null,
+                    List.of(new PathwayGroup.Member(COUN_650, "COUN 650", "Addictions", null, null),
+                            new PathwayGroup.Member(COUN_655, "COUN 655", "Psychopharmacology", null, null)), null)));
+
+    static final EvalRepository.PageText SYLLABUS = new EvalRepository.PageText(UUID.randomUUID(), "coun605-syllabus.pdf", "a".repeat(64), COUN_605, "COUN 605", 1,
             "COUN 605\n" + ETHICS + "\nWeek 1 Professional identity.");
-    static final EvalRepository.PageText ELECTIVE = new EvalRepository.PageText(UUID.randomUUID(), "coun650-syllabus.pdf", "b".repeat(64), false, 1,
+    static final EvalRepository.PageText ELECTIVE = new EvalRepository.PageText(UUID.randomUUID(), "coun650-syllabus.pdf", "b".repeat(64), COUN_650, "COUN 650", 1,
             "This elective covers the etiology of substance use and addictive disorders and their treatment.");
-    static final EvalRepository.PageText PLAN = new EvalRepository.PageText(UUID.randomUUID(), "degree-plan.pdf", "c".repeat(64), null, 1,
+    static final EvalRepository.PageText PLAN = new EvalRepository.PageText(UUID.randomUUID(), "degree-plan.pdf", "c".repeat(64), null, null, 1,
             "The program requires the completion of 60 semester credit hours.");
 
     final LlmGateway gateway = mock(LlmGateway.class);
@@ -82,7 +98,7 @@ class GenericBaselineTest {
         reply(answer("EVIDENCE_MISSING", null, null, null));
         var m = mapping("UT", "UT-9");
 
-        baseline(10_000).run(ASSESSMENT, List.of(m), List.of(SYLLABUS));
+        baseline(10_000).run(ASSESSMENT, List.of(m), List.of(SYLLABUS), PATHWAY);
 
         var request = ArgumentCaptor.forClass(LlmRequest.class);
         verify(gateway).complete(request.capture());
@@ -98,21 +114,34 @@ class GenericBaselineTest {
     void aQuoteOnTheStoredPageIsLocatedAndCarriesTheSha256AndWhetherEveryStudentTakesTheCourse() {
         reply(answer("EVIDENCE_FOUND", "coun650-syllabus.pdf", 1, "elective covers the etiology  of substance use"));
 
-        var run = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-8")), List.of(SYLLABUS, ELECTIVE));
+        var run = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-8")), List.of(SYLLABUS, ELECTIVE), PATHWAY);
 
         LabScorer.Answer answer = run.answers().get("UT/UT-8");
         assertThat(answer.finding()).isEqualTo(Finding.EVIDENCE_FOUND);
-        assertThat(answer.cited()).isEqualTo(new LabScorer.Cited("b".repeat(64), 1, 5, 50, false));
+        assertThat(answer.cited()).isEqualTo(new LabScorer.Cited("b".repeat(64), 1, 5, 50, Tri.FALSE));
         assertThat(ELECTIVE.text().substring(5, 50)).isEqualTo("elective covers the etiology of substance use");
         assertThat(run.quoteVerification()).isEqualTo(new Ratio(1, 1));
         assertThat(run.pagesGiven()).isEqualTo(2);
     }
 
     @Test
+    void aCourseTheGraduationPathsDoNotCoverIsUnknownNotOnEveryPathAndAProgramLevelDocumentIsNotJudged() {
+        reply(answer("EVIDENCE_FOUND", "coun605-syllabus.pdf", 1, "Students examine the ACA Code of Ethics"));
+        var noPaths = new PathwayCoverage(List.of());
+
+        var syllabus = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-2")), List.of(SYLLABUS), noPaths);
+        assertThat(syllabus.answers().get("UT/UT-2").cited().onEveryPath()).isEqualTo(Tri.UNKNOWN);
+
+        reply(answer("EVIDENCE_FOUND", "degree-plan.pdf", 1, "The program requires the completion of 60 semester credit hours."));
+        var plan = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-1")), List.of(PLAN), noPaths);
+        assertThat(plan.answers().get("UT/UT-1").cited().onEveryPath()).isEqualTo(Tri.TRUE);
+    }
+
+    @Test
     void aQuoteThatIsNotOnThePageLocatesNothingButTheClaimedFindingStandsAndTheQuoteCountsAgainstTheModel() {
         reply(answer("EVIDENCE_FOUND", "coun605-syllabus.pdf", 1, "Students must complete a course on the Utah practice act."));
 
-        var run = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-9")), List.of(SYLLABUS));
+        var run = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-9")), List.of(SYLLABUS), PATHWAY);
 
         assertThat(run.answers().get("UT/UT-9")).isEqualTo(new LabScorer.Answer(Finding.EVIDENCE_FOUND, null));
         assertThat(run.quoteVerification()).isEqualTo(new Ratio(0, 1));
@@ -122,7 +151,7 @@ class GenericBaselineTest {
     void aQuoteFromADocumentOrPageTheModelWasNotShownIsNotLocated() {
         reply(answer("EVIDENCE_FOUND", "coun605-syllabus.pdf", 2, ETHICS));
 
-        var run = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-2")), List.of(SYLLABUS));
+        var run = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-2")), List.of(SYLLABUS), PATHWAY);
 
         assertThat(run.answers().get("UT/UT-2").cited()).isNull();
         assertThat(run.quoteVerification()).isEqualTo(new Ratio(0, 1));
@@ -132,7 +161,7 @@ class GenericBaselineTest {
     void aPageCutByTheBudgetCannotBeCited() {
         reply(answer("EVIDENCE_FOUND", "degree-plan.pdf", 1, "The program requires the completion of 60 semester credit hours."));
 
-        var run = baseline(10).run(ASSESSMENT, List.of(mapping("UT", "UT-1")), List.of(SYLLABUS, PLAN));
+        var run = baseline(10).run(ASSESSMENT, List.of(mapping("UT", "UT-1")), List.of(SYLLABUS, PLAN), PATHWAY);
 
         assertThat(run.pagesGiven()).isZero();
         assertThat(run.pagesTotal()).isEqualTo(2);
@@ -143,7 +172,7 @@ class GenericBaselineTest {
     void aMissingFindingCitesNothingAndCountsNoQuote() {
         reply(answer("EVIDENCE_MISSING", null, null, null));
 
-        var run = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-9")), List.of(SYLLABUS));
+        var run = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-9")), List.of(SYLLABUS), PATHWAY);
 
         assertThat(run.answers().get("UT/UT-9")).isEqualTo(new LabScorer.Answer(Finding.EVIDENCE_MISSING, null));
         assertThat(run.quoteVerification()).isEqualTo(new Ratio(0, 0));
@@ -154,7 +183,7 @@ class GenericBaselineTest {
     void anAnswerOutsideTheSchemaIsUnusableAndNeverAFinding() {
         reply("{\"finding\":\"MEETS\",\"document\":null,\"page_number\":null,\"quote\":null}");
 
-        var run = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-9")), List.of(SYLLABUS));
+        var run = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-9")), List.of(SYLLABUS), PATHWAY);
 
         assertThat(run.answers().get("UT/UT-9")).isEqualTo(LabScorer.Answer.NONE);
         assertThat(run.unusableAnswers()).isEqualTo(1);
@@ -164,7 +193,7 @@ class GenericBaselineTest {
     void aModelThatDeclinesLeavesTheRequirementUnansweredAndStoresNoCall() {
         when(gateway.complete(any())).thenThrow(new LlmRefusedException("declined"));
 
-        var run = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-9")), List.of(SYLLABUS));
+        var run = baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-9")), List.of(SYLLABUS), PATHWAY);
 
         assertThat(run.answers().get("UT/UT-9")).isEqualTo(LabScorer.Answer.NONE);
         assertThat(run.unusableAnswers()).isEqualTo(1);
@@ -176,7 +205,7 @@ class GenericBaselineTest {
         when(gateway.complete(any())).thenThrow(new LlmCallBlockedException(LlmCallBlockedException.Reason.PAID_CALLS_NOT_APPROVED,
                 "Paid model calls are not approved"));
 
-        assertThatThrownBy(() -> baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-9"), mapping("UT", "UT-8")), List.of(SYLLABUS)))
+        assertThatThrownBy(() -> baseline(10_000).run(ASSESSMENT, List.of(mapping("UT", "UT-9"), mapping("UT", "UT-8")), List.of(SYLLABUS), PATHWAY))
                 .isInstanceOf(LlmCallBlockedException.class);
         verify(gateway).complete(any());
     }

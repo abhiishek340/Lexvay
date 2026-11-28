@@ -1,6 +1,7 @@
 package com.lexvay.eval;
 
 import com.lexvay.assessment.Finding;
+import com.lexvay.pathway.Tri;
 import com.lexvay.rule.NumericField;
 import com.lexvay.rule.RequirementType;
 import java.math.BigDecimal;
@@ -32,7 +33,7 @@ final class LabFixtures {
                 List.of(spans), null, null);
     }
 
-    static LabScorer.Cited cited(String document, int page, int start, int end, boolean onEveryPath) {
+    static LabScorer.Cited cited(String document, int page, int start, int end, Tri onEveryPath) {
         return new LabScorer.Cited(document, page, start, end, onEveryPath);
     }
 
@@ -50,16 +51,16 @@ final class LabFixtures {
         var standard = AnswerKey.Severity.STANDARD;
         return List.of(
                 row(keyId, requirement("UT", "UT-1", RequirementType.NUMERIC, found, critical, span(DOC_A, 1, 0, 100)), Finding.EVIDENCE_FOUND,
-                        cited(DOC_A, 1, 10, 60, true)),
+                        cited(DOC_A, 1, 10, 60, Tri.TRUE)),
                 row(keyId, requirement("UT", "UT-2", RequirementType.SUBJECT, found, standard, span(DOC_A, 1, 200, 300)), Finding.AMBIGUOUS,
-                        cited(DOC_A, 1, 200, 300, true)),
+                        cited(DOC_A, 1, 200, 300, Tri.TRUE)),
                 row(keyId, requirement("UT", "UT-3", RequirementType.SUBJECT, AnswerKey.Expected.EVIDENCE_MISSING, critical), Finding.EVIDENCE_FOUND,
-                        cited(DOC_B, 1, 0, 50, true)),
+                        cited(DOC_B, 1, 0, 50, Tri.TRUE)),
                 row(keyId, requirement("CO", "CO-1", RequirementType.SUBJECT, AnswerKey.Expected.NOT_APPLICABLE, standard), Finding.EVIDENCE_FOUND, null),
                 row(keyId, requirement("CO", "CO-2", RequirementType.SUBJECT, found, critical, span(DOC_B, 1, 0, 100)), Finding.EVIDENCE_FOUND,
-                        cited(DOC_B, 1, 0, 100, false)),
+                        cited(DOC_B, 1, 0, 100, Tri.FALSE)),
                 row(keyId, requirement("CO", "CO-3", RequirementType.SUPERVISED_HOURS, found, standard, span(DOC_C, 2, 0, 80)),
-                        Finding.EVIDENCE_FOUND, cited(DOC_C, 2, 60, 140, true)),
+                        Finding.EVIDENCE_FOUND, cited(DOC_C, 2, 60, 140, Tri.TRUE)),
                 new LabScorer.Row(keyId, requirement("AZ", "AZ-1", RequirementType.SUBJECT, AnswerKey.Expected.AMBIGUOUS, standard, span(DOC_D, 1, 0, 40)),
                         LabScorer.Answer.NONE),
                 row(keyId, requirement("AZ", "AZ-2", RequirementType.SUBJECT, AnswerKey.Expected.EVIDENCE_MISSING, standard), Finding.EVIDENCE_MISSING, null));

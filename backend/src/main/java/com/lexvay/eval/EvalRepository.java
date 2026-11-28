@@ -1,6 +1,8 @@
 package com.lexvay.eval;
 
 import com.lexvay.llm.LlmPurpose;
+import com.lexvay.pathway.PathwayCoverage;
+import com.lexvay.pathway.Tri;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -14,10 +16,18 @@ class EvalRepository {
     }
 
     /**
-     * One stored page of a program document, with the document's content hash and whether its course is required of every
-     * student ({@code courseRequired} is null for a document that belongs to no course).
+     * One stored page of a program document, with the document's content hash and its course ({@code courseId} and
+     * {@code courseCode} are null for a document that belongs to no course).
      */
-    record PageText(UUID documentId, String filename, String sha256, Boolean courseRequired, int page, String text) {
+    record PageText(UUID documentId, String filename, String sha256, UUID courseId, String courseCode, int page, String text) {
+
+        /**
+         * Whether the document's course lies on every valid graduation path. A program-level document names no course and is
+         * not judged, as in the pipeline's downgrade rule (AC-1).
+         */
+        Tri onEveryPath(PathwayCoverage pathway) {
+            return courseId == null ? Tri.TRUE : pathway.onEveryPath(List.of(new PathwayCoverage.Course(courseId, courseCode))).value();
+        }
     }
 
     private final JdbcClient jdbc;
@@ -43,15 +53,16 @@ class EvalRepository {
     /** Every page of every program document, in file-name and page order. Rule text belongs to no program and is left out. */
     List<PageText> pages() {
         return jdbc.sql("""
-                SELECT d.id, d.filename, d.sha256, cv.required, dp.page_number, dp.text
+                SELECT d.id, d.filename, d.sha256, c.id AS course_id, c.code AS course_code, dp.page_number, dp.text
                 FROM document d
                 JOIN document_page dp ON dp.document_id = d.id
                 LEFT JOIN course_version cv ON cv.id = d.course_version_id
+                LEFT JOIN course c ON c.id = cv.course_id
                 WHERE d.kind <> 'RULE_TEXT'
                 ORDER BY d.filename, dp.page_number
                 """)
                 .query((rs, i) -> new PageText(rs.getObject("id", UUID.class), rs.getString("filename"), rs.getString("sha256"),
-                        rs.getObject("required", Boolean.class), rs.getInt("page_number"), rs.getString("text")))
+                        rs.getObject("course_id", UUID.class), rs.getString("course_code"), rs.getInt("page_number"), rs.getString("text")))
                 .list();
     }
 

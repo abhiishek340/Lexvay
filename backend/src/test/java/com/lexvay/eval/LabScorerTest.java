@@ -10,6 +10,7 @@ import static com.lexvay.eval.LabFixtures.span;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.lexvay.assessment.Finding;
+import com.lexvay.pathway.Tri;
 import com.lexvay.rule.RequirementType;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,9 +32,22 @@ class LabScorerTest {
         var standard = requirement("UT", "UT-1", RequirementType.SUBJECT, AnswerKey.Expected.EVIDENCE_FOUND, AnswerKey.Severity.STANDARD,
                 span(DOC_A, 1, 0, 100));
 
-        var rows = List.of(row("k", standard, Finding.EVIDENCE_FOUND, cited(DOC_A, 1, 0, 100, false)));
+        var rows = List.of(row("k", standard, Finding.EVIDENCE_FOUND, cited(DOC_A, 1, 0, 100, Tri.FALSE)));
 
         assertThat(LabScorer.score(rows).overall().get(LabMetric.SEVERE_FALSE_ASSURANCE)).isEqualTo(new Ratio(0, 1));
+    }
+
+    @Test
+    void aCourseTheGraduationPathsDoNotSayIsOnEveryPathCountsAgainstACriticalRequirementLikeOneThatIsNot() {
+        var critical = requirement("UT", "UT-1", RequirementType.SUBJECT, AnswerKey.Expected.EVIDENCE_FOUND, AnswerKey.Severity.CRITICAL,
+                span(DOC_A, 1, 0, 100));
+
+        for (Tri onEveryPath : Tri.values()) {
+            var rows = List.of(row("k", critical, Finding.EVIDENCE_FOUND, cited(DOC_A, 1, 0, 100, onEveryPath)));
+
+            assertThat(LabScorer.score(rows).overall().get(LabMetric.SEVERE_FALSE_ASSURANCE)).as(onEveryPath.name())
+                    .isEqualTo(new Ratio(onEveryPath == Tri.TRUE ? 0 : 1, 1));
+        }
     }
 
     @Test

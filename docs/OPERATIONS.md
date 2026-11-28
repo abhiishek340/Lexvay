@@ -257,7 +257,7 @@ run has several).
 
 | Metric | Numerator out of denominator |
 |---|---|
-| **Severe false assurance** (the headline) | Requirements answered `EVIDENCE_FOUND` where the key says `EVIDENCE_MISSING` or `NOT_APPLICABLE`, or where the quote is from a course that is not on every student's path and the requirement is `CRITICAL`; out of every requirement in the key. |
+| **Severe false assurance** (the headline) | Requirements answered `EVIDENCE_FOUND` where the key says `EVIDENCE_MISSING` or `NOT_APPLICABLE`, or where the quote is from a course that is not on every valid graduation path (or that the program's recorded pathway does not say is) and the requirement is `CRITICAL`; out of every requirement in the key. |
 | **Finding accuracy** | Answers equal to the key; out of the requirements the key does not call `NOT_APPLICABLE` (the system has no such finding). |
 | **Abstention rate** | Requirements answered `AMBIGUOUS`; out of those the key decides (`EVIDENCE_FOUND` or `EVIDENCE_MISSING`). Too high a rate makes the system useless; too low may hide guessing. |
 | **Evidence precision** | Cited spans that overlap a span the key accepts; out of all cited spans. |

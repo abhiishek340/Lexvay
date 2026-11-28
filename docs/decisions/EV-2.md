@@ -35,8 +35,11 @@ for numeric, accreditation, ethics and state-specific requirements except telehe
 **D-623 — Metric definitions.** All are counts out of counts (`Ratio`), pure in `LabScorer`, and each is also computed per state,
 requirement type and severity (and per key when a run has several keys, which are pooled).
 - *Severe false assurance* (headline): `EVIDENCE_FOUND` where the key says `EVIDENCE_MISSING` or `NOT_APPLICABLE`, or whose cited
-  quote is from a course with `required = false` while the requirement is `CRITICAL` (the repository's only notion of "not on every
-  path": `course_version.required` is boolean, and the pathway logic of master prompt §5.3 does not exist yet). The denominator is
+  quote is from a course that is not on every valid graduation path while the requirement is `CRITICAL`. "On every path" is
+  `PathwayCoverage.onEveryPath` (AC-1) over the program's active groups, the same question the pipeline's own downgrade rule asks:
+  FALSE and UNKNOWN (the pathway does not say) both count, because rule 4 reads whatever is unrecorded against the quote; a document of
+  no course (a degree plan, a handbook) is not judged. The baseline's quotes are judged the same way, so the two are compared on one
+  definition. (The first version used `course_version.required` as a proxy, before AC-1 existed.) The denominator is
   every requirement of the key, not the answers the system gave, so it does not shrink when the system abstains. A key `AMBIGUOUS`
   answered `EVIDENCE_FOUND` is a wrong finding and counts in accuracy, not as severe, as the spec defines it.
 - *Finding accuracy* leaves out requirements the key calls `NOT_APPLICABLE` (no system finding can be right); *abstention* is
@@ -77,7 +80,7 @@ asks for the file name, page and a verbatim quote. The prompt carries none of th
 "when unsure choose AMBIGUOUS", no instruction about numbers). Output is validated against `llm/eval-baseline.schema.json`; an
 answer outside it, or a model that declines, is an unusable answer (counted, and shown), never a finding. The quote is checked by
 `QuoteVerifier` against the stored page the model was shown; a verified quote becomes the cited span (with the document's SHA-256
-and whether its course is required), an unverified one locates nothing and counts against the baseline's quote verification, and
+and whether its course is on every graduation path, D-623), an unverified one locates nothing and counts against the baseline's quote verification, and
 the finding it claimed is scored as claimed. Calls go through `LlmGateway`, so the spend gate applies, and are recorded by
 `LlmCallRecorder` with prompt version `eval-baseline-v1` so spend accounting stays true: the stored `metered` flag is what the gate
 adds up, as for every call. They are stored under their own purpose, `EVAL_BASELINE`, because a record that called them
@@ -122,7 +125,9 @@ no local model was run, so no real model's baseline has ever been measured and t
 author. (2) Adjudication is tested on synthetic keys; the demo key has one labeller and no disagreement to adjudicate, because
 inventing a second labeller would fabricate provenance. (3) No metric but severe false assurance has a limit, and none can have
 one before an independent key exists. (4) `NOT_APPLICABLE` is excluded from finding accuracy rather than scored, because the system
-has no way to say it; the rule it is held to is severe false assurance. (5) "Not on every path" is the elective flag, until the
-pathway reasoning of master prompt §5.3 exists; the metric will need extending then. (6) `make eval-lab` is not in CI: the backend
+has no way to say it; the rule it is held to is severe false assurance. (5) "Not on every path" is only as good as the pathway recorded for the program: an unrecorded pathway
+makes every course-borne quote count against a CRITICAL requirement (UNKNOWN), by design, so a program with no recorded groups
+shows a severe false assurance for each such quote. After AC-1 changed the seed's degree plan, the demo key's hash for that
+document was updated in the same commit (the plan's changed text is after every span the key accepts, so the offsets stand). (6) `make eval-lab` is not in CI: the backend
 tests run the same dev run on the demo key (`LabServiceTest`) and `make eval-lab` is part of this item's acceptance runs. (7) A
 whole-page quote overlaps an accepted span fully under D-623's definition; the lab does not detect over-long quotes.

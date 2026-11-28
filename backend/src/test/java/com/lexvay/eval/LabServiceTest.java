@@ -12,6 +12,7 @@ import com.lexvay.document.DocumentService;
 import com.lexvay.job.JobRunner;
 import com.lexvay.llm.FakeLlmClient;
 import com.lexvay.llm.LlmClient;
+import com.lexvay.pathway.PathwayRepository;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -39,6 +40,7 @@ class LabServiceTest extends AbstractDatabaseTest {
     @Autowired EvalService eval;
     @Autowired AssessmentService assessments;
     @Autowired EvalRepository repository;
+    @Autowired PathwayRepository pathways;
     @Autowired GenericBaseline baseline;
     @Autowired LlmClient llm;
     @Autowired JobRunner runner;
@@ -169,7 +171,7 @@ class LabServiceTest extends AbstractDatabaseTest {
                 "This elective covers the etiology of substance use and addictive disorders, screening and assessment of addictions, and evidence-based treatment approaches across the lifespan."));
         EvalService believesInALiveModel = spy(eval);
         doReturn(EvalReport.Mode.LOCAL_LIVE).doReturn(EvalReport.Mode.SCRIPTED).when(believesInALiveModel).mode();
-        LabService live = new LabService(believesInALiveModel, assessments, repository, baseline, llm, clock);
+        LabService live = new LabService(believesInALiveModel, assessments, repository, pathways, baseline, llm, clock);
 
         LabReport report = live.run(SEED, AnswerKey.Split.dev, List.of(critical), thresholds, true);
 

@@ -11,6 +11,7 @@ import com.lexvay.llm.LlmPurpose;
 import com.lexvay.llm.LlmRefusedException;
 import com.lexvay.llm.LlmRequest;
 import com.lexvay.llm.LlmResponse;
+import com.lexvay.pathway.PathwayCoverage;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -91,7 +92,7 @@ class GenericBaseline {
      * Asks the model about every requirement of the assessment. Runs inside the evaluation tenant. A call the product refuses
      * ({@link LlmCallBlockedException}) ends the run and is the caller's to report.
      */
-    Run run(UUID assessmentId, List<Mapping> mappings, List<EvalRepository.PageText> pages) {
+    Run run(UUID assessmentId, List<Mapping> mappings, List<EvalRepository.PageText> pages, PathwayCoverage pathway) {
         Corpus corpus = Corpus.within(pages, tokenBudget);
         Map<String, LabScorer.Answer> answers = new LinkedHashMap<>();
         int claimed = 0;
@@ -109,7 +110,7 @@ class GenericBaseline {
             LabScorer.Cited cited = null;
             if (finding != Finding.EVIDENCE_MISSING && !node.path("quote").isNull()) {
                 claimed++;
-                cited = locate(corpus, node).orElse(null);
+                cited = locate(corpus, node, pathway).orElse(null);
                 verified += cited == null ? 0 : 1;
             }
             answers.put(Golden.key(m.jurisdiction(), m.requirement().ref()), new LabScorer.Answer(finding, cited));
@@ -135,13 +136,13 @@ class GenericBaseline {
     }
 
     /** The cited passage found in the stored page of a document the model was shown; empty when it is not there. */
-    private static Optional<LabScorer.Cited> locate(Corpus corpus, JsonNode answer) {
+    private static Optional<LabScorer.Cited> locate(Corpus corpus, JsonNode answer, PathwayCoverage pathway) {
         String file = answer.path("document").asString("");
         int pageNumber = answer.path("page_number").asInt(0);
         return corpus.pages().stream().filter(p -> p.filename().equals(file) && p.page() == pageNumber).findFirst()
                 .flatMap(page -> QuoteVerifier.find(page.text(), answer.path("quote").asString(""))
                         .map(match -> new LabScorer.Cited(page.sha256(), page.page(), match.charStart(), match.charEnd(),
-                                !Boolean.FALSE.equals(page.courseRequired()))));
+                                page.onEveryPath(pathway))));
     }
 
     static String userPrompt(Corpus corpus, Mapping.RequirementView requirement) {

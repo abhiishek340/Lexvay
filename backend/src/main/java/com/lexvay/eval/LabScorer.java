@@ -1,6 +1,7 @@
 package com.lexvay.eval;
 
 import com.lexvay.assessment.Finding;
+import com.lexvay.pathway.Tri;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
@@ -16,8 +17,8 @@ import java.util.function.Function;
  * <p>Definitions, each a count out of a total:
  * <ul>
  * <li>Severe false assurance: out of every requirement in the key, those answered EVIDENCE_FOUND where the key says
- * EVIDENCE_MISSING or NOT_APPLICABLE, or whose cited quote is from a course that is not on every student's path while the
- * requirement is CRITICAL. The denominator is every requirement, so it does not depend on what the system chose to answer.</li>
+ * EVIDENCE_MISSING or NOT_APPLICABLE, or whose cited quote is from a course that is not on every valid graduation path, or
+ * that the pathway does not say is, while the requirement is CRITICAL. The denominator is every requirement, so it does not depend on what the system chose to answer.</li>
  * <li>Finding accuracy: out of the requirements the key does not call NOT_APPLICABLE (the system has no such finding), the answer equals the key.</li>
  * <li>Abstention rate: out of the requirements the key decides (EVIDENCE_FOUND or EVIDENCE_MISSING), those answered AMBIGUOUS.</li>
  * <li>Evidence precision: out of the answers that cite a span, those whose span overlaps an accepted span of the key.</li>
@@ -28,8 +29,11 @@ import java.util.function.Function;
  */
 public final class LabScorer {
 
-    /** The evidence an answer cites, located in the stored page text; {@code onEveryPath} is false for a course not every student takes. */
-    public record Cited(String document, int page, int charStart, int charEnd, boolean onEveryPath) {
+    /**
+     * The evidence an answer cites, located in the stored page text. {@code onEveryPath} is the pathway's answer (AC-1) to
+     * whether the cited course lies on every valid graduation path: TRUE, FALSE, or UNKNOWN when the pathway does not say.
+     */
+    public record Cited(String document, int page, int charStart, int charEnd, Tri onEveryPath) {
     }
 
     /** What one requirement was answered; {@code finding} is null when the model gave no usable answer. */
@@ -48,7 +52,7 @@ public final class LabScorer {
             AnswerKey.Expected expected = requirement.expected();
             boolean unsupported = expected == AnswerKey.Expected.EVIDENCE_MISSING || expected == AnswerKey.Expected.NOT_APPLICABLE;
             boolean notOnEveryPath = requirement.severity() == AnswerKey.Severity.CRITICAL && answer.cited() != null
-                    && !answer.cited().onEveryPath();
+                    && answer.cited().onEveryPath() != Tri.TRUE;
             return unsupported || notOnEveryPath;
         }
 

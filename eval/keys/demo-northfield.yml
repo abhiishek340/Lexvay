@@ -31,7 +31,7 @@ provenance:
       - { file: coun640-syllabus.pdf, sha256: 2fabc6a86998f76ad7b11a733015c5d15c4f102c44beb83dece57bb6e483e094 }
       - { file: coun650-syllabus.pdf, sha256: 0f12dd1b0b0918df5ec642d42c90a9406d8f9c47728fdea6a4f684389a8535a9 }
       - { file: coun655-syllabus.pdf, sha256: c855a1154cec59eb0db1f8edc3b958c08ebff55632d0f555ca7dcecbdb9488e0 }
-      - { file: degree-plan.pdf, sha256: c4741f2474f3b44797d19fbc8b7591e44d9f80c90bb771c598ffad96de5bbf89 }
+      - { file: degree-plan.pdf, sha256: ad0841a0711ecd9f47529919bde78d49e40d2685043e0f8ea0962c8391016150 }
 requirements:
   - ref: UT-1
     jurisdiction: UT
@@ -43,7 +43,7 @@ requirements:
     expected: EVIDENCE_FOUND
     severity: CRITICAL
     spans:
-      - { document: c4741f2474f3b44797d19fbc8b7591e44d9f80c90bb771c598ffad96de5bbf89, page: 1, charStart: 187, charEnd: 251 }
+      - { document: ad0841a0711ecd9f47529919bde78d49e40d2685043e0f8ea0962c8391016150, page: 1, charStart: 187, charEnd: 251 }
     notes: "The degree plan states 60 credits; 60 >= 60."
   - ref: UT-2
     jurisdiction: UT
@@ -143,7 +143,7 @@ requirements:
     expected: EVIDENCE_FOUND
     severity: CRITICAL
     spans:
-      - { document: c4741f2474f3b44797d19fbc8b7591e44d9f80c90bb771c598ffad96de5bbf89, page: 1, charStart: 187, charEnd: 251 }
+      - { document: ad0841a0711ecd9f47529919bde78d49e40d2685043e0f8ea0962c8391016150, page: 1, charStart: 187, charEnd: 251 }
     notes: "The degree plan states 60 credits; 60 >= 60."
   - ref: CO-2
     jurisdiction: CO
@@ -245,7 +245,7 @@ requirements:
     expected: EVIDENCE_FOUND
     severity: CRITICAL
     spans:
-      - { document: c4741f2474f3b44797d19fbc8b7591e44d9f80c90bb771c598ffad96de5bbf89, page: 1, charStart: 187, charEnd: 251 }
+      - { document: ad0841a0711ecd9f47529919bde78d49e40d2685043e0f8ea0962c8391016150, page: 1, charStart: 187, charEnd: 251 }
     notes: "The degree plan states 60 credits; 60 >= 60."
   - ref: AZ-2
     jurisdiction: AZ
@@ -335,7 +335,7 @@ requirements:
     expected: EVIDENCE_FOUND
     severity: CRITICAL
     spans:
-      - { document: c4741f2474f3b44797d19fbc8b7591e44d9f80c90bb771c598ffad96de5bbf89, page: 1, charStart: 187, charEnd: 251 }
+      - { document: ad0841a0711ecd9f47529919bde78d49e40d2685043e0f8ea0962c8391016150, page: 1, charStart: 187, charEnd: 251 }
     notes: "The degree plan states 60 credits; 60 >= 60."
   - ref: CA-2
     jurisdiction: CA
@@ -424,7 +424,7 @@ requirements:
     expected: EVIDENCE_FOUND
     severity: CRITICAL
     spans:
-      - { document: c4741f2474f3b44797d19fbc8b7591e44d9f80c90bb771c598ffad96de5bbf89, page: 1, charStart: 187, charEnd: 251 }
+      - { document: ad0841a0711ecd9f47529919bde78d49e40d2685043e0f8ea0962c8391016150, page: 1, charStart: 187, charEnd: 251 }
     notes: "The degree plan states 60 credits; 60 >= 60."
   - ref: TX-2
     jurisdiction: TX
