@@ -17,12 +17,12 @@ import org.springframework.core.io.ClassPathResource;
 
 /**
  * Flyway applies every migration before the application starts, so no test can load rows and then migrate. This test
- * runs the two backfill statements of V024 itself, read from the migration file, against temporary tables that shadow
+ * runs the two backfill statements of V026 itself, read from the migration file, against temporary tables that shadow
  * the real ones for this connection only (as RequirementOrdinalBackfillTest does for V012).
  */
 class PathwayBackfillTest extends AbstractDatabaseTest {
 
-    private static final String MIGRATION = "db/migration/V024__academic_pathway.sql";
+    private static final String MIGRATION = "db/migration/V026__academic_pathway.sql";
     private static final String TENANT = "00000000-0000-0000-0000-0000000000a1";
     private static final String P1 = "00000000-0000-0000-0000-0000000000b1";
     private static final String P2 = "00000000-0000-0000-0000-0000000000b2";

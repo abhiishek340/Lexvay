@@ -403,7 +403,7 @@ passed):
 | 62 tenants | GET /programs/{id}/coverage?jurisdiction=CA | 6.03 | 12.47 | 19.34 | 1.0 | 1743 |
 
 Plan (`IndexUsageTest`, `backend/target/perf/pathway-plan.txt`, 100 renamed copies of the seed): 0.42 ms execution; no
-sequential scan of `pathway_group`, `pathway_group_course` or `course_version` (V024 adds `course_version_course_idx` and
+sequential scan of `pathway_group`, `pathway_group_course` or `course_version` (V026 adds `course_version_course_idx` and
 `pathway_group_program_idx`).
 
 ## Audit trail seal (SEC-3)

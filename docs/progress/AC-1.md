@@ -1,11 +1,11 @@
 # AC-1 progress: academic pathway model
 
-Branch `ac-pathway`, migration V024, decisions D-586 to D-595 in `docs/decisions/AC-1.md`. Folded into `PROGRESS.md` by the
+Branch `ac-pathway`, migration V026, decisions D-586 to D-595 in `docs/decisions/AC-1.md`. Folded into `PROGRESS.md` by the
 orchestrator when the item merges.
 
 ## Built
 
-- **V024**: `course_version.credits` / `credit_unit`; `pathway_group`, `pathway_group_course`, `pathway_group_retirement`
+- **V026**: `course_version.credits` / `credit_unit`; `pathway_group`, `pathway_group_course`, `pathway_group_retirement`
   with forced row-level security and `forbid_change()`; a backfill that groups required courses and electives per program
   and catalog year and assumes no minimum; `course_version_course_idx` and `pathway_group_program_idx`.
 - **`PathwayCoverage`** (pure, three-valued): is a set of courses on every valid path, on some valid path, and the fewest

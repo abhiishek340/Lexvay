@@ -18,7 +18,7 @@ members in two units make every answer that needs their credits UNKNOWN. Convers
 item. A pathway member's credits are those of the version of the group's own catalog year, else the course's newest
 version (`PathwayRepository.ACTIVE_GROUPS`), so a 2027-28 version does not rewrite the 2026-27 pathway.
 
-**D-588 — The backfill assumes nothing, and a new course joins a group the same way.** V024 groups, per program and per
+**D-588 — The backfill assumes nothing, and a new course joins a group the same way.** V026 groups, per program and per
 catalog year of its course versions, the courses with `required = true` as one `ALL_OF` "Required courses" group and the
 others as one `CHOOSE_COUNT` "Electives" group with `min_count` NULL. How many electives a graduate takes is not in the old
 data, so the evaluator answers UNKNOWN for them until a person records it. `PathwayBackfillTest` runs the migration's own

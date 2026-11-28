@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PathwayService {
 
-    /** The groups a course joins when it is created, as V024's backfill names them (D-588). */
+    /** The groups a course joins when it is created, as V026's backfill names them (D-588). */
     public static final String REQUIRED_LABEL = "Required courses";
     public static final String ELECTIVES_LABEL = "Electives";
 
@@ -88,7 +88,7 @@ public class PathwayService {
     }
 
     /**
-     * Puts a course that a person has just created, or given a new catalog year, in the group its flag names, as V024's
+     * Puts a course that a person has just created, or given a new catalog year, in the group its flag names, as V026's
      * backfill would: a required course in the ALL_OF "Required courses" group, any other in the CHOOSE_COUNT "Electives"
      * group, whose minimum stays unknown until a person records it. A group that does not exist, or that was retired, is
      * made first. Membership rows are only ever added (D-586), so a new member is an append. A course that an active group
