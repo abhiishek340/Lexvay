@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640, OPS-2 D-641–643, OPS-3 D-644–646. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V020 F15, V022 MODE-1, then by merge order: SEC-3 takes V023 (it was V019 before V020 and V022 merged), RG-1 renumbers from V021 at merge, AC-1 V024, later items take the next free number at merge (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640, OPS-2 D-641–643, OPS-3 D-644–646, OPS-2b D-647 (supersedes D-642's mkdir mutex: the mutex is a noclobber file). Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V020 F15, V022 MODE-1, then by merge order: SEC-3 takes V023 (it was V019 before V020 and V022 merged), RG-1 renumbers from V021 at merge, AC-1 V024, later items take the next free number at merge (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -4830,3 +4830,41 @@ again in a `finally`. `AuditSealPerfTest` (`make perf`, tag `perf`) queues 20 00
 volume, seals them with the real sealer, times five verifications after a warm-up (budget 2 s) and fails unless the
 queue read uses `audit_unsealed_tenant_idx` with entries fetched by `audit_log_pkey`, and the dequeue finds its rows by
 `audit_unsealed_pkey`; plans are printed in the run.
+
+### OPS-2b — Stack lock race on Ubuntu 26.04 runners (D-647)
+
+**D-647 — The mutex in `scripts/lib/stack.sh` is a file created with the shell's own `O_EXCL` open, not a `mkdir`.**
+D-641 and D-642 used `mkdir` as the lock because macOS has no `flock`. The CI runner image is now Ubuntu 26.04, whose
+`mkdir` is uutils coreutils 0.10.0, and that `mkdir` is not atomic: it first checks that the path is free, then calls
+`mkdirat`, and when `mkdirat` fails with `EEXIST` because another process created the directory in between, it looks
+at the path again, finds a directory and exits 0. Two processes calling `mkdir` on the same new path at the same moment
+can therefore both succeed. `strace` of six racing calls shows the losing one doing `statx = ENOENT`,
+`mkdirat = EEXIST`, `statx = directory`, then exit 0; 16 racing calls produced two winners in about one round in ten
+(GNU `mkdir` on the same image, `gnumkdir`, produced none in 40 rounds).
+
+Effect in `scripts/lib/stack-lock-test.sh`: holders a and b start together and both took the mutex, both scanned an empty
+token directory, both went for token 1 (the second `mkdir "$dir"` failed with "File exists", but `stack_try_token` runs
+as the condition of an `until`, which switches `set -e` off, so nothing stopped it) and both wrote their pid and slot
+into it, the later write winning. Token 2 was
+never created, so the third holder found one live token and one free slot and started at once: "third holder does not
+start while both tokens are held", "says it is waiting" and "exactly two tokens are held again" failed. The same flaw
+would let two real runs share a token, so the cap of D-641 was not enforced either. It passed on macOS and on
+Ubuntu 24.04 (GNU coreutils), and on 26.04 only when the race was not lost (1 failure in 6 runs).
+
+The mutex is now the file `<lock dir>/.mutex`, taken with `( set -C; : > "$STACK_MUTEX" )`. With `noclobber` the shell
+itself opens the file with `O_CREAT|O_EXCL`, one system call that exactly one contender wins, on every kernel and with
+whatever coreutils are installed; bash 3.2 on macOS does the same. The stale-mutex rule is unchanged (older than a
+minute, removed with `rm -f`). Tokens stay directories holding `pid` and `slot`; they are created only while the
+mutex is held, so their `mkdir` never races. Nothing else in the design changes, and D-642's description "another
+`mkdir`" is replaced by this decision.
+
+Test: a new first section puts a `mkdir` that reports success for an existing directory (what uutils does when it loses
+the race, made certain instead of rare) first on `PATH` for the second contender, holds the mutex in the test shell and
+checks that the second contender stays blocked until the mutex is released. It fails on the old code on every run and
+passes on the new. No retry and no longer sleep was added to the existing scenarios: the failure was in the lock, not in
+the test's timing.
+
+Rejected: `flock` (absent on macOS); another coreutils command as the lock (the cause is trusting an external command for
+atomicity, and the shell's own redirection is the one primitive that needs none); making
+the test retry or wait longer (the failure is a shared token, not slowness); pinning the CI runner to `ubuntu-24.04`
+(hides a real defect that also affects 26.04 developer machines).
