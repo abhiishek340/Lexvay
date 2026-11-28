@@ -38,6 +38,31 @@
       </tbody>
     </table>
   }
+
+  @if (store.pathway(); as pathway) {
+    @if (pathway.groups.length > 0) {
+      <section class="lx-section" aria-labelledby="pathway-title" data-testid="pathway">
+        <h2 id="pathway-title" class="lx-panel-title">Graduation paths</h2>
+        <table class="lx-table" aria-label="Graduation paths">
+          <thead>
+            <tr><th scope="col">Group</th><th scope="col">Asks for</th><th scope="col">Courses</th></tr>
+          </thead>
+          <tbody>
+            @for (group of pathway.groups; track group.id) {
+              <tr>
+                <th scope="row">{{ group.label }}</th>
+                <td>{{ groupRule(group) }}</td>
+                <td class="lx-code">{{ memberCodes(group) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <p class="lx-meta" data-testid="pathway-minimum">
+          @if (minimumCredits(); as minimum) { Fewest credits on a path: {{ minimum }} } @else { Fewest credits on a path: not known ({{ pathway.unknowns.join('; ') }}) }
+        </p>
+      </section>
+    }
+  }
 } @else {
   <div class="lx-panel-skeleton" role="status" aria-busy="true" aria-label="Loading courses">@for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="3.25rem" /> }</div>
 }

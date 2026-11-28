@@ -14,17 +14,26 @@ tenants:
       catalogYear: 2026-27
       jurisdictions: [UT, CO, AZ, CA, TX]
     courses:
-      - { code: COUN 605, title: Professional Orientation and Ethical Practice, required: true, syllabus: coun605-syllabus.pdf }
-      - { code: COUN 610, title: Human Growth and Development, required: true, syllabus: coun610-syllabus.pdf }
-      - { code: COUN 615, title: Diagnosis and Treatment Planning, required: true, syllabus: coun615-syllabus.pdf }
-      - { code: COUN 620, title: Crisis, Trauma and Disaster Response, required: true, syllabus: coun620-syllabus.pdf }
-      - { code: COUN 625, title: Group Counseling, required: true, syllabus: coun625-syllabus.pdf }
-      - { code: COUN 630, title: Career Development and Counseling, required: true, syllabus: coun630-syllabus.pdf }
-      - { code: COUN 635, title: Research and Program Evaluation, required: true, syllabus: coun635-syllabus.pdf }
-      - { code: COUN 640, title: Assessment and Testing in Counseling, required: true, syllabus: coun640-syllabus.pdf }
-      - { code: COUN 650, title: Addictions Counseling, required: false, syllabus: coun650-syllabus.pdf }
-      - { code: COUN 655, title: Psychopharmacology for Counselors, required: false, syllabus: coun655-syllabus.pdf }
-      - { code: COUN 660, title: Counseling Practicum and Internship, required: true }   # no syllabus on purpose
+      - { code: COUN 605, title: Professional Orientation and Ethical Practice, required: true, credits: 3, syllabus: coun605-syllabus.pdf }
+      - { code: COUN 610, title: Human Growth and Development, required: true, credits: 3, syllabus: coun610-syllabus.pdf }
+      - { code: COUN 615, title: Diagnosis and Treatment Planning, required: true, credits: 3, syllabus: coun615-syllabus.pdf }
+      - { code: COUN 620, title: Crisis, Trauma and Disaster Response, required: true, credits: 3, syllabus: coun620-syllabus.pdf }
+      - { code: COUN 625, title: Group Counseling, required: true, credits: 3, syllabus: coun625-syllabus.pdf }
+      - { code: COUN 630, title: Career Development and Counseling, required: true, credits: 3, syllabus: coun630-syllabus.pdf }
+      - { code: COUN 635, title: Research and Program Evaluation, required: true, credits: 3, syllabus: coun635-syllabus.pdf }
+      - { code: COUN 640, title: Assessment and Testing in Counseling, required: true, credits: 3, syllabus: coun640-syllabus.pdf }
+      - { code: COUN 650, title: Addictions Counseling, required: false, credits: 3, syllabus: coun650-syllabus.pdf }
+      - { code: COUN 655, title: Psychopharmacology for Counselors, required: false, credits: 3, syllabus: coun655-syllabus.pdf }
+      - { code: COUN 645, title: Marriage, Couple and Family Counseling, required: false, credits: 3 }   # no syllabus on purpose
+      - { code: COUN 660, title: Counseling Practicum and Internship, required: true, credits: 9 }   # no syllabus on purpose
+      - { code: COUN 670, title: Counseling Capstone, required: true, credits: 6 }   # no syllabus on purpose
+      - { code: COUN 675, title: Advanced Clinical Internship, required: true, credits: 9 }   # no syllabus on purpose
+      - { code: COUN 680, title: Applied Research Project, required: true, credits: 6 }   # no syllabus on purpose
+    # Creating a course puts it in "Required courses" or "Electives" of the program's catalog year (AC-1, D-588). The degree plan
+    # makes students choose two of the three electives, so the seed replaces the electives group by one that says so. The courses
+    # add up to the 60 credits of the degree plan: 8 core courses of 3, 9 + 6 + 9 + 6 of clinical and capstone work, 2 electives of 3.
+    pathwayGroups:
+      - { label: "Electives: choose 2 of 3", kind: CHOOSE_COUNT, minCount: 2, courses: [COUN 645, COUN 650, COUN 655] }
     documents:
       - { file: degree-plan.pdf, kind: DEGREE_PLAN }
       - { file: clinical-handbook.pdf, kind: HANDBOOK }
@@ -45,7 +54,7 @@ tenants:
     # Applied by the change-tracking demo (milestone 7), after the first assessment is signed.
     changes:
       ruleVersion: { jurisdiction: CO, label: "Demo rule set - Colorado (fictional) 2026 revision 2", supersedes: "Demo rule set - Colorado (fictional) 2026", sourceUrl: "https://example.invalid/demo/colorado-r2", legal: { status: FINAL_NOT_EFFECTIVE, adoptedAt: 2026-11-02, publishedAt: 2026-11-16, effectiveFrom: 2027-01-01 }, text: colorado-v2.md }
-      courseVersion: { course: COUN 625, catalogYear: 2027-28, required: true, syllabus: coun625-syllabus-2027.pdf }
+      courseVersion: { course: COUN 625, catalogYear: 2027-28, required: true, credits: 3, syllabus: coun625-syllabus-2027.pdf }
   - name: Westbrook College
     demo: false
     users:
@@ -55,3 +64,8 @@ tenants:
       licenseType: CLINICAL_MENTAL_HEALTH_COUNSELING
       catalogYear: 2026-27
       jurisdictions: [CA]
+    courses:
+      - { code: COUN 500, title: Foundations of Counseling, required: false, credits: 3 }
+      - { code: COUN 510, title: Counseling Skills Laboratory, required: false, credits: 3 }
+    pathwayGroups:
+      - { label: "Electives: choose 1 of 2", kind: CHOOSE_COUNT, minCount: 1, courses: [COUN 500, COUN 510] }

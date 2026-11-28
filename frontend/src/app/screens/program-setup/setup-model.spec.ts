@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { Course, Program, ProgramDocument, ProgramFact, RequirementView, RuleVersionView } from '../../core/models';
+import { Course, PathwayGroup, Program, ProgramDocument, ProgramFact, RequirementView, RuleVersionView } from '../../core/models';
 import {
-  SetupDocument, assessedVersion, checkState, currentVersion, documentState, factHistory, firstOpenStep, licenseTypes, numericFieldsUsed, programReadiness,
-  quoteShowsValue,
+  SetupDocument, assessedVersion, checkState, currentVersion, documentState, factHistory, firstOpenStep, groupRule, licenseTypes, memberCodes,
+  minimumCreditsLabel, numericFieldsUsed, programReadiness, quoteShowsValue,
 } from './setup-model';
 
 const TODAY = '2026-11-27';
@@ -23,7 +23,7 @@ const internship = requirement('AZ-5', { type: 'SUPERVISED_HOURS', numericField:
 const practicum = requirement('CA-5', { type: 'SUPERVISED_HOURS', numericField: 'PRACTICUM_HOURS', numericOperator: '>=', numericValue: 100 });
 
 function course(code: string, versions: [string, string | null][]): Course {
-  return { id: 'c-' + code, programId: 'p1', code, title: code, versions: versions.map(([id, supersedesId]) => ({ id, courseId: 'c-' + code, programId: 'p1', catalogYear: '2026-27', required: true, supersedesId })) };
+  return { id: 'c-' + code, programId: 'p1', code, title: code, versions: versions.map(([id, supersedesId]) => ({ id, courseId: 'c-' + code, programId: 'p1', catalogYear: '2026-27', required: true, credits: null, creditUnit: 'SEMESTER', supersedesId })) };
 }
 function doc(id: string, courseVersionId: string | null, pageCount = 2): ProgramDocument {
   return { id, filename: id + '.pdf', kind: courseVersionId ? 'SYLLABUS' : 'DEGREE_PLAN', courseVersionId, courseCode: null, courseTitle: null, catalogYear: null, courseRequired: null, pageCount, current: true, createdAt: '' };
@@ -174,5 +174,30 @@ describe('facts', () => {
     const facts = [fact('TOTAL_CREDITS', 'new', true), fact('PRACTICUM_HOURS', 'p', true), fact('TOTAL_CREDITS', 'old', false)];
     expect(factHistory(facts, 'TOTAL_CREDITS')).toMatchObject({ current: { id: 'new' }, earlier: [{ id: 'old' }] });
     expect(factHistory(facts, 'INTERNSHIP_HOURS')).toEqual({ current: null, earlier: [] });
+  });
+});
+
+describe('graduation paths', () => {
+  function group(over: Partial<PathwayGroup>): PathwayGroup {
+    const member = (code: string): PathwayGroup['members'][number] => ({ courseId: code, code, title: code, credits: 3, creditUnit: 'SEMESTER', onEveryPath: 'UNKNOWN', onSomePath: 'UNKNOWN' });
+    return { id: 'g', label: 'Electives', kind: 'CHOOSE_COUNT', minCount: null, minCredits: null, citation: null, members: [member('COUN 650'), member('COUN 655'), member('COUN 645')], ...over };
+  }
+
+  it('says what a group asks of a graduate, and that its minimum is not recorded while it is unknown', () => {
+    expect(groupRule(group({ kind: 'ALL_OF' }))).toBe('All of these');
+    expect(groupRule(group({ minCount: 2 }))).toBe('Choose 2 of 3');
+    expect(groupRule(group({}))).toBe('Minimum not recorded');
+    expect(groupRule(group({ kind: 'CHOOSE_CREDITS', minCredits: 6 }))).toBe('Choose 6 credits');
+    expect(groupRule(group({ kind: 'CHOOSE_CREDITS' }))).toBe('Minimum not recorded');
+  });
+
+  it('lists the courses of a group by code', () => {
+    expect(memberCodes(group({}))).toBe('COUN 650, COUN 655, COUN 645');
+  });
+
+  it('names the fewest credits with their unit, and nothing while the server could not compute them', () => {
+    const pathway = { programId: 'p1', catalogYear: '2026-27', groups: [], minimumCredits: 36, minimumCreditsUnit: 'SEMESTER' as const, unknowns: [] };
+    expect(minimumCreditsLabel(pathway)).toBe('36 semester credits');
+    expect(minimumCreditsLabel({ ...pathway, minimumCredits: null, minimumCreditsUnit: null, unknowns: ['Electives: minimum not recorded'] })).toBeNull();
   });
 });

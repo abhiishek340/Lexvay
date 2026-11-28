@@ -1,21 +1,19 @@
 import { Component, ElementRef, afterRenderEffect, input, output, viewChild } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { NgIcon } from '@ng-icons/core';
-import { SelectButton } from 'primeng/selectbutton';
 import { Skeleton } from 'primeng/skeleton';
-import { Tooltip } from 'primeng/tooltip';
+import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
 import { StatusMark } from '../../ui/status-mark';
 import { requirementStatus } from '../../ui/status';
-import { ReviewFilter, ReviewWorkspace } from './review-workspace';
+import { REVIEW_FILTERS, ReviewFilter, ReviewWorkspace } from './review-workspace';
 
 /**
- * The 280 px requirement list of Review: the filter as a segmented icon control (counts in the segment names and
- * tooltips), then one row per requirement with its ref, title and one status mark whose words are for assistive
- * technology. The selected row stays in view as J and K move.
+ * The 280 px requirement list of Review: the filter as a text tab row with counts (All, To review, Found, Ambiguous,
+ * Missing; it wraps inside the column), then one row per requirement with its ref, title and one status mark whose
+ * words are for assistive technology. The selected row stays in view as J and K move.
  */
 @Component({
   selector: 'lx-requirement-list',
-  imports: [FormsModule, NgIcon, SelectButton, Skeleton, Tooltip, StatusMark],
+  imports: [NgIcon, Skeleton, Tab, TabList, TabPanel, TabPanels, Tabs, StatusMark],
   templateUrl: './requirement-list.html',
   styleUrl: './requirement-list.css',
 })
@@ -26,13 +24,13 @@ export class RequirementList {
   readonly filterChange = output<ReviewFilter>();
   readonly status = requirementStatus;
 
-  private readonly body = viewChild<ElementRef<HTMLElement>>('body');
+  private readonly body = viewChild('body', { read: ElementRef<HTMLElement> });
 
   constructor() {
     // Keeps the selected row visible inside the list only; the page itself never moves (under 1024 px the page scrolls).
     afterRenderEffect(() => {
       this.workspace().selectedId();
-      const body = this.body()?.nativeElement;
+      const body = this.body()?.nativeElement as HTMLElement | undefined;
       const row = body?.querySelector('[aria-current="true"]');
       if (!body || !row) { return; }
       const outer = body.getBoundingClientRect();
@@ -45,7 +43,8 @@ export class RequirementList {
     });
   }
 
-  setFilter(filter: ReviewFilter | null): void {
+  setFilter(value: string | number | undefined): void {
+    const filter = REVIEW_FILTERS.find((f) => f.value === value)?.value;
     if (filter) {
       this.filterChange.emit(filter);
     }

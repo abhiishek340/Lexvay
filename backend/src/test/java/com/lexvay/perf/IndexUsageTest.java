@@ -9,6 +9,7 @@ import com.lexvay.audit.AuditFilter;
 import com.lexvay.audit.AuditRepository;
 import com.lexvay.auth.Role;
 import com.lexvay.coverage.CoverageRepository;
+import com.lexvay.pathway.PathwayRepository;
 import com.lexvay.llm.LlmClient;
 import com.lexvay.report.ReportRepository;
 import com.lexvay.rule.source.RuleSourceRepository;
@@ -180,6 +181,8 @@ class IndexUsageTest extends AbstractDatabaseTest {
         UUID northfieldProgram = TenantContext.runAs(tenantId, () -> jdbc.sql("SELECT id FROM program ORDER BY created_at LIMIT 1").query(UUID.class).single());
         List<String> coverage = TenantContext.runAs(tenantId, () -> jdbc.sql("EXPLAIN (ANALYZE, BUFFERS) " + CoverageRepository.MATRIX
                 .replace(":program", "'" + northfieldProgram + "'").replace(":jurisdiction", "'CA'")).query(String.class).list());
+        List<String> pathway = TenantContext.runAs(tenantId, () -> jdbc.sql("EXPLAIN (ANALYZE, BUFFERS) " + PathwayRepository.READ
+                .replace(":program", "'" + northfieldProgram + "'").replace(":catalogYear", "NULL")).query(String.class).list());
         UUID northfieldRuleVersion = TenantContext.runAs(tenantId, () -> jdbc.sql("SELECT id FROM rule_version ORDER BY id LIMIT 1").query(UUID.class).single());
         List<String> latestUsing = TenantContext.runAs(tenantId, () -> jdbc.sql("EXPLAIN (ANALYZE, BUFFERS) " + MappingRepository.LATEST_ASSESSMENTS_USING
                 .replace(":rv", "'" + northfieldRuleVersion + "'")).query(String.class).list());
@@ -268,6 +271,10 @@ class IndexUsageTest extends AbstractDatabaseTest {
                 .noneMatch(line -> line.matches(".*Seq Scan on (mapping|evidence_span|evidence_response|document)\\b.*") && !line.contains("never executed"));
         assertThat(workQueue).as("the work queue statement scans no hot table sequentially (plan in target/perf/work-queue-plan.txt)")
                 .noneMatch(line -> line.matches(".*Seq Scan on (mapping|review_event|job)\\b.*") && !line.contains("never executed"));
+        Path pathwayPlan = Path.of("target", "perf", "pathway-plan.txt");
+        Files.writeString(pathwayPlan, String.join("\n", pathway) + "\n");
+        assertThat(pathway).as("the pathway read scans neither its tables nor course_version sequentially (plan in target/perf/pathway-plan.txt)")
+                .noneMatch(line -> line.matches(".*Seq Scan on (pathway_group|pathway_group_course|course_version)\\b.*") && !line.contains("never executed"));
         Path latestUsingPlan = Path.of("target", "perf", "latest-assessments-using-plan.txt");
         Files.writeString(latestUsingPlan, String.join("\n", latestUsing) + "\n");
         assertThat(latestUsing).as("the re-run statement scans neither mapping nor assessment sequentially (plan in target/perf/latest-assessments-using-plan.txt)")

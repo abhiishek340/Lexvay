@@ -11,6 +11,7 @@ import com.lexvay.llm.LlmPurpose;
 import com.lexvay.llm.LlmRequest;
 import com.lexvay.llm.LlmResponse;
 import com.lexvay.observability.LexvayMetrics;
+import com.lexvay.pathway.PathwayCoverage;
 import com.lexvay.rule.Requirement;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -28,7 +29,7 @@ import tools.jackson.databind.ObjectMapper;
  * Pipeline stage 4 for SUBJECT, ACCREDITATION and JURISDICTION_SPECIFIC requirements. Shortlists pages,
  * asks the model for one of three findings with a verbatim quote, then applies the code-side guardrails:
  * schema and finding check (rule 1), quote verification (rule 2), and "when unsure, ambiguous" (rule 4) through
- * the ordered {@link DowngradeRule}s: non-required course, thin quote, low OCR confidence. Every proposal's raw
+ * the ordered {@link DowngradeRule}s: course not on every graduation path, thin quote, low OCR confidence. Every proposal's raw
  * input and output is stored.
  */
 @Component
@@ -77,7 +78,7 @@ public class EvidenceMatcher {
         }
     }
 
-    public Outcome match(UUID assessmentId, UUID programId, Requirement requirement, UUID actor) {
+    public Outcome match(UUID assessmentId, UUID programId, Requirement requirement, PathwayCoverage pathway, UUID actor) {
         List<Passage> passages = search.search(programId, requirement.title(), requirement.text(), requirement.searchTerms(), shortlistSize);
         if (passages.isEmpty()) {
             return new Outcome(Finding.EVIDENCE_MISSING, "No candidate passages found in the program's documents", null);
@@ -113,7 +114,7 @@ public class EvidenceMatcher {
         String rationale = proposal.rationale() + foundThroughTerms(passage);
         if (finding == Finding.EVIDENCE_FOUND) {
             for (DowngradeRule rule : downgrades) {
-                Optional<String> reason = rule.reason(passage, match);
+                Optional<String> reason = rule.reason(passage, match, pathway);
                 if (reason.isPresent()) {
                     finding = Finding.AMBIGUOUS;
                     rationale += " Downgraded to ambiguous: " + reason.get();

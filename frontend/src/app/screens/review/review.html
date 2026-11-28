@@ -1,34 +1,34 @@
 <p-tabs class="lx-review" [value]="jurisdiction()" (valueChange)="selectJurisdiction($event)" [selectOnFocus]="true" [scrollable]="true" [showNavigators]="false">
   <header class="lx-head">
-    <h1>Review</h1>
-    <lx-help class="lx-help-button" [terms]="help" />
+    <div class="lx-title-row">
+      <h1>Review</h1>
+      <lx-help [terms]="help" [keys]="keys" />
+    </div>
+    <div class="lx-head-end">
+      @if (workspace.total() > 0) {
+        <lx-meter class="lx-progress" data-testid="progress" [segments]="workspace.meter()" [total]="workspace.total()" [text]="workspace.progressLabel()" />
+      }
+      <div class="lx-sign" data-testid="sign-bar">
+        @if (signed(); as d) {
+          <lx-seal [outcome]="d.outcome" [signer]="d.signedByName" [signedAt]="d.signedAt" [compact]="true" />
+          <span class="lx-signed" aria-hidden="true">
+            <span class="lx-signed-outcome">{{ outcomeLabel[d.outcome] }}</span>
+            <span class="lx-meta">Signed by {{ d.signedByName }}, {{ d.signedAt | date: 'd MMM' }}</span>
+          </span>
+        } @else {
+          @if (reopened()) { <span class="lx-meta">Reopened, not signed</span> }
+          @if (workspace.allDecided()) {
+            @if (!session.isSigner()) { <span class="lx-meta">Signer only</span> }
+            <button pButton type="button" [disabled]="!session.isSigner() || busy()" (click)="openSign()">
+              <span pButtonLabel>Sign {{ stateName() }}</span>
+            </button>
+          }
+        }
+      </div>
+    </div>
     @if (tabs().length > 0) {
       <lx-state-tabs class="lx-tabs" [states]="tabs()" [active]="jurisdiction()" />
     }
-    @if (workspace.total() > 0) {
-      <lx-meter class="lx-progress" data-testid="progress" [segments]="workspace.meter()" [total]="workspace.total()" [text]="workspace.progressLabel()" />
-    }
-    <div class="lx-sign" data-testid="sign-bar">
-      @if (signed(); as d) {
-        <span class="lx-signed">
-          <lx-seal [outcome]="d.outcome" [signer]="d.signedByName" [signedAt]="d.signedAt" [compact]="true" />
-          <span class="lx-signed-text" aria-hidden="true"><strong>Signed</strong><span>{{ outcomeLabel[d.outcome] }}</span></span>
-        </span>
-      } @else {
-        @if (reopened()) {
-          <span class="lx-reopened">Reopened</span>
-        }
-        @if (workspace.allDecided()) {
-          <button pButton type="button" class="lx-sign-cta" [disabled]="!session.isSigner() || busy()" (click)="openSign()">
-            <span pButtonLabel>Sign {{ stateName() }}</span>
-          </button>
-          @if (!session.isSigner()) { <span class="lx-meta">Signer only</span> }
-        }
-      }
-    </div>
-    <button type="button" class="lx-keys" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" (click)="helpOpen.set(true)">
-      <ng-icon name="phosphorKeyboard" size="16" aria-hidden="true" />
-    </button>
     <p class="lx-sr-only" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
   </header>
 
@@ -41,31 +41,33 @@
         <p-tabpanel [value]="code">
           @if (code === jurisdiction()) {
             <div class="lx-body">
-              <lx-requirement-list class="lx-rail" [workspace]="workspace" [loading]="loading()"
+              <lx-requirement-list class="lx-list-column" [workspace]="workspace" [loading]="loading()"
                                    (selectRequirement)="select($event)" (filterChange)="setFilter($event)" />
-              <div class="lx-centre" #centre>
-                @for (m of hero(); track m.id) {
-                  <div class="lx-subject" [animate.enter]="enterFrom()"><lx-requirement-card [mapping]="m" [ruleVersion]="ruleVersion()" /></div>
-                } @empty {
-                  @if (loading()) {
-                    <div class="lx-subject lx-subject-skeleton" aria-hidden="true">
-                      <p-skeleton aria-hidden="true" width="4rem" height="1.25rem" /><p-skeleton aria-hidden="true" width="60%" height="2rem" /><p-skeleton aria-hidden="true" height="7rem" />
+              <div class="lx-centre">
+                <div class="lx-subject" #centre>
+                  @if (selected(); as m) {
+                    <lx-requirement-card [mapping]="m" [ruleVersion]="ruleVersion()" />
+                  } @else if (loading()) {
+                    <div class="lx-subject-skeleton" role="status" aria-busy="true" aria-label="Loading the requirement">
+                      <p-skeleton aria-hidden="true" width="3rem" height="0.75rem" />
+                      <p-skeleton aria-hidden="true" width="60%" height="1.5rem" />
+                      <p-skeleton aria-hidden="true" height="6.5rem" />
                     </div>
                   } @else {
-                    <p class="lx-subject lx-empty">Select a requirement.</p>
+                    <p class="lx-empty">Select a requirement.</p>
                   }
-                }
+                </div>
                 @if (selected()) {
                   @if (session.canReview() && !signed()) {
-                    <lx-decision-bar [(note)]="note" [(open)]="noteOpen" [busy]="busy()" [error]="noteError()"
+                    <lx-decision-bar class="lx-footer" [(note)]="note" [(open)]="noteOpen" [busy]="busy()" [error]="noteError()"
                                      [placeholder]="evidence()?.answered ? 'Note the evidence you relied on' : ''" (decide)="decide($event)" />
                   } @else if (!session.canReview()) {
-                    <p class="lx-readonly">View only</p>
+                    <p class="lx-footer lx-readonly">View only</p>
                   }
                 }
               </div>
               @if (selected(); as m) {
-                <lx-evidence-pane class="lx-right" [mapping]="m" [view]="evidence()" [wide]="wide()" />
+                <lx-evidence-pane class="lx-evidence-column" [mapping]="m" [view]="evidence()" [wide]="wide()" />
               }
             </div>
           }
@@ -81,15 +83,3 @@
 
 <lx-sign-dialog [(open)]="signOpen" [stateName]="stateName()" [total]="workspace.total()" [signerName]="session.user()?.displayName ?? ''"
                 [busy]="busy()" [signed]="justSigned()" (sign)="sign($event)" />
-
-<p-dialog header="Keyboard shortcuts" [visible]="helpOpen()" (visibleChange)="helpOpen.set($event)" [modal]="true" [draggable]="false"
-          [resizable]="false" [dismissableMask]="true" [style]="{ width: '26rem', maxWidth: 'calc(100vw - 32px)' }" appendTo="body"
-          closeAriaLabel="Close shortcuts">
-  <dl class="lx-shortcuts">
-    @for (s of shortcuts; track s.command) {
-      <div><dt><kbd>{{ s.keys }}</kbd></dt><dd>{{ s.description }}</dd></div>
-    }
-    <div><dt><kbd>{{ paletteKeys }}</kbd></dt><dd>Search or jump to, from any screen</dd></div>
-  </dl>
-  <p class="lx-help">Keys work outside text fields. After a decision the next open requirement follows.</p>
-</p-dialog>

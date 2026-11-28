@@ -89,7 +89,7 @@ class SeedLoaderTest extends AbstractDatabaseTest {
                 .containsEntry("CA-6", "AMBIGUOUS").containsEntry("CA-7", "EVIDENCE_MISSING");
         for (JsonNode m : ca) {
             if (m.get("requirement").get("ref").asString().equals("CA-6")) {
-                assertThat(m.get("rationale").asString()).contains("COUN 655").contains("not required");
+                assertThat(m.get("rationale").asString()).contains("COUN 655").contains("is not on every graduation path");
             }
         }
 

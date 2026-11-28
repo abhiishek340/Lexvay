@@ -90,6 +90,8 @@ export const AUDIT_SENTENCES: Record<string, Sentence> = {
   COURSE_CREATED: ({ actor, detail }) => `${actor} added the course${text(detail, 'code') ? ` ${text(detail, 'code')}` : ''}`,
   COURSE_VERSION_ADDED: ({ actor, detail }) =>
     text(detail, 'catalogYear') ? `${actor} added catalog year ${text(detail, 'catalogYear')} of a course` : `${actor} added a course version`,
+  PATHWAY_GROUP_CREATED: ({ actor, detail }) => `${actor} added the graduation group${text(detail, 'label') ? ` ${text(detail, 'label')}` : ''}`,
+  PATHWAY_GROUP_RETIRED: ({ actor, detail }) => `${actor} retired the graduation group${text(detail, 'label') ? ` ${text(detail, 'label')}` : ''}`,
   DOCUMENT_UPLOADED: ({ actor, detail }) => `${actor} uploaded ${text(detail, 'filename') ?? 'a document'}`,
   DOCUMENT_INGESTED: ({ actor, detail }) => {
     const pages = count(number(detail, 'pages'), 'page');
@@ -213,6 +215,8 @@ export const ACTION_LABEL: Record<string, string> = {
   PROGRAM_CREATED: 'Program created',
   COURSE_CREATED: 'Course created',
   COURSE_VERSION_ADDED: 'Course version added',
+  PATHWAY_GROUP_CREATED: 'Graduation group added',
+  PATHWAY_GROUP_RETIRED: 'Graduation group retired',
   DOCUMENT_UPLOADED: 'Document uploaded',
   DOCUMENT_INGESTED: 'Document text extracted',
   PROGRAM_FACT_RECORDED: 'Program fact recorded',

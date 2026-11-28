@@ -8,6 +8,11 @@ import com.lexvay.common.YamlFile;
 import com.lexvay.document.DocumentKind;
 import com.lexvay.document.DocumentService;
 import com.lexvay.job.JobRunner;
+import com.lexvay.pathway.CreatePathwayGroupRequest;
+import com.lexvay.pathway.GroupKind;
+import com.lexvay.pathway.PathwayService;
+import com.lexvay.pathway.PathwayView;
+import com.lexvay.pathway.RetirePathwayGroupRequest;
 import com.lexvay.program.AddCourseVersionRequest;
 import com.lexvay.program.CourseService;
 import com.lexvay.program.CreateCourseRequest;
@@ -62,6 +67,7 @@ public class SeedLoader {
     private final AppUserRepository users;
     private final ProgramService programs;
     private final CourseService courses;
+    private final PathwayService pathways;
     private final DocumentService documents;
     private final ProgramFactService facts;
     private final RuleVersionService ruleVersions;
@@ -70,14 +76,15 @@ public class SeedLoader {
     private final JobRunner jobs;
 
     public SeedLoader(TenantBootstrapService tenants, TenantRepository tenantRows, AppUserRepository users, ProgramService programs,
-                      CourseService courses,
-                      DocumentService documents, ProgramFactService facts, RuleVersionService ruleVersions,
+                      CourseService courses, PathwayService pathways, DocumentService documents, ProgramFactService facts,
+                      RuleVersionService ruleVersions,
                       RuleSourceService ruleSources, AssessmentService assessments, JobRunner jobs) {
         this.tenants = tenants;
         this.tenantRows = tenantRows;
         this.users = users;
         this.programs = programs;
         this.courses = courses;
+        this.pathways = pathways;
         this.documents = documents;
         this.facts = facts;
         this.ruleVersions = ruleVersions;
@@ -131,9 +138,19 @@ public class SeedLoader {
                 return new Result(t.name(), false, tenantId, programId, null, 0, 0);
             }
             Map<String, UUID> courseVersionByCode = new LinkedHashMap<>();
+            Map<String, UUID> courseByCode = new LinkedHashMap<>();
             for (SeedManifest.Course c : t.courses()) {
-                var course = as(contributor, () -> courses.create(programId, new CreateCourseRequest(c.code(), c.title(), c.required())));
+                var course = as(contributor, () -> courses.create(programId, new CreateCourseRequest(c.code(), c.title(), c.required(),
+                        c.credits(), null)));
                 courseVersionByCode.put(c.code(), course.versions().get(0).id());
+                courseByCode.put(c.code(), course.id());
+            }
+            for (SeedManifest.PathwayGroup g : t.pathwayGroups()) {
+                List<UUID> members = g.courses().stream().map(courseByCode::get).toList();
+                as(contributor, () -> replaceGroups(programId, t.program().catalogYear(), members, g));
+            }
+            if (t.ruleVersions() == null) {
+                return new Result(t.name(), false, tenantId, programId, null, 0, 0);
             }
             Map<String, UUID> documentByFile = new LinkedHashMap<>();
             for (SeedManifest.Course c : t.courses()) {
@@ -211,7 +228,7 @@ public class SeedLoader {
             UUID courseVersionId = courseVersionByCode.get(cv.course());
             UUID courseId = courses.list(programId).stream().filter(c -> c.code().equals(cv.course())).map(c -> c.id()).findFirst()
                     .orElseThrow(() -> new IllegalStateException("changes.courseVersion.course not found: " + cv.course()));
-            var course = as(contributor, () -> courses.addVersion(courseId, new AddCourseVersionRequest(cv.catalogYear(), cv.required(), courseVersionId)));
+            var course = as(contributor, () -> courses.addVersion(courseId, new AddCourseVersionRequest(cv.catalogYear(), cv.required(), cv.credits(), null, courseVersionId)));
             UUID newVersionId = course.versions().get(course.versions().size() - 1).id();
             documentByFile.put(cv.syllabus(), upload(contributor, programId, pdf(seedDir, cv.syllabus()), DocumentKind.SYLLABUS, newVersionId));
             jobs.runPending();
@@ -245,6 +262,20 @@ public class SeedLoader {
         }
         return as(as, () -> documents.upload(programId, new BytesMultipartFile(pdf.getFileName().toString(), "application/pdf", bytes), kind,
                 courseVersionId).documentId());
+    }
+
+    /**
+     * A seeded group stands in for the groups that hold its courses: creating a course put it in "Required courses" or
+     * "Electives", and the seed says better for these (D-590).
+     */
+    private PathwayView replaceGroups(UUID programId, String catalogYear, List<UUID> members, SeedManifest.PathwayGroup group) {
+        for (PathwayView.Group existing : pathways.read(programId, catalogYear).groups()) {
+            if (existing.members().stream().anyMatch(m -> members.contains(m.courseId()))) {
+                pathways.retire(existing.id(), new RetirePathwayGroupRequest("Replaced by " + group.label()));
+            }
+        }
+        return pathways.create(programId, new CreatePathwayGroupRequest(catalogYear, group.label(), GroupKind.valueOf(group.kind()),
+                group.minCount(), group.minCredits(), members, null));
     }
 
     /** Runs an action with the given seeded user authenticated, so audit rows name a real person. */

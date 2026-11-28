@@ -14,7 +14,7 @@
 #                  proposes. Never edit them to raise a number.
 #   reason         Why a person would expect this finding. Not used by the runner.
 #
-# Elective-only coverage is AMBIGUOUS (rule 4): COUN 650 and COUN 655 are electives, and the degree plan makes
+# Elective-only coverage is AMBIGUOUS (rule 4): COUN 650, COUN 655 and COUN 645 are electives, and the degree plan makes
 # students choose two of them, so no student is certain to have taken the course.
 fictional: true
 requirements:

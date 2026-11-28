@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640, OPS-2 D-641–643, OPS-3 D-644–646, OPS-2b D-647 (supersedes D-642's mkdir mutex: the mutex is a noclobber file). Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V020 F15, V022 MODE-1, then by merge order: V023 SEC-3 (was V019), V025 RG-1 (was V021); AC-1 renumbers to V026 (V025 merged first), RG-2 takes the next free number at merge (expected V027); later items likewise (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640, OPS-2 D-641–643, OPS-3 D-644–646, OPS-2b D-647 (supersedes D-642's mkdir mutex: the mutex is a noclobber file), FIX-9 D-648–650. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V020 F15, V022 MODE-1, then by merge order: V023 SEC-3 (was V019), V025 RG-1 (was V021); AC-1 renumbers to V026 (V025 merged first), RG-2 takes the next free number at merge (expected V027); later items likewise (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -5166,3 +5166,192 @@ SelectButton (a toggle group is the right semantics for a filter, and the end-to
 underlined text row with counts in meta type, like the tab rows. Row actions that open something (Provide evidence, New
 catalog year, Record) are accent text actions as on the overview, keeping their accessible names; only a screen's
 primary action is a filled button (New rule version, Run assessment, both 36 px).
+
+### UI3-1 — Review and Coverage in v3 (D-500 to D-509)
+
+**D-500 — Review is three hairline columns with the decision footer fixed at the foot of the centre column.** The body is
+a 280 px / flexible / 420 px grid (360 px for evidence under 1280 px), the columns divided by 1 px `line` rules and
+nothing else. The centre column is a flex column: the requirement scrolls in its own region and the DecisionBar sits
+under it with its hairline spanning the column, so Accept, Request and Gap never move while a person works down the list
+(before, the bar followed the requirement and jumped with its length). Under 1024 px the screen stays one column the page
+scrolls, with the footer stuck to the foot of the window as before. All three columns start their content 24 px under
+the state tab row's hairline.
+
+**D-501 — The list filter is a PrimeNG tab row with counts that wraps inside the column.** All, To review, Found,
+Ambiguous, Missing, each with its count in tabular meta type, as a nested `p-tabs` whose panel is the list (so arrow keys,
+one tab stop and the tab/tabpanel relationship come from PrimeNG, and the e2e names are roles: `tab "To review, 7"`). The
+five labels and counts need about 300 px; the column has 224 px, so the row wraps to two lines. PrimeNG's sliding active
+bar cannot follow a tab onto a second line, so this row hides it and each active tab draws its own 2 px ink rule (an
+`::after`, not a box-shadow, which the focus ring would replace). Each tab's accessible name is "word, count", so the
+visible word is in the name (WCAG 2.5.3). The tablist is named "Show" through PrimeNG's pass-through. After review, the shared tabs token set (`theme/tabs-tokens.ts`, UI3-0's)
+also stops PrimeNG's sliding ink bar from animating width and left, which DESIGN.md "Motion" rules out: it carries
+`css: '.p-tablist-active-bar { transition: none; }'`, so on every tab row in the app the bar moves to the chosen tab at
+once. `coverage.spec.ts` asserts the bar has no transition. The former
+segmented icon control, its icons and `filterLabel` are gone.
+
+**D-502 — "3 of 8 decided" everywhere on Review.** DESIGN.md's header says "decided" and the overview already does, so
+the Meter's words, the state tabs' descriptions, the live region and the toast say "decided" (`decidedLabel`), not
+"reviewed". The e2e suite follows.
+
+**D-503 — The requirement: ref over title, the rule text on a left rule, then Finding as a section of two facts.** The ref
+is meta type, the title Title type. The rule text is Document type on a 2 px `line-strong` rule; its source is one meta
+line joined with " · " (the external-link icon is gone; the link says "(opens in a new tab)" to assistive technology).
+Finding is a `.lx-section` (40 px and a hairline) with a Section-type `h3` and a two-row definition list: Proposed (the
+finding's StatusMark and word, the check method as one plain line whose explanation is its `.lx-term` tooltip with
+`tooltipEvent="both"`, the model's rationale clamped to three lines) and Decision (the decision's mark and word, who and
+when, the note in Document type on a left rule, and the stale sentence). The check method's icon is gone. Labels in a
+96 px meta column read like a ledger; under 640 px they stack.
+
+**D-504 — No slide: a decision fades the row's mark and moves the selection.** The card's sideways entrance, the
+`travel` signal and its tests are deleted. `ReviewWorkspace.landed` names the requirement whose decision just landed; the
+list keys each row's StatusMark by its status, and the landed row's new mark carries `.lx-landed`, a 120 ms opacity fade
+(`--lx-t-fast`). The row's wash and accent rule cross-fade over the same 120 ms, which is the selection moving. Loading or
+filtering the list clears `landed`, so no other mark replays the fade. Reduced motion zeroes it with everything else.
+
+**D-505 — One help affordance on Review: the keyboard dialog folds into Help.** The header had both the "?" Help and a
+keyboard button opening a "Keyboard shortcuts" dialog, two affordances where DESIGN.md allows one and says the shortcuts
+live in the Help list. `Help` gains an optional `keys` input (a "Keys" list under the terms, keys in `kbd`) and `show()`,
+which opens it under its button from a key press; Review's `?` key calls it. The dialog and its `helpOpen` state are
+deleted; `shell.spec.ts`, `screens.spec.ts` and `review-and-sign.spec.ts` now open `dialog "Help"`.
+
+**D-506 — Signing: a radio list, one line each, beside the line-art seal.** The three outcomes are 40 px rows between
+hairlines, a radio and the outcome's words, no cards, no icons, no outcome colour; the chosen row's words take weight 500.
+Radios are ink like every checked control, with an ink-2 ring that reaches 3:1 (the review chunk's radiobutton tokens; it
+was accent). The seal preview stands beside the list behind a vertical rule, with "Preview" under it; the seal carries no
+outcome, so it no longer changes with the choice (the dashed placeholder before a choice is gone) and stays hidden from
+assistive technology. Under 560 px the preview sits above the list. The dialog is 32 rem wide, down from 42.
+
+**D-507 — Coverage draws status-mark shapes; the shapes are a shared component.** `ui/mark-shape.ts` (`lx-mark-shape`)
+draws the seven 10 px shapes in the current colour, hidden from assistive technology; StatusMark now draws through it
+rather than owning the SVG, so Coverage reuses the shapes without a local copy. Cells: filled circle for the system's
+verified quote, outline circle for a person's passage, ring with a dot for both, dashed circle (ink-2) for evidence only
+on a superseded course version (`CELL_SHAPE`). After review, a cell with current and outdated evidence draws its
+current mark inside the outdated mark's dashed ring (`lx-mark-shape [outdated]`, `cellMark`): the ring is scaled up
+around the shape to 18 px with the same 1.5 px stroke and the same eight dashes, 2.5 px clear of it, so it reads as a ring
+rather than rays. Its name and card already said both; Help gains "Mark in a dashed ring". The seed holds no such cell
+(UT-7's COUN 625 evidence is outdated only, and the re-run clears it), so unit tests cover the shape choice and the
+drawing. The clock overlay is gone. Empty cells are empty: the faint points made a
+dotted grid that read as noise once rows have hairlines. Column heads are course codes in tabular meta type, not mono;
+Required and Elective sit under them over a `line-strong` rule per group. Coverage now registers no icons of its own, so
+`COVERAGE_ICONS` and the route's provider are gone.
+
+**D-508 — Coverage's flags are words with a mark, and the flag filter is a tab row whose panel is the matrix.** Rests on
+an elective: half circle; rests on one course: open square; outdated evidence: dashed circle; no evidence cited: filled
+square in `missing`, the only coloured flag (`FLAGS[flag].shape/tone`; amber-like "ambiguous" tones are gone). The filter
+is All plus each flag present, each with its mark and count, as a nested `p-tabs` (tablist "Highlight a flag", tabs
+"Rests on one course, 4") on the matrix's top rule, the rule version in meta type at its right. All highlights nothing;
+a flag dims the other rows as before. The matrix is drawn in the active panel, so choosing a flag draws it anew (the dim
+appears at once rather than over 180 ms; an open card and the hover are cleared). Under 640 px the flag column keeps the
+mark and its words for assistive technology; the tab row above, which scrolls sideways, is the legend with words.
+
+**D-509 — Skeletons, names and the source scan.** Every skeleton this item draws (the list rows, the requirement, the
+coverage rows) is one `role="status"` container with `aria-busy` and a name, bars hidden (D-496). Class names avoid the
+globals: Coverage's local `.lx-mark` and `.lx-dot` became `.lx-cell-mark` and `.lx-cell-button` (`lx-mark` is the logo
+component), and the screens reuse `.lx-title-row`, `.lx-section`, `.lx-meta`, `.lx-term`, `.lx-row-action` and
+`.lx-empty-state` instead of local copies. No colour literal was added; the source scan is green.
+
+### AC-1 — Academic pathway model (D-586 to D-595)
+
+Work item AC-1 in `docs/ROADMAP.md`. Folded into `DECISIONS.md` by the orchestrator when the item merges.
+
+**D-586 — A pathway is a set of independent groups per program and catalog year.** `pathway_group` holds one group
+(`ALL_OF`, `CHOOSE_COUNT` or `CHOOSE_CREDITS`), `pathway_group_course` its member courses (the logical course, not a
+version), `pathway_group_retirement` the retirement of a group. A group is never edited: all three tables carry
+`forbid_change()` and forced row-level security, and a correction retires a group and adds another (rule 5). A graduation
+path is any choice of courses that satisfies every group; groups are independent and a course may be a member of several.
+The minimum of a group is null when it is not recorded; `min_count` and `min_credits` are `> 0`, so a group that asks
+for nothing cannot be stored. Rejected: one `required` flag per course (cannot say "choose 2 of 3"); a free-form
+expression language (cannot be checked, rule 3).
+
+**D-587 — Credits belong to a course version and have a unit; there is no conversion.** `course_version.credits`
+(`numeric(5,2)`, null = unknown) and `credit_unit` (`SEMESTER` default, `QUARTER`). A new value is a new version, so the
+audited history of a course keeps what the catalog said in each year. A group's minimum is read in the unit of its members;
+members in two units make every answer that needs their credits UNKNOWN. Conversion needs expert approval and is a later
+item. A pathway member's credits are those of the version of the group's own catalog year, else the course's newest
+version (`PathwayRepository.ACTIVE_GROUPS`), so a 2027-28 version does not rewrite the 2026-27 pathway.
+
+**D-588 — The backfill assumes nothing, and a new course joins a group the same way.** V026 groups, per program and per
+catalog year of its course versions, the courses with `required = true` as one `ALL_OF` "Required courses" group and the
+others as one `CHOOSE_COUNT` "Electives" group with `min_count` NULL. How many electives a graduate takes is not in the old
+data, so the evaluator answers UNKNOWN for them until a person records it. `PathwayBackfillTest` runs the migration's own
+statements. The same rule applies to what is created afterwards (`PathwayService.place`, called by `CourseService.create` and
+`addVersion` in their transaction): a course joins the active "Required courses" or "Electives" group of its catalog year
+(the program's year for a new course, the version's year for a new version), and the group is made first when it does not
+exist or a person retired it. Membership rows are only ever added (D-586), so a new member is an append; the group stays
+what a person made it, and an "Electives" group whose minimum a person recorded keeps that minimum for a larger pool. A
+course that an active group of that year already holds stays where a person put it. The join is audited in the course's own
+entry (`pathwayGroup`, `pathwayGroupId`), and a group made this way is audited `PATHWAY_GROUP_CREATED`. An elective's quote
+stays honestly AMBIGUOUS ("Electives: minimum not recorded") until a person records the minimum; a required course's quote
+is not downgraded. Rejected: leaving a new course in no group (every program built in the application would get ambiguous
+quotes), and keeping `required` as a second source of truth beside the groups.
+
+**D-589 — The evaluator reasons about one group at a time and never enumerates paths.** `PathwayCoverage` is pure
+(unit-tested without a database). A set of courses S is on every valid path when every path contains at least one course of
+S. A path that avoids S exists exactly when every group can be satisfied by its members outside S, so S is on every path as
+soon as one group cannot: an `ALL_OF` group that holds a course of S; a `CHOOSE_COUNT` group whose other members number
+fewer than its minimum; a `CHOOSE_CREDITS` group whose other members add up to fewer credits than its minimum. For one
+course this is the rule of the spec; for a set it is what the coverage matrix needs (evidence in both electives of "choose 1
+of 2" is on every path). The answer has three values. A minimum not recorded, a credit not recorded where it matters (credits
+that are not recorded can only add, so a known sum that already reaches the minimum settles the question), two units, and a
+course that no group places are UNKNOWN, never TRUE, and the reasons come back with the answer. A group that holds none of
+the courses cannot force anything, so its unknown minimum does not matter for them. "On some path" asks whether every group
+can be satisfied and a group holds a course of S. The fewest credits of a path add every `ALL_OF` member and the cheapest
+selection per `CHOOSE` group (the smallest `min_count` credits; for `CHOOSE_CREDITS` the smallest subset sum that reaches the
+minimum, exact, over hundredths). The minimum is UNKNOWN when any credit of a group is not recorded (a member without credits
+could be the cheap one), when units are mixed, when no group exists, or when two groups hold the same course (a course taken
+once counts once, and telling which group it counts for would mean enumerating paths).
+
+**D-590 — The seed's courses add up to its program fact.** The fictional Northfield data contradicted itself: the degree plan
+states 60 credits, but the courses it lists (eight core courses of 3, the clinical sequence of 9, two electives) add up to
+39, and the seed had credits that disagreed with the plan. The code was right to flag that, and the demo should not look
+broken because of fictional data, so the data is made consistent instead of the golden set changing. `degree-plan.md` (still
+labelled fictional) now also lists a capstone sequence, COUN 670 Counseling Capstone (6), COUN 675 Advanced Clinical Internship
+(9) and COUN 680 Applied Research Project (6), and lists COUN 645 among the electives ("choose two, 3 credits each"); its
+60 credits quote and every other quote are unchanged, and `seed/pdf/degree-plan.pdf` was regenerated (`make seed-pdfs`; the
+other PDFs were left as they were because the generator is not byte-stable). Seed credits: the eight core courses 3 each, COUN
+660 nine (as the plan says), the three capstone courses 6, 9 and 6, the three electives 3 each. The cheapest path is therefore
+24 + 9 + 21 + 6 = 60, equal to the program fact, and the credit cross-check finds nothing to flag. The new courses have no
+syllabus on purpose, like COUN 660. Creating a course puts it in a group (D-588); the seed replaces the electives group by
+"Electives: choose 2 of 3" (`SeedLoader.replaceGroups` retires the groups that hold its courses first). Westbrook, which had
+no courses, gets COUN 500 and COUN 510 and "Electives: choose 1 of 2"; the seed loader returns before documents for a tenant
+without rule versions. The golden set does not change: the five credit-hours entries stay EVIDENCE_FOUND, and the only edit is
+the header comment, which now names COUN 645. No threshold was loosened. The deliberate mismatch (60 against 9) is in
+`PathwayAssessmentTest`, not in the seed.
+
+**D-591 — The assessment asks the pathway.** `DowngradeRule.notRequiredCourse` is replaced by `notOnEveryPath`: FALSE gives
+"the cited course COUN 650 is not on every graduation path", UNKNOWN gives "the program's graduation paths are not fully known
+(Electives: minimum not recorded)", both AMBIGUOUS. A page of a program-level document names no course and is not judged. The
+pathway is read once per assessment run (`MappingProducer.Basis` with the program facts), not per requirement. The course's
+`required` flag is still stored and still shown in the prompt as "(required)" or "(elective)" (prompt version unchanged), but
+no code decides on it. A course that no active group holds (a person retired its group, or it was only ever added to a
+retired one) makes its quote AMBIGUOUS ("COUN 650 is not placed in a graduation group"). The setup screen shows the pathway
+read only for now and UI3-3 designs the editor, so until then a contributor changes groups through the API.
+
+**D-592 — The credit cross-check is the rules engine's arithmetic.** For a `TOTAL_CREDITS` requirement with a recorded
+program fact, `RulesEngine` compares the fact with the pathway minimum (`PathwayCoverage.minimumCredits`). If the minimum is
+known and differs, the finding is `AMBIGUOUS` whatever the comparison said, with the calculation, both numbers, the fact's
+source (document and page) and the groups the minimum comes from in the rationale. An unknown minimum leaves the comparison
+alone. The fact has no unit; the minimum's unit is named in the sentence. No model is involved (rule 3).
+
+**D-593 — Coverage reads the pathway in the statement it already makes.** `ELECTIVE_ONLY` meant "no cited course is required".
+It now means "some graduation path avoids every cited course"; the new `PATHS_UNKNOWN` ("Graduation paths not fully known")
+means the pathway does not say. `CoverageRepository.MATRIX` embeds `PathwayRepository.ACTIVE_GROUPS` as one more common table
+expression and returns the groups as a column; the risk of a row that survives the SQL tests is decided in Java by
+`PathwayRisk` from the same `PathwayCoverage`, so the request keeps one statement and one transaction (D-110). `SINGLE_COURSE`
+is unchanged and is decided after the pathway says TRUE.
+
+**D-594 — A group's citation is an evidence span.** The spec lists `document_id`, `char_start` and `char_end` on the group.
+Offsets are relative to a page (D-041), so those three columns cannot be verified against stored text without a page number.
+The group therefore holds `evidence_span_id`, the same verified span a program fact holds (document, page, offsets, exact
+quote), made through `ProgramCitationService` and `QuoteVerifier` (rule 2). Nothing is duplicated, and a citation that does
+not verify is a 400 that stores nothing.
+
+**D-595 — API and what is left out.** `GET /programs/{id}/pathway?catalogYear=` is one statement (the program's own year
+without the parameter) and returns groups, members with credits and unit and whether each course alone is on every path and
+on some path, the fewest credits with its unit, and the unknowns. `POST /programs/{id}/pathway-groups` and
+`POST /pathway-groups/{id}/retire` are for contributors and administrators and answer with the pathway of the group's year;
+they are audited as `PATHWAY_GROUP_CREATED` and `PATHWAY_GROUP_RETIRED` and listed in `Rule9_AuditCoverageTest`,
+`InputValidationTableTest` and `audit-sentence.ts`. There is no `PUT`. `POST` of a course and of a course version take
+optional `credits` and `creditUnit`. A group needs at least one and at most 100 courses, all of the program; a `minCount`
+above the number of courses is refused. Not done, on purpose: determinations (rule 6) do not yet name the pathway groups
+they were assessed against, and the setup screen shows the pathway read only; both belong to later items.
