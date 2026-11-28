@@ -99,14 +99,15 @@ class RobotsCheckTest extends AbstractRuleSourceTest {
 
     @Test
     void aMissingOrForbiddenRobotsFileMeansEverythingIsAllowed() {
+        Map<Integer, String> statesByStatus = Map.of(404, "CA", 403, "TX", 410, "UT");
         for (int status : List.of(404, 403, 410)) {
             String url = pageUrl("/rules");
             fetcher.html(url, page("Applicants need 66 semester hours."));
             fetcher.robots(url, status, "Forbidden");
-            UUID id = register("CA", url);
+            UUID id = register(statesByStatus.get(status), url);
             forgetHostRows();
 
-            runner.runOne();
+            runner.runPending();
 
             assertThat(latestCheck(id)).as("robots.txt answered " + status).containsEntry("outcome", "CHANGED");
             assertThat(robotsRow()).containsEntry("robots_status", status).containsEntry("robots_body", null);

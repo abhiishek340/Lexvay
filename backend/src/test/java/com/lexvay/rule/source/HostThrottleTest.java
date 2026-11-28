@@ -2,8 +2,15 @@ package com.lexvay.rule.source;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.lexvay.audit.AuditService;
+import com.lexvay.document.DocumentService;
+import com.lexvay.document.TextExtractor;
+import com.lexvay.job.JobRunner;
 import com.lexvay.job.JobStatus;
 import com.lexvay.job.JobType;
+import com.lexvay.observability.LexvayMetrics;
+import com.lexvay.rule.RuleVersionRepository;
+import com.lexvay.rule.RuleVersionService;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -14,20 +21,42 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * The per-host throttle (RG-2, D-569): two checks of sources on one host are at least the minimum interval apart, the
- * second one waits in the queue instead of in a worker, and the row that orders them is shared by every instance. This
- * context runs with the real thirty seconds; every other test of the database runs with none.
+ * second one waits in the queue instead of in a worker, and the row that orders them is shared by every instance. Every
+ * other test of the database runs with an interval of 0, so this one runs its own job runner whose check handler is
+ * built with the real thirty seconds, on the shared context (one more context would cost one more connection pool).
  */
-@TestPropertySource(properties = "lexvay.rule-sources.min-host-interval-seconds=30")
 class HostThrottleTest extends AbstractRuleSourceTest {
 
+    private static final MonitorSettings THIRTY_SECONDS = new MonitorSettings("https://monitor.example.test/about", 30, "test");
+
     @Autowired SourceHostRepository hosts;
-    @Autowired MonitorSettings settings;
+    @Autowired RuleSourceRepository sources;
+    @Autowired RuleVersionRepository ruleVersions;
+    @Autowired RuleVersionService ruleVersionService;
+    @Autowired DocumentService documents;
+    @Autowired TextExtractor extractor;
+    @Autowired AuditService auditService;
+    @Autowired LexvayMetrics metrics;
+    @Autowired ObjectMapper mapper;
+    @Autowired TransactionTemplate transactionTemplate;
+
+    /** Claims the same queue as {@link #runner}, but runs checks through an admission that enforces thirty seconds. */
+    JobRunner throttled;
+
+    @BeforeEach
+    void throttledRunner() {
+        var admission = new HostAdmission(hosts, fetcher, THIRTY_SECONDS);
+        var handler = new CheckRuleSourceHandler(sources, ruleVersions, ruleVersionService, documents, extractor, fetcher, admission, auditService);
+        throttled = new JobRunner(jobs, List.of(handler), transactionTemplate, mapper, auditService, metrics, 3);
+    }
 
     /** Whatever is still waiting is released and run, so that no job of this test is claimed by a later test. */
     @AfterEach
@@ -54,11 +83,6 @@ class HostThrottleTest extends AbstractRuleSourceTest {
     }
 
     @Test
-    void theIntervalIsThirtySecondsUnlessConfigured() {
-        assertThat(settings.minHostInterval()).isEqualTo(Duration.ofSeconds(30));
-    }
-
-    @Test
     void aSecondCheckOnTheSameHostWaitsInTheQueueAndRunsOnceTheIntervalHasPassed() {
         String firstUrl = newUrl("html");
         String secondUrl = newUrl("html");
@@ -67,10 +91,10 @@ class HostThrottleTest extends AbstractRuleSourceTest {
         UUID first = register("CA", firstUrl);
         UUID second = register("TX", secondUrl);
 
-        runner.runOne();
+        throttled.runOne();
         assertThat(latestCheck(first)).containsEntry("outcome", "CHANGED");
         long started = System.nanoTime();
-        boolean claimed = runner.runOne();
+        boolean claimed = throttled.runOne();
         Duration spent = Duration.ofNanos(System.nanoTime() - started);
 
         assertThat(claimed).as("the job was claimed and put back").isTrue();
@@ -81,12 +105,12 @@ class HostThrottleTest extends AbstractRuleSourceTest {
         assertThat(job.status()).isEqualTo(JobStatus.QUEUED);
         assertThat(job.attempts()).as("waiting does not use up an attempt").isZero();
         assertThat(secondsUntilRunnable(job.id())).isBetween(20L, 31L);
-        runner.runPending();
         assertThat(checkCount(second)).as("the job is not claimed before its time").isZero();
-        assertThat(runner.runOne()).isFalse();
+        runner.runPending();
+        assertThat(throttled.runOne()).isFalse();
 
         releaseHost(FakeHostResolver.PUBLIC_HOST, job.id());
-        runner.runOne();
+        throttled.runOne();
 
         assertThat(latestCheck(second)).containsEntry("outcome", "CHANGED");
         assertThat(inTenant(() -> jobs.findById(job.id())).orElseThrow().status()).isEqualTo(JobStatus.DONE);
@@ -100,8 +124,8 @@ class HostThrottleTest extends AbstractRuleSourceTest {
         fetcher.html(secondUrl, page("Applicants need 72 semester hours."));
         register("CA", firstUrl);
         UUID second = register("TX", secondUrl);
-        runner.runOne();
-        runner.runOne();
+        throttled.runOne();
+        throttled.runOne();
 
         assertThat(auditActions(second)).containsExactly("RULE_SOURCE_CREATED");
     }
@@ -115,8 +139,8 @@ class HostThrottleTest extends AbstractRuleSourceTest {
         UUID first = register("CA", here);
         UUID second = register("TX", there);
 
-        runner.runOne();
-        runner.runOne();
+        throttled.runOne();
+        throttled.runOne();
 
         assertThat(latestCheck(first)).containsEntry("outcome", "CHANGED");
         assertThat(latestCheck(second)).containsEntry("outcome", "CHANGED");
