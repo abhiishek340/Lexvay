@@ -39,7 +39,7 @@ runs, sandbox, authorized real data or production.
 | AC-3 | Public catalog feasibility adapter (University of Utah CMHC program requirements and handbooks): proposed facts with citations and a missing-evidence manifest; no university text committed | RG-2, AC-1 | Sonnet 5.5 | — | queued |
 | EV-1 | Local inference adapter (OpenAI-compatible endpoint for a locally run model), configured explicitly and never defaulted; evaluation runs labelled scripted, replay, local-live or paid-live | MODE-1 | Sonnet 5.5 | — | queued |
 | EV-2 | Evaluation lab: answer-key format, frozen holdout, severe-false-assurance metric, denominators and confidence bounds, baseline comparison report | EV-1 | Sonnet 5.5 | — | queued |
-| UX-1 | Source health, freshness and coverage, legal status and dates, change queue, and the data-mode banner in the v3 UI (supersedes F12b's scope) | RG-2, UI3-0 | Opus 5.5 | — | queued |
+| UX-1 | Source health, freshness and coverage, legal status and dates, change queue, and the data-mode banner in the v3 UI (supersedes F12b's scope) | RG-2, UI3-0 | Opus 5.5 | — | in progress |
 | SP-1 | SharePoint least-privilege spike (`Sites.Selected`, delta under selected scope) | an authorized test tenant | Sonnet 5.5 | — | **blocked: needs a tenant from the founder** |
 | DOM-1 | Expert review of the Utah pathway and source checklist | a qualified licensure expert | — | — | **blocked: needs a person** |
 
@@ -447,6 +447,115 @@ Context found on 2026-11-28 (for D-576; DOM-1 must confirm before any source is 
 6. **Docs:** OPERATIONS covers "Importing a real-data source registry". Decisions go in `docs/decisions/RG-3.md`,
    progress in `docs/progress/RG-3.md`. The PR carries the no-cost declaration and states its evidence class:
    "fixtures, local runs".
+
+### UX-1 — Source health, legal status and the change queue in v3 (frontend; slot 5; Opus 5.5; no migration; D-631 to D-640)
+RG-1 and RG-2 made sources governed and legal time explicit, but almost none of it is on a screen yet. F12b was never
+built and is superseded here. Build it in v3 "Ledger" (docs/DESIGN.md): hairlines and space, a status mark plus a word,
+no cards, no pills, and colour only for meaning. **No backend change.** If an endpoint is missing, stop and report. The
+data-mode banner already exists in the shell (MODE-1, `SessionService.demo`). UX-1 checks it against DESIGN.md and
+leaves it alone if it passes.
+
+Files: the Rules workspace (`screens/rules/`), the program overview (`screens/overview/`), `ui/` (shared pieces only),
+the API service and models, and `audit-sentence.ts` if a sentence is missing. Do **not** touch `screens/changes`,
+`audit`, `report`, `register` or `people`: UI3-2 owns them until it merges.
+
+1. **Sources**: a "Sources" view of the Rules workspace at `/rules/sources`. It is a lazy route with its own chunk
+   (PERF-FE-1 pattern), and the initial bundle grows by at most 0.5 kB.
+   - Data comes from one `GET /rule-sources`, with no N+1. Rows are grouped by state in the order of the workspace's
+     state tabs. Inactive sources come last in their group.
+   - Each row is a hairline table row with these columns:
+     - the label;
+     - the URL's host in IBM Plex Mono, linked with `target="_blank" rel="noopener noreferrer"` and a screen-reader
+       "(opens in a new tab)";
+     - the authority class as a word ("Statute", "Administrative rule", "Register", "Board guidance", "Board form",
+       "Other");
+     - the health;
+     - the last check, as relative time with the absolute time in a `title`, or "Not checked yet";
+     - the next check, as "Next in 21 h", "Paused", or "Not scheduled" for sources that are not `PERMITTED`.
+   - **Health** is a mark plus a word. The tones are tokens only: `found`, `missing` and neutral `ink-3`. No new colour.
+
+     | Health | Word | Tone |
+     |---|---|---|
+     | `HEALTHY` | Current | found |
+     | `STALE` | Stale | neutral |
+     | `FAILING` | Failing, N in a row | missing |
+     | `BLOCKED` | Blocked | missing |
+     | `SUSPECT` | Suspect content | missing |
+     | `UNREVIEWED` | Not reviewed | neutral |
+
+   - **Last outcome words:**
+
+     | Outcome | Words |
+     |---|---|
+     | `UNCHANGED` | No change |
+     | `NOT_MODIFIED` | Not modified |
+     | `CHANGED` | Changed, draft created (a link to the draft) |
+     | `CHANGED_QUEUED` | Changed, kept behind the waiting draft (a link to it) |
+     | `SUSPECT_CONTENT` | Suspect content (the reason) |
+     | `BLOCKED_BY_ROBOTS` | Blocked by robots.txt |
+     | `FETCH_FAILED` | Could not fetch (HTTP status and detail in the one Help affordance of the row's detail) |
+
+     Use the exact enum names from `CheckOutcome.java`. If one differs, follow the code and say so.
+2. **Source detail**: expanding a row uses a disclosure button with `aria-expanded`. Each expansion loads
+   `GET /rule-sources/{id}/checks?limit=20` once and shows:
+   - the governance fields as a definition list: allowed hosts, allowed path prefixes, expected identifiers, access
+     status with its note, and owner;
+   - the check history as a hairline list, newest first: date, outcome words, HTTP status, and the content hash
+     shortened to 12 characters in Plex Mono with a copy button.
+3. **Actions**, each hidden (not disabled) for roles without the permission:
+   - **Check now** (ADMIN, REVIEWER): `POST /rule-sources/{id}/check`.
+     - It is not offered for `RESTRICTED` or `BLOCKED` sources.
+     - For `UNREVIEWED` sources it is offered with one line: "Not reviewed yet: this check is recorded as unreviewed".
+     - While it runs, one screen-wide poller re-reads `GET /rule-sources` every 2 s until that source's last check
+       changes, for at most 60 s. On timeout the row says "Still checking" with a Refresh link. The poller is cancelled
+       on destroy.
+   - **Pause and Resume** (ADMIN): `PUT /rule-sources/{id}/active`. It is optimistic and reverted with an inline error
+     on failure.
+   - **Edit governance** (ADMIN): a PrimeNG Dialog for `PUT /rule-sources/{id}/governance`.
+     - The fields are authority class, allowed hosts, path prefixes, expected identifiers (chips are forbidden, so each
+       list is a textarea with one entry per line), access status, access note and owner.
+     - 400 field errors are shown inline. Focus returns to the trigger.
+   - **Add source** (ADMIN, REVIEWER): a Dialog with state, license type, label, URL, interval (Daily, Weekly or
+     Monthly) and authority class.
+     - Allowed hosts default to the URL's host.
+     - On success the new row fades in at 160 ms with no rise, and is static under reduced motion.
+   - An empty state for a state shows one line and the Add button, with no icon.
+4. **Legal status on the rule version detail** (`rule-version-detail`). Replace the current one-line meta with a small
+   definition list under the title:
+   - legal status as a word;
+   - effective from and effective to;
+   - published and adopted, shown only when set;
+   - "Source of the dates": `datesBasis` in Source Serif 4;
+   - "Text observed" (`observedAt`).
+   Unknown values read "Not recorded". The UI never writes "in force" for an `UNKNOWN` version.
+   - **Record status** (REVIEWER, ADMIN): a Dialog for `POST /rule-versions/{id}/status`, with legal status and the four
+     dates. The date basis is required when any date is set, mirroring the server. Status history is not editable; the
+     dialog appends.
+   - **Change queue:** when `queuedObservations` is not empty, show a hairline list headed "Changes kept behind this
+     draft", oldest first. Each row has the observation date, the content hash prefix, and a link to the stored document
+     if the view has one. This replaces the "N later changes" sentence.
+5. **Overview:** each state's rules standing (`RuleStanding`) shows:
+   - `noRuleInForce` as a `missing` mark with the text "No rule in force on <date>". The assessment does not run for
+     that state; say so in the same line.
+   - `upcomingNotice` as a neutral mark with the text "Upcoming from <date>".
+   - `sourceNotice` as a neutral mark with "Source stale", linked to `/rules/sources` filtered to that state.
+   These are quiet meta lines next to the state's existing row, not banners.
+6. **Words:** "compliant" and "meets requirements" never appear. `ForbiddenWordsTest` scans the new templates.
+7. **Tests:**
+   - Unit tests for the health and outcome words, grouping and order, poll stop conditions, role gating, the governance
+     list parsing (lines, trim, no empties), and the status dialog validation.
+   - End-to-end on the seeded stack, with axe on each new view showing zero serious or critical issues:
+     - An ADMIN adds a source with `https://example.invalid/rules`, sets it to `PERMITTED`, and runs Check now. The row
+       ends at "Could not fetch" or "Failing"; assert only on the visible words.
+     - Pause it, open its history, and edit its governance.
+     - The audit trail shows the sentences.
+     - A REVIEWER records a status on a draft, and the detail shows it.
+     - A CONTRIBUTOR sees no Check now, Pause or Edit controls.
+     - Keyboard only: reach and operate every action.
+     - Check at 400 px width and in the dark theme.
+   - Use the `consoleGuard` fixture (FIX-8) in the new specs.
+8. **Docs:** add a "Sources" screen entry to DESIGN.md's screen list (a few lines). Decisions go in
+   `docs/decisions/UX-1.md`, progress in `docs/progress/UX-1.md`, with screenshots in light, dark and 400 px.
 
 ### EV-2 — Evaluation lab (backend and tooling; slot 8; Sonnet 5.5; no migration; D-621 to D-630)
 Master prompt §5.5 and M7. Accuracy claims need independent labels, frozen held-out cases, denominators, uncertainty and
