@@ -53,6 +53,9 @@ jobs:
       - name: Install Playwright browser
         run: cd frontend && npm ci --no-audit --no-fund && npx playwright install --with-deps chromium
 
+      - name: Test the stack scripts
+        run: make test-scripts
+
       - name: Run every test suite
         run: make test
 
