@@ -19,12 +19,32 @@ export interface Program { id: string; name: string; licenseType: string; catalo
 /** POST /programs. Name, license type, catalog year and target states are fixed once the program exists. */
 export interface NewProgram { name: string; licenseType: string; catalogYear: string; jurisdictions: string[]; }
 /** One catalog-year version of a course; the current one is the version no other version supersedes. */
-export interface CourseVersion { id: string; courseId: string; programId: string; catalogYear: string; required: boolean; supersedesId: string | null; }
+export type CreditUnit = 'SEMESTER' | 'QUARTER';
+/** `credits` is null when nobody recorded them; a new value is a new version. */
+export interface CourseVersion {
+  id: string; courseId: string; programId: string; catalogYear: string; required: boolean; credits: number | null; creditUnit: CreditUnit; supersedesId: string | null;
+}
 /** GET /programs/{id}/courses: a course with its versions, oldest first. */
 export interface Course { id: string; programId: string; code: string; title: string; versions: CourseVersion[]; }
 /** POST /programs/{id}/courses creates the course and its first version for the program's catalog year (D-039). */
-export interface NewCourse { code: string; title: string; required: boolean; }
-export interface NewCourseVersion { catalogYear: string; required: boolean; supersedesId: string | null; }
+export interface NewCourse { code: string; title: string; required: boolean; credits?: number; creditUnit?: CreditUnit; }
+export interface NewCourseVersion { catalogYear: string; required: boolean; credits?: number; creditUnit?: CreditUnit; supersedesId: string | null; }
+
+/** AC-1: how a group asks for its courses. */
+export type PathwayKind = 'ALL_OF' | 'CHOOSE_COUNT' | 'CHOOSE_CREDITS';
+/** `onEveryPath` and `onSomePath` say whether the course alone is on every valid graduation path, and on some valid path. */
+export type PathwayAnswer = 'TRUE' | 'FALSE' | 'UNKNOWN';
+export interface PathwayMember {
+  courseId: string; code: string; title: string; credits: number | null; creditUnit: CreditUnit; onEveryPath: PathwayAnswer; onSomePath: PathwayAnswer;
+}
+export interface PathwayGroup {
+  id: string; label: string; kind: PathwayKind; minCount: number | null; minCredits: number | null;
+  citation: { spanId: string; documentId: string; filename: string; pageNumber: number; quote: string } | null; members: PathwayMember[];
+}
+/** GET /programs/{id}/pathway. `minimumCredits` is null while `unknowns` says what is not recorded. */
+export interface Pathway {
+  programId: string; catalogYear: string; groups: PathwayGroup[]; minimumCredits: number | null; minimumCreditsUnit: CreditUnit | null; unknowns: string[];
+}
 /** GET /programs/{id}/facts: every recorded fact, newest first; `current` marks the newest per key (D-036). */
 export interface ProgramFact {
   id: string; programId: string; key: NumericField; value: number; evidenceSpanId: string; documentId: string; filename: string;
@@ -169,7 +189,7 @@ export interface WorkQueue { generatedAt: string; counts: Partial<Record<WorkQue
 /** F10a: where the evidence of a requirement sits. SYSTEM is the mapping's own verified span, PERSON an evidence response. */
 export type CoverageSource = 'SYSTEM' | 'PERSON';
 /** Descriptive flags with fixed names (D-392); they say where the evidence sits and never judge it. */
-export type CoverageRisk = 'NONE' | 'OUTDATED_EVIDENCE' | 'NO_EVIDENCE' | 'ELECTIVE_ONLY' | 'SINGLE_COURSE';
+export type CoverageRisk = 'NONE' | 'OUTDATED_EVIDENCE' | 'NO_EVIDENCE' | 'ELECTIVE_ONLY' | 'PATHS_UNKNOWN' | 'SINGLE_COURSE';
 /** A current course version of the program: a column of the matrix. */
 export interface CoverageCourse { courseId: string; courseVersionId: string; code: string; title: string; catalogYear: string; required: boolean; }
 export interface CoverageCell { courseVersionId: string; source: CoverageSource; quoteCount: number; }

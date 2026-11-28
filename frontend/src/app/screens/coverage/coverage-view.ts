@@ -12,6 +12,7 @@ export type FlagTone = 'ambiguous' | 'neutral' | 'missing';
  */
 export const FLAGS: Readonly<Record<Flag, { label: string; icon: IconName; tone: FlagTone }>> = {
   ELECTIVE_ONLY: { label: 'Rests on an elective', icon: 'phosphorWarningCircle', tone: 'ambiguous' },
+  PATHS_UNKNOWN: { label: 'Graduation paths not fully known', icon: 'phosphorQuestion', tone: 'neutral' },
   SINGLE_COURSE: { label: 'Rests on one course', icon: 'phosphorBook', tone: 'neutral' },
   OUTDATED_EVIDENCE: { label: 'Outdated evidence', icon: 'phosphorClock', tone: 'ambiguous' },
   NO_EVIDENCE: { label: 'No evidence cited', icon: 'phosphorCircleDashed', tone: 'missing' },

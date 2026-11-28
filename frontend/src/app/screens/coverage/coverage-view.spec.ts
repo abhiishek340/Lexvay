@@ -111,7 +111,7 @@ describe('flags', () => {
   });
 
   it('words each flag as where the evidence sits, in chip order', () => {
-    expect(FLAG_ORDER.map((f) => FLAGS[f].label)).toEqual(['Rests on an elective', 'Rests on one course', 'Outdated evidence', 'No evidence cited']);
+    expect(FLAG_ORDER.map((f) => FLAGS[f].label)).toEqual(['Rests on an elective', 'Graduation paths not fully known', 'Rests on one course', 'Outdated evidence', 'No evidence cited']);
   });
 
   it('rings a pill with the share of requirements that carry no flag', () => {

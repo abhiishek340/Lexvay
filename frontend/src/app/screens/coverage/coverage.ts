@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
 import { phosphorGridFourDuotone } from '@ng-icons/phosphor-icons/duotone';
-import { phosphorBook, phosphorCalculator, phosphorCircleDashed, phosphorClock, phosphorWarningCircle } from '@ng-icons/phosphor-icons/regular';
+import { phosphorBook, phosphorCalculator, phosphorCircleDashed, phosphorClock, phosphorQuestion, phosphorWarningCircle } from '@ng-icons/phosphor-icons/regular';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { Popover } from 'primeng/popover';
@@ -23,7 +23,7 @@ import { COVERAGE_TOKENS } from './coverage-theme';
 import { Cell, FLAGS, Flag, MoveKey, Position, Row, coverageView, firstCell, flagCounts, matchesFlag, move, unflaggedShare } from './coverage-view';
 
 /** The icons the Coverage screen shows beyond SHELL_ICONS, provided by its route (coverage.routes.ts). */
-export const COVERAGE_ICONS = { phosphorBook, phosphorCalculator, phosphorCircleDashed, phosphorClock, phosphorGridFourDuotone, phosphorWarningCircle };
+export const COVERAGE_ICONS = { phosphorBook, phosphorCalculator, phosphorCircleDashed, phosphorClock, phosphorGridFourDuotone, phosphorQuestion, phosphorWarningCircle };
 
 const MOVES: Record<string, MoveKey> = { ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', Home: 'Home', End: 'End' };
 /** The matrix enters column by column, 20 ms apart, at most twelve staggered (DESIGN.md motion, F10b point 4). */

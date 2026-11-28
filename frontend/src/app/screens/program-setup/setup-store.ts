@@ -3,7 +3,7 @@ import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } f
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import {
-  AssessmentView, Course, DocumentView, Jurisdiction, NewCourse, NewCourseVersion, NewProgram, NewProgramFact, Program, ProgramDocument, ProgramFact,
+  AssessmentView, Course, DocumentView, Jurisdiction, NewCourse, NewCourseVersion, NewProgram, NewProgramFact, Pathway, Program, ProgramDocument, ProgramFact,
   RequirementView, RuleVersionView,
 } from '../../core/models';
 import { problemDetail } from '../../core/problem';
@@ -47,6 +47,8 @@ export class SetupStore {
   readonly jurisdictions = signal<Jurisdiction[]>([]);
   readonly ruleVersions = signal<RuleVersionView[]>([]);
   readonly courses = signal<Course[] | null>(null);
+  /** The graduation paths of the program's catalog year; shown read only here. */
+  readonly pathway = signal<Pathway | null>(null);
   readonly documents = signal<ProgramDocument[] | null>(null);
   readonly facts = signal<ProgramFact[] | null>(null);
   /** The ingest job of each document that had no pages when listed, from GET /documents/{id}. */
@@ -168,17 +170,20 @@ export class SetupStore {
 
   private async load(programId: string | null): Promise<void> {
     this.courses.set(null);
+    this.pathway.set(null);
     this.documents.set(null);
     this.facts.set(null);
     this.ingest.set(new Map());
     this.run.set(null);
     if (!programId) { return; }
     try {
-      const [courses, documents, facts] = await Promise.all([
-        firstValueFrom(this.api.courses(programId)), firstValueFrom(this.api.programDocuments(programId)), firstValueFrom(this.api.facts(programId)),
+      const [courses, pathway, documents, facts] = await Promise.all([
+        firstValueFrom(this.api.courses(programId)), firstValueFrom(this.api.pathway(programId)), firstValueFrom(this.api.programDocuments(programId)),
+        firstValueFrom(this.api.facts(programId)),
       ]);
       if (this.programId() !== programId) { return; }
       this.courses.set(courses);
+      this.pathway.set(pathway);
       this.documents.set(documents);
       this.facts.set(facts);
     } catch (e: unknown) {

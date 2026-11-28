@@ -40,6 +40,32 @@
       </ng-template>
     </p-table>
   }
+
+  @if (store.pathway(); as pathway) {
+    @if (pathway.groups.length > 0) {
+      <section class="lx-pathway" aria-labelledby="pathway-title" data-testid="pathway">
+        <h3 id="pathway-title" class="lx-pathway-title">
+          Graduation paths
+          <lx-info-tip label="About graduation paths">Evidence in a course that is not on every path is shown as ambiguous. A minimum or a credit that is not recorded counts the same way.</lx-info-tip>
+        </h3>
+        <ul class="lx-pathway-groups">
+          @for (group of pathway.groups; track group.id) {
+            <li>
+              <span class="lx-strong">{{ group.label }}</span>
+              <span class="lx-muted"> · {{ groupRule(group) }}</span>
+              <span class="lx-mono lx-pathway-members">{{ memberCodes(group) }}</span>
+            </li>
+          }
+        </ul>
+        <p class="lx-muted" data-testid="pathway-minimum">
+          @if (minimumCredits(); as minimum) { Fewest credits on a path: {{ minimum }} } @else { Fewest credits on a path: not known }
+          @if (pathway.minimumCredits === null) {
+            <lx-info-tip label="What is not recorded">{{ pathway.unknowns.join('. ') }}.</lx-info-tip>
+          }
+        </p>
+      </section>
+    }
+  }
 } @else {
   <div class="lx-panel-skeleton" aria-busy="true" aria-label="Loading courses">@for (i of [1, 2, 3]; track i) { <p-skeleton height="3.25rem" /> }</div>
 }

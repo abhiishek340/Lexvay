@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, switchMap } from 'rxjs';
 import {
   Account, AssessmentView, AuditEntry, ChangeEvent, Course, CoverageMatrix, DecisionKind, Determination, DeterminationLists, DocumentKind, DocumentPage,
-  DocumentView, EvidenceRequest, EvidenceResponse, EvidenceResponseBody, Jurisdiction, Mapping, MappingsView, NewCourse, NewCourseVersion, NewProgram,
+  DocumentView, EvidenceRequest, EvidenceResponse, EvidenceResponseBody, Jurisdiction, Mapping, MappingsView, NewCourse, NewCourseVersion, NewProgram, Pathway,
   NewProgramFact, NewRuleVersion, NewUser, Outcome, Program, ProgramDocument, ProgramFact, ProgramOverview, RegisterFilter, RegisterRow, ReportCheck,
   RequirementDraft, RequirementsView, Role, RuleVersionDiff, RuleVersionView, SessionView, UploadResult, UserSetup, UserSummary, UserView, WorkQueue,
 } from './models';
@@ -34,6 +34,8 @@ export class ApiService {
   createCourse(programId: string, body: NewCourse): Observable<Course> { return this.http.post<Course>(`${this.base}/programs/${programId}/courses`, body); }
   /** A new catalog-year version; it opens a change event for every assessment that cited the version it supersedes. */
   addCourseVersion(courseId: string, body: NewCourseVersion): Observable<Course> { return this.http.post<Course>(`${this.base}/courses/${courseId}/versions`, body); }
+  /** The program's graduation paths for its own catalog year (AC-1); read only here. */
+  pathway(programId: string): Observable<Pathway> { return this.http.get<Pathway>(`${this.base}/programs/${programId}/pathway`); }
   facts(programId: string): Observable<ProgramFact[]> { return this.http.get<ProgramFact[]>(`${this.base}/programs/${programId}/facts`); }
   recordFact(programId: string, body: NewProgramFact): Observable<ProgramFact> { return this.http.post<ProgramFact>(`${this.base}/programs/${programId}/facts`, body); }
   jurisdictions(): Observable<Jurisdiction[]> { return this.http.get<Jurisdiction[]>(`${this.base}/jurisdictions`); }

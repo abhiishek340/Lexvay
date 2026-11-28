@@ -105,3 +105,10 @@
   .lx-field-row { grid-template-columns: minmax(0, 1fr); }
   .lx-sections { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Graduation paths, read only until the editor (UI3-3) replaces it. */
+.lx-pathway { margin-top: 24px; }
+.lx-pathway-title { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 15px; line-height: 22px; font-weight: 620; }
+.lx-pathway-groups { margin: 0 0 8px; padding: 0; list-style: none; }
+.lx-pathway-groups li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 0; padding: 8px 0; border-bottom: 1px solid var(--p-lx-line); }
+.lx-pathway-members { flex-basis: 100%; font-size: 13px; color: var(--p-lx-text-2); }

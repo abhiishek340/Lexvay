@@ -14,7 +14,7 @@ import { Course } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { Enter } from '../../ui/enter';
 import { InfoTip } from '../../ui/info-tip';
-import { currentVersion } from './setup-model';
+import { currentVersion, groupRule, memberCodes, minimumCreditsLabel } from './setup-model';
 import { SetupNotice, SetupStore } from './setup-store';
 
 interface CourseRow { course: Course; catalogYear: string; required: boolean; versions: number }
@@ -130,6 +130,13 @@ export class CoursesStep {
     this.opener = null;
     requestAnimationFrame(() => opener?.focus());
   }
+
+  readonly groupRule = groupRule;
+  readonly memberCodes = memberCodes;
+  readonly minimumCredits = computed(() => {
+    const pathway = this.store.pathway();
+    return pathway ? minimumCreditsLabel(pathway) : null;
+  });
 
   currentYear(course: Course | null): string {
     return course ? (currentVersion(course)?.catalogYear ?? '') : '';
