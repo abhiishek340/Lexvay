@@ -1,4 +1,4 @@
-import { DANA, PRIYA, expect, expectAccessible, goTo, signIn, test } from './support';
+import { DANA, PRIYA, expect, expectAccessible, goTo, programIdFromUrl, signIn, test } from './support';
 
 /**
  * The program overview (UI2-1): the map, the three numbers, "Needs you" and the state cards. The seeded program
@@ -73,7 +73,7 @@ test('each state card has one action, and Review lands on the state (the shared-
 
   // Back on the overview, the hero states the same numbers the API does.
   await goTo(page, 'Program overview');
-  const programId = new URL(page.url()).pathname.split('/')[2];
+  const programId = await programIdFromUrl(page);
   const overview = await (await page.request.get(`/api/v1/programs/${programId}/overview`)).json();
   const summaries = overview.assessment.jurisdictions as { total: number; decided: number }[];
   const toReview = summaries.reduce((n, s) => n + s.total - s.decided, 0);
