@@ -242,6 +242,12 @@ class InputValidationTableTest extends AbstractDatabaseTest {
         rows.add(signerRow("audit export: a signer is refused", exportCsv, HttpMethod.GET, "/api/v1/audit.csv", null, null, 403));
         rows.add(anonymousRow("audit export: no session", exportCsv, HttpMethod.GET, "/api/v1/audit.csv", 401));
 
+        // --- audit trail verification ---
+        String verify = "GET /api/v1/audit/verify";
+        rows.add(row("audit verify: hostile query parameter is ignored", verify, HttpMethod.GET, "/api/v1/audit/verify?q=%00%ff", null, null, 200));
+        rows.add(signerRow("audit verify: a signer is refused", verify, HttpMethod.GET, "/api/v1/audit/verify", null, null, 403));
+        rows.add(anonymousRow("audit verify: no session", verify, HttpMethod.GET, "/api/v1/audit/verify", 401));
+
         // --- user administration ---
         Map<String, Object> newUser = Map.of("email", "new.person@example.test", "displayName", "New Person", "role", "REVIEWER");
         String users = "/api/v1/users";
