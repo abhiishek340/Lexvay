@@ -1,7 +1,7 @@
 -- Academic pathway model (AC-1). A program's graduation paths are groups of courses: some are all required, some are
 -- "choose n" or "choose credits" (D-586). Credits belong to a course version, because a new value is a new version.
 -- A pathway group is never edited; a correction retires the group and creates another (product rule 5).
--- V019 (SEC-3), V021 (RG-1), V022 (MODE-1) and V023 (RG-2) are numbered by other work items.
+-- V022 (MODE-1) is on main; SEC-3 takes V023 and RG-1 V025, so this stays V024.
 
 -- NULL credits means unknown: nothing is ever invented. There is no conversion between units (D-587).
 ALTER TABLE course_version ADD COLUMN credits numeric(5,2) CHECK (credits > 0);
