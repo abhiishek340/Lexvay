@@ -552,6 +552,7 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | merged (#51) |
 | AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | in progress |
 | OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | merged (#54) |
+| OPS-2b Stack lock race on Ubuntu 26.04 (uutils mkdir) | `ops-stack-lock-fix` | — | Sonnet 5.5 | merged (#60) |
 | OPS-3 Performance budget on CI | `ops-perf-ci` | — | Sonnet 5.5 | in progress |
 | EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | in progress |
 | RG-2, RG-3, AC-2, AC-3, EV-2, UX-1 | see Real-data validation track | — | — | queued |
