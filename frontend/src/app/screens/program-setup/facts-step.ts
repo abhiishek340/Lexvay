@@ -14,8 +14,7 @@ import { DocumentPicker } from '../../shared/document-picker/document-picker';
 import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
 import { PassageSelection } from '../../shared/document-viewer/page-text';
 import { Sheet } from '../../shared/sheet/sheet';
-import { Enter } from '../../ui/enter';
-import { InfoTip } from '../../ui/info-tip';
+import { StatusMark } from '../../ui/status-mark';
 import { factHistory, quoteShowsValue } from './setup-model';
 import { SetupNotice, SetupStore } from './setup-store';
 
@@ -28,7 +27,7 @@ import { SetupNotice, SetupStore } from './setup-store';
  */
 @Component({
   selector: 'lx-setup-facts',
-  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, InputNumber, Message, Skeleton, DocumentPicker, DocumentViewer, Sheet, Enter, InfoTip],
+  imports: [DatePipe, FormsModule, NgIcon, ButtonDirective, ButtonLabel, InputNumber, Message, Skeleton, DocumentPicker, DocumentViewer, Sheet, StatusMark],
   templateUrl: './facts-step.html',
   styleUrl: './steps.css',
 })

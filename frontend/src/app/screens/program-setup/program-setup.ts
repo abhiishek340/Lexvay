@@ -3,12 +3,7 @@ import { Component, computed, effect, inject, input, linkedSignal, signal, untra
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorBooksDuotone, phosphorCheckCircleDuotone, phosphorFilesDuotone } from '@ng-icons/phosphor-icons/duotone';
-import { phosphorCheckCircleFill, phosphorWarningCircleFill, phosphorXCircleFill } from '@ng-icons/phosphor-icons/fill';
-import {
-  phosphorCaretDown, phosphorCheck, phosphorClock, phosphorCopy, phosphorFileDoc, phosphorFilePdf, phosphorLockSimple, phosphorPlay, phosphorPlus,
-  phosphorSpinner, phosphorUploadSimple, phosphorX,
-} from '@ng-icons/phosphor-icons/regular';
+import { phosphorCaretDown, phosphorCheck, phosphorFileDoc, phosphorFilePdf, phosphorLockSimple, phosphorX } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -22,9 +17,6 @@ import { NewProgram } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import { InfoTip } from '../../ui/info-tip';
-import { MapState } from '../../ui/state-map/state-map-model';
-import { StateMap } from '../../ui/state-map/state-map';
 import { CoursesStep } from './courses-step';
 import { DocumentsStep } from './documents-step';
 import { FactsStep } from './facts-step';
@@ -32,13 +24,19 @@ import { ReadinessStep } from './readiness-step';
 import { SETUP_STEPS, SetupStep, firstOpenStep, licenseTypes } from './setup-model';
 import { SetupNotice, SetupStore } from './setup-store';
 import { SETUP_TOKENS } from './setup-theme';
+import { Help, HelpTerm } from '../../ui/help';
+
+/** Program setup's definitions, behind its one Help button (the workspace and its steps). */
+const HELP: readonly HelpTerm[] = [
+  { term: 'Program setup', definition: 'States, courses and their catalog years, the documents that describe them, and the numbers the rules engine checks.' },
+  { term: 'Fixed once created', definition: 'Name, license type, catalog year and states. Create a new program for a different combination.' },
+  { term: 'License type', definition: 'Decides which rule versions apply. Choose one the rules already use, or type another.' },
+  { term: 'Required course', definition: 'Evidence found only in an elective is shown as ambiguous: not every graduate takes it.' },
+  { term: 'Program facts', definition: "Numbers the rules engine compares with the rules, each backed by a passage on a document's page." },
+];
 
 /** The icons the setup workspace and its steps show beyond SHELL_ICONS, provided by its route (setup.routes.ts). */
-export const PROGRAM_SETUP_ICONS = {
-  phosphorBooksDuotone, phosphorCaretDown, phosphorCheck, phosphorCheckCircleDuotone, phosphorCheckCircleFill, phosphorClock, phosphorCopy, phosphorFileDoc,
-  phosphorFilePdf, phosphorFilesDuotone, phosphorLockSimple, phosphorPlay, phosphorPlus, phosphorSpinner, phosphorUploadSimple, phosphorWarningCircleFill,
-  phosphorX, phosphorXCircleFill,
-};
+export const PROGRAM_SETUP_ICONS = { phosphorCaretDown, phosphorCheck, phosphorFileDoc, phosphorFilePdf, phosphorLockSimple, phosphorX };
 
 /** The create form of the Details and States steps. */
 interface ProgramForm { name: string; licenseType: string; catalogYear: string; jurisdictions: string[] }
@@ -59,13 +57,14 @@ const STEP_LABEL: Record<SetupStep, string> = {
   selector: 'lx-setup',
   imports: [
     FormsModule, NgIcon, ButtonDirective, ButtonLabel, InputText, Message, MultiSelect, Select, Skeleton, Step, StepList, StepPanel, StepPanels, Stepper,
-    InfoTip, StateMap, CoursesStep, DocumentsStep, FactsStep, ReadinessStep,
+    Help, CoursesStep, DocumentsStep, FactsStep, ReadinessStep,
   ],
   providers: [SetupStore],
   templateUrl: './program-setup.html',
   styleUrl: './program-setup.css',
 })
 export class SetupWorkspace {
+  readonly help = HELP;
   private readonly router = inject(Router);
   private readonly toast = inject(MessageService);
   readonly context = inject(ProgramContext);
@@ -88,9 +87,8 @@ export class SetupWorkspace {
 
   readonly licenseOptions = computed(() => licenseTypes(this.store.ruleVersions()));
   readonly stateOptions = computed(() => this.store.jurisdictions().map((j) => ({ code: j.code, label: `${j.name} (${j.code})` })));
-  /** The states as the mini map draws them: the chosen ones (or the program's) filled in accent, a picture beside the MultiSelect. */
-  readonly mapStates = computed<MapState[]>(() => (this.store.program()?.jurisdictions ?? this.form().jurisdictions)
-    .map((code) => ({ code, tile: 'IN_REVIEW', reviewed: 1, total: 1, status: 'Target state', action: null })));
+  /** How many states are chosen (the program's, or the form's before it exists), beside the MultiSelect. */
+  readonly chosenStates = computed(() => (this.store.program()?.jurisdictions ?? this.form().jurisdictions).length);
   readonly stateNames = computed(() => {
     const names = new Map(this.store.jurisdictions().map((j) => [j.code, j.name]));
     return (this.store.program()?.jurisdictions ?? []).map((code) => ({ code, name: names.get(code) ?? code }));

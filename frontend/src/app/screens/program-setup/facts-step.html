@@ -1,21 +1,18 @@
 <div class="lx-step-head">
   <div class="lx-title-row">
     <h2 class="lx-panel-title">Program facts</h2>
-    <lx-info-tip label="About program facts">The rules engine compares these numbers with the rules; the model never does the arithmetic. Each number
-      is backed by a passage selected on a document's page, and a newer record never replaces an older one.</lx-info-tip>
   </div>
 </div>
 
 @if (rows(); as list) {
   @if (list.length === 0) {
     <div class="lx-empty-state" data-testid="facts-empty">
-      <ng-icon name="phosphorCheckCircleDuotone" size="32" aria-hidden="true" />
       <p>The rules of these states check no number.</p>
     </div>
   } @else {
     <ul class="lx-facts" aria-label="Program facts">
       @for (row of list; track row.field; let i = $index) {
-        <li class="lx-fact" [lxEnter]="i" [attr.data-field]="row.field">
+        <li class="lx-fact" [attr.data-field]="row.field">
           <div class="lx-fact-head">
             <h3 class="lx-fact-name">{{ fieldLabel[row.field] }}</h3>
             @if (store.canEdit()) {
@@ -27,7 +24,7 @@
           </div>
           @if (row.current; as f) {
             <div class="lx-fact-body">
-              <span class="lx-number" data-testid="fact-value">{{ f.value }}</span>
+              <span class="lx-figure" data-testid="fact-value">{{ f.value }}</span>
               <div class="lx-fact-source">
                 <blockquote class="lx-fact-quote">{{ f.quote }}</blockquote>
                 <p class="lx-help">{{ f.filename }}, page <span class="lx-mono">{{ f.pageNumber }}</span>, {{ f.createdAt | date: 'd MMM y' }}</p>
@@ -44,14 +41,14 @@
               </details>
             }
           } @else {
-            <p class="lx-fact-missing"><ng-icon name="phosphorWarningCircleFill" size="16" aria-hidden="true" />Not recorded</p>
+            <p class="lx-fact-missing"><lx-status-mark status="NOT_REVIEWED" label="Not recorded" /></p>
           }
         </li>
       }
     </ul>
   }
 } @else {
-  <div class="lx-panel-skeleton" aria-busy="true" aria-label="Loading program facts">@for (i of [1, 2]; track i) { <p-skeleton height="5rem" /> }</div>
+  <div class="lx-panel-skeleton" role="status" aria-busy="true" aria-label="Loading program facts">@for (i of [1, 2]; track i) { <p-skeleton aria-hidden="true" height="5rem" /> }</div>
 }
 
 <lx-sheet [heading]="recording() ? 'Record ' + fieldLabel[recording()!].toLowerCase() : 'Record a fact'" headingId="fact-sheet-heading"
@@ -73,7 +70,7 @@
           <h3 id="fact-passage-label" class="lx-numbered"><span class="lx-numbered-n" aria-hidden="true">3</span>Passage</h3>
           <div aria-live="polite" data-testid="fact-passage">
             @if (selection(); as s) {
-              <blockquote class="lx-passage" [lxEnter]="0">{{ s.quote }}</blockquote>
+              <blockquote class="lx-passage">{{ s.quote }}</blockquote>
               <p class="lx-help">Page <span class="lx-mono">{{ s.pageNumber }}</span>, characters <span class="lx-mono">{{ s.charStart }}–{{ s.charEnd }}</span></p>
               @if (mismatch()) {
                 <p-message severity="warn" size="small" data-testid="fact-mismatch">The passage does not show {{ value() }} as written.</p-message>
@@ -96,7 +93,7 @@
         @if (documentId(); as id) {
           <lx-document-viewer [documentId]="id" [pageNumber]="1" [selectable]="true" (selection)="selection.set($event)" />
         } @else {
-          <div class="lx-placeholder"><ng-icon name="phosphorFilesDuotone" size="32" aria-hidden="true" /><p>Choose a document to read it here.</p></div>
+          <div class="lx-placeholder"><p>Choose a document to read it here.</p></div>
         }
       </div>
     </div>

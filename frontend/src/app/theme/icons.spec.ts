@@ -5,24 +5,17 @@ import { DOCUMENT_VIEWER_ICONS } from '../shared/document-viewer/document-viewer
 import { AUDIT_ICONS } from '../screens/audit/audit';
 import { CHANGES_ICONS } from '../screens/changes/changes';
 import { COVERAGE_ICONS } from '../screens/coverage/coverage';
-import { OVERVIEW_ICONS } from '../screens/overview/overview';
 import { PEOPLE_ICONS } from '../screens/people/people';
 import { REGISTER_ICONS } from '../screens/register/register';
 import { REQUESTS_ICONS } from '../screens/requests/requests';
-import { REPORT_ICONS } from '../screens/report/report';
 import { REPORT_CHECK_ICONS } from '../screens/report/report-check-dialog';
 import { REVIEW_ICONS } from '../screens/review/review';
 import { RULES_ICONS } from '../screens/rules/rules';
 import { PROGRAM_SETUP_ICONS } from '../screens/program-setup/program-setup';
 import { SETUP_ICONS } from '../screens/setup/setup';
-import { ACCOUNT_MENU_ICONS } from '../shell/account-menu';
-import { SHELL_TOAST_ICONS } from '../shell/shell-toast';
 import { WORK_QUEUE_ICONS } from '../shell/work-queue-menu';
 import { PALETTE_ICONS } from '../ui/command-palette/command-palette';
 import { DECISION_BAR_ICONS } from '../ui/decision-bar/decision-bar';
-import { DECISION_STATE_ICONS, FINDING_LABEL_ICONS } from '../ui/finding';
-import { STATE_MAP_ICONS } from '../ui/state-map/state-map';
-import { STATUS_ICONS } from '../ui/status-icon';
 import * as regular from '@ng-icons/phosphor-icons/regular';
 import { SHELL_ICONS } from './icons';
 
@@ -42,26 +35,21 @@ interface Unit { name: string; entries: string[]; registered: Record<string, str
 
 const UNITS: Unit[] = [
   { name: 'shell, sign-in and home', entries: ['shell/shell.ts', 'screens/login/login.ts', 'screens/home.ts'], registered: SHELL_ICONS },
-  { name: 'overview', entries: ['screens/overview/overview.ts'], registered: OVERVIEW_ICONS },
+  // Screens and shared parts whose only icons are the shell's: what they reach must name no other.
+  { name: 'overview, report, account menu and toast', entries: ['screens/overview/overview.ts', 'screens/report/report.ts', 'shell/account-menu.ts', 'shell/shell-toast.ts'], registered: {} },
   { name: 'review', entries: ['screens/review/review.ts'], registered: REVIEW_ICONS },
   { name: 'coverage', entries: ['screens/coverage/coverage.ts'], registered: COVERAGE_ICONS },
   { name: 'requests', entries: ['screens/requests/requests.ts'], registered: REQUESTS_ICONS },
   { name: 'changes', entries: ['screens/changes/changes.ts'], registered: CHANGES_ICONS },
   { name: 'rules', entries: ['screens/rules/rules.ts'], registered: RULES_ICONS },
   { name: 'program setup', entries: ['screens/program-setup/program-setup.ts'], registered: PROGRAM_SETUP_ICONS },
-  { name: 'report', entries: ['screens/report/report.ts'], registered: REPORT_ICONS },
   { name: 'register', entries: ['screens/register/register.ts'], registered: REGISTER_ICONS },
   { name: 'audit', entries: ['screens/audit/audit.ts'], registered: AUDIT_ICONS },
   { name: 'people', entries: ['screens/people/people.ts'], registered: PEOPLE_ICONS },
   { name: 'setup', entries: ['screens/setup/setup.ts'], registered: SETUP_ICONS },
   { name: 'document viewer (shared)', entries: ['shared/document-viewer/document-viewer.ts'], registered: DOCUMENT_VIEWER_ICONS, shared: true },
-  { name: 'finding labels (shared)', entries: ['ui/finding.ts'], registered: { ...FINDING_LABEL_ICONS, ...DECISION_STATE_ICONS }, shared: true },
-  { name: 'account menu (shell, deferred)', entries: ['shell/account-menu.ts'], registered: ACCOUNT_MENU_ICONS, shared: true },
   { name: 'work queue (shell, deferred)', entries: ['shell/work-queue-menu.ts'], registered: WORK_QUEUE_ICONS, shared: true },
-  { name: 'toast (shell, deferred)', entries: ['shell/shell-toast.ts'], registered: SHELL_TOAST_ICONS, shared: true },
   { name: 'command palette (shell, deferred)', entries: ['ui/command-palette/command-palette.ts'], registered: PALETTE_ICONS, shared: true },
-  { name: 'state map (shared)', entries: ['ui/state-map/state-map.ts'], registered: STATE_MAP_ICONS, shared: true },
-  { name: 'status icon (shared)', entries: ['ui/status-icon.ts'], registered: STATUS_ICONS, shared: true },
   { name: 'decision bar (shared)', entries: ['ui/decision-bar/decision-bar.ts'], registered: DECISION_BAR_ICONS, shared: true },
   { name: 'report check (report, deferred)', entries: ['screens/report/report-check-dialog.ts'], registered: REPORT_CHECK_ICONS, shared: true },
 ];

@@ -2,10 +2,7 @@
   <header class="lx-page-header">
     <div class="lx-title-row">
       <h1>{{ programId() ? 'Program setup' : 'New program' }}</h1>
-      <lx-info-tip label="About program setup">
-        Set up a program once: its states, its courses and their catalog years, the documents that describe them, and the numbers the rules
-        engine checks, each backed by a quote on its page. The same place takes a new catalog year or a new document later.
-      </lx-info-tip>
+      <lx-help [terms]="help" />
     </div>
     @if (store.program(); as p) { <p class="lx-setup-subtitle">{{ p.name }}</p> }
   </header>
@@ -16,7 +13,7 @@
 
   <!-- PrimeNG's Stepper marks itself a tablist holding its panels; the steps here are a list of buttons with aria-current
        instead (the WAI pattern for a step sequence), so its roles are replaced through pass-through (D-087). -->
-  <section class="lx-hero lx-setup-hero" aria-label="Program setup">
+  <section class="lx-setup-hero" aria-label="Program setup">
     <p-stepper [value]="stepValue()" (valueChange)="go($event)" [pt]="{ root: { role: null } }">
       <p-step-list class="lx-step-list" [pt]="{ root: { role: 'list', 'aria-label': 'Setup steps' } }">
         @for (s of steps; track s; let n = $index) {
@@ -52,11 +49,9 @@
                 </dl>
                 <p class="lx-fixed-note">
                   <ng-icon name="phosphorLockSimple" size="16" aria-hidden="true" />Fixed once created
-                  <lx-info-tip label="Why these are fixed">Name, license type, catalog year and states are fixed once the program exists. Create a new
-                    program for a different combination.</lx-info-tip>
                 </p>
               } @else if (programId()) {
-                <div class="lx-panel-skeleton" aria-busy="true" aria-label="Loading the program"><p-skeleton height="2.5rem" /><p-skeleton height="2.5rem" /></div>
+                <div class="lx-panel-skeleton" role="status" aria-busy="true" aria-label="Loading the program"><p-skeleton aria-hidden="true" height="2.5rem" /><p-skeleton aria-hidden="true" height="2.5rem" /></div>
               } @else {
                 @let f = form();
                 @let p = problems();
@@ -72,8 +67,6 @@
                     <div class="lx-field">
                       <span class="lx-label-row">
                         <label for="program-license">License type</label>
-                        <lx-info-tip label="About the license type">The license type decides which rule versions apply. Choose one the rules already use, or
-                          type another.</lx-info-tip>
                       </span>
                       <p-select inputId="program-license" [options]="licenseOptions()" [editable]="true" [ngModel]="f.licenseType" name="licenseType"
                                 (ngModelChange)="set('licenseType', $event ?? '')" [invalid]="!!p.licenseType" placeholder="Choose or type" appendTo="body"
@@ -121,16 +114,13 @@
                     @if (general(); as g) { <p-message severity="error">{{ g }}</p-message> }
                     <div class="lx-actions">
                       <button pButton type="button" [disabled]="busy()" [loading]="busy()" (click)="create()">
-                        <ng-icon name="phosphorPlus" size="16" aria-hidden="true" /><span pButtonLabel>Create program</span>
+                        <span pButtonLabel>Create program</span>
                       </button>
                       <button pButton type="button" severity="secondary" [outlined]="true" (click)="go(1)"><span pButtonLabel>Back</span></button>
                     </div>
                   }
                 </div>
-                <figure class="lx-states-map">
-                  <lx-state-map [states]="mapStates()" size="mini" [interactive]="false" [wave]="false" />
-                  <figcaption class="lx-help">{{ mapStates().length }} of 51 chosen</figcaption>
-                </figure>
+                <p class="lx-meta lx-states-count">{{ chosenStates() }} of 51 chosen</p>
               </div>
             </div>
           </ng-template>

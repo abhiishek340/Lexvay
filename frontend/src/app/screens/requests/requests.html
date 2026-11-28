@@ -2,10 +2,7 @@
   <header class="lx-page-header">
     <div class="lx-title-row">
       <h1>Evidence requests</h1>
-      <lx-info-tip label="About evidence requests">
-        Reviewers ask the program for evidence from the Review screen. Answer with a passage from one of the program's documents; the
-        requirement then goes back to the reviewer with your passage next to what the system proposed.
-      </lx-info-tip>
+      <lx-help [terms]="help" />
     </div>
   </header>
   @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
@@ -13,7 +10,7 @@
   <p class="lx-status-line" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
 
   @if (context.ready()) {
-    <section class="lx-hero lx-inbox" aria-labelledby="inbox-heading">
+    <section class="lx-inbox" aria-labelledby="inbox-heading">
       <div class="lx-inbox-head">
         <h2 id="inbox-heading" class="lx-sr-only">Inbox</h2>
         <p-selectbutton [options]="filters" optionLabel="label" optionValue="value" [allowEmpty]="false" [ngModel]="filter()"
@@ -31,7 +28,6 @@
 
       @if (rows().length === 0) {
         <div class="lx-empty-state" data-testid="requests-empty">
-          <ng-icon name="phosphorTrayDuotone" size="32" aria-hidden="true" />
           <p>{{ emptyText() }}</p>
           @if (filter() !== 'ANSWERED') {
             <a pButton [routerLink]="['/programs', programId(), 'review']" severity="secondary" size="small"><span pButtonLabel>Open Review</span></a>
@@ -53,7 +49,7 @@
           <ng-template #body let-row let-isExpanded="expanded" let-i="rowIndex">
             @let st = state(row);
             @let reason = blocked(row);
-            <tr [attr.data-ref]="row.requirementRef" [attr.data-state]="st.key" [lxEnter]="i">
+            <tr [attr.data-ref]="row.requirementRef" [attr.data-state]="st.key">
               <td class="lx-toggle-cell">
                 <button pButton type="button" [pRowToggler]="row" severity="secondary" [text]="true" size="small" class="lx-toggle"
                         [attr.aria-expanded]="isExpanded" [attr.aria-controls]="'request-detail-' + row.mappingId"
@@ -73,7 +69,7 @@
                 </p>
               </td>
               <td>
-                <p-tag [severity]="st.severity" [value]="st.label"><ng-template #icon><ng-icon [name]="st.icon" size="14" aria-hidden="true" /></ng-template></p-tag>
+                <lx-label>{{ st.label }}</lx-label>
               </td>
               <td class="lx-answers-cell">
                 <!-- The number sits under the Answers header; a card (narrow screens, no header) says it in words. -->
@@ -86,12 +82,12 @@
               <td class="lx-action">
                 @if (canAnswer(row)) {
                   <button pButton type="button" size="small" (click)="answer(row, $event.target)" [attr.aria-label]="'Provide evidence for ' + row.requirementRef">
-                    <ng-icon name="phosphorQuotes" size="16" aria-hidden="true" /><span pButtonLabel>Provide evidence</span>
+                    <span pButtonLabel>Provide evidence</span>
                   </button>
                 } @else if (reason) {
                   <span class="lx-blocked" data-testid="blocked-reason">
-                    <span>{{ blockedText[reason].short }}</span>
-                    <lx-info-tip [label]="'Why ' + row.requirementRef + ' is blocked'">{{ blockedText[reason].why }}</lx-info-tip>
+                    <span class="lx-term" tabindex="0" tooltipEvent="both" [pTooltip]="blockedText[reason].why" tooltipPosition="left"
+                          [attr.aria-description]="blockedText[reason].why">{{ blockedText[reason].short }}</span>
                   </span>
                 } @else {
                   <span class="lx-help">With the reviewer</span>
@@ -103,11 +99,11 @@
             <tr class="lx-request-detail-row">
               <td colspan="6" [id]="'request-detail-' + row.mappingId">
                 <dl class="lx-request-detail">
-                  <div><dt class="lx-label">Request note</dt><dd class="lx-request-note">{{ row.requestNote ?? 'No note.' }}</dd></div>
-                  <div><dt class="lx-label">Asked</dt><dd>{{ row.requestedByName ?? 'An unknown user' }}, {{ row.requestedAt | date: 'd MMM y, HH:mm' }}</dd></div>
+                  <div><dt class="lx-meta">Request note</dt><dd class="lx-request-note">{{ row.requestNote ?? 'No note.' }}</dd></div>
+                  <div><dt class="lx-meta">Asked</dt><dd>{{ row.requestedByName ?? 'An unknown user' }}, {{ row.requestedAt | date: 'd MMM y, HH:mm' }}</dd></div>
                   @if (row.latestResponse; as latest) {
                     <div>
-                      <dt class="lx-label">Latest answer</dt>
+                      <dt class="lx-meta">Latest answer</dt>
                       <dd>{{ latest.providedByName }}, {{ latest.createdAt | date: 'd MMM y, HH:mm' }}: {{ latest.filename }}, page
                         <span class="lx-mono">{{ latest.pageNumber }}</span></dd>
                     </div>
@@ -120,9 +116,9 @@
       }
     </section>
   } @else if (!context.error()) {
-    <div class="lx-hero lx-inbox lx-skeleton" aria-busy="true" aria-label="Loading evidence requests">
-      <p-skeleton width="16rem" height="2.25rem" />
-      @for (i of [1, 2, 3]; track i) { <p-skeleton height="3.25rem" /> }
+    <div class="lx-inbox lx-skeleton" role="status" aria-busy="true" aria-label="Loading evidence requests">
+      <p-skeleton aria-hidden="true" width="16rem" height="2.25rem" />
+      @for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="3.25rem" /> }
     </div>
   }
 </div>

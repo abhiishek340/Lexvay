@@ -11,7 +11,7 @@ const item = (over: Partial<WorkItem>): WorkItem => ({
 describe('workItemView', () => {
   it('writes the count before the noun and opens Review on the state', () => {
     expect(workItemView(item({}), null, name)).toEqual({
-      icon: 'phosphorListChecks', title: '8 to review', detail: 'California · M.S. Counseling',
+      title: '8 to review', detail: 'California · M.S. Counseling',
       commands: ['/programs', 'p1', 'review'], queryParams: { jurisdiction: 'CA' },
     });
     expect(workItemView(item({ kind: 'EVIDENCE_REQUESTS_OPEN', count: 1 }), null, name)).toMatchObject({ title: '1 evidence request', commands: ['/programs', 'p1', 'requests'] });
@@ -21,14 +21,14 @@ describe('workItemView', () => {
   it('opens a rule version to approve in the program being worked on', () => {
     const rule = item({ kind: 'RULE_VERSIONS_TO_APPROVE', programId: null, programName: null, jurisdictionCode: 'CO', count: 2, ids: { ruleVersionIds: ['rv1', 'rv2'] } });
     expect(workItemView(rule, 'p9', name)).toEqual({
-      icon: 'phosphorScales', title: '2 rule versions to approve', detail: 'Colorado', commands: ['/programs', 'p9', 'rules', 'rv1'],
+      title: '2 rule versions to approve', detail: 'Colorado', commands: ['/programs', 'p9', 'rules', 'rv1'],
     });
     expect(workItemView(rule, null, name).commands).toEqual(['/']);
   });
 
   it('opens open changes in the first program they touch', () => {
     const change = item({ kind: 'CHANGES_OPEN', programId: null, programName: null, jurisdictionCode: null, count: 1, ids: { changeKind: 'COURSE_VERSION', programIds: ['p2'] } });
-    expect(workItemView(change, 'p9', name)).toEqual({ icon: 'phosphorGitDiff', title: '1 open change', detail: 'New course versions', commands: ['/programs', 'p2', 'changes'] });
+    expect(workItemView(change, 'p9', name)).toEqual({ title: '1 open change', detail: 'New course versions', commands: ['/programs', 'p2', 'changes'] });
   });
 
   it('opens a failed assessment on its program overview', () => {

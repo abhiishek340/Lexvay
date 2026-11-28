@@ -1,7 +1,7 @@
-:host { --rail: 232px; }
+:host { --rail: 220px; }
 .lx-skip {
   position: absolute; left: 8px; top: -64px; z-index: 1200;
-  padding: 8px 12px; background: var(--p-lx-accent); color: var(--p-lx-on-accent); border-radius: var(--lx-r-control); font-weight: 550;
+  padding: 6px 12px; background: var(--p-lx-ink); color: var(--p-lx-paper); border-radius: var(--lx-r-control); font-size: 13px; line-height: 20px; font-weight: 500;
 }
 .lx-skip:focus { top: 8px; }
 
@@ -9,128 +9,126 @@
 .lx-app--pending { visibility: hidden; }
 .lx-print-notice { display: none; }
 
-/* Top bar: three columns, the search field centred on the page. */
+/* Top bar (DESIGN.md "Shell"): 48 px on paper with a hairline below. The brand sits over the rail's 16 px inset, the
+   switcher and the search field follow it, and the queue and the account close the row on the right. */
 .lx-topbar {
   position: relative; z-index: 2; height: var(--lx-topbar); flex: none; box-sizing: border-box;
-  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 16px; padding: 0 16px;
-  background: var(--p-lx-surface); transition: box-shadow var(--lx-t-2) var(--lx-ease-out);
+  display: flex; align-items: center; gap: 8px; padding: 0 16px;
+  background: var(--p-lx-paper); border-bottom: 1px solid var(--p-lx-line);
 }
-.lx-topbar--scrolled { box-shadow: var(--p-lx-e1); }
-.lx-topbar-start, .lx-topbar-end { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.lx-topbar-end { justify-content: flex-end; gap: 8px; }
-.lx-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--p-lx-text); text-decoration: none; border-radius: var(--lx-r-control); flex: none; }
-.lx-brand:hover { color: var(--p-lx-text); }
-.lx-wordmark { font-size: 17px; font-weight: 650; letter-spacing: -0.02em; }
+.lx-brand { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding-right: 8px; color: var(--p-lx-ink); text-decoration: none; border-radius: var(--lx-r-control); flex: none; }
+a.lx-brand:hover { color: var(--p-lx-ink); }
+.lx-wordmark { font-size: 15px; line-height: 24px; font-weight: 600; letter-spacing: -0.004em; }
 .lx-switcher { min-width: 0; }
+/* What the switcher shows until its chunk arrives: the same box, so nothing moves when it does. */
 .lx-switcher-placeholder {
-  display: inline-block; max-width: 360px; box-sizing: border-box; padding: 5px 40px 5px 14px; border-radius: var(--lx-r-pill);
-  background: var(--p-lx-surface-2); font-size: 13px; line-height: 20px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: inline-block; max-width: 280px; box-sizing: border-box; height: 32px; padding: 6px 36px 6px 8px;
+  font-size: 13px; line-height: 20px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .lx-search {
-  width: min(400px, 36vw); height: 36px; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 12px;
-  border: 0; border-radius: var(--lx-r-pill); background: var(--p-lx-surface-2); color: var(--p-lx-text-2); font: inherit; cursor: pointer;
-  transition: background-color var(--lx-t-1) var(--lx-ease-out), box-shadow var(--lx-t-1) var(--lx-ease-out);
+  width: 280px; height: 32px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; margin-left: 8px; padding: 0 10px;
+  border: 1px solid var(--p-lx-line-control); border-radius: var(--lx-r-control); background: var(--p-lx-surface); color: var(--p-lx-ink-2);
+  font: inherit; font-size: 13px; line-height: 20px; cursor: text; flex: none;
+  transition: border-color var(--lx-t-fast) var(--lx-ease);
 }
-.lx-search:hover { background: var(--p-lx-line); color: var(--p-lx-text); }
-.lx-search-text { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lx-search kbd { background: var(--p-lx-surface); }
+.lx-search:hover { border-color: var(--p-lx-ink-2); }
+.lx-search-text { flex: 1; text-align: left; }
+.lx-search-key { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; }
 
+.lx-topbar-end { display: flex; align-items: center; gap: 4px; margin-left: auto; min-width: 0; }
 .lx-demo {
-  display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 4px 0 10px; border-radius: var(--lx-r-pill);
-  background: var(--p-lx-ambiguous-tint); color: var(--p-lx-ambiguous); font-size: 12px; font-weight: 600; white-space: nowrap;
+  margin-right: 12px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2);
+  white-space: nowrap; border-radius: 4px; cursor: default;
 }
-.lx-demo ::ng-deep .lx-info-tip { color: var(--p-lx-ambiguous); }
-
-.lx-icon-button {
-  position: relative; width: 36px; height: 36px; padding: 0; border: 0; border-radius: var(--lx-r-control); display: grid; place-items: center;
-  background: transparent; color: var(--p-lx-text-2); cursor: pointer; transition: background-color var(--lx-t-1) var(--lx-ease-out), color var(--lx-t-1);
+.lx-icon-button, .lx-account {
+  position: relative; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--lx-r-control); display: grid; place-items: center; flex: none;
+  background: transparent; color: var(--p-lx-ink-2); cursor: pointer; transition: background-color var(--lx-t-fast) var(--lx-ease), color var(--lx-t-fast) var(--lx-ease);
 }
-.lx-icon-button:hover, .lx-icon-button[aria-expanded='true'] { background: var(--p-lx-surface-2); color: var(--p-lx-text); }
-.lx-queue-badge { position: absolute; top: 3px; right: 1px; transform: translate(40%, -30%); pointer-events: none; }
+.lx-icon-button:hover, .lx-icon-button[aria-expanded='true'], .lx-account:hover, .lx-account[aria-expanded='true'] { background: var(--p-lx-sunken); color: var(--p-lx-ink); }
+/* Something needs the signed-in person: a 6 px accent dot; the count is inside the popover. */
+.lx-queue-dot { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--p-lx-accent); box-shadow: 0 0 0 2px var(--p-lx-paper); }
 .lx-avatar {
-  width: 32px; height: 32px; margin-left: 4px; padding: 0; border: 0; border-radius: var(--lx-r-pill); flex: none; cursor: pointer;
-  background: var(--p-lx-accent-tint); color: var(--p-lx-accent); font: inherit; font-size: 12px; font-weight: 650; letter-spacing: 0.02em;
-  transition: box-shadow var(--lx-t-1) var(--lx-ease-out);
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--p-lx-sunken); color: var(--p-lx-ink);
+  font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: 0.02em;
 }
-.lx-avatar:hover, .lx-avatar[aria-expanded='true'] { box-shadow: 0 0 0 3px var(--p-lx-surface-2); }
+.lx-account:hover .lx-avatar, .lx-account[aria-expanded='true'] .lx-avatar { background: var(--p-lx-line); }
 
 /* The frame under the bar. */
 .lx-frame { flex: 1; display: flex; min-height: 0; }
 main { flex: 1; min-width: 0; min-height: 0; overflow: auto; outline: none; }
 
-/* Rail: icon and label, the active item an accent-tint pill that glides between items. */
+/* Rail (DESIGN.md "Rail"): 32 px rows edge to edge, a 16 px icon and the label, two groups under meta headings. The
+   active row is ink on sunken with a 2 px ink rule at its left edge; counts are plain tabular meta text. */
 .lx-rail {
-  flex: none; width: var(--rail); box-sizing: border-box; padding: 12px 12px; display: flex; flex-direction: column;
-  background: var(--p-lx-ground); overflow-y: auto; overflow-x: hidden;
+  flex: none; width: var(--rail); box-sizing: border-box; padding: 16px 0 12px; display: flex; flex-direction: column; gap: 24px;
+  background: var(--p-lx-paper); border-right: 1px solid var(--p-lx-line); overflow-y: auto; overflow-x: hidden;
 }
-.lx-rail ul { position: relative; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.lx-rail-pill {
-  position: absolute; left: 0; right: 0; top: 0; height: 40px; border-radius: 10px; background: var(--p-lx-accent-tint);
-  transition: transform var(--lx-t-3) var(--lx-ease-out); pointer-events: none;
-}
+.lx-rail ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.lx-rail-heading { padding: 0 16px 8px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); white-space: nowrap; }
 .lx-rail a, .lx-rail-more button {
-  position: relative; display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 10px;
-  color: var(--p-lx-text-2); text-decoration: none; font-weight: 550; font-size: 14px; white-space: nowrap;
-  transition: color var(--lx-t-1) var(--lx-ease-out), background-color var(--lx-t-1) var(--lx-ease-out);
+  position: relative; display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 16px; box-sizing: border-box;
+  color: var(--p-lx-ink-2); text-decoration: none; font-size: 13px; line-height: 20px; font-weight: 500; white-space: nowrap;
+  transition: color var(--lx-t-fast) var(--lx-ease), background-color var(--lx-t-fast) var(--lx-ease);
 }
-.lx-rail a:hover, .lx-rail-more button:hover { color: var(--p-lx-text); background: var(--p-lx-surface-2); }
+.lx-rail a:hover, .lx-rail-more button:hover { color: var(--p-lx-ink); background: var(--p-lx-sunken); }
+.lx-rail a.lx-active { color: var(--p-lx-ink); background: var(--p-lx-sunken); box-shadow: inset 2px 0 0 var(--p-lx-ink); }
+.lx-rail a:focus-visible, .lx-rail-more button:focus-visible { outline-offset: -2px; }
+.lx-rail ng-icon { flex: none; }
+.lx-nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.lx-nav-count { flex: none; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums; }
 /* The "More" tab exists only in the bottom tab bar. */
 .lx-rail-more { display: none; }
 .lx-rail-more button { width: 100%; border: 0; background: transparent; cursor: pointer; font: inherit; justify-content: center; padding: 0; }
-.lx-rail a.lx-active { color: var(--p-lx-accent); background: transparent; }
-.lx-rail a:focus-visible { outline-offset: -2px; }
-.lx-rail ng-icon { flex: none; }
-.lx-nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-.lx-nav-count {
-  flex: none; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 6px; border-radius: var(--lx-r-pill);
-  display: inline-grid; place-items: center; font-size: 11px; font-weight: 650; background: var(--p-lx-surface-2); color: var(--p-lx-text-2);
-}
-.lx-rail a.lx-active .lx-nav-count { background: var(--p-lx-surface); color: var(--p-lx-accent); }
-/* The tenant-wide entry sits above the program's screens, set apart by a divider. */
-.lx-rail-tenant { padding-bottom: 10px; margin-bottom: 8px; border-bottom: 1px solid var(--p-lx-line); }
 .lx-rail-toggle {
-  margin-top: auto; align-self: flex-start; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 10px; display: grid; place-items: center;
-  background: transparent; color: var(--p-lx-text-2); cursor: pointer;
+  margin: auto 0 0 12px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--lx-r-control); display: grid; place-items: center; flex: none;
+  background: transparent; color: var(--p-lx-ink-2); cursor: pointer;
 }
-.lx-rail-toggle:hover { background: var(--p-lx-surface-2); color: var(--p-lx-text); }
+.lx-rail-toggle:hover { background: var(--p-lx-sunken); color: var(--p-lx-ink); }
 
-/* Collapsed (chosen, or any window under 1200 px): icons only, labels kept as accessible names. */
-.lx-app--collapsed .lx-rail { --rail: 64px; }
-.lx-app--collapsed .lx-nav-label, .lx-app--collapsed .lx-nav-count { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+/* Collapsed (chosen, or any window under 1200 px): 56 px of icons, the names kept as accessible names and tooltips,
+   the two groups parted by a hairline instead of their headings. */
+.lx-app--collapsed .lx-rail { --rail: 56px; }
+.lx-app--collapsed .lx-nav-label, .lx-app--collapsed .lx-nav-count, .lx-app--collapsed .lx-rail-heading {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
+}
 .lx-app--collapsed .lx-rail a { justify-content: center; padding: 0; }
+.lx-app--collapsed .lx-rail-group + .lx-rail-group { padding-top: 24px; border-top: 1px solid var(--p-lx-line); }
 @media (max-width: 1199px) {
-  .lx-rail { --rail: 64px; }
-  .lx-nav-label, .lx-nav-count { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .lx-rail { --rail: 56px; }
+  .lx-nav-label, .lx-nav-count, .lx-rail-heading { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .lx-rail a { justify-content: center; padding: 0; }
+  .lx-rail-group + .lx-rail-group { padding-top: 24px; border-top: 1px solid var(--p-lx-line); }
   .lx-rail-toggle { display: none; }
 }
 @media (max-width: 960px) {
-  .lx-search { width: 40px; padding: 0; justify-content: center; }
-  .lx-search-text, .lx-search kbd { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .lx-topbar { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .lx-search { width: 32px; padding: 0; margin-left: 0; justify-content: center; border-color: transparent; background: transparent; cursor: pointer; }
+  .lx-search:hover { background: var(--p-lx-sunken); border-color: transparent; color: var(--p-lx-ink); }
+  .lx-search-text, .lx-search-key { display: none; }
 }
 
-/* Under 640 px the rail is a tab bar along the bottom of the window. */
+/* Under 640 px the rail is a tab bar along the bottom of the window: 20 px icons, the active tab in ink under a 2 px
+   ink rule along its top edge. */
 @media (max-width: 639px) {
   .lx-frame { flex-direction: column-reverse; }
   .lx-rail {
-    width: auto; height: 56px; padding: 0 4px; flex-direction: row; overflow-x: auto; overflow-y: hidden;
-    background: var(--p-lx-surface); box-shadow: var(--p-lx-e1);
+    width: auto; height: 56px; padding: 0 4px; flex-direction: row; gap: 0; overflow: hidden;
+    background: var(--p-lx-paper); border-right: 0; border-top: 1px solid var(--p-lx-line);
   }
-  .lx-rail ul { flex-direction: row; flex: 1; gap: 0; }
+  .lx-rail-group { display: contents; }
+  .lx-rail ul { display: contents; }
+  .lx-rail-group + .lx-rail-group { padding: 0; border: 0; }
   /* Nine screens fit a 400 px window at 40 px each. */
-  .lx-rail li { flex: 1 0 40px; }
-  .lx-rail-pill, .lx-rail-toggle { display: none; }
-  .lx-rail-tenant { padding: 0; margin: 0; border: 0; }
-  .lx-rail a, .lx-rail-more button { height: 56px; border-radius: 0; }
-  .lx-rail a.lx-active, .lx-rail-more button.lx-active { color: var(--p-lx-accent); box-shadow: inset 0 -2px 0 var(--p-lx-accent); }
+  .lx-rail li { flex: 1 0 40px; display: flex; }
+  .lx-rail-toggle { display: none; }
+  .lx-rail a, .lx-rail-more button { flex: 1; height: 56px; }
+  .lx-rail a.lx-active, .lx-rail-more button.lx-active { color: var(--p-lx-ink); background: transparent; box-shadow: inset 0 2px 0 var(--p-lx-ink); }
   /* Screens that do not fit go into "More" (tabBarOverflow), so the bar never scrolls sideways. */
   .lx-rail li.lx-rail-overflow { display: none; }
-  .lx-rail-more { display: block; flex: 1 0 40px; }
-  .lx-topbar { gap: 8px; padding: 0 8px 0 12px; }
-  .lx-wordmark, .lx-switcher, .lx-switcher-placeholder, .lx-demo-text { display: none; }
-  .lx-demo { padding: 0 4px; background: transparent; }
+  .lx-rail-more { display: flex; flex: 1 0 40px; }
+  .lx-topbar { gap: 4px; padding: 0 8px 0 12px; }
+  .lx-wordmark, .lx-switcher, .lx-switcher-placeholder { display: none; }
+  .lx-demo { margin-right: 4px; }
 }
 
 /* Printing shows the page, not the product around it; demo tenants keep the fictional-data notice. */
@@ -139,5 +137,5 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; outline: none; }
   .lx-app { display: block; height: auto; overflow: visible; }
   .lx-frame { display: block; }
   main { overflow: visible; }
-  .lx-print-notice { display: block; background: #fff; color: #000; border: 1px solid #000; padding: 8px 12px; margin-bottom: 16px; font-size: 13px; }
+  .lx-print-notice { display: block; border: 1px solid var(--p-lx-ink); padding: 8px 12px; margin-bottom: 16px; font-size: 13px; }
 }

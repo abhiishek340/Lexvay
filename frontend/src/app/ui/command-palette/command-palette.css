@@ -2,22 +2,20 @@
 ::ng-deep .lx-palette.p-dialog { width: min(640px, calc(100vw - 32px)); margin-top: 12vh; overflow: hidden; }
 ::ng-deep .lx-palette .p-dialog-header { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
 ::ng-deep .lx-palette .p-dialog-content { padding: 0; }
-::ng-deep .lx-palette .p-commandmenu-header { display: flex; align-items: center; gap: 12px; box-shadow: inset 0 -2px 0 transparent; transition: box-shadow var(--lx-t-1) var(--lx-ease-out); }
+::ng-deep .lx-palette .p-commandmenu-header { display: flex; align-items: center; gap: 12px; box-shadow: inset 0 -2px 0 transparent; transition: box-shadow var(--lx-t-fast) var(--lx-ease); }
 /* The field is the whole header: its focus indicator is a 2 px accent line along the header's foot. */
 ::ng-deep .lx-palette .p-commandmenu-header:focus-within { box-shadow: inset 0 -2px 0 var(--p-lx-accent); }
 ::ng-deep .lx-palette .p-commandmenu-input { font-family: var(--lx-font-sans); outline: none; }
-.lx-palette-search { flex: none; color: var(--p-lx-text-2); }
-::ng-deep .lx-palette .p-menu-submenu-label { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--p-lx-text-2); padding: 12px 12px 6px; }
-::ng-deep .lx-palette .p-menu-item.p-focus .lx-command-enter { opacity: 1; }
-::ng-deep .lx-palette .p-menu-item.p-focus > .p-menu-item-content { background: var(--p-lx-accent-tint); }
+.lx-palette-search { flex: none; color: var(--p-lx-ink-2); }
+::ng-deep .lx-palette .p-menu-submenu-label { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; color: var(--p-lx-ink-2); padding: 12px 8px 4px; }
+::ng-deep .lx-palette .p-menu-item.p-focus > .p-menu-item-content { background: var(--p-lx-sunken); }
 
-.lx-command { display: flex; align-items: center; gap: 12px; padding: 8px 10px; color: var(--p-lx-text); text-decoration: none; border-radius: 8px; min-width: 0; }
-.lx-command-icon { flex: none; color: var(--p-lx-text-2); }
-.lx-command-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
-.lx-command-hint { flex: none; font-family: var(--lx-font-mono); font-size: 12px; color: var(--p-lx-text-2); }
-.lx-command-enter { flex: none; color: var(--p-lx-text-2); opacity: 0; transition: opacity var(--lx-t-1) var(--lx-ease-out); }
+/* 32 px rows: the result type's icon in ink-2, the label in UI type, a hint in meta type at the right. */
+.lx-command { display: flex; align-items: center; gap: 12px; padding: 6px 8px; color: var(--p-lx-ink); text-decoration: none; border-radius: 4px; min-width: 0; font-size: 13px; line-height: 20px; }
+.lx-command-icon { flex: none; color: var(--p-lx-ink-2); }
+.lx-command-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lx-command-hint { flex: none; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--p-lx-ink-2); }
 
-.lx-palette-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--p-lx-text-2); }
-.lx-palette-empty ng-icon { color: var(--p-lx-accent); }
-.lx-palette-keys { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; color: var(--p-lx-text-2); }
+.lx-palette-empty { padding: 16px 8px; color: var(--p-lx-ink-2); }
+.lx-palette-keys { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; color: var(--p-lx-ink-2); }
 .lx-palette-keys kbd + kbd, .lx-palette-keys kbd:not(:first-child) { margin-left: 8px; }

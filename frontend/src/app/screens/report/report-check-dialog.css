@@ -14,10 +14,10 @@
 .lx-drop {
   display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 24px;
   border: 1px dashed var(--p-lx-line-strong); border-radius: 6px;
-  transition: border-color 120ms ease-out;
+  transition: border-color var(--lx-t-fast) var(--lx-ease);
 }
 :host ::ng-deep .p-fileupload-content[data-p-highlight='true'] .lx-drop { border-color: var(--p-lx-accent); }
-.lx-drop-title { font-size: 14px; line-height: 20px; color: var(--p-lx-text-2); }
+.lx-drop-title { font-size: 14px; line-height: 20px; color: var(--p-lx-ink-2); }
 .lx-check-error { display: block; margin-top: 12px; }
 
 /* One result: a plain heading, then meta lines, then the fingerprint. */
@@ -25,13 +25,13 @@
 .lx-result-seal { margin-bottom: 8px; }
 .lx-result-headline { margin: 0; font-size: 15px; line-height: 24px; font-weight: 600; letter-spacing: -0.004em; }
 .lx-result-headline:focus:not(:focus-visible) { outline: none; }
-.lx-quiet { color: var(--p-lx-text-2); }
-.lx-meta { list-style: none; margin: 0; padding: 0; font-size: 13px; line-height: 20px; color: var(--p-lx-text-2); }
+.lx-quiet { color: var(--p-lx-ink-2); }
+.lx-meta { list-style: none; margin: 0; padding: 0; font-size: 13px; line-height: 20px; color: var(--p-lx-ink-2); }
 .lx-open { color: var(--p-lx-accent); font-size: 13px; line-height: 20px; font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
 
 .lx-fingerprint {
   display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 12px; align-self: stretch;
-  border-top: 1px solid var(--p-lx-line); font-size: 12px; line-height: 16px; font-weight: 500; color: var(--p-lx-text-2);
+  border-top: 1px solid var(--p-lx-line); font-size: 12px; line-height: 16px; font-weight: 500; color: var(--p-lx-ink-2);
 }
-.lx-fingerprint .lx-mono { color: var(--p-lx-text); }
+.lx-fingerprint .lx-mono { color: var(--p-lx-ink); }
 .lx-fingerprint button[pButton] { width: 28px; height: 28px; padding: 0; }

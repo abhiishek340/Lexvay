@@ -6,12 +6,11 @@
 .lx-rules-panes { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; overflow: clip; }
 .lx-versions {
   position: sticky; top: 0; max-height: calc(100dvh - 120px); overflow-y: auto; align-self: stretch;
-  background: var(--p-lx-surface-2); border-radius: var(--lx-r-hero) 0 0 var(--lx-r-hero);
+  background: var(--p-lx-sunken); border-radius: var(--lx-r-control) 0 0 var(--lx-r-control);
 }
 .lx-versions-heading { display: flex; align-items: center; gap: 8px; padding: 16px 16px 4px; }
 .lx-versions-count {
-  min-width: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 999px; text-align: center;
-  font-size: 12px; line-height: 20px; font-weight: 600; color: var(--p-lx-text-2); background: var(--p-lx-surface);
+  font-size: 12px; line-height: 16px; font-weight: 500; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums;
 }
 .lx-version-pane { min-width: 0; }
 
@@ -19,24 +18,24 @@
 :host ::ng-deep .lx-version-list .p-listbox-list { padding: 0 8px 12px; gap: 2px; }
 :host ::ng-deep .lx-version-list .p-listbox-option-group { padding: 14px 8px 6px; background: transparent; }
 :host ::ng-deep .lx-version-list .p-listbox-option {
-  padding: 10px 12px; border-radius: 10px; position: relative; color: var(--p-lx-text);
-  transition: background-color var(--lx-t-1) var(--lx-ease-out), box-shadow var(--lx-t-2) var(--lx-ease-out);
+  padding: 10px 12px; border-radius: 10px; position: relative; color: var(--p-lx-ink);
+  transition: background-color var(--lx-t-fast) var(--lx-ease), box-shadow var(--lx-t) var(--lx-ease);
 }
 :host ::ng-deep .lx-version-list .p-listbox-option:not(.p-listbox-option-selected):hover { background: var(--p-lx-surface); }
 :host ::ng-deep .lx-version-list .p-listbox-option.p-focus { outline: 2px solid var(--p-lx-accent); outline-offset: -2px; }
 /* The chosen version is lifted onto the surface, so it reads as the one the panel beside it shows. */
-:host ::ng-deep .lx-version-list .p-listbox-option-selected { background: var(--p-lx-surface); color: var(--p-lx-text); box-shadow: var(--p-lx-e2); }
+:host ::ng-deep .lx-version-list .p-listbox-option-selected { background: var(--p-lx-surface); color: var(--p-lx-ink); box-shadow: inset 0 0 0 1px var(--p-lx-line); }
 :host ::ng-deep .lx-version-list .p-listbox-option-selected::before {
   content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--p-lx-accent);
 }
-.lx-group { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 20px; font-weight: 600; color: var(--p-lx-text); }
+.lx-group { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 20px; font-weight: 600; color: var(--p-lx-ink); }
 .lx-version { display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 18px; width: 100%; min-width: 0; }
-.lx-version-label { font-weight: 550; overflow-wrap: anywhere; }
-.lx-version-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; color: var(--p-lx-text-2); }
-.lx-version-status { display: inline-flex; align-items: center; gap: 6px; color: var(--p-lx-text-2); font-weight: 500; }
-.lx-version-status[data-tone='accent'] ng-icon { color: var(--p-lx-accent); }
+.lx-version-label { font-weight: 500; overflow-wrap: anywhere; }
+.lx-version-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; color: var(--p-lx-ink-2); }
+.lx-version-status { display: inline-flex; align-items: center; gap: 6px; color: var(--p-lx-ink-2); font-weight: 500; }
+.lx-version-status[data-tone='accent'] ng-icon { color: var(--p-lx-ink); }
 .lx-version-status[data-tone='missing'] ng-icon { color: var(--p-lx-missing); }
-.lx-version-status[data-tone='ambiguous'] ng-icon { color: var(--p-lx-ambiguous); }
+.lx-version-status[data-tone='ambiguous'] ng-icon { color: var(--p-lx-ink-2); }
 .lx-version-status[data-tone='found'] ng-icon { color: var(--p-lx-found); }
 
 .lx-rules-skeleton { display: grid; grid-template-columns: 300px 1fr; gap: 12px; }
@@ -45,5 +44,5 @@
 /* Under 1024 px the list sits above the version. */
 @media (max-width: 1023px) {
   .lx-rules-panes, .lx-rules-skeleton { grid-template-columns: minmax(0, 1fr); }
-  .lx-versions { position: static; max-height: 22rem; border-radius: var(--lx-r-hero) var(--lx-r-hero) 0 0; }
+  .lx-versions { position: static; max-height: 22rem; border-radius: var(--lx-r-control) var(--lx-r-control) 0 0; }
 }

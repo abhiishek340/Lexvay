@@ -2,11 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorUsersDuotone } from '@ng-icons/phosphor-icons/duotone';
-import {
-  phosphorArrowCounterClockwise, phosphorCheck, phosphorCheckCircle, phosphorClock, phosphorCopy, phosphorHourglass, phosphorKey,
-  phosphorProhibit, phosphorSignOut, phosphorUserGear, phosphorUserPlus,
-} from '@ng-icons/phosphor-icons/regular';
+import { phosphorArrowCounterClockwise, phosphorKey, phosphorProhibit, phosphorUserGear } from '@ng-icons/phosphor-icons/regular';
 import { ConfirmationService, MenuItem, MessageService } from 'primeng/api';
 import { Avatar } from 'primeng/avatar';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
@@ -19,7 +15,6 @@ import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
 import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
-import { Tag } from 'primeng/tag';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { ROLE_LABEL } from '../../core/labels';
@@ -28,21 +23,25 @@ import { problemDetail } from '../../core/problem';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
 import type { IconName } from '../../theme/icons';
-import { Enter } from '../../ui/enter';
-import { InfoTip } from '../../ui/info-tip';
+import { Help, HelpTerm } from '../../ui/help';
 import { initials } from '../../ui/initials';
+import { Label } from '../../ui/label';
 import { PEOPLE_TOKENS } from './people-theme';
 import {
-  NO_PEOPLE_QUERY, PERSON_STATUS, PeopleQuery, PersonAction, ROLE_OPTIONS, STATUS_OPTIONS, filterPeople, filtered, peopleCount, personActions,
-  personStatus, upsert,
+  NO_PEOPLE_QUERY, PERSON_STATUS, PeopleQuery, PersonAction, ROLES, ROLE_DESCRIPTION, ROLE_OPTIONS, STATUS_OPTIONS, filterPeople, filtered, peopleCount,
+  personActions, personStatus, upsert,
 } from './people-view';
 import { PersonDialog } from './person-dialog';
 
 /** The icons People shows beyond SHELL_ICONS, its dialogs included, provided by its route (people.routes.ts). */
-export const PEOPLE_ICONS = {
-  phosphorArrowCounterClockwise, phosphorCheck, phosphorCheckCircle, phosphorClock, phosphorCopy, phosphorHourglass, phosphorKey,
-  phosphorProhibit, phosphorSignOut, phosphorUserGear, phosphorUserPlus, phosphorUsersDuotone,
-};
+export const PEOPLE_ICONS = { phosphorArrowCounterClockwise, phosphorKey, phosphorProhibit, phosphorUserGear };
+
+/** People's definitions, behind its one Help button: how accounts work, then what each role may do. */
+const HELP: readonly HelpTerm[] = [
+  { term: 'Setup link', definition: 'Each person chooses their own password from a one-time link you hand over.' },
+  { term: 'Deactivate', definition: 'Nobody is deleted: deactivating ends their access and keeps their name on every record.' },
+  ...ROLES.map((role) => ({ term: ROLE_LABEL[role], definition: ROLE_DESCRIPTION[role] })),
+];
 
 /** A change waiting for the administrator's confirmation, and what the dialog says about it. */
 type Pending =
@@ -65,13 +64,14 @@ const ACTION_MENU: Record<PersonAction, { label: string; icon: IconName }> = {
   selector: 'lx-people',
   imports: [
     DatePipe, FormsModule, NgIcon, Avatar, ButtonDirective, ButtonLabel, ConfirmDialog, IconField, InputIcon, InputText, Menu, Message, Select, Skeleton,
-    TableModule, Tag, Enter, InfoTip, PersonDialog,
+    TableModule, Help, Label, PersonDialog,
   ],
   providers: [ConfirmationService],
   templateUrl: './people.html',
   styleUrl: './people.css',
 })
 export class People {
+  readonly help = HELP;
   private readonly api = inject(ApiService);
   private readonly session = inject(SessionService);
   private readonly confirmation = inject(ConfirmationService);

@@ -28,16 +28,16 @@ import { Drawer } from 'primeng/drawer';
   `,
   styles: `
     /* Under the drawer (PrimeNG places modal layers from z-index 1100) and over the page. */
-    .lx-sheet-backdrop { position: fixed; inset: 0; z-index: 1099; background: var(--p-mask-background); animation: lx-sheet-backdrop var(--lx-t-3) var(--lx-ease-out) both; }
+    .lx-sheet-backdrop { position: fixed; inset: 0; z-index: 1099; background: var(--p-mask-background); animation: lx-sheet-backdrop var(--lx-t) var(--lx-ease) both; }
     @keyframes lx-sheet-backdrop { from { opacity: 0; } }
     /* The drawer is appended to the body, outside :host: its width is set on PrimeNG's root by class. */
-    ::ng-deep .p-drawer.lx-sheet { max-width: none; border-radius: var(--lx-r-hero) 0 0 var(--lx-r-hero); }
+    ::ng-deep .p-drawer.lx-sheet { max-width: none; border-radius: var(--lx-r-control) 0 0 var(--lx-r-control); }
     ::ng-deep .p-drawer.lx-sheet-wide { width: 70%; }
     ::ng-deep .p-drawer.lx-sheet-narrow { width: min(40rem, 100%); }
     @media (max-width: 1023.98px) {
       ::ng-deep .p-drawer.lx-sheet-wide, ::ng-deep .p-drawer.lx-sheet-narrow { width: 100%; border-radius: 0; }
     }
-    .lx-sheet-heading { font-size: 20px; line-height: 28px; font-weight: 620; letter-spacing: -0.012em; overflow-wrap: anywhere; }
+    .lx-sheet-heading { font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.012em; overflow-wrap: anywhere; }
     .lx-sheet-heading:focus { outline: none; }
     .lx-sheet-heading:focus-visible { outline: 2px solid var(--p-lx-accent); outline-offset: 4px; }
   `,

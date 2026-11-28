@@ -5,15 +5,14 @@ import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { FileSelectEvent, FileUpload } from 'primeng/fileupload';
 import { Select } from 'primeng/select';
 import { Skeleton } from 'primeng/skeleton';
-import { Tag } from 'primeng/tag';
 import { humanize } from '../../core/labels';
 import { Course, DocumentKind, ProgramDocument } from '../../core/models';
 import { DocumentViewer } from '../../shared/document-viewer/document-viewer';
 import { Sheet } from '../../shared/sheet/sheet';
-import { Enter } from '../../ui/enter';
 import { DocumentState, currentVersion } from './setup-model';
 import { SetupNotice, SetupStore } from './setup-store';
 import { UploadEntry, UploadState } from './upload-queue';
+import { Label } from '../../ui/label';
 
 /** The kinds a program document can have; rule text is entered through rule versions (D-009). */
 const KINDS: DocumentKind[] = ['SYLLABUS', 'DEGREE_PLAN', 'HANDBOOK', 'ACCREDITATION'];
@@ -26,19 +25,19 @@ interface DocumentSection {
   documents: { document: ProgramDocument; state: DocumentState; current: boolean }[];
 }
 
-/** One word and one shape per upload state; the Tag colour only repeats them. */
-const UPLOAD_STATE: Record<UploadState, { label: string; severity: 'secondary' | 'info' | 'success' | 'danger' | 'warn' }> = {
-  WAITING: { label: 'Waiting', severity: 'secondary' },
-  UPLOADING: { label: 'Uploading', severity: 'info' },
-  READING: { label: 'Reading', severity: 'info' },
-  READY: { label: 'Ready', severity: 'success' },
-  FAILED: { label: 'Failed', severity: 'danger' },
-  DUPLICATE: { label: 'Already uploaded', severity: 'warn' },
+/** One word per upload state, shown as a Label (ui/label.ts). */
+const UPLOAD_STATE: Record<UploadState, { label: string }> = {
+  WAITING: { label: 'Waiting' },
+  UPLOADING: { label: 'Uploading' },
+  READING: { label: 'Reading' },
+  READY: { label: 'Ready' },
+  FAILED: { label: 'Failed' },
+  DUPLICATE: { label: 'Already uploaded' },
 };
-const DOCUMENT_STATE: Record<DocumentState, { label: string; severity: 'info' | 'success' | 'danger' }> = {
-  READING: { label: 'Reading', severity: 'info' },
-  READY: { label: 'Ready', severity: 'success' },
-  FAILED: { label: 'Not readable', severity: 'danger' },
+const DOCUMENT_STATE: Record<DocumentState, { label: string }> = {
+  READING: { label: 'Reading' },
+  READY: { label: 'Ready' },
+  FAILED: { label: 'Not readable' },
 };
 
 /**
@@ -49,7 +48,7 @@ const DOCUMENT_STATE: Record<DocumentState, { label: string; severity: 'info' | 
  */
 @Component({
   selector: 'lx-setup-documents',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, FileUpload, Select, Skeleton, Tag, DocumentViewer, Sheet, Enter],
+  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, FileUpload, Select, Skeleton, Label, DocumentViewer, Sheet],
   templateUrl: './documents-step.html',
   styleUrl: './steps.css',
 })
@@ -58,7 +57,6 @@ export class DocumentsStep {
   readonly announce = output<SetupNotice>();
   private readonly uploader = viewChild<FileUpload>('uploader');
 
-  readonly uploadState = UPLOAD_STATE;
   readonly documentState = DOCUMENT_STATE;
   readonly kinds = KINDS.map((value) => ({ value, label: capitalised(humanize(value)) }));
   readonly kindLabel = (kind: string): string => capitalised(humanize(kind));
