@@ -75,6 +75,7 @@ public abstract class AbstractDatabaseTest {
         registry.add("spring.flyway.user", () -> OWNER_USER);
         registry.add("spring.flyway.password", () -> OWNER_PASSWORD);
         registry.add("lexvay.jobs.polling-enabled", () -> "false");
+        registry.add("lexvay.audit.sealing-enabled", () -> "false");
         registry.add("lexvay.llm.rates", () -> "fake-llm=2.00:10.00");
         registry.add("lexvay.filestore.path", () -> FILE_STORE_DIR.toString());
     }

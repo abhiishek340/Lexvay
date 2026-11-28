@@ -2921,3 +2921,67 @@ Branch `fix-console-errors`, decisions D-471 to D-474 in `docs/decisions/FIX-8.m
    the default state into the URL. Unit tests: `core/auth.guard.spec.ts`, `core/navigation.spec.ts`.
 4. **Whole end-to-end suite** run with the guard: the only application console errors were the view-transition
    `AbortError`s; eight tests declare an expected 4xx or 5xx (D-474).
+
+## SEC-3 — Tamper-evident audit trail (PR #53)
+
+Branch `sec-audit-seal`, slot 6, migration V023 (written as V019, renumbered before merge because V020 and V022 reached main first).
+Decisions D-530 to D-537 are in `docs/decisions/SEC-3.md`.
+
+## Done
+- V023: `audit_seal` (unique `(tenant_id, seq)`, `forbid_change()` trigger, forced RLS), `audit_unsealed` (the queue;
+  forced RLS plus the worker-flag read policy `worker_queue_select`; index `(tenant_id, created_at, audit_id)`),
+  backfill of every existing audit entry into the queue.
+- Write path: `AuditRepository.insert` is one `WITH ... INSERT` statement that also queues the entry;
+  `Rule9_SingleAuditWritePathTest` greps `src/main` for any other `INSERT INTO audit_log`.
+- `AuditCanonical` (canonical form, hash through `DocumentService.sha256`), `AuditChainCheck` (pure walk rules),
+  `AuditSealRepository` (all sealer and verification SQL), `AuditSealer` (batches of 500, per-tenant advisory lock),
+  `AuditSealPoller` (the timer, `lexvay.audit.sealing-enabled`, `LEXVAY_AUDIT_SEAL_INTERVAL_MS`, stops with the app).
+- `GET /api/v1/audit/verify` (ADMIN), `AuditVerificationService`, `AuditVerification`; audited as `AUDIT_VERIFIED`
+  (row in `Rule9_AuditCoverageTest`, `InputValidationTableTest`, and the sentence and label in `audit-sentence.ts`
+  with its spec).
+- Export: `Seq`, `Row hash`, `Entry ID`, `Actor ID` columns (empty seq and hash while pending); end-to-end header
+  assertion updated.
+- `docs/OPERATIONS.md`: "Audit trail integrity" (what is proved and what is not, canonical form, a Python check of an
+  export, the SQL check against a restored database) and the new setting. `docs/PERF.md`: the seal section.
+- `make perf` runs `AuditSealPerfTest`.
+
+## Checks
+Final tree: SEC-3 merged with origin/main after OPS-2 (migrations V018, V020, V022, then this item's V023; F15's shared
+`AuditCsv` carries the seal columns, so the evidence package's `audit.csv` has them too, checked in `PackageApiTest`).
+`LEXVAY_E2E_SLOT=6 make test` and `make perf`, one run each, both exit 0:
+- Backend 1231 tests, 0 failures. Frontend unit 425 passed. End-to-end 56 passed (the stage waited for a free test
+  stack under the OPS-2 cap, as expected).
+- `make perf`: `EndpointLatencyTest`, `IndexUsageTest` and `AuditSealPerfTest` pass. Verifying 20 005 sealed entries took
+  71 to 89 ms (median 76 ms, budget 2 s); sealing them took 0.5 s. The queue read uses `audit_unsealed_tenant_idx` with
+  entries fetched by `audit_log_pkey`; the dequeue finds queue rows by `audit_unsealed_pkey`.
+- Earlier runs on this branch, made while other builds loaded the machine (load average 14 to 23) before OPS-2, lost
+  single timing-sensitive end-to-end tests and endpoint p95 values; none touched the audit trail and all passed on the
+  quiet reruns above.
+- The Python recipe in the operations guide was run against a real export: intact, and "broken at entry 6" after one
+  word of one entry was changed.
+
+## Deviations from the spec
+- Four export columns instead of two (D-535), and `AUDIT_VERIFIED` also records `firstBrokenSeq` when broken (D-536).
+- `AuditSealer` is not itself scheduled; `AuditSealPoller` is (D-533), so tests can switch the timer off.
+- The migration was V019 while it waited and is V023 now: V020 (F15) and V022 (MODE-1) merged first, and numbers follow merge
+  order.
+
+## OPS-2b — Stack lock race on Ubuntu 26.04 runners (PR #60)
+
+Branch `ops-stack-lock-fix`. Decision D-647 in `docs/decisions/OPS-2b.md`. Tooling only: no application code, no migration.
+
+## Cause
+The CI runner image is Ubuntu 26.04, whose `mkdir` is uutils coreutils 0.10.0. When two processes `mkdir` the same new
+path together, the loser's `mkdirat` fails with `EEXIST`, uutils looks at the path again, sees a directory and exits 0.
+The `mkdir`-based mutex of OPS-2 then admitted two holders, which shared one token, so the third holder found a free slot
+at once. Reproduced in `ubuntu:26.04` (1 failure in 6 runs of the unchanged test); `ubuntu:24.04` and macOS never fail.
+
+## Done
+- `scripts/lib/stack.sh`: the mutex is the file `<lock dir>/.mutex`, created by the shell's `O_EXCL` open (`set -C`),
+  removed with `rm -f`; the stale-mutex rule is unchanged. Header comment updated.
+- `scripts/lib/stack-lock-test.sh`: a new first section runs the mutex against a `mkdir` that reports success for an
+  existing directory and checks that a second contender stays blocked; it fails on the old code every time and passes
+  now. `no_mutex` checks for a file instead of a directory.
+
+## Results
+See the pull request for the command output.

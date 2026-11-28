@@ -136,6 +136,9 @@ class PackageApiTest extends AbstractAssessmentTest {
         assertThat(auditActions).contains("DETERMINATION_SIGNED", "REVIEW_RECORDED", "REPORT_REQUESTED", "REPORT_GENERATED",
                 "PACKAGE_REQUESTED").doesNotContain("PACKAGE_READY", "PACKAGE_DOWNLOADED", "LOGIN_SUCCEEDED");
         assertThat(auditActions.stream().filter("REVIEW_RECORDED"::equals)).hasSize(3);
+        assertThat(TestCsv.parse(new String(entries.get("audit.csv"), StandardCharsets.UTF_8)).get(0))
+                .as("the package's trail carries the seal columns of the audit export (SEC-3)")
+                .containsSequence("Seq", "Row hash", "Entry ID", "Actor ID");
 
         List<AuditEntry> packageTrail = auditOf(packageId);
         assertThat(packageTrail).extracting(AuditEntry::action).containsExactly("PACKAGE_DOWNLOADED", "PACKAGE_READY", "PACKAGE_REQUESTED");
