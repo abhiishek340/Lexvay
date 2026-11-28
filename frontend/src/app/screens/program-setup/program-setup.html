@@ -1,10 +1,10 @@
 <div class="lx-page lx-setup">
   <header class="lx-page-header">
-    <div class="lx-title-row">
+    <div>
       <h1>{{ programId() ? 'Program setup' : 'New program' }}</h1>
-      <lx-help [terms]="help" />
+      @if (store.program(); as p) { <p class="lx-meta">{{ p.name }} · {{ license(p) }} · Catalog {{ p.catalogYear }}</p> }
     </div>
-    @if (store.program(); as p) { <p class="lx-setup-subtitle">{{ p.name }}</p> }
+    <div class="lx-title-actions"><lx-help [terms]="help" /></div>
   </header>
   <!-- What a step just did, for assistive technology only: the toast says it on screen (no confirmation stays under the title). -->
   <p class="lx-sr-only" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
@@ -12,9 +12,10 @@
   @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
 
   <!-- PrimeNG's Stepper marks itself a tablist holding its panels; the steps here are a list of buttons with aria-current
-       instead (the WAI pattern for a step sequence), so its roles are replaced through pass-through (D-087). -->
-  <section class="lx-setup-hero" aria-label="Program setup">
-    <p-stepper [value]="stepValue()" (valueChange)="go($event)" [pt]="{ root: { role: null } }">
+       instead (the WAI pattern for a step sequence), so its roles are replaced through pass-through (D-087). The steps are a
+       numbered text list on the left and the open step's form or table on the right, a hairline between them. -->
+  <section class="lx-setup-columns" aria-label="Program setup">
+    <p-stepper class="lx-setup-stepper" [value]="stepValue()" (valueChange)="go($event)" [pt]="{ root: { role: null } }">
       <p-step-list class="lx-step-list" [pt]="{ root: { role: 'list', 'aria-label': 'Setup steps' } }">
         @for (s of steps; track s; let n = $index) {
           <p-step [value]="n + 1" [disabled]="!open(s)" [pt]="{ root: { role: 'listitem' } }">
@@ -22,9 +23,7 @@
               <button type="button" class="lx-step" [class.lx-step-active]="active" [class.lx-step-done]="done(s)" [disabled]="!open(s)"
                       [attr.aria-current]="active ? 'step' : null" [id]="'setup-step-' + s" (click)="activate()"
                       [attr.aria-label]="(n + 1) + '. ' + label[s] + ', ' + summaries()[s] + (done(s) ? ', done' : '')">
-                <span class="lx-step-n" aria-hidden="true">
-                  @if (done(s) && !active) { <ng-icon name="phosphorCheck" size="14" /> } @else { {{ n + 1 }} }
-                </span>
+                <span class="lx-step-n" aria-hidden="true">{{ n + 1 }}</span>
                 <span class="lx-step-text" aria-hidden="true">
                   <span class="lx-step-title">{{ label[s] }}</span>
                   <span class="lx-step-status" data-testid="step-status">{{ summaries()[s] }}</span>
@@ -45,11 +44,9 @@
                 <dl class="lx-fixed">
                   <div><dt>Name</dt><dd>{{ p.name }}</dd></div>
                   <div><dt>License type</dt><dd>{{ license(p) }}</dd></div>
-                  <div><dt>Catalog year</dt><dd class="lx-mono">{{ p.catalogYear }}</dd></div>
+                  <div><dt>Catalog year</dt><dd>{{ p.catalogYear }}</dd></div>
                 </dl>
-                <p class="lx-fixed-note">
-                  <ng-icon name="phosphorLockSimple" size="16" aria-hidden="true" />Fixed once created
-                </p>
+                <p class="lx-meta lx-fixed-note">Fixed once created</p>
               } @else if (programId()) {
                 <div class="lx-panel-skeleton" role="status" aria-busy="true" aria-label="Loading the program"><p-skeleton aria-hidden="true" height="2.5rem" /><p-skeleton aria-hidden="true" height="2.5rem" /></div>
               } @else {
@@ -70,12 +67,12 @@
                       </span>
                       <p-select inputId="program-license" [options]="licenseOptions()" [editable]="true" [ngModel]="f.licenseType" name="licenseType"
                                 (ngModelChange)="set('licenseType', $event ?? '')" [invalid]="!!p.licenseType" placeholder="Choose or type" appendTo="body"
-                                [fluid]="true" inputStyleClass="lx-mono" />
+                                [fluid]="true" />
                       @if (p.licenseType; as e) { <p-message severity="error" size="small" variant="simple">{{ e }}</p-message> }
                     </div>
                     <div class="lx-field">
                       <label for="program-year">Catalog year</label>
-                      <input pInputText id="program-year" class="lx-mono" placeholder="2026-27" [ngModel]="f.catalogYear" name="catalogYear"
+                      <input pInputText id="program-year" placeholder="2026-27" [ngModel]="f.catalogYear" name="catalogYear"
                              (ngModelChange)="set('catalogYear', $event)" [invalid]="!!p.catalogYear" [attr.aria-describedby]="p.catalogYear ? 'program-year-error' : null" [fluid]="true" />
                       @if (p.catalogYear; as e) { <p-message id="program-year-error" severity="error" size="small" variant="simple">{{ e }}</p-message> }
                     </div>
@@ -97,10 +94,13 @@
               <div class="lx-states">
                 <div class="lx-states-pick">
                   @if (store.program()) {
-                    <ul class="lx-state-list" aria-label="Target states">
-                      @for (s of stateNames(); track s.code) { <li><span class="lx-state-code">{{ s.code }}</span>{{ s.name }}</li> }
-                    </ul>
-                    <p class="lx-fixed-note"><ng-icon name="phosphorLockSimple" size="16" aria-hidden="true" />Fixed once created</p>
+                    <table class="lx-table lx-state-table" aria-label="Target states">
+                      <thead><tr><th scope="col">State</th><th scope="col">Code</th></tr></thead>
+                      <tbody>
+                        @for (s of stateNames(); track s.code) { <tr><th scope="row">{{ s.name }}</th><td class="lx-muted">{{ s.code }}</td></tr> }
+                      </tbody>
+                    </table>
+                    <p class="lx-meta lx-fixed-note">Fixed once created</p>
                   } @else {
                     @let p = problems();
                     <div class="lx-field">

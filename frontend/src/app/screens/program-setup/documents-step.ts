@@ -12,7 +12,6 @@ import { Sheet } from '../../shared/sheet/sheet';
 import { DocumentState, currentVersion } from './setup-model';
 import { SetupNotice, SetupStore } from './setup-store';
 import { UploadEntry, UploadState } from './upload-queue';
-import { Label } from '../../ui/label';
 
 /** The kinds a program document can have; rule text is entered through rule versions (D-009). */
 const KINDS: DocumentKind[] = ['SYLLABUS', 'DEGREE_PLAN', 'HANDBOOK', 'ACCREDITATION'];
@@ -25,7 +24,7 @@ interface DocumentSection {
   documents: { document: ProgramDocument; state: DocumentState; current: boolean }[];
 }
 
-/** One word per upload state, shown as a Label (ui/label.ts). */
+/** One word per upload state, in the file's row. */
 const UPLOAD_STATE: Record<UploadState, { label: string }> = {
   WAITING: { label: 'Waiting' },
   UPLOADING: { label: 'Uploading' },
@@ -48,7 +47,7 @@ const DOCUMENT_STATE: Record<DocumentState, { label: string }> = {
  */
 @Component({
   selector: 'lx-setup-documents',
-  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, FileUpload, Select, Skeleton, Label, DocumentViewer, Sheet],
+  imports: [FormsModule, NgIcon, ButtonDirective, ButtonLabel, FileUpload, Select, Skeleton, DocumentViewer, Sheet],
   templateUrl: './documents-step.html',
   styleUrl: './steps.css',
 })

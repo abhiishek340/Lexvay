@@ -3,7 +3,7 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { phosphorCaretRight, phosphorLockSimple } from '@ng-icons/phosphor-icons/regular';
+import { phosphorCaretRight } from '@ng-icons/phosphor-icons/regular';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -16,10 +16,9 @@ import { EvidenceRequest, EvidenceResponse } from '../../core/models';
 import { problemDetail } from '../../core/problem';
 import { ProgramContext } from '../../core/program-context';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import { initials } from '../../ui/initials';
 import { EvidenceDrawer } from './evidence-drawer';
 import { REQUESTS_TOKENS } from './requests-theme';
-import { Label } from '../../ui/label';
+import { Status, StatusMark } from '../../ui/status-mark';
 import { Help, HelpTerm } from '../../ui/help';
 
 /** The inbox's definitions, behind its one Help button. */
@@ -30,15 +29,16 @@ const HELP: readonly HelpTerm[] = [
 ];
 
 /** The icons the inbox and its answer drawer show beyond SHELL_ICONS, provided by its route (requests.routes.ts). */
-export const REQUESTS_ICONS = {
-  phosphorCaretRight, phosphorLockSimple,
-};
+export const REQUESTS_ICONS = { phosphorCaretRight };
 
-/** Each state in its own word, shown as a Label (ui/label.ts). */
-export const REQUEST_STATE: Record<RequestState, { key: RequestState; label: string }> = {
-  OPEN: { key: 'OPEN', label: 'Open' },
-  ANSWERED: { key: 'ANSWERED', label: 'Answered' },
-  BLOCKED: { key: 'BLOCKED', label: 'Blocked' },
+/**
+ * Each state as a mark and its own word (ui/status-mark.ts): an open request is evidence requested (ring with a centre
+ * dot), an answered one waits for the reviewer (not reviewed, an outline ring), a blocked one is blocked (outline square).
+ */
+export const REQUEST_STATE: Record<RequestState, { key: RequestState; label: string; mark: Status }> = {
+  OPEN: { key: 'OPEN', label: 'Open', mark: 'EVIDENCE_REQUESTED' },
+  ANSWERED: { key: 'ANSWERED', label: 'Answered', mark: 'NOT_REVIEWED' },
+  BLOCKED: { key: 'BLOCKED', label: 'Blocked', mark: 'BLOCKED' },
 };
 
 /** Why a blocked request has no answer action: a few words in the row, the sentence in their tooltip. */
@@ -54,7 +54,7 @@ export const BLOCKED_TEXT: Record<BlockedReason, { short: string; why: string }>
  */
 @Component({
   selector: 'lx-requests',
-  imports: [DatePipe, FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, SelectButton, Skeleton, TableModule, Tooltip, Help, Label, EvidenceDrawer],
+  imports: [DatePipe, FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, SelectButton, Skeleton, TableModule, Tooltip, Help, StatusMark, EvidenceDrawer],
   templateUrl: './requests.html',
   styleUrl: './requests.css',
 })
@@ -68,12 +68,16 @@ export class Requests {
   readonly canAnswer = canAnswer;
   readonly answersText = answersText;
   readonly blockedText = BLOCKED_TEXT;
-  readonly initials = initials;
 
   readonly filter = signal<RequestFilter>('OPEN');
   readonly rows = computed(() => this.context.evidenceRequests().filter((r) => matchesRequestFilter(r, this.filter())));
   readonly counts = computed(() => requestCounts(this.context.evidenceRequests()));
-  readonly blockedCount = computed(() => this.context.evidenceRequests().filter((r) => requestState(r) === 'BLOCKED').length);
+  /** The title's meta line: how many requests there are, and how many of them are blocked. */
+  readonly meta = computed(() => {
+    const all = this.context.evidenceRequests();
+    const blocked = all.filter((r) => requestState(r) === 'BLOCKED').length;
+    return `${all.length} ${all.length === 1 ? 'request' : 'requests'}${blocked ? ` · ${blocked} blocked` : ''}`;
+  });
   readonly emptyText = computed(() => EMPTY[this.filter()]);
   /** PrimeNG's row expansion state, keyed by mapping id. */
   expanded: Record<string, boolean> = {};

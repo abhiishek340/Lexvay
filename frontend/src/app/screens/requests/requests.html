@@ -1,36 +1,34 @@
 <div class="lx-page">
   <header class="lx-page-header">
-    <div class="lx-title-row">
+    <div>
       <h1>Evidence requests</h1>
-      <lx-help [terms]="help" />
+      @if (context.ready()) { <p class="lx-meta">{{ meta() }}</p> }
     </div>
+    <div class="lx-title-actions"><lx-help [terms]="help" /></div>
   </header>
   @if (context.error(); as e) { <p-message severity="error">{{ e }}</p-message> }
   @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
-  <p class="lx-status-line" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
+  <!-- What just happened, for assistive technology: the toast says it on screen. -->
+  <p class="lx-sr-only" role="status" aria-live="polite" data-testid="message">{{ message() }}</p>
 
   @if (context.ready()) {
-    <section class="lx-inbox" aria-labelledby="inbox-heading">
-      <div class="lx-inbox-head">
-        <h2 id="inbox-heading" class="lx-sr-only">Inbox</h2>
-        <p-selectbutton [options]="filters" optionLabel="label" optionValue="value" [allowEmpty]="false" [ngModel]="filter()"
-                        (ngModelChange)="setFilter($event)" ariaLabelledBy="inbox-heading" class="lx-inbox-filter">
-          <ng-template #item let-option>
-            <span>{{ option.label }}</span>
-            <span class="lx-filter-count" aria-hidden="true">{{ count(option.value) }}</span>
-            <span class="lx-sr-only">, {{ count(option.value) }}</span>
-          </ng-template>
-        </p-selectbutton>
-        @if (blockedCount() > 0) {
-          <span class="lx-inbox-blocked"><ng-icon name="phosphorLockSimple" size="16" aria-hidden="true" />{{ blockedCount() }} blocked</span>
-        }
-      </div>
+    <section aria-labelledby="inbox-heading">
+      <h2 id="inbox-heading" class="lx-sr-only">Inbox</h2>
+      <!-- The filter is a toggle group drawn as an underlined text row: each word, then its count in meta type. -->
+      <p-selectbutton [options]="filters" optionLabel="label" optionValue="value" [allowEmpty]="false" [ngModel]="filter()"
+                      (ngModelChange)="setFilter($event)" ariaLabelledBy="inbox-heading" class="lx-filter-row">
+        <ng-template #item let-option>
+          <span>{{ option.label }}</span>
+          <span class="lx-filter-count" aria-hidden="true">{{ count(option.value) }}</span>
+          <span class="lx-sr-only">, {{ count(option.value) }}</span>
+        </ng-template>
+      </p-selectbutton>
 
       @if (rows().length === 0) {
         <div class="lx-empty-state" data-testid="requests-empty">
           <p>{{ emptyText() }}</p>
           @if (filter() !== 'ANSWERED') {
-            <a pButton [routerLink]="['/programs', programId(), 'review']" severity="secondary" size="small"><span pButtonLabel>Open Review</span></a>
+            <a pButton [routerLink]="['/programs', programId(), 'review']" severity="secondary" [outlined]="true"><span pButtonLabel>Open Review</span></a>
           }
         </div>
       } @else {
@@ -38,59 +36,52 @@
                  class="lx-requests-table">
           <ng-template #header>
             <tr>
-              <th scope="col"><span class="lx-sr-only">Details</span></th>
+              <th scope="col" class="lx-toggle-cell"><span class="lx-sr-only">Details</span></th>
               <th scope="col">Requirement</th>
               <th scope="col">Request</th>
               <th scope="col">Status</th>
-              <th scope="col">Answers</th>
+              <th scope="col" class="lx-num">Answers</th>
               <th scope="col"><span class="lx-sr-only">Action</span></th>
             </tr>
           </ng-template>
-          <ng-template #body let-row let-isExpanded="expanded" let-i="rowIndex">
+          <ng-template #body let-row let-isExpanded="expanded">
             @let st = state(row);
             @let reason = blocked(row);
             <tr [attr.data-ref]="row.requirementRef" [attr.data-state]="st.key">
               <td class="lx-toggle-cell">
-                <button pButton type="button" [pRowToggler]="row" severity="secondary" [text]="true" size="small" class="lx-toggle"
+                <button pButton type="button" [pRowToggler]="row" severity="secondary" [text]="true" class="lx-toggle"
                         [attr.aria-expanded]="isExpanded" [attr.aria-controls]="'request-detail-' + row.mappingId"
                         [attr.aria-label]="(isExpanded ? 'Hide' : 'Show') + ' details for ' + row.requirementRef">
-                  <ng-icon name="phosphorCaretRight" size="14" aria-hidden="true" [class.lx-turned]="isExpanded" />
+                  <ng-icon name="phosphorCaretRight" size="16" aria-hidden="true" [class.lx-turned]="isExpanded" />
                 </button>
               </td>
               <td class="lx-requirement-cell">
-                <span class="lx-request-ids"><span class="lx-state-code">{{ row.jurisdiction }}</span><span class="lx-mono">{{ row.requirementRef }}</span></span>
+                <span class="lx-request-ids"><span class="lx-state-code">{{ row.jurisdiction }}</span><span class="lx-ref">{{ row.requirementRef }}</span></span>
                 <span class="lx-request-title">{{ row.requirementTitle }}</span>
               </td>
               <td class="lx-request-cell">
                 <p class="lx-two-lines">{{ row.requestNote ?? 'No note.' }}</p>
-                <p class="lx-asked">
-                  <span class="lx-avatar-mini" aria-hidden="true">{{ initials(row.requestedByName ?? '') }}</span>
-                  <span>{{ row.requestedByName ?? 'An unknown user' }}, <time [attr.datetime]="row.requestedAt">{{ row.requestedAt | date: 'd MMM' }}</time></span>
-                </p>
+                <p class="lx-meta lx-asked">{{ row.requestedByName ?? 'An unknown user' }}, <time [attr.datetime]="row.requestedAt">{{ row.requestedAt | date: 'd MMM' }}</time></p>
               </td>
-              <td>
-                <lx-label>{{ st.label }}</lx-label>
-              </td>
+              <td class="lx-status-cell"><lx-status-mark [status]="st.mark" [label]="st.label" /></td>
               <td class="lx-answers-cell">
-                <!-- The number sits under the Answers header; a card (narrow screens, no header) says it in words. -->
+                <!-- The number sits under the Answers header; a block (narrow screens, no header) says it in words. -->
                 <span class="lx-answer-count">{{ row.responseCount }}</span>
                 <span class="lx-answer-words" data-testid="answer-words">{{ answersText(row.responseCount) }}</span>
                 @if (row.latestResponse; as latest) {
-                  <p class="lx-help">Latest: {{ latest.providedByName }}, {{ latest.createdAt | date: 'd MMM' }}, {{ latest.filename }}, page {{ latest.pageNumber }}</p>
+                  <p class="lx-meta lx-latest">Latest: {{ latest.providedByName }}, {{ latest.createdAt | date: 'd MMM' }}, {{ latest.filename }}, page {{ latest.pageNumber }}</p>
                 }
               </td>
               <td class="lx-action">
                 @if (canAnswer(row)) {
-                  <button pButton type="button" size="small" (click)="answer(row, $event.target)" [attr.aria-label]="'Provide evidence for ' + row.requirementRef">
-                    <span pButtonLabel>Provide evidence</span>
-                  </button>
+                  <button type="button" class="lx-row-action" (click)="answer(row, $event.target)" [attr.aria-label]="'Provide evidence for ' + row.requirementRef">Provide evidence</button>
                 } @else if (reason) {
                   <span class="lx-blocked" data-testid="blocked-reason">
                     <span class="lx-term" tabindex="0" tooltipEvent="both" [pTooltip]="blockedText[reason].why" tooltipPosition="left"
                           [attr.aria-description]="blockedText[reason].why">{{ blockedText[reason].short }}</span>
                   </span>
                 } @else {
-                  <span class="lx-help">With the reviewer</span>
+                  <span class="lx-muted">With the reviewer</span>
                 }
               </td>
             </tr>
@@ -104,8 +95,7 @@
                   @if (row.latestResponse; as latest) {
                     <div>
                       <dt class="lx-meta">Latest answer</dt>
-                      <dd>{{ latest.providedByName }}, {{ latest.createdAt | date: 'd MMM y, HH:mm' }}: {{ latest.filename }}, page
-                        <span class="lx-mono">{{ latest.pageNumber }}</span></dd>
+                      <dd>{{ latest.providedByName }}, {{ latest.createdAt | date: 'd MMM y, HH:mm' }}: {{ latest.filename }}, page {{ latest.pageNumber }}</dd>
                     </div>
                   }
                 </dl>
@@ -116,9 +106,9 @@
       }
     </section>
   } @else if (!context.error()) {
-    <div class="lx-inbox lx-skeleton" role="status" aria-busy="true" aria-label="Loading evidence requests">
-      <p-skeleton aria-hidden="true" width="16rem" height="2.25rem" />
-      @for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="3.25rem" /> }
+    <div class="lx-skeleton" role="status" aria-busy="true" aria-label="Loading evidence requests">
+      <p-skeleton aria-hidden="true" width="16rem" height="2.5rem" />
+      @for (i of [1, 2, 3]; track i) { <p-skeleton aria-hidden="true" height="3.5rem" /> }
     </div>
   }
 </div>
