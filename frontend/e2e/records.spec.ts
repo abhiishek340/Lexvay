@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { Page } from '@playwright/test';
-import { ADMIN, DANA, expect, expectAccessible, goTo, nav, signIn, test } from './support';
+import { ADMIN, DANA, changeRows, expect, expectAccessible, goTo, nav, signIn, stateTab, test } from './support';
 
 /**
  * The record screens of UI2-3: the audit trail's filter chips and CSV export, and the evidence report's PDF. Runs after
@@ -70,19 +70,26 @@ test('an empty filter result says so with one action that clears it', async ({ p
   await expect(page.getByRole('main').getByRole('listitem').first()).toBeVisible();
 });
 
-test('the signed report carries the seal and downloads its PDF; a draft carries the Draft stamp', async ({ page }) => {
+test('the signed report carries the seal and downloads its PDF, then its evidence package; a draft carries the Draft stamp', async ({ page }) => {
   await signIn(page, DANA);
   await goTo(page, 'Evidence report');
   await expect(page.getByRole('note', { name: 'Draft. Not a determination.' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Download PDF' })).toBeDisabled();
+  const pdfButton = page.getByRole('button', { name: 'Download PDF' });
+  const packageButton = page.getByRole('button', { name: 'Download evidence package' });
+  await expect(pdfButton).toBeDisabled();
+  await expect(packageButton).toBeDisabled();
+  await expect(pdfButton).toHaveAccessibleDescription('PDF and package after signing');
+  await expect(packageButton).toHaveAccessibleDescription('PDF and package after signing');
 
-  await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
-  await page.getByRole('option', { name: 'California (CA)' }).click();
+  await stateTab(page, 'CA').click();
   await expect(page).toHaveURL(/[?&]jurisdiction=CA$/);
   await expect(page.getByRole('img', { name: /^Signed by Dana Whitfield on .+: determined not to meet$/ })).toBeVisible();
   const requirements = page.getByRole('list', { name: '8 requirements' });
   await expect(requirements.getByRole('listitem')).toHaveCount(8);
   await expect(requirements.getByRole('listitem').first().getByRole('heading', { level: 4 })).toBeVisible();
+  // The package holds the report's PDF, so it waits for the PDF and says so in the title row's meta line.
+  await expect(packageButton).toBeDisabled();
+  await expect(packageButton).toHaveAccessibleDescription('Package after the PDF');
 
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download PDF' }).click();
@@ -90,6 +97,16 @@ test('the signed report carries the seal and downloads its PDF; a draft carries 
   expect(file.suggestedFilename()).toMatch(/^lexvay-evidence-report-[0-9a-f-]{36}\.pdf$/);
   expect(readFileSync(await file.path()).subarray(0, 5).toString('latin1')).toBe('%PDF-');
   await expect(page.locator('.p-toast')).toContainText('PDF ready');
+
+  // The package: built by a job, then downloaded straight from the server as one ZIP named for the program, state and day.
+  await expect(packageButton).toBeEnabled();
+  const zipping = page.waitForEvent('download');
+  await packageButton.click();
+  const zip = await zipping;
+  expect(zip.suggestedFilename()).toMatch(/^lexvay-[a-z0-9-]+-ca-\d{4}-\d{2}-\d{2}\.zip$/);
+  expect(readFileSync(await zip.path()).subarray(0, 2).toString('latin1')).toBe('PK');
+  await expect(page.locator('.p-toast')).toContainText('Package ready');
+  await expect(packageButton).toBeEnabled();
 });
 
 for (const [width, height] of [[1440, 900], [400, 860]] as const) {
@@ -98,8 +115,7 @@ for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await signIn(page, ADMIN);
 
     await goTo(page, 'Changes');
-    const changes = page.getByRole('list', { name: 'Change events' });
-    await changes.getByRole('button', { name: 'Details' }).first().click();
+    await changeRows(page).first().getByRole('button', { name: / changed from / }).click();
     await noHorizontalScroll(page);
     await expectAccessible(page, `Changes at ${width} px`);
 
@@ -112,8 +128,7 @@ for (const [width, height] of [[1440, 900], [400, 860]] as const) {
     await expect(page.getByRole('note', { name: 'Draft. Not a determination.' })).toBeVisible();
     await noHorizontalScroll(page);
     await expectAccessible(page, `Draft report at ${width} px`);
-    await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
-    await page.getByRole('option', { name: 'California (CA)' }).click();
+    await stateTab(page, 'CA').click();
     await expect(page.getByRole('img', { name: /^Signed by / })).toBeVisible();
     await noHorizontalScroll(page);
     await expectAccessible(page, `Signed report at ${width} px`);

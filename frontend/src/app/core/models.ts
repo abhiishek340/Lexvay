@@ -91,6 +91,11 @@ export interface ChangeEvent {
   reopenedDeterminationIds: string[];
 }
 export interface ReportStatusView { id: string; determinationId: string; status: 'QUEUED' | 'READY' | 'FAILED'; }
+/** GET /packages/{id}: the evidence package of a signed determination, built by a job (F15); `error` only when it failed. */
+export interface EvidencePackageView {
+  id: string; determinationId: string; status: 'QUEUED' | 'READY' | 'FAILED'; sizeBytes: number | null; sha256: string | null;
+  createdAt: string; error: string | null;
+}
 /** The report a checked file is exactly, and its determination as it stands now (POST /reports/check, F14). */
 export interface ReportCheckMatch {
   reportId: string; generatedAt: string; determinationId: string; programId: string; programName: string; jurisdictionCode: string;

@@ -8,7 +8,6 @@ import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonLabel } from 'primeng/button';
 import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
-import { Skeleton } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
 import { ToggleSwitch } from 'primeng/toggleswitch';
@@ -21,9 +20,10 @@ import { ProgramContext } from '../../core/program-context';
 import { NO_FILTER, registerCsvUrl } from '../../core/register';
 import { SessionService } from '../../core/session.service';
 import { registerComponentTokens } from '../../theme/component-tokens';
-import { Figure } from '../../ui/figure';
 import { Help, HelpTerm } from '../../ui/help';
+import { Label } from '../../ui/label';
 import { Seal } from '../../ui/seal';
+import { SkeletonRows } from '../../ui/skeleton-rows';
 import { REGISTER_TOKENS } from './register-theme';
 import { DISCLOSURE_NOTE, disclosureSections } from './register-view';
 
@@ -47,8 +47,8 @@ const HELP: readonly HelpTerm[] = [
  */
 @Component({
   selector: 'lx-register',
-  imports: [DatePipe, FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, Select, Skeleton, TableModule,
-    Tab, TabList, TabPanel, TabPanels, Tabs, ToggleSwitch, Figure, Help, Seal],
+  imports: [DatePipe, FormsModule, RouterLink, NgIcon, ButtonDirective, ButtonLabel, Message, Select, TableModule,
+    Tab, TabList, TabPanel, TabPanels, Tabs, ToggleSwitch, Help, Label, Seal, SkeletonRows],
   templateUrl: './register.html',
   styleUrl: './register.css',
 })
@@ -74,6 +74,11 @@ export class Register {
   readonly loadedAt = signal<Date | null>(null);
   /** How many rows last arrived: the count stays in place while a new filter loads. */
   readonly shownCount = signal<number | null>(null);
+  /** The title row's meta line: "1 signed determination", for the filters on screen. */
+  readonly countLine = computed(() => {
+    const n = this.shownCount();
+    return n === null ? '' : `${n} signed ${n === 1 ? 'determination' : 'determinations'}`;
+  });
   readonly filtered = computed(() => {
     const f = this.filter();
     return f.programId !== null || f.jurisdiction !== null || f.outcome !== null || f.includeReopened;

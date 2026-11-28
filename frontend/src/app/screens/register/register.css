@@ -1,70 +1,61 @@
-/* Register tab: the filters in one row, the count and the download under them, then the table. */
-.lx-register-top { margin: 24px 0; }
-.lx-register-panel { display: flex; flex-direction: column; gap: 24px; }
-.lx-filters.lx-register-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; margin: 0; }
-.lx-register-filters .lx-filter-toggle { min-height: 32px; }
-.lx-register-panel-foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
-:host ::ng-deep .lx-register-filters .lx-filter-select { width: 100%; max-width: none; }
+.lx-count { min-height: 16px; }
+.lx-error { display: block; margin-bottom: var(--lx-space-4); }
 
-.lx-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; margin: 16px 0; }
-.lx-filter { display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: 100%; }
-:host ::ng-deep .lx-filter-select { width: 15rem; max-width: calc(100vw - 32px); }
-:host ::ng-deep .lx-program-select { width: 22rem; }
-.lx-filter-toggle { flex-direction: row; align-items: center; gap: 8px; min-height: 36px; }
-.lx-filter-toggle label { font-weight: 500; }
-:host ::ng-deep .lx-table-card th { white-space: nowrap; }
-.lx-print-button { margin-left: auto; }
+/* Under the tabs: the filters on one line (they wrap on a narrow window), 24 px above the table. */
+.lx-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--lx-space-2); margin: var(--lx-space-5) 0; }
+:host ::ng-deep .lx-filter-select { width: 13rem; max-width: 100%; }
+:host ::ng-deep .lx-program-select { width: 22rem; max-width: 100%; }
+.lx-toggle { display: flex; align-items: center; gap: var(--lx-space-2); min-height: 32px; margin-left: var(--lx-space-2); }
+.lx-toggle label { font-size: 13px; line-height: 20px; font-weight: 500; }
 
-/* The table on paper, no card; rows are 40 px with a hover tint (datatable tokens). */
-.lx-table-card { overflow-x: auto; }
-.lx-table-empty { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--p-lx-ink-2); }
-:host ::ng-deep .lx-table-card .p-datatable-tbody > tr:last-child > td { border-bottom: 0; }
-
+/* The table on paper, no card; 40 px rows with hairlines (datatable tokens). Its first and last columns sit on the edges. */
+.lx-table-frame { overflow-x: auto; }
+:host ::ng-deep .lx-table-frame :is(th, td):first-child { padding-left: 0; }
+:host ::ng-deep .lx-table-frame :is(th, td):last-child { padding-right: 0; }
+:host ::ng-deep .lx-table-frame th { white-space: nowrap; }
+:host ::ng-deep .lx-table-frame .p-datatable-tbody > tr > td { vertical-align: middle; }
 .lx-row-link { cursor: pointer; }
-.lx-strong { font-weight: 500; }
-.lx-block { display: block; margin-top: 2px; }
-.lx-code { margin-left: 6px; }
+.lx-outcome { display: inline-flex; align-items: center; flex-wrap: wrap; gap: var(--lx-space-1) var(--lx-space-2); }
 .lx-nowrap { white-space: nowrap; }
-.lx-copy { margin-left: 4px; padding: 4px; vertical-align: middle; }
+.lx-copy { width: 32px; height: 32px; margin: -6px 0 -6px var(--lx-space-1); padding: 0; vertical-align: middle; }
 
-/* By program: three plain lists separated by hairlines, each signed row marked with its seal. */
-.lx-lists-meta { margin-bottom: 24px; }
-.lx-lists { display: flex; flex-direction: column; gap: 40px; }
-.lx-list-title { display: flex; align-items: baseline; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--p-lx-line-strong); }
+/* By program: three plain lists, each under its heading on a line-strong rule, a signed row led by its compact seal. */
+.lx-lists-meta { margin-bottom: var(--lx-space-5); }
+.lx-list + .lx-list { margin-top: var(--lx-space-7); }
+.lx-list-title { display: flex; align-items: baseline; gap: var(--lx-space-2); padding-bottom: var(--lx-space-2); border-bottom: 1px solid var(--p-lx-line-strong); }
 .lx-list-count { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--p-lx-ink-2); font-variant-numeric: tabular-nums; }
-.lx-list-empty { padding: 12px 0; }
+.lx-list-empty { padding: 10px 0; }
 .lx-list-rows { list-style: none; margin: 0; padding: 0; }
-.lx-list-row { display: grid; grid-template-columns: 24px minmax(0, 20rem) minmax(0, 1fr); align-items: center; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--p-lx-line); }
-.lx-list-unsigned { width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; border: 1.5px dashed var(--p-lx-line-strong); }
-.lx-skeleton { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.lx-list-row {
+  display: grid; grid-template-columns: 24px minmax(0, 12rem) minmax(0, 1fr); align-items: center; gap: var(--lx-space-4);
+  min-height: 40px; box-sizing: border-box; padding: var(--lx-space-2) 0; border-bottom: 1px solid var(--p-lx-line);
+}
+.lx-list-seal { display: flex; width: 24px; }
+.lx-list-state { font-weight: 500; }
 
 /* Shown only on paper: who printed what and when, and what the lists are. */
 .lx-print-header, .lx-print-only { display: none; }
 
 @media (max-width: 720px) {
-  .lx-print-button { margin-left: 0; }
-  :host ::ng-deep .lx-program-select { width: 100%; max-width: calc(100vw - 32px); }
-  .lx-filter { flex: 1 1 100%; }
-  :host ::ng-deep .lx-table thead { display: none; }
-  :host ::ng-deep .lx-table tbody tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--p-lx-line); }
-  :host ::ng-deep .lx-table tbody tr:last-child { border-bottom: 0; }
-  :host ::ng-deep .lx-table tbody td { display: block; border: 0; padding: 2px 0; white-space: normal; width: auto; }
-  .lx-list-row { grid-template-columns: 24px minmax(0, 1fr); gap: 4px 12px; }
+  :host ::ng-deep .lx-filter-select, :host ::ng-deep .lx-program-select { width: 100%; }
+  :host ::ng-deep .lx-table-frame thead { display: none; }
+  :host ::ng-deep .lx-table-frame tbody tr { display: block; padding: var(--lx-space-3) 0; border-bottom: 1px solid var(--p-lx-line); }
+  :host ::ng-deep .lx-table-frame tbody td { display: block; border: 0; padding: 2px 0; white-space: normal; width: auto; }
+  .lx-list-row { grid-template-columns: 24px minmax(0, 1fr); gap: var(--lx-space-1) var(--lx-space-3); }
   .lx-list-signature { grid-column: 2; }
 }
 
-/* Paper: black on white whatever the theme; no controls, no map; a row never splits across pages (the shell hides itself). */
+/* Paper: ink on white whatever the theme; no controls; a row never splits across pages (the shell hides itself). */
 @media print {
   .lx-register { padding: 0; max-width: none; }
   :host ::ng-deep * { color: var(--p-lx-ink) !important; background: transparent !important; box-shadow: none !important; }
-  .lx-print-header { display: block; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--p-lx-ink); }
+  .lx-print-header { display: block; margin-bottom: var(--lx-space-4); padding-bottom: var(--lx-space-2); border-bottom: 1px solid var(--p-lx-ink); }
   .lx-print-tenant { font-weight: 600; }
-  .lx-print-only { display: block; margin-bottom: 12px; }
-  .lx-filters, .lx-copy, .lx-register-panel, lx-help { display: none; }
-  .lx-register-top { display: block; margin: 0; }
+  .lx-print-only { display: block; margin-bottom: var(--lx-space-3); }
+  .lx-filters, .lx-copy, .lx-title-actions { display: none; }
   :host ::ng-deep .p-tablist, :host ::ng-deep .p-sortable-column-icon, :host ::ng-deep button { display: none; }
   :host ::ng-deep tr, .lx-list-row { break-inside: avoid; page-break-inside: avoid; }
   .lx-list-title { border-color: var(--p-lx-ink); break-after: avoid; }
-  .lx-list-row, .lx-list-unsigned { border-color: var(--p-lx-ink); }
+  .lx-list-row { border-color: var(--p-lx-ink); }
   a { text-decoration: none; }
 }

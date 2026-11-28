@@ -16,7 +16,7 @@
                  aria-describedby="password-strength password-rules" />
           <p-inputicon>
             <button type="button" class="lx-reveal" aria-label="Show password" [attr.aria-pressed]="!masked()" (click)="masked.set(!masked())">
-              <ng-icon [name]="masked() ? 'phosphorEye' : 'phosphorEyeSlash'" size="18" aria-hidden="true" />
+              <ng-icon [name]="masked() ? 'phosphorEye' : 'phosphorEyeSlash'" size="16" aria-hidden="true" />
             </button>
           </p-inputicon>
         </p-iconfield>
@@ -35,7 +35,7 @@
           <p-inputicon>
             <button type="button" class="lx-reveal" aria-label="Show repeated password" [attr.aria-pressed]="!repeatMasked()"
                     (click)="repeatMasked.set(!repeatMasked())">
-              <ng-icon [name]="repeatMasked() ? 'phosphorEye' : 'phosphorEyeSlash'" size="18" aria-hidden="true" />
+              <ng-icon [name]="repeatMasked() ? 'phosphorEye' : 'phosphorEyeSlash'" size="16" aria-hidden="true" />
             </button>
           </p-inputicon>
         </p-iconfield>
@@ -44,7 +44,7 @@
       <ul class="lx-rules" id="password-rules" aria-label="Password rules">
         @for (rule of rules(); track rule.id) {
           <li [class.lx-met]="rule.met">
-            <ng-icon [name]="rule.met ? 'phosphorCheckCircle' : 'phosphorCircle'" size="18" aria-hidden="true" />
+            <ng-icon [name]="rule.met ? 'phosphorCheckCircle' : 'phosphorCircle'" size="16" aria-hidden="true" />
             <span>{{ rule.label }}<span class="lx-sr-only">{{ rule.met ? ', met' : ', not met' }}</span></span>
           </li>
         }

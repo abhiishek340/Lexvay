@@ -1,4 +1,4 @@
-import { DANA, PRIYA, SCREENSHOTS, expect, expectAccessible, goTo, nav, shoot, signIn, stateTab, test } from './support';
+import { DANA, PRIYA, SCREENSHOTS, changeRows, expect, expectAccessible, goTo, nav, shoot, signIn, stateTab, test } from './support';
 
 test('Dana Whitfield reviews every California requirement, signs, and sees the audit entries', async ({ page }) => {
   await signIn(page, DANA);
@@ -115,15 +115,14 @@ test('Dana Whitfield reviews every California requirement, signs, and sees the a
   // Other screens render and pass the accessibility check.
   await goTo(page, 'Changes');
   await expect(page.getByRole('heading', { level: 1, name: 'Changes' })).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Change events' })).toBeVisible();
+  await expect(changeRows(page).first()).toBeVisible();
   await expectAccessible(page, 'Changes');
 
   // The report opens on the first state, a draft; California now carries the seal of Dana's signature.
   await goTo(page, 'Evidence report');
   await expect(page.getByRole('heading', { level: 1, name: 'Evidence report' })).toBeVisible();
   await expect(page.getByRole('note', { name: 'Draft. Not a determination.' })).toBeVisible();
-  await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
-  await page.getByRole('option', { name: 'California (CA)' }).click();
+  await stateTab(page, 'CA').click();
   await expect(page.getByRole('img', { name: /^Signed by Dana Whitfield on .+: determined not to meet$/ })).toBeVisible();
   await expect(page.getByRole('list', { name: '8 requirements' }).getByRole('listitem')).toHaveCount(8);
   await expectAccessible(page, 'Evidence report');
@@ -255,21 +254,22 @@ test('at 400 px the review screen fits without horizontal page scroll', async ({
   await expectAccessible(page, 'Review at 400 px');
 });
 
-test('the Changes timeline lists the seeded changes and re-runs matching from the course card', async ({ page }) => {
+test('the Changes log lists the seeded changes and re-runs matching from the course row', async ({ page }) => {
   await signIn(page, PRIYA);
   await goTo(page, 'Changes');
-  const timeline = page.getByRole('list', { name: 'Change events' });
-  const rule = timeline.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Colorado rules, revision 2' }) });
-  const course = timeline.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'COUN 625, new catalog year' }) });
-  await expect(rule).toContainText('2026 revision 2');
-  await expect(course).toContainText('2026-27');
-  await expect(course).toContainText('2027-28');
-  await expect(course).toContainText('Open');
-  await course.getByRole('button', { name: 'Details' }).click();
+  const rule = changeRows(page).filter({ hasText: 'Colorado rules changed from 2026 to 2026 revision 2' });
+  const course = changeRows(page).filter({ hasText: 'COUN 625 changed from catalog year 2026-27 to 2027-28' });
+  await expect(rule).toHaveCount(1);
+  await expect(course).toHaveCount(1);
+  await expect(page.getByRole('heading', { level: 2, name: 'Today' })).toBeVisible();
+  const details = course.getByRole('button', { name: /^COUN 625 changed/ });
+  await expect(details).toHaveAttribute('aria-expanded', 'false');
+  await details.click();
+  await expect(details).toHaveAttribute('aria-expanded', 'true');
   await expect(course).toContainText('Replaced by');
   await expectAccessible(page, 'Changes with events');
 
-  // Job status answers are held back a little, so the card's progress is on screen long enough to see.
+  // Job status answers are held back a little, so the row's progress is on screen long enough to see.
   await page.route('**/api/v1/jobs/*', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 400));
     await route.continue();

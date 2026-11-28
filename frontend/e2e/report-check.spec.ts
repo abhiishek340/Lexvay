@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Page } from '@playwright/test';
-import { DANA, SCREENSHOTS, expect, expectAccessible, goTo, shoot, signIn, test } from './support';
+import { DANA, SCREENSHOTS, expect, expectAccessible, goTo, shoot, signIn, stateTab, test } from './support';
 
 /**
  * F14, checking a report file. Runs after the suite (playwright.config.ts): the report it checks is the PDF of the
@@ -13,8 +13,7 @@ interface Pdf { name: string; mimeType: string; buffer: Buffer }
 /** Downloads the signed California report from the Evidence report screen, as a person would. */
 async function downloadCaliforniaReport(page: Page): Promise<Pdf> {
   await goTo(page, 'Evidence report');
-  await page.getByRole('combobox', { name: 'Jurisdiction' }).click();
-  await page.getByRole('option', { name: 'California (CA)' }).click();
+  await stateTab(page, 'CA').click();
   await expect(page.getByRole('img', { name: /^Signed by Dana Whitfield on / })).toBeVisible();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download PDF' }).click();

@@ -1,6 +1,9 @@
 <div class="lx-page lx-people">
   <header class="lx-page-header">
-    <h1>People</h1>
+    <div>
+      <h1>People</h1>
+      <p class="lx-meta lx-count" role="status" aria-live="polite" data-testid="message">{{ count() }}</p>
+    </div>
     <div class="lx-title-actions">
       <button pButton type="button" size="large" (click)="add()"><span pButtonLabel>Add person</span></button>
       <lx-help [terms]="help" />
@@ -13,53 +16,44 @@
       <input pInputText type="search" aria-label="Search by name or email" placeholder="Search name or email" [ngModel]="query().text"
              (ngModelChange)="set('text', $event)" fluid />
     </p-iconfield>
-    <div class="lx-filters" role="group" aria-label="Filters">
-      <p-select [options]="roleOptions" optionLabel="label" optionValue="value"
-                [ngModel]="query().role" (ngModelChange)="set('role', $event)" placeholder="Role" ariaLabel="Role"
-                [showClear]="true" size="small" appendTo="body" />
-      <p-select [options]="statusOptions" optionLabel="label" optionValue="value"
-                [ngModel]="query().status" (ngModelChange)="set('status', $event)" placeholder="Status" ariaLabel="Status"
-                [showClear]="true" size="small" appendTo="body" />
-      @if (filtered()) {
-        <button pButton type="button" size="small" [text]="true" (click)="clear()"><span pButtonLabel>Clear</span></button>
-      }
-    </div>
-    <p class="lx-count" role="status" aria-live="polite" data-testid="message">{{ count() }}</p>
+    <p-select [options]="roleOptions" optionLabel="label" optionValue="value"
+              [ngModel]="query().role" (ngModelChange)="set('role', $event)" placeholder="Role" ariaLabel="Role"
+              [showClear]="true" appendTo="body" />
+    <p-select [options]="statusOptions" optionLabel="label" optionValue="value"
+              [ngModel]="query().status" (ngModelChange)="set('status', $event)" placeholder="Status" ariaLabel="Status"
+              [showClear]="true" appendTo="body" />
+    @if (filtered()) {
+      <button pButton type="button" [text]="true" (click)="clear()"><span pButtonLabel>Clear</span></button>
+    }
   </div>
 
-  @if (error(); as e) { <p-message severity="error">{{ e }}</p-message> }
+  @if (error(); as e) { <p-message class="lx-error" severity="error">{{ e }}</p-message> }
 
   @if (accounts()) {
-    <div class="lx-table-card">
-      <p-table [value]="shown()" dataKey="id" [rowHover]="true" [pt]="{ table: { 'aria-label': 'People' } }" class="lx-table">
+    <div class="lx-table-frame">
+      <p-table [value]="shown()" dataKey="id" [rowHover]="true" [pt]="{ table: { 'aria-label': 'People' } }">
         <ng-template #header>
           <tr>
-            <th scope="col" pSortableColumn="displayName">Person <p-sort-icon field="displayName" /></th>
+            <th scope="col" pSortableColumn="displayName">Name <p-sort-icon field="displayName" /></th>
+            <th scope="col" pSortableColumn="email">Email <p-sort-icon field="email" /></th>
             <th scope="col" pSortableColumn="role">Role <p-sort-icon field="role" /></th>
             <th scope="col">Status</th>
             <th scope="col" pSortableColumn="createdAt">Created <p-sort-icon field="createdAt" /></th>
             <th scope="col"><span class="lx-sr-only">Actions</span></th>
           </tr>
         </ng-template>
-        <ng-template #body let-a let-i="rowIndex">
+        <ng-template #body let-a>
           <tr [attr.data-testid]="'person-' + a.email">
-            <td>
-              <div class="lx-person">
-                <p-avatar [label]="initials(a.displayName)" shape="circle" aria-hidden="true" [class.lx-avatar-quiet]="!a.active" />
-                <div class="lx-person-text">
-                  <span class="lx-person-name">{{ a.displayName }}@if (a.id === selfId()) { <lx-label>You</lx-label> }</span>
-                  <span class="lx-person-email">{{ a.email }}</span>
-                </div>
-              </div>
-            </td>
-            <td><lx-label>{{ roleOf(a) }}</lx-label></td>
-            <td>
+            <td><span class="lx-person-name">{{ a.displayName }}@if (a.id === selfId()) { <lx-label>You</lx-label> }</span></td>
+            <td class="lx-email">{{ a.email }}</td>
+            <td class="lx-nowrap">{{ roleOf(a) }}</td>
+            <td class="lx-nowrap">
               @let s = status(a);
               <span [class.lx-muted]="s.quiet">{{ s.label }}</span>
             </td>
-            <td class="lx-nowrap"><time [attr.datetime]="a.createdAt">{{ a.createdAt | date: 'd MMM y' }}</time></td>
+            <td class="lx-nowrap lx-created"><time [attr.datetime]="a.createdAt">{{ a.createdAt | date: 'd MMM y' }}</time></td>
             <td class="lx-actions">
-              <button pButton type="button" [text]="true" severity="secondary" size="small" class="lx-row-menu"
+              <button pButton type="button" [text]="true" severity="secondary" class="lx-row-menu"
                       [attr.aria-label]="'Actions for ' + a.displayName" aria-haspopup="menu"
                       [attr.aria-expanded]="menuOpen() && menuFor() === a.id" (click)="openMenu($event, a)">
                 <ng-icon name="phosphorDotsThree" size="16" aria-hidden="true" />
@@ -69,13 +63,13 @@
         </ng-template>
         <ng-template #emptymessage>
           <tr>
-            <td colspan="5">
-              <div class="lx-empty">
+            <td colspan="6">
+              <div class="lx-empty-state">
                 <p>{{ filtered() ? 'No one matches these filters.' : 'No people yet.' }}</p>
                 @if (filtered()) {
-                  <button pButton type="button" size="small" [outlined]="true" (click)="clear()"><span pButtonLabel>Clear filters</span></button>
+                  <button pButton type="button" [outlined]="true" (click)="clear()"><span pButtonLabel>Clear filters</span></button>
                 } @else {
-                  <button pButton type="button" size="small" [outlined]="true" (click)="add()"><span pButtonLabel>Add person</span></button>
+                  <button pButton type="button" [outlined]="true" (click)="add()"><span pButtonLabel>Add person</span></button>
                 }
               </div>
             </td>
@@ -84,22 +78,11 @@
       </p-table>
     </div>
   } @else if (!error()) {
-    <div class="lx-skeleton" role="status" aria-busy="true" aria-label="Loading people">
-      @for (i of [1, 2, 3, 4, 5]; track i) {
-        <div class="lx-skeleton-row"><p-skeleton aria-hidden="true" shape="circle" size="2rem" /><p-skeleton aria-hidden="true" height="2.5rem" styleClass="lx-skeleton-line" /></div>
-      }
-    </div>
+    <lx-skeleton-rows label="Loading people" [rows]="5" />
   }
 </div>
 
-<p-menu #menu [model]="menuItems()" [popup]="true" appendTo="body" ariaLabel="Person actions" (onShow)="menuOpen.set(true)" (onHide)="menuOpen.set(false)">
-  <ng-template #item let-item>
-    <span class="p-menu-item-link lx-menu-item">
-      <ng-icon [name]="item.icon" size="16" aria-hidden="true" />
-      <span>{{ item.label }}</span>
-    </span>
-  </ng-template>
-</p-menu>
+<p-menu #menu [model]="menuItems()" [popup]="true" appendTo="body" ariaLabel="Person actions" (onShow)="menuOpen.set(true)" (onHide)="menuOpen.set(false)" />
 
 <!-- ConfirmDialog does not pass closeAriaLabel to its dialog; the close button is named through pass-through (as on Rules). -->
 <p-confirmdialog key="people" [style]="{ width: '28rem', maxWidth: 'calc(100vw - 32px)' }" [pt]="{ pcCloseButton: { root: { 'aria-label': 'Close' } } }">
@@ -123,11 +106,11 @@
     @if (pending(); as p) {
       <button pButton type="button" severity="secondary" [outlined]="true" (click)="close()"><span pButtonLabel>Cancel</span></button>
       @if (p.kind === 'role') {
-        <button pButton type="button" [loading]="confirmBusy()" [disabled]="newRole() === p.account.role" (click)="apply()"><span pButtonLabel>Change role</span></button>
+        <button pButton type="button" [disabled]="confirmBusy() || newRole() === p.account.role" (click)="apply()"><span pButtonLabel>Change role</span></button>
       } @else if (p.active) {
-        <button pButton type="button" [loading]="confirmBusy()" (click)="apply()"><span pButtonLabel>Reactivate</span></button>
+        <button pButton type="button" [disabled]="confirmBusy()" (click)="apply()"><span pButtonLabel>Reactivate</span></button>
       } @else {
-        <button pButton type="button" severity="danger" [loading]="confirmBusy()" (click)="apply()"><span pButtonLabel>Deactivate</span></button>
+        <button pButton type="button" severity="danger" [disabled]="confirmBusy()" (click)="apply()"><span pButtonLabel>Deactivate</span></button>
       }
     }
   </ng-template>

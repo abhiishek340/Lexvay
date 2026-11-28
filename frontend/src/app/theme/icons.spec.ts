@@ -2,10 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DOCUMENT_VIEWER_ICONS } from '../shared/document-viewer/document-viewer';
-import { AUDIT_ICONS } from '../screens/audit/audit';
-import { CHANGES_ICONS } from '../screens/changes/changes';
 import { COVERAGE_ICONS } from '../screens/coverage/coverage';
-import { PEOPLE_ICONS } from '../screens/people/people';
 import { REGISTER_ICONS } from '../screens/register/register';
 import { REQUESTS_ICONS } from '../screens/requests/requests';
 import { REPORT_CHECK_ICONS } from '../screens/report/report-check-dialog';
@@ -36,16 +33,17 @@ interface Unit { name: string; entries: string[]; registered: Record<string, str
 const UNITS: Unit[] = [
   { name: 'shell, sign-in and home', entries: ['shell/shell.ts', 'screens/login/login.ts', 'screens/home.ts'], registered: SHELL_ICONS },
   // Screens and shared parts whose only icons are the shell's: what they reach must name no other.
-  { name: 'overview, report, account menu and toast', entries: ['screens/overview/overview.ts', 'screens/report/report.ts', 'shell/account-menu.ts', 'shell/shell-toast.ts'], registered: {} },
+  {
+    name: 'overview, report, changes, audit, people, account menu and toast', registered: {},
+    entries: ['screens/overview/overview.ts', 'screens/report/report.ts', 'screens/changes/changes.ts', 'screens/audit/audit.ts', 'screens/people/people.ts',
+      'shell/account-menu.ts', 'shell/shell-toast.ts'],
+  },
   { name: 'review', entries: ['screens/review/review.ts'], registered: REVIEW_ICONS },
   { name: 'coverage', entries: ['screens/coverage/coverage.ts'], registered: COVERAGE_ICONS },
   { name: 'requests', entries: ['screens/requests/requests.ts'], registered: REQUESTS_ICONS },
-  { name: 'changes', entries: ['screens/changes/changes.ts'], registered: CHANGES_ICONS },
   { name: 'rules', entries: ['screens/rules/rules.ts'], registered: RULES_ICONS },
   { name: 'program setup', entries: ['screens/program-setup/program-setup.ts'], registered: PROGRAM_SETUP_ICONS },
   { name: 'register', entries: ['screens/register/register.ts'], registered: REGISTER_ICONS },
-  { name: 'audit', entries: ['screens/audit/audit.ts'], registered: AUDIT_ICONS },
-  { name: 'people', entries: ['screens/people/people.ts'], registered: PEOPLE_ICONS },
   { name: 'setup', entries: ['screens/setup/setup.ts'], registered: SETUP_ICONS },
   { name: 'document viewer (shared)', entries: ['shared/document-viewer/document-viewer.ts'], registered: DOCUMENT_VIEWER_ICONS, shared: true },
   { name: 'work queue (shell, deferred)', entries: ['shell/work-queue-menu.ts'], registered: WORK_QUEUE_ICONS, shared: true },

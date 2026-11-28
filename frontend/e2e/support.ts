@@ -107,6 +107,11 @@ export async function switchUser(page: Page, email: string): Promise<void> {
 /** The seeded program's target states: Review names its state pills by their full names. */
 export const STATE: Record<string, string> = { AZ: 'Arizona', CA: 'California', CO: 'Colorado', TX: 'Texas', UT: 'Utah' };
 
+/** The rows of the Changes log, across its days. */
+export function changeRows(page: Page) {
+  return page.getByRole('main').getByRole('listitem');
+}
+
 /** A state pill in Review's header (a tab named by the state's full name). */
 export function stateTab(page: Page, code: string) {
   return page.getByRole('tab', { name: STATE[code], exact: true });

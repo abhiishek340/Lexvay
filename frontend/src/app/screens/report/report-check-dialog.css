@@ -1,37 +1,36 @@
 /*
  * The dialog is appended to the body; its content keeps this component's scoped attributes, so these rules reach it.
- * Design v3 ("Ledger"): type and space carry the result, no tints, no rings, no icons beside words. UI3-2 finishes it.
+ * Design v3: type and space carry the result; no tints, no rings, no icons beside words.
  */
-.lx-check { min-height: 12rem; display: flex; flex-direction: column; justify-content: center; }
+.lx-check { min-height: 192px; display: flex; flex-direction: column; justify-content: center; }
 
 /*
- * The drop zone is FileUpload's content area: a hairline frame that takes the accent rule while a file is over it. The
+ * The drop zone is FileUpload's content area: a dashed frame that takes the accent edge while a file is over it. The
  * shared token set (program setup's) gives FileUpload an inset fill and padding; this dialog draws its own frame instead.
  */
-:host ::ng-deep .lx-check-upload.p-fileupload { background: transparent; }
+:host ::ng-deep .lx-check-upload.p-fileupload { background: transparent; border: 0; }
 :host ::ng-deep .lx-check-upload .p-fileupload-header { display: none; }
 :host ::ng-deep .lx-check-upload .p-fileupload-content { padding: 0; }
 .lx-drop {
-  display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 24px;
-  border: 1px dashed var(--p-lx-line-strong); border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center; gap: var(--lx-space-4); padding: var(--lx-space-7) var(--lx-space-5);
+  border: 1px dashed var(--p-lx-line-strong); border-radius: var(--lx-r-control);
   transition: border-color var(--lx-t-fast) var(--lx-ease);
 }
 :host ::ng-deep .p-fileupload-content[data-p-highlight='true'] .lx-drop { border-color: var(--p-lx-accent); }
-.lx-drop-title { font-size: 14px; line-height: 20px; color: var(--p-lx-ink-2); }
-.lx-check-error { display: block; margin-top: 12px; }
+.lx-drop-title { color: var(--p-lx-ink-2); }
+.lx-check-error { display: block; margin-top: var(--lx-space-3); }
 
-/* One result: a plain heading, then meta lines, then the fingerprint. */
-.lx-result { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-.lx-result-seal { margin-bottom: 8px; }
-.lx-result-headline { margin: 0; font-size: 15px; line-height: 24px; font-weight: 600; letter-spacing: -0.004em; }
-.lx-result-headline:focus:not(:focus-visible) { outline: none; }
+/* One result: the seal when it matches a signed report, a plain heading, its facts, then the fingerprint on a hairline. */
+.lx-result { display: flex; flex-direction: column; align-items: flex-start; gap: var(--lx-space-2); }
+.lx-result-seal { margin-bottom: var(--lx-space-2); }
+.lx-result-headline { font-size: 15px; line-height: 24px; font-weight: 600; letter-spacing: -0.004em; }
 .lx-quiet { color: var(--p-lx-ink-2); }
-.lx-meta { list-style: none; margin: 0; padding: 0; font-size: 13px; line-height: 20px; color: var(--p-lx-ink-2); }
-.lx-open { color: var(--p-lx-accent); font-size: 13px; line-height: 20px; font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+.lx-facts { list-style: none; margin: 0; padding: 0; color: var(--p-lx-ink-2); }
+.lx-open { margin-top: var(--lx-space-1); }
 
 .lx-fingerprint {
-  display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 12px; align-self: stretch;
-  border-top: 1px solid var(--p-lx-line); font-size: 12px; line-height: 16px; font-weight: 500; color: var(--p-lx-ink-2);
+  display: flex; align-items: center; gap: var(--lx-space-2); align-self: stretch; margin-top: var(--lx-space-3); padding-top: var(--lx-space-3);
+  border-top: 1px solid var(--p-lx-line);
 }
 .lx-fingerprint .lx-mono { color: var(--p-lx-ink); }
-.lx-fingerprint button[pButton] { width: 28px; height: 28px; padding: 0; }
+.lx-fingerprint button[pButton] { width: 32px; height: 32px; padding: 0; margin-left: auto; }
