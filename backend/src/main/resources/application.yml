@@ -35,9 +35,14 @@ lexvay:
     path: ${LEXVAY_FILESTORE_PATH:./data/files}
     s3-bucket: ${LEXVAY_S3_BUCKET:}
   llm:
-    provider: ${LEXVAY_LLM_PROVIDER:fake}     # fake | anthropic
-    model: ${LEXVAY_LLM_MODEL:claude-sonnet-5-5}
-    effort: ${LEXVAY_LLM_EFFORT:medium}       # low | medium | high | xhigh | max
+    provider: ${LEXVAY_LLM_PROVIDER:fake}     # fake | anthropic | openai-compatible
+    model: ${LEXVAY_LLM_MODEL:}               # anthropic: empty means claude-sonnet-5-5; openai-compatible: required, no default (D-616)
+    effort: ${LEXVAY_LLM_EFFORT:medium}       # anthropic only: low | medium | high | xhigh | max
+    # openai-compatible only (EV-1, D-616): a server the operator runs, such as llama-server, Ollama, vLLM or LM Studio.
+    base-url: ${LEXVAY_LLM_BASE_URL:}         # up to and excluding /chat/completions, for example http://localhost:8089/v1
+    api-key: ${LEXVAY_LLM_API_KEY:}           # optional bearer token
+    timeout-seconds: ${LEXVAY_LLM_TIMEOUT_SECONDS:120}
+    allowed-hosts: ${LEXVAY_LLM_ALLOWED_HOSTS:localhost,127.0.0.1,::1}   # a base URL host outside this list fails startup
     fake-scripts: ${LEXVAY_LLM_FAKE_SCRIPTS:}  # fake provider only: comma-separated fake-llm.yml files scripted at startup (D-280)
     max-output-tokens: 16000
     # Spend gate (MODE-1, D-562): a metered provider is refused unless approved, the model has a price below and the

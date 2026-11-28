@@ -2,6 +2,8 @@ package com.lexvay.llm;
 
 import com.lexvay.common.TenantContext;
 import java.sql.Types;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -12,7 +14,8 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Stores every model call with its raw input and output (D-014). Writes in its own transaction so the
- * record survives when the surrounding job fails and rolls back.
+ * record survives when the surrounding job fails and rolls back. A call whose token counts were estimated, not reported
+ * by the provider, says so in its stored request ({@code tokensEstimated}); {@code llm_call} has no column for it (D-617).
  */
 @Service
 public class LlmCallRecorder {
@@ -32,12 +35,16 @@ public class LlmCallRecorder {
                        UUID assessmentId, UUID requirementId) {
         UUID id = UUID.randomUUID();
         UUID tenantId = TenantContext.require();
-        String requestJson = json.writeValueAsString(java.util.Map.of(
-                "scriptKey", request.scriptKey(),
-                "system", request.systemPrompt(),
-                "user", request.userPrompt(),
-                "outputSchema", request.outputSchema(),
-                "maxOutputTokens", request.maxOutputTokens()));
+        Map<String, Object> stored = new LinkedHashMap<>();
+        stored.put("scriptKey", request.scriptKey());
+        stored.put("system", request.systemPrompt());
+        stored.put("user", request.userPrompt());
+        stored.put("outputSchema", request.outputSchema());
+        stored.put("maxOutputTokens", request.maxOutputTokens());
+        if (response.tokensEstimated()) {
+            stored.put("tokensEstimated", true);
+        }
+        String requestJson = json.writeValueAsString(stored);
         newTransaction.executeWithoutResult(status -> jdbc.sql("""
                 INSERT INTO llm_call (id, tenant_id, rule_version_id, assessment_id, requirement_id, purpose, model,
                                       prompt_version, request, response, input_tokens, output_tokens, duration_ms)
