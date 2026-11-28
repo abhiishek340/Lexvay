@@ -406,7 +406,7 @@ motion table at no bundle cost). Work items UI2-0 to UI2-4 with id ranges D-301 
 `docs/decisions/<item>.md` with a reserved id range, so parallel branches never edit the same lines here.
 This file keeps the cross-cutting decisions and this index: WS-UI D-080–089, WS-SEC D-090–099, WS-EVAL
 D-100–109, WS-PERF D-110–119, F3a D-120–129, F4a D-130–139, F6 D-140–149, F9 D-150–159, F11 D-160–169,
-F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640, OPS-2 D-641–643. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V020 F15, V022 MODE-1, then by merge order: SEC-3 takes V023 (it was V019 before V020 and V022 merged), RG-1 renumbers from V021 at merge, AC-1 V024, later items take the next free number at merge (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
+F7 D-170–179, F12 D-180–189, F13 D-190–199, FIX-2 D-200–209, F3 D-210–219, F1 D-220–229, FIX-1 D-230–239, OPS-1 D-240–244, F3b D-245–249, F7c D-250–259, F4 D-260–269, F8 D-270–279, TEST-1 D-280–284, F2 D-285–294, PERF-FE-1 D-295–299, design v2 D-300, UI2-0 D-301–319, UI2-1 D-320–329, UI2-2 D-330–339, UI2-3 D-340–349, UI2-4 D-350–359, FIX-3 D-360–369, F5a D-370–379, FIX-4 D-380–389, F10a D-390–399, SEC-2 D-400–409, FIX-5 D-410–415, F10b D-416–425, F5b D-426–435, FIX-6 D-436–441, F12b D-442–449, FIX-7 D-450–452, F14 D-453–462, INFRA-2 D-463–470, FIX-8 D-471–474, design v3 D-479, UI3-0 D-480–499, UI3-1 D-500–509, UI3-2 D-510–519, UI3-3 D-520–529, SEC-3 D-530–537, F15 D-540–549, real-data track D-550, RG-1 D-551–559, MODE-1 D-560–565, RG-2 D-566–575, RG-3 D-576–585, AC-1 D-586–595, AC-2 D-596–605, AC-3 D-606–615, EV-1 D-616–620, EV-2 D-621–630, UX-1 D-631–640, OPS-2 D-641–643, OPS-3 D-644–646. Once an item merges its file is folded into the section at the end of this file and deleted. Migration number V006 is intentionally unused (D-073 workflow); V008 WS-PERF, V009 F11, V010 F6, V011 F12, V012 FIX-1, V013 FIX-2, V014 F7c (F13 needed no migration), V015 F5a, V016 FIX-4, V017 FIX-6, V018 F14, V020 F15, V022 MODE-1, then by merge order: SEC-3 takes V023 (it was V019 before V020 and V022 merged), RG-1 renumbers from V021 at merge, AC-1 V024, later items take the next free number at merge (SEC-2 needed none: it found `audit_log_newest_idx` already in V001). Numbers follow merge order; a branch renumbers before merge if a lower number is still unmerged.
 
 ## Spec concerns (section 13, item 5)
 
@@ -4687,3 +4687,62 @@ menu had opened, and the heading took focus from the menu, so the keys pressed n
 `people.spec.ts` after D-497). A person who opens a menu or starts typing while a screen loads would lose their place
 the same way. `focusHeadingWhenRendered` now records the focused element at navigation and gives up once focus is on
 anything other than that element or the page body; `shell-focus.spec.ts` covers both paths.
+
+### FIX-8 — No console errors (D-471 to D-474)
+
+**D-471 — A view transition is never skipped; its animation is switched off instead.** The roadmap's first design
+attached handlers to `ready`, `finished` and `updateCallbackDone` and ignored `AbortError`. It cannot work: in
+development builds Angular's router already attaches its own `.catch(console.error)` to all three promises
+(`createViewTransition`, guarded by `ngDevMode`) before it calls `onViewTransitionCreated`, so a skipped transition is
+logged whatever the application does with the promises. The error never reached `provideBrowserGlobalErrorListeners`,
+and it is absent from production builds, which is why only a running development app showed it. `app.config.ts` therefore
+no longer calls `skipTransition()`. For a change within one screen (a tab, a filter; `sameScreen`) it sets
+`data-transition="none"` on `<html>`, and `styles.css` sets the `::view-transition-group/old/new(*)` animations to
+`none` under that attribute: the transition runs, finishes and resolves. Every new transition sets or removes the
+attribute itself, so a stale value never reaches the next one (no cleanup on `finished`, which would race with a
+following transition). Reduced motion needs no script: the media query in `styles.css` already sets the same
+animations to `none !important`, so the `MotionPreferences` check in `app.config.ts` was a duplicate and is gone.
+Rejected: wrapping `document.startViewTransition` or `console.error`; a global allowlist for the message.
+
+**D-472 — One user action is one router navigation.** A second transition that starts while the first still runs aborts
+the first ("New ViewTransition started"), which Angular logs. The end-to-end run showed two chains, both removed
+instead of tolerated:
+- Signing in, and any visit to `/`, navigated to `/` and then, once the programs arrived, from the `Home` screen to the
+  overview of the only program. `landingGuard` (`core/auth.guard.ts`, after `authGuard` on the `''` route) now fetches the
+  programs and returns the overview's `UrlTree` for a single program; the redirect resolves inside the same navigation,
+  before any transition is created. With several programs, none, or a failed request the guard lets `Home` render, which
+  lists them or shows the failure from its own request. `Home` no longer navigates.
+- Review and the evidence report wrote their default state into the address (`?jurisdiction=AZ`) right after opening.
+  `needsJurisdictionParam` (`core/navigation.ts`) says whether choosing a state must change the URL: an absent
+  `?jurisdiction=` already means the program's first state, as Coverage always read it, so the default is applied when
+  reading and the URL changes only when the person picks another state.
+
+- Opening Rules without a version in the address (UI2-4) chose the version to open in a component effect and navigated
+  again once the program had loaded, which aborted the first transition. `openingVersionGuard`
+  (`screens/rules/opening-version.guard.ts`) does the same inside the opening navigation: it awaits the program, then
+  redirects the bare address to the version that opens (the query travels along). `ProgramContext.ruleVersionGroups`
+  is the one place the versions are grouped, for the guard and the list.
+
+The rule workspace's `?new=1` (the command palette's "new rule version") is also followed by a navigation that removes
+the parameter; no test overlaps it, so it is left as it is and noted in the pull request.
+
+**D-473 — `consoleGuard` fails any test that logs a console error.** An automatic fixture in `e2e/support.ts`, beside
+`iconGuard`, collects every `console` message of type `error` and every `pageerror` and fails the test if any was
+recorded. A test that deliberately causes an error declares it with `allowConsoleErrors(page, /pattern/)`; the pattern is
+matched against the message text and the URL it came from, so it names one response by status and URL. There is no
+global allowlist.
+
+**D-474 — The eight declared errors.** Chromium logs every 4xx or 5xx response as "Failed to load resource". Eight tests
+cause one on purpose:
+- `review-and-sign.spec.ts` (sign-in page): the wrong password is answered with 401 by `/api/v1/auth/login`.
+- `evidence-requests.spec.ts` (answer drawer): a tampered quote submitted through the screen is answered with 400 by
+  `/api/v1/mappings/<id>/evidence-responses`.
+- `rules.spec.ts` (hand-entered list): the blank title is answered with 400 by
+  `/api/v1/rule-versions/<id>/requirements`.
+- `people.spec.ts` (a used setup link): 400 from `/api/v1/auth/setup`.
+- `people.spec.ts` (own row, last administrator): the stubbed 409 from `/api/v1/users/<id>/role`.
+- `people.spec.ts` (busy sign-in): the stubbed 503 from `/api/v1/auth/login`.
+- `setup.spec.ts` (the same syllabus uploaded twice): the 409 from `/api/v1/programs/<id>/documents?kind=SYLLABUS` that refuses the copy.
+- `report-check.spec.ts` (F14): a text file named `renamed.pdf` is answered with 400 by `/api/v1/reports/check`.
+
+Every other error the suite found was the view-transition `AbortError`; no screen logged anything else.

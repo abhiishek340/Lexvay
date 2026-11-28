@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { ADMIN, PASSWORD, PRIYA, SCREENSHOTS, expect, expectAccessible, goTo, nav, shoot, signIn, test } from './support';
+import { ADMIN, PASSWORD, PRIYA, SCREENSHOTS, allowConsoleErrors, expect, expectAccessible, goTo, nav, shoot, signIn, test } from './support';
 
 /** Passwords the new people choose: long enough for the rules, never an address. */
 const CHOSEN = 'Granite river lantern 42';
@@ -97,6 +97,8 @@ test('an administrator adds a contributor, who chooses a password from the link 
 
   // The link worked once: opened again, it is refused with the one message for every bad code.
   await signOut(page);
+  // Chromium logs the 400 that refuses the used code.
+  allowConsoleErrors(page, /status of 400.*\/api\/v1\/auth\/setup/);
   await page.goto(link);
   await page.getByLabel('New password', { exact: true }).fill(CHOSEN);
   await page.getByLabel('Repeat password', { exact: true }).fill(CHOSEN);
@@ -171,7 +173,8 @@ test("an administrator's own row offers only a new setup code; refusals stay in 
   await expect(menu.getByRole('menuitem')).toHaveText(['New setup code']);
   await page.keyboard.press('Escape');
 
-  // The server's 409 sentence appears inside the confirmation, which stays open.
+  // The server's 409 sentence appears inside the confirmation, which stays open. Chromium logs that 409.
+  allowConsoleErrors(page, /status of 409.*\/api\/v1\/users\/[^/]+\/role/);
   await page.route('**/api/v1/users/*/role', (route) => route.fulfill({
     status: 409, contentType: 'application/problem+json',
     body: JSON.stringify({ type: 'about:blank', title: 'Conflict', status: 409, detail: 'At least one active administrator is required' }),
@@ -215,6 +218,8 @@ test('a reviewer never sees People, and the address sends them to the overview',
 });
 
 test('a busy sign-in holds the button for the seconds the server asks', async ({ page }) => {
+  // Chromium logs the 503 the stubbed login answers with.
+  allowConsoleErrors(page, /status of 503.*\/api\/v1\/auth\/login/);
   await page.route('**/api/v1/auth/login', (route) => route.fulfill({
     status: 503, headers: { 'Retry-After': '2' }, contentType: 'application/problem+json',
     body: JSON.stringify({ type: 'about:blank', title: 'Service Unavailable', status: 503, detail: 'Sign-in is busy. Try again in a moment.' }),

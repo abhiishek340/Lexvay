@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NavLink, beforeSignIn, inLink, navLinks, tabBarOverflow, tabSlots } from './navigation';
+import { NavLink, beforeSignIn, inLink, navLinks, needsJurisdictionParam, tabBarOverflow, tabSlots } from './navigation';
 
 const NO_COUNTS = { waitingForReview: 0, openRequests: 0, openChanges: 0, rulesWaiting: 0 };
 const tenantIds = (role: Parameters<typeof navLinks>[2], programId: string | null = 'p1') =>
@@ -77,5 +77,20 @@ describe('the bottom tab bar', () => {
     expect(inLink('/programs/p1/rules/rv7?new=1', rules)).toBe(true);
     expect(inLink('/programs/p1/rulesx', rules)).toBe(false);
     expect(inLink('/programs/p1/review', rules)).toBe(false);
+  });
+});
+
+describe('needsJurisdictionParam', () => {
+  it('leaves the URL alone for the first state when it carries no parameter, the default', () => {
+    expect(needsJurisdictionParam(null, 'AZ', 'AZ')).toBe(false);
+  });
+
+  it('writes the parameter for any other state, and again when the URL names a different one', () => {
+    expect(needsJurisdictionParam(null, 'CA', 'AZ')).toBe(true);
+    expect(needsJurisdictionParam('CA', 'AZ', 'AZ')).toBe(true);
+  });
+
+  it('does nothing when the URL already names the state', () => {
+    expect(needsJurisdictionParam('CA', 'CA', 'AZ')).toBe(false);
   });
 });
