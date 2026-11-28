@@ -1,6 +1,7 @@
 import { Component, computed, input } from '@angular/core';
 import { DECISION_LABEL, FINDING_LABEL } from '../core/labels';
 import { DecisionKind, Finding } from '../core/models';
+import { MarkShape, MarkShapeIcon } from './mark-shape';
 
 /**
  * Every status a mark stands for (DESIGN.md "Status marks"): the three findings, the three decisions, and the states
@@ -8,8 +9,6 @@ import { DecisionKind, Finding } from '../core/models';
  */
 export type Status = Finding | DecisionKind | 'NOT_REVIEWED' | 'OUTDATED' | 'BLOCKED';
 
-/** The seven 10 px shapes. Found and missing differ in shape as well as colour, so state never rests on colour. */
-export type MarkShape = 'disc' | 'square' | 'half' | 'ring' | 'ring-dot' | 'dashed-ring' | 'open-square';
 /** found and missing take their colour; neutral is ink-2; quiet is an ink-3 mark beside an ink-2 word. */
 export type MarkTone = 'found' | 'missing' | 'neutral' | 'quiet';
 
@@ -35,26 +34,14 @@ export const STATUS_MARK: Readonly<Record<Status, MarkSpec>> = {
  */
 @Component({
   selector: 'lx-status-mark',
+  imports: [MarkShapeIcon],
   template: `
-    <svg class="lx-mark" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" focusable="false">
-      @switch (spec().shape) {
-        @case ('disc') { <circle cx="5" cy="5" r="5" class="lx-fill" /> }
-        @case ('square') { <rect x="0.5" y="0.5" width="9" height="9" rx="1" class="lx-fill" /> }
-        @case ('half') { <circle cx="5" cy="5" r="4.25" class="lx-stroke" /><path d="M5 .75a4.25 4.25 0 0 0 0 8.5z" class="lx-fill" /> }
-        @case ('ring') { <circle cx="5" cy="5" r="4.25" class="lx-stroke" /> }
-        @case ('ring-dot') { <circle cx="5" cy="5" r="4.25" class="lx-stroke" /><circle cx="5" cy="5" r="1.75" class="lx-fill" /> }
-        @case ('dashed-ring') { <circle cx="5" cy="5" r="4.25" class="lx-stroke" stroke-dasharray="2 1.34" /> }
-        @case ('open-square') { <rect x="1" y="1" width="8" height="8" rx="1" class="lx-stroke" /> }
-      }
-    </svg>
+    <lx-mark-shape class="lx-mark" [shape]="spec().shape" />
     <span class="lx-word" [class.lx-sr-only]="quiet()">{{ label() ?? spec().word }}</span>
   `,
   host: { '[attr.data-status]': 'status()', '[attr.data-tone]': 'spec().tone' },
   styles: `
     :host { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
-    .lx-mark { flex: none; overflow: visible; }
-    .lx-fill { fill: currentColor; }
-    .lx-stroke { fill: none; stroke: currentColor; stroke-width: 1.5; }
     :host([data-tone='found']) .lx-mark { color: var(--p-lx-found); }
     :host([data-tone='missing']) .lx-mark { color: var(--p-lx-missing); }
     :host([data-tone='neutral']) .lx-mark { color: var(--p-lx-ink-2); }
