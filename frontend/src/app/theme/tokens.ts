@@ -14,8 +14,13 @@ const TABLE = {
   /** Hover rows, selected rows (with the rule), code wells. */
   sunken: { light: '#F3F3F1', dark: '#1B1C1F' },
   line: { light: '#E6E5E2', dark: '#26272B' },
-  /** Input and secondary-button borders, column rules. */
+  /** Secondary-button borders, column rules, the rule under a table header. */
   lineStrong: { light: '#D2D1CC', dark: '#34363B' },
+  /**
+   * The border of a field a person types into or chooses from (text inputs, select, multiselect, autocomplete, the
+   * search field): it identifies the control, so it reaches 3:1 against paper and surface (WCAG 1.4.11).
+   */
+  lineControl: { light: '#8C8F95', dark: '#6E7178' },
   /** Primary text, and the primary button's fill. */
   ink: { light: '#141517', dark: '#ECECEE' },
   /** Secondary text, meta, table headers, icons. */

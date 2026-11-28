@@ -28,11 +28,11 @@ a.lx-brand:hover { color: var(--p-lx-ink); }
 
 .lx-search {
   width: 280px; height: 32px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; margin-left: 8px; padding: 0 10px;
-  border: 1px solid var(--p-lx-line-strong); border-radius: var(--lx-r-control); background: var(--p-lx-surface); color: var(--p-lx-ink-2);
+  border: 1px solid var(--p-lx-line-control); border-radius: var(--lx-r-control); background: var(--p-lx-surface); color: var(--p-lx-ink-2);
   font: inherit; font-size: 13px; line-height: 20px; cursor: text; flex: none;
   transition: border-color var(--lx-t-fast) var(--lx-ease);
 }
-.lx-search:hover { border-color: var(--p-lx-ink-3); }
+.lx-search:hover { border-color: var(--p-lx-ink-2); }
 .lx-search-text { flex: 1; text-align: left; }
 .lx-search-key { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; }
 

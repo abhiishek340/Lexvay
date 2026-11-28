@@ -23,7 +23,8 @@ const MINIMUM: Record<Use, number> = { text: 4.5, mark: 3 };
 const GROUNDS: TokenName[] = ['paper', 'surface', 'sunken', 'accentWash'];
 /**
  * The DESIGN.md table's text and mark pairs. ink-3 is decorative (rules, disabled, the not-reviewed mark beside its
- * word) and line-strong a hairline, so neither is a text pair; inputs are named by their visible labels.
+ * word) and line-strong a hairline, so neither is a text pair. line-control is the border that identifies a field, so it
+ * is held to the 3:1 of WCAG 1.4.11 against the page and the field's own fill.
  */
 const PAIRS: [TokenName, TokenName[], Use][] = [
   ['ink', GROUNDS, 'text'],
@@ -36,6 +37,7 @@ const PAIRS: [TokenName, TokenName[], Use][] = [
   // The focus ring and the status marks against every ground.
   ['accent', GROUNDS, 'mark'],
   ['ink2', GROUNDS, 'mark'],
+  ['lineControl', ['paper', 'surface'], 'mark'],
 ];
 
 describe('design tokens', () => {
