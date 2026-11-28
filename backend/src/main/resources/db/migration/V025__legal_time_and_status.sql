@@ -29,7 +29,7 @@ ALTER TABLE rule_version
 -- Existing versions: an approved one was in force, as far as anyone recorded; its date was typed in at creation.
 UPDATE rule_version
 SET legal_status = CASE WHEN requirements_approved_at IS NOT NULL THEN 'IN_FORCE' ELSE 'UNKNOWN' END,
-    dates_basis = 'Entered at creation before V021';
+    dates_basis = 'Entered at creation before V025';
 
 ALTER TABLE rule_version
   ADD CONSTRAINT rule_version_dates_basis_text CHECK (dates_basis IS NULL OR (length(btrim(dates_basis)) > 0 AND length(dates_basis) <= 1000)),

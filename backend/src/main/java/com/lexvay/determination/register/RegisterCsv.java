@@ -1,6 +1,7 @@
 package com.lexvay.determination.register;
 
 import com.lexvay.common.CsvWriter;
+import com.lexvay.tenant.DataMode;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -37,8 +38,13 @@ final class RegisterCsv {
     private RegisterCsv() {
     }
 
-    static byte[] write(List<RegisterRow> rows) {
-        CsvWriter csv = new CsvWriter().row(COLUMNS.stream().map(Column::label).toList());
+    /** A DEMO tenant's register starts with a line saying the data is fictional, above the column labels. */
+    static byte[] write(List<RegisterRow> rows, DataMode mode) {
+        CsvWriter csv = new CsvWriter();
+        if (mode == DataMode.DEMO) {
+            csv.row(List.of(DataMode.DEMO_NOTICE));
+        }
+        csv.row(COLUMNS.stream().map(Column::label).toList());
         for (RegisterRow row : rows) {
             csv.row(COLUMNS.stream().map(c -> Objects.toString(c.value().apply(row), null)).toList());
         }

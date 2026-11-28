@@ -11,7 +11,7 @@ A changed rule source creates a draft with `effective_from NULL`, `legal_status 
 upload. Test: `CheckRuleSourceTest.aChangedPageCreatesAnUnapprovedDraft...`.
 
 ## D-552 Dates and status are never edited in place
-`rule_version` keeps only the creation values (V021 adds `effective_to`, `published_at`, `adopted_at`, `legal_status`,
+`rule_version` keeps only the creation values (V025 adds `effective_to`, `published_at`, `adopted_at`, `legal_status`,
 `dates_basis`, `observed_at`; `effective_from` becomes nullable). The V003 trigger already rejects any change but
 approval, so the new columns are immutable without further code. A correction is a new row in `rule_version_status`
 (full position, not a difference; `recorded_by`, `recorded_at`), append-only through `forbid_change()`, with forced
@@ -29,10 +29,13 @@ effective date is recorded (a date always carries its basis). `PROPOSED`, `WITHD
 `UNKNOWN` cannot be approved. On approval the current position is appended as a status row signed by the approver, even
 when an earlier correction already exists: the approval then names the exact dates it approved, and a later correction
 is a row after it. Only a person records status, so a monitored draft stays unapprovable until a reviewer does.
+MODE-1's fail-closed hook (`RealDataApprovalGuard`, D-561) now reads the current `dates_basis` of the version: in a LIVE
+tenant a version is approved only when a basis is recorded and it does not say "Fictional demo data"; a DEMO tenant is
+unchanged (`LiveTenantApprovalTest`). The migration is numbered V025 (V022 is MODE-1, V023 SEC-3, V024 AC-1).
 
 ## D-554 Backfill
 Existing rows get `legal_status = 'IN_FORCE'` when approved, else `'UNKNOWN'`, and `dates_basis = 'Entered at creation
-before V021'`; their `effective_from` is kept. The backfill needs to write rows of every tenant and to bypass the
+before V025'`; their `effective_from` is kept. The backfill needs to write rows of every tenant and to bypass the
 approval-only trigger of V003, so the migration switches `rule_version` (and `assessment`, for D-556) to NO FORCE row
 security and disables that one trigger for its own duration and restores both in the same transaction, as V016 does.
 `rule_source_check.outcome` historic `DRAFT_EXISTS` rows are immutable and stored nothing, so the value stays valid in
@@ -41,7 +44,7 @@ the CHECK and in `CheckOutcome` and is documented as no longer written.
 ## D-555 Every observed change is kept (A, B, C)
 When the text changed and a draft already waits, the handler stores the document and records a `CHANGED_QUEUED` check
 whose `rule_version_id` is the waiting draft. `CHANGED` and `CHANGED_QUEUED` both carry a document and a version (the
-V021 constraints keep the V011 names). The draft's view lists its `queuedObservations`, oldest first, from one statement
+V025 constraints keep the V011 names). The draft's view lists its `queuedObservations`, oldest first, from one statement
 for a whole list (no new index: the planner ignores a partial one at this size, as `IndexUsageTest` showed). Decision on the baseline: it stays the drafted text
 (it moves only on `CHANGED`). Moving it on a queued change would leave B and C stored but never drafted once A is
 decided, which loses the old behaviour that the next check after approval drafts the page as it then reads. To avoid
@@ -76,7 +79,7 @@ carry the status and dates. Listed in `Rule9_AuditCoverageTest` and `InputValida
 
 ## D-558 Seed
 Each fictional demo version carries explicit fictional `adoptedAt`, `publishedAt` and `effectiveFrom` in
-`seed/manifest.yml` (`legal:`), status `IN_FORCE`, and `dates_basis` "Fictional demo data" (a constant in `SeedLoader`).
+`seed/manifest.yml` (`legal:`), status `IN_FORCE`, and `dates_basis` "Fictional demo data" (`DataMode.DEMO_NOTICE`, the notice MODE-1 also prints on demo exports).
 Deviation to report: the Colorado revision 2 (effective 2027-01-01, after today) is `FINAL_NOT_EFFECTIVE`, not
 `IN_FORCE`. It is the true state of that fictional rule and it shows "Upcoming from 2027-01-01" on the overview.
 

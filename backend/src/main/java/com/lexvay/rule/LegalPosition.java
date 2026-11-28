@@ -4,7 +4,7 @@ import java.time.LocalDate;
 
 /**
  * The legal status and dates of a rule version, with the citation that supports the dates. A date without a basis
- * is refused, and a rule cannot end before it begins: the same two rules the database enforces (V021).
+ * is refused, and a rule cannot end before it begins: the same two rules the database enforces (V025).
  */
 public record LegalPosition(LegalStatus status, LocalDate effectiveFrom, LocalDate effectiveTo, LocalDate publishedAt,
                             LocalDate adoptedAt, String datesBasis) {

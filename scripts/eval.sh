@@ -25,8 +25,8 @@ if [ "$MODE" = live ]; then
     echo "eval-live: ANTHROPIC_API_KEY is not set, so no real model can be called. Nothing was run."
     exit 0
   fi
-  if [ -z "${LEXVAY_LLM_PRICE_INPUT_PER_MTOK:-}" ] || [ -z "${LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK:-}" ]; then
-    echo "eval-live: LEXVAY_LLM_PRICE_INPUT_PER_MTOK or LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK is not set; the cost line will read 0." >&2
+  if [ "${LEXVAY_LLM_PAID_APPROVED:-false}" != "true" ] || [ -z "${LEXVAY_LLM_RATES:-}" ]; then
+    echo "eval-live: LEXVAY_LLM_PAID_APPROVED is not true or LEXVAY_LLM_RATES is empty; the spend gate will refuse every model call." >&2
   fi
   export LEXVAY_LLM_PROVIDER=anthropic
 else

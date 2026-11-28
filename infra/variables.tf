@@ -164,26 +164,27 @@ variable "llm_effort" {
   }
 }
 
-variable "llm_price_input_per_mtok" {
-  description = "USD per million input tokens, used only by the cost report (LEXVAY_LLM_PRICE_INPUT_PER_MTOK)."
+variable "llm_paid_approved" {
+  description = "Whether the backend may make billed model calls (LEXVAY_LLM_PAID_APPROVED). Leave false until the founder approves spend."
+  type        = bool
+  default     = false
+}
+
+variable "llm_monthly_budget_usd" {
+  description = "Most the backend may spend on billed model calls in a UTC month (LEXVAY_LLM_MONTHLY_BUDGET_USD). Zero refuses every call."
   type        = number
-  default     = 2.0
+  default     = 0
 
   validation {
-    condition     = var.llm_price_input_per_mtok >= 0
-    error_message = "llm_price_input_per_mtok must not be negative."
+    condition     = var.llm_monthly_budget_usd >= 0
+    error_message = "llm_monthly_budget_usd must not be negative."
   }
 }
 
-variable "llm_price_output_per_mtok" {
-  description = "USD per million output tokens, used only by the cost report (LEXVAY_LLM_PRICE_OUTPUT_PER_MTOK)."
-  type        = number
-  default     = 10.0
-
-  validation {
-    condition     = var.llm_price_output_per_mtok >= 0
-    error_message = "llm_price_output_per_mtok must not be negative."
-  }
+variable "llm_rates" {
+  description = "USD per million tokens for each model, as model=inputPerMtok:outputPerMtok separated by commas (LEXVAY_LLM_RATES). Empty means every cost is unknown and every billed call is refused."
+  type        = string
+  default     = ""
 }
 
 variable "db_engine_version" {

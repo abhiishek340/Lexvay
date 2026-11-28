@@ -57,4 +57,9 @@ public class FakeLlmClient implements LlmClient {
     public String modelId() {
         return MODEL_ID;
     }
+
+    @Override
+    public boolean scripted() {
+        return true;
+    }
 }

@@ -21,7 +21,9 @@ import com.lexvay.rule.RuleVersionService;
 import com.lexvay.rule.source.CreateRuleSourceRequest;
 import com.lexvay.rule.source.RuleSourceService;
 import com.lexvay.tenant.AppUserRepository;
+import com.lexvay.tenant.DataMode;
 import com.lexvay.tenant.TenantBootstrapService;
+import com.lexvay.tenant.TenantRepository;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +34,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -51,13 +54,11 @@ public class SeedLoader {
 
     private static final Logger log = LoggerFactory.getLogger(SeedLoader.class);
 
-    /** Every date in the seed is invented; this is the citation the dates carry (D-558). */
-    private static final String DATES_BASIS = "Fictional demo data";
-
     public record Result(String tenant, boolean skipped, UUID tenantId, UUID programId, UUID assessmentId, int documents, int requirements) {
     }
 
     private final TenantBootstrapService tenants;
+    private final TenantRepository tenantRows;
     private final AppUserRepository users;
     private final ProgramService programs;
     private final CourseService courses;
@@ -68,10 +69,12 @@ public class SeedLoader {
     private final AssessmentService assessments;
     private final JobRunner jobs;
 
-    public SeedLoader(TenantBootstrapService tenants, AppUserRepository users, ProgramService programs, CourseService courses,
+    public SeedLoader(TenantBootstrapService tenants, TenantRepository tenantRows, AppUserRepository users, ProgramService programs,
+                      CourseService courses,
                       DocumentService documents, ProgramFactService facts, RuleVersionService ruleVersions,
                       RuleSourceService ruleSources, AssessmentService assessments, JobRunner jobs) {
         this.tenants = tenants;
+        this.tenantRows = tenantRows;
         this.users = users;
         this.programs = programs;
         this.courses = courses;
@@ -103,11 +106,13 @@ public class SeedLoader {
     public Result loadTenant(SeedManifest.Tenant t, Path seedDir, String password, ModelStrategy model) {
         SeedManifest.User adminSpec = t.users().stream().filter(u -> u.role().equals("ADMIN")).findFirst()
                 .orElseThrow(() -> new IllegalStateException("Tenant " + t.name() + " needs one ADMIN user"));
-        if (users.findForLogin(adminSpec.email()).isPresent()) {
+        Optional<LexvayUser> existing = users.findForLogin(adminSpec.email());
+        if (existing.isPresent()) {
+            refuseLive(t.name(), existing.get().tenantId());
             log.info("Seed: tenant '{}' already exists, skipping", t.name());
             return new Result(t.name(), true, null, null, null, 0, 0);
         }
-        var created = tenants.createTenant(t.name(), adminSpec.email(), adminSpec.displayName(), password);
+        var created = tenants.createTenant(t.name(), DataMode.DEMO, adminSpec.email(), adminSpec.displayName(), password);
         UUID tenantId = created.tenantId();
         Map<Role, LexvayUser> byRole = new HashMap<>();
         byRole.put(Role.ADMIN, created.admin());
@@ -168,13 +173,20 @@ public class SeedLoader {
         });
     }
 
+    /** The seed is fictional, so it never writes into a tenant that holds real data (D-561), not even to skip it quietly. */
+    private void refuseLive(String name, UUID tenantId) {
+        if (TenantContext.runAs(tenantId, tenantRows::currentDataMode) == DataMode.LIVE) {
+            throw new IllegalStateException("Tenant '" + name + "' holds real data (LIVE); the seed never writes into it");
+        }
+    }
+
     /** A tenant holding one program and only the given documents: no courses, facts, rules or assessment. */
     public record Corpus(UUID tenantId, UUID programId, int documents) {
     }
 
     /** The documents of the retrieval evaluation: a fresh tenant, its program, and every PDF uploaded and ingested through the services. */
     public Corpus loadCorpus(String tenantName, String adminEmail, String password, SeedManifest.Program program, Map<Path, DocumentKind> pdfs) {
-        var created = tenants.createTenant(tenantName, adminEmail, "Retrieval Evaluator", password);
+        var created = tenants.createTenant(tenantName, DataMode.DEMO, adminEmail, "Retrieval Evaluator", password);
         return TenantContext.runAs(created.tenantId(), () -> {
             UUID programId = as(created.admin(), () -> programs.create(new CreateProgramRequest(program.name(), program.licenseType(),
                     program.catalogYear(), program.jurisdictions())).id());
@@ -211,7 +223,7 @@ public class SeedLoader {
                                            UUID supersedesId, String text, LexvayUser contributor, LexvayUser reviewer, ModelStrategy model) {
         model.beforeExtraction(label);
         var created = as(contributor, () -> ruleVersions.create(new CreateRuleVersionRequest(jurisdiction, licenseType, label, sourceUrl,
-                legal.status(), legal.effectiveFrom(), null, legal.publishedAt(), legal.adoptedAt(), DATES_BASIS, supersedesId, text)));
+                legal.status(), legal.effectiveFrom(), null, legal.publishedAt(), legal.adoptedAt(), DataMode.DEMO_NOTICE, supersedesId, text)));
         jobs.runPending();
         as(reviewer, () -> {
             model.afterExtraction(jurisdiction, created.ruleVersionId());

@@ -67,14 +67,16 @@ public class RuleVersionService {
     private final ChangeService changes;
     private final TextExtractor extractor;
     private final RuleSourceRepository ruleSources;
+    private final RealDataApprovalGuard realData;
 
     public RuleVersionService(RuleVersionRepository ruleVersions, JurisdictionRepository jurisdictions,
                               DocumentRepository documents, DocumentService documentService, JobRepository jobs, AuditService audit,
                               RequirementListParser parser, ChangeService changes, TextExtractor extractor,
-                              RuleSourceRepository ruleSources) {
+                              RuleSourceRepository ruleSources, RealDataApprovalGuard realData) {
         this.ruleSources = ruleSources;
         this.changes = changes;
         this.extractor = extractor;
+        this.realData = realData;
         this.ruleVersions = ruleVersions;
         this.jurisdictions = jurisdictions;
         this.documents = documents;
@@ -217,6 +219,7 @@ public class RuleVersionService {
             // A date always comes with its basis (LegalPosition), so the missing effective date is the gap to name.
             throw new ConflictException("The effective date is not recorded. Record it, with where it comes from, before approving the requirements");
         }
+        realData.require(version);
         UUID actor = CurrentUser.require().id();
         ruleVersions.approve(id, actor);
         ruleVersions.insertStatus(TenantContext.require(), id, legal, actor);

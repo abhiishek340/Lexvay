@@ -8,9 +8,10 @@ import com.lexvay.program.Program;
 import com.lexvay.report.Report;
 import com.lexvay.rule.Jurisdiction;
 import com.lexvay.rule.RuleVersion;
+import com.lexvay.tenant.DataMode;
 import java.util.List;
 
 /** Everything the database holds about one signed determination that goes into its package, read in one place. */
 record PackageSnapshot(Determination determination, Program program, Jurisdiction state, RuleVersion ruleVersion,
-                       List<LockedCourseVersion> courseVersions, List<Mapping> mappings, List<Quote> quotes, Report report) {
+                       List<LockedCourseVersion> courseVersions, List<Mapping> mappings, List<Quote> quotes, Report report, DataMode dataMode) {
 }
