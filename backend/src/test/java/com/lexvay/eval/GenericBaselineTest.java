@@ -86,7 +86,7 @@ class GenericBaselineTest {
 
         var request = ArgumentCaptor.forClass(LlmRequest.class);
         verify(gateway).complete(request.capture());
-        assertThat(request.getValue().purpose()).isEqualTo(LlmPurpose.MATCH_EVIDENCE);
+        assertThat(request.getValue().purpose()).isEqualTo(LlmPurpose.EVAL_BASELINE);
         assertThat(request.getValue().scriptKey()).isEqualTo("BASELINE:UT-9");
         assertThat(request.getValue().userPrompt()).contains(ETHICS, "REQUIREMENT UT-9\nTitle of UT-9\nText of UT-9");
         assertThat(request.getValue().systemPrompt()).contains("EVIDENCE_FOUND", "EVIDENCE_MISSING", "AMBIGUOUS", "word for word")

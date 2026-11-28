@@ -1,7 +1,7 @@
 ### EV-2 — Evaluation lab (D-621 to D-630)
 
-Work item EV-2, "Evaluation lab" (docs/ROADMAP.md). Folded into DECISIONS.md by the orchestrator when it merges. No migration,
-no new dependency, no model downloaded or run, no paid service called: the tests answer from `FakeLlmClient` and Mockito, and
+Work item EV-2, "Evaluation lab" (docs/ROADMAP.md). Folded into DECISIONS.md by the orchestrator when it merges. One migration
+(V028, widening the `llm_call.purpose` CHECK, D-626), no new dependency, no model downloaded or run, no paid service called: the tests answer from `FakeLlmClient` and Mockito, and
 no test touches the network. The demo key is built from the fictional seed only and says so.
 
 **D-621 — The lab sits beside `make eval`, on the same runner and service.** `make eval` is unchanged. `make eval-lab` and
@@ -79,9 +79,12 @@ answer outside it, or a model that declines, is an unusable answer (counted, and
 `QuoteVerifier` against the stored page the model was shown; a verified quote becomes the cited span (with the document's SHA-256
 and whether its course is required), an unverified one locates nothing and counts against the baseline's quote verification, and
 the finding it claimed is scored as claimed. Calls go through `LlmGateway`, so the spend gate applies, and are recorded by
-`LlmCallRecorder` with prompt version `eval-baseline-v1` so spend accounting stays true. `llm_call.purpose` has a CHECK for the
-two pipeline purposes and EV-2 has no migration, so they carry `MATCH_EVIDENCE`; `EvalRepository.modelUse(boolean)` separates the
-two uses by prompt version, so the pipeline's cost line is not inflated by the baseline's calls and the baseline has its own. In
+`LlmCallRecorder` with prompt version `eval-baseline-v1` so spend accounting stays true: the stored `metered` flag is what the gate
+adds up, as for every call. They are stored under their own purpose, `EVAL_BASELINE`, because a record that called them
+`MATCH_EVIDENCE` would misstate what the call was. Migration V028 widens the `llm_call.purpose` CHECK with it (the number is
+provisional: V026 is AC-1's and V027 is expected for RG-2, so it is renumbered at merge to the next free one).
+`EvalRepository.modelUse(boolean)` separates the two uses by purpose, so the pipeline's cost line is not inflated by the
+baseline's calls and the baseline has its own. In
 `SCRIPTED` mode the baseline is reported as `BLOCKED: needs a model` and no call is made; a `LlmCallBlockedException` (spend gate,
 no price, over budget) blocks only the baseline, with the gate's message, and the pipeline's report stands.
 

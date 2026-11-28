@@ -33,8 +33,8 @@ import tools.jackson.databind.ObjectMapper;
  * check is shared: the model's quote is looked up in the stored page with {@link QuoteVerifier}, and a quote that is not there
  * locates nothing, so it can neither match a key's span nor support a finding. The finding the model claimed is still scored as
  * claimed. Every call goes through {@link LlmGateway}, so the spend gate applies, and is stored with the prompt version
- * {@link #PROMPT_VERSION} so its use is counted apart from the pipeline's. {@code llm_call.purpose} admits only the two purposes
- * of the pipeline and EV-2 has no migration, so the calls carry {@link LlmPurpose#MATCH_EVIDENCE}.
+ * {@link #PROMPT_VERSION} under their own purpose, {@link LlmPurpose#EVAL_BASELINE}, so their use is counted apart from the
+ * pipeline's and the record says what the call was.
  */
 @Component
 class GenericBaseline {
@@ -119,7 +119,7 @@ class GenericBaseline {
 
     /** The model's answer, or empty when it declined or did not answer in the schema. */
     private Optional<JsonNode> ask(UUID assessmentId, Mapping m, Corpus corpus) {
-        LlmRequest request = new LlmRequest(LlmPurpose.MATCH_EVIDENCE, "BASELINE:" + m.requirement().ref(), systemPrompt,
+        LlmRequest request = new LlmRequest(LlmPurpose.EVAL_BASELINE, "BASELINE:" + m.requirement().ref(), systemPrompt,
                 userPrompt(corpus, m.requirement()), validator.schema(), maxOutputTokens);
         LlmResponse response;
         try {

@@ -1,6 +1,6 @@
 ## EV-2 — Evaluation lab
 
-Branch `ev-lab`, no migration, slot 8. Decisions D-621 to D-630 are in `docs/decisions/EV-2.md`.
+Branch `ev-lab`, migration V028 (provisional number, D-626), slot 8. Decisions D-621 to D-630 are in `docs/decisions/EV-2.md`.
 
 ## Plan (written before building)
 1. Answer key format: `eval/keys/schema.json`, `AnswerKey`, `AnswerKeys` (schema check, consistency check, splits, lock).

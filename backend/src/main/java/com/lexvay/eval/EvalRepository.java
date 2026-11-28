@@ -1,5 +1,6 @@
 package com.lexvay.eval;
 
+import com.lexvay.llm.LlmPurpose;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -61,9 +62,9 @@ class EvalRepository {
                        coalesce(bool_or(request ->> 'tokensEstimated' = 'true'), false) AS estimated,
                        coalesce(sum(duration_ms), 0) AS duration
                 FROM llm_call
-                WHERE (prompt_version = :baselineVersion) = :baseline
+                WHERE (purpose = :baselinePurpose) = :baseline
                 """)
-                .param("baselineVersion", GenericBaseline.PROMPT_VERSION).param("baseline", baseline)
+                .param("baselinePurpose", LlmPurpose.EVAL_BASELINE.name()).param("baseline", baseline)
                 .query((rs, i) -> new ModelUse(rs.getInt("calls"), rs.getLong("input"), rs.getLong("output"), rs.getBoolean("estimated"),
                         rs.getLong("duration")))
                 .single();
