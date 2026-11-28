@@ -7,6 +7,7 @@ import com.lexvay.assessment.Finding;
 import com.lexvay.rule.RequirementType;
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -51,10 +52,13 @@ class TermOverlapTest {
         TermOverlap overlap = TermOverlap.measure(golden, Map.of("UT/UT-1", List.of("degree plan", "curriculum")));
         Metrics none = new Metrics(new Ratio(0, 0), new Ratio(0, 0), new Ratio(0, 0), new Ratio(0, 0), new Ratio(0, 0), new Ratio(0, 0));
         Thresholds.Limits limits = new Thresholds.Limits(0.0, 0.0, 0.0, 0.0, 0.0);
-        EvalReport.Usage usage = new EvalReport.Usage(0, 0, 0, BigDecimal.ZERO, Duration.ZERO);
+        EvalReport.Usage usage = new EvalReport.Usage(0, 0, 0, false, BigDecimal.ZERO, Duration.ZERO);
+        LocalDate date = LocalDate.of(2026, 11, 27);
 
-        String live = new EvalReport(EvalReport.Mode.LIVE, "model", "tenant", 3, none, limits, usage, List.of(), List.of(), overlap).render();
-        String scripted = new EvalReport(EvalReport.Mode.FAKE, "model", "tenant", 3, none, limits, usage, List.of(), List.of(), null).render();
+        String live = new EvalReport(EvalReport.Mode.LOCAL_LIVE, "model", "localhost", date, "tenant", 3, none, limits, usage, List.of(),
+                List.of(), overlap).render();
+        String scripted = new EvalReport(EvalReport.Mode.SCRIPTED, "model", null, date, "tenant", 3, none, limits, usage, List.of(),
+                List.of(), null).render();
 
         assertThat(live).contains("Search terms vs golden (Jaccard, mean)", "11.1 %", "UT/UT-1", "33.3 %", "degree plan, curriculum",
                 "UT/UT-3", "(none)");

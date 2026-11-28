@@ -19,7 +19,8 @@ import org.springframework.stereotype.Component;
  * byte of the system prompt, the user prompt and the output schema. A token is never shorter than a byte, so the input
  * figure is an upper bound. The recorded figure is what {@link LlmCallRecorder} stored, which is every successful call
  * of every tenant; a call that failed at the provider is not recorded, and calls in flight on other instances are not
- * yet, so several instances can overshoot the budget by what is in flight. Scripted calls are free and left out.
+ * yet, so several instances can overshoot the budget by what is in flight. Scripted calls and calls to a model the
+ * operator runs are free and left out; a stored call that does not say it was unmetered counts (D-620).
  */
 @Component
 public class SpendGate {
@@ -62,7 +63,7 @@ public class SpendGate {
 
     private BigDecimal recordedThisMonth() {
         BigDecimal total = BigDecimal.ZERO;
-        for (LlmUsageRepository.ModelUsage used : usage.thisMonthExcluding(FakeLlmClient.MODEL_ID)) {
+        for (LlmUsageRepository.ModelUsage used : usage.meteredThisMonth(FakeLlmClient.MODEL_ID)) {
             if (used.inputTokens() > 0 || used.outputTokens() > 0) {
                 total = total.add(priceOf(used.model()).cost(used.inputTokens(), used.outputTokens()));
             }
