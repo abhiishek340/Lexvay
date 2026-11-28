@@ -100,7 +100,7 @@ test('the theme chosen in the avatar menu persists across a reload, and the menu
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await expect(await openAccountMenu(page)).toContainText('Reviewer');
   // The overview behind the menu has loaded: this test measures the menu, not the skeleton of a slow load.
-  await expect(page.getByTestId('state-card-CA')).toBeVisible();
+  await expect(page.getByTestId('state-row-CA')).toBeVisible();
   await expectAccessible(page, 'Avatar menu at 400 px');
 });
 
