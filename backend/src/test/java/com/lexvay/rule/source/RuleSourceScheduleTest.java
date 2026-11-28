@@ -150,7 +150,7 @@ class RuleSourceScheduleTest extends AbstractRuleSourceTest {
         UUID sourceId = newSource();
         failOnce(sourceId);
 
-        var listed = TenantContext.runAs(t.tenantId(), () -> repository.list()).stream()
+        var listed = TenantContext.runAs(t.tenantId(), () -> repository.list(java.time.OffsetDateTime.now())).stream()
                 .filter(view -> view.id().equals(sourceId)).findFirst().orElseThrow();
 
         assertThat(listed.consecutiveFailures()).isEqualTo(1);

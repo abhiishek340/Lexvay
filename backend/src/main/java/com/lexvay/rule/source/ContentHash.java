@@ -18,8 +18,13 @@ final class ContentHash {
     private ContentHash() {
     }
 
-    static String of(List<ExtractedPage> pages) {
-        String text = pages.stream().map(ExtractedPage::text).collect(Collectors.joining("\n"));
-        return DocumentService.sha256(QuoteVerifier.normalizeWhitespace(text).getBytes(StandardCharsets.UTF_8));
+    /** The text of the pages with every run of white space collapsed: what is hashed and what is searched. */
+    static String text(List<ExtractedPage> pages) {
+        return QuoteVerifier.normalizeWhitespace(pages.stream().map(ExtractedPage::text).collect(Collectors.joining("\n")));
+    }
+
+    /** The hash of text from {@link #text}. */
+    static String of(String normalizedText) {
+        return DocumentService.sha256(normalizedText.getBytes(StandardCharsets.UTF_8));
     }
 }

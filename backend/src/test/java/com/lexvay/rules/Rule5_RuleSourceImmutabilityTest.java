@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.lexvay.common.AbstractDatabaseTest;
 import com.lexvay.common.TenantContext;
 import com.lexvay.common.TestTenants;
+import com.lexvay.rule.source.AccessStatus;
+import com.lexvay.rule.source.CheckFinding;
 import com.lexvay.rule.source.CheckOutcome;
 import com.lexvay.rule.source.CreateRuleSourceRequest;
 import com.lexvay.rule.source.RuleSourceRepository;
@@ -36,7 +38,8 @@ class Rule5_RuleSourceImmutabilityTest extends AbstractDatabaseTest {
         tenant = tenants.create("source-immutable");
         TenantContext.runAs(tenant.tenantId(), () -> {
             sourceId = service.register(new CreateRuleSourceRequest("CA", "LICENSE", "Source", "https://rules.example.test/a.pdf", 24));
-            checkId = repository.insertCheck(tenant.tenantId(), sourceId, OffsetDateTime.now(), CheckOutcome.UNCHANGED, 200, "a".repeat(64), null, null, null);
+            checkId = repository.insertCheck(tenant.tenantId(), sourceId, OffsetDateTime.now(), AccessStatus.UNREVIEWED,
+                    new CheckFinding(CheckOutcome.UNCHANGED, 200, "a".repeat(64), null, null, null, null));
         });
     }
 
@@ -48,7 +51,8 @@ class Rule5_RuleSourceImmutabilityTest extends AbstractDatabaseTest {
     @ValueSource(strings = {"url = 'https://rules.example.test/b.pdf'", "label = 'Renamed'", "license_type = 'OTHER'", "check_interval_hours = 48"})
     void whatIsMonitoredCannotBeChanged(String assignment) {
         assertThatThrownBy(() -> update("UPDATE rule_source SET " + assignment + " WHERE id = :id"))
-                .hasMessageContaining("only active, last_checked_at, last_content_hash, next_check_at, consecutive_failures may change");
+                .hasMessageContaining("only active, last_checked_at, last_content_hash, next_check_at, consecutive_failures, last_etag, last_modified, "
+                        + "authority_class, allowed_hosts, allowed_path_prefixes, expected_identifiers, access_status, access_note, owner_user_id may change");
     }
 
     @Test
@@ -56,6 +60,14 @@ class Rule5_RuleSourceImmutabilityTest extends AbstractDatabaseTest {
         assertThat(update("UPDATE rule_source SET active = false WHERE id = :id")).isEqualTo(1);
         assertThat(update("UPDATE rule_source SET last_checked_at = now(), last_content_hash = '" + "b".repeat(64) + "' WHERE id = :id")).isEqualTo(1);
         assertThat(update("UPDATE rule_source SET next_check_at = now() + interval '1 hour', consecutive_failures = 3 WHERE id = :id")).isEqualTo(1);
+        assertThat(update("UPDATE rule_source SET last_etag = '\"v1\"', last_modified = 'Tue, 01 Dec 2026 10:00:00 GMT' WHERE id = :id")).isEqualTo(1);
+    }
+
+    @Test
+    void howItIsGovernedCanChange() {
+        assertThat(update("UPDATE rule_source SET authority_class = 'STATUTE', allowed_hosts = ARRAY['rules.example.test', 'www.example.test'], "
+                + "allowed_path_prefixes = ARRAY['/rules/'], expected_identifiers = ARRAY['R156-60e'], access_status = 'PERMITTED', "
+                + "access_note = 'Terms and robots.txt read, fetching allowed' WHERE id = :id")).isEqualTo(1);
     }
 
     @Test
@@ -73,7 +85,8 @@ class Rule5_RuleSourceImmutabilityTest extends AbstractDatabaseTest {
     @Test
     void onlyAChangedCheckCarriesADocumentAndAVersion() {
         TenantContext.runAs(tenant.tenantId(), () -> {
-            assertThatThrownBy(() -> repository.insertCheck(tenant.tenantId(), sourceId, OffsetDateTime.now(), CheckOutcome.CHANGED, 200, null, null, null, null))
+            assertThatThrownBy(() -> repository.insertCheck(tenant.tenantId(), sourceId, OffsetDateTime.now(), AccessStatus.UNREVIEWED,
+                    new CheckFinding(CheckOutcome.CHANGED, 200, null, null, null, null, null)))
                     .hasMessageContaining("rule_source_check_changed_has_both");
         });
     }

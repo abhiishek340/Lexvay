@@ -51,11 +51,27 @@ const JOB_NOUN: Record<string, string> = {
 
 const CHECK_RESULT: Record<string, string> = {
   UNCHANGED: 'no change',
+  NOT_MODIFIED: 'the board\'s server said the page has not changed',
   CHANGED: 'new text, a draft rule version was created',
   CHANGED_QUEUED: 'new text, kept behind the draft that waits for review',
   DRAFT_EXISTS: 'new text, a draft already waited for review (not kept)',
   FETCH_FAILED: 'it could not be fetched',
+  BLOCKED_BY_ROBOTS: 'the site\'s robots.txt does not allow it, so nothing was fetched',
+  SUSPECT_CONTENT: 'what came back did not look like the rule text, so nothing was kept',
 };
+
+/** How a person reviewed a rule source's terms of use and robots.txt, as it reads in a sentence. */
+const ACCESS_WORD: Record<string, string> = {
+  UNREVIEWED: 'not reviewed',
+  PERMITTED: 'permitted',
+  RESTRICTED: 'restricted',
+  BLOCKED: 'blocked',
+};
+
+/** The access status inside a governance snapshot (the "before" or "after" of an entry), or null. */
+function accessOf(snapshot: unknown): string | null {
+  return typeof snapshot === 'object' && snapshot !== null ? text(snapshot as Record<string, unknown>, 'accessStatus') : null;
+}
 
 const REFUSAL_REASON: Record<string, string> = {
   NO_MODEL_FOR_REAL_DATA: 'no model is configured for real data',
@@ -119,9 +135,17 @@ export const AUDIT_SENTENCES: Record<string, Sentence> = {
     text(detail, 'jurisdiction') ? `${actor} added a rule source for ${jurisdictionName(text(detail, 'jurisdiction')!)}` : `${actor} added a rule source`,
   RULE_SOURCE_CHECK_REQUESTED: ({ actor }) => `${actor} asked for a rule source check`,
   RULE_SOURCE_ACTIVE_CHANGED: ({ actor, detail }) => (detail['active'] === false ? `${actor} paused a rule source` : `${actor} resumed a rule source`),
+  RULE_SOURCE_GOVERNANCE_CHANGED: ({ actor, detail }) => {
+    const before = accessOf(detail['before']);
+    const after = accessOf(detail['after']);
+    return before && after && before !== after
+      ? `${actor} changed the access of a rule source from ${ACCESS_WORD[before] ?? before.toLowerCase()} to ${ACCESS_WORD[after] ?? after.toLowerCase()}`
+      : `${actor} changed how a rule source is governed`;
+  },
   RULE_SOURCE_CHECKED: ({ actor, detail }) => {
     const result = CHECK_RESULT[String(detail['outcome'])];
-    return result ? `${actor} checked a rule source: ${result}` : `${actor} checked a rule source`;
+    const checked = result ? `${actor} checked a rule source: ${result}` : `${actor} checked a rule source`;
+    return detail['accessStatus'] === 'UNREVIEWED' ? `${checked} (its access was not reviewed)` : checked;
   },
   ASSESSMENT_STARTED: ({ actor, detail }) => {
     const jurisdictions = Array.isArray(detail['jurisdictions']) ? detail['jurisdictions'].length : null;
@@ -228,6 +252,7 @@ export const ACTION_LABEL: Record<string, string> = {
   RULE_SOURCE_CREATED: 'Rule source added',
   RULE_SOURCE_CHECK_REQUESTED: 'Rule source check requested',
   RULE_SOURCE_ACTIVE_CHANGED: 'Rule source paused or resumed',
+  RULE_SOURCE_GOVERNANCE_CHANGED: 'Rule source governance changed',
   RULE_SOURCE_CHECKED: 'Rule source checked',
   ASSESSMENT_STARTED: 'Assessment started',
   ASSESSMENT_FINISHED: 'Assessment finished',

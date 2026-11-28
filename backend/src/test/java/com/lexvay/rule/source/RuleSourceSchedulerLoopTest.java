@@ -33,11 +33,14 @@ class RuleSourceSchedulerLoopTest extends AbstractRuleSourceTest {
     @Test
     void theSchedulerQueuesADueSourceOnceAndLeavesAnInactiveOneAlone() throws InterruptedException {
         assertThat(context.getBeanNamesForType(RuleSourceScheduler.class)).hasSize(1);
+        UUID unreviewed = inTenant(() -> service.register(new CreateRuleSourceRequest("CA", LICENSE, "unreviewed", newUrl("html"), 24)));
         UUID due = inTenant(() -> service.register(new CreateRuleSourceRequest("CA", LICENSE, "due", newUrl("html"), 24)));
+        permit(due);
         // One transaction: the running scheduler must never see the source while it is still active.
         UUID inactive = inTenant(() -> transaction.execute(status -> {
             UUID id = service.register(new CreateRuleSourceRequest("CA", LICENSE, "inactive", newUrl("html"), 24));
             service.setActive(id, false);
+            jdbc.sql("UPDATE rule_source SET access_status = 'PERMITTED' WHERE id = :id").param("id", id).update();
             return id;
         }));
 
@@ -46,5 +49,6 @@ class RuleSourceSchedulerLoopTest extends AbstractRuleSourceTest {
 
         assertThat(queuedJobs(due)).as("several polls later it is still one job").isEqualTo(1);
         assertThat(queuedJobs(inactive)).isZero();
+        assertThat(queuedJobs(unreviewed)).as("access was never reviewed").isZero();
     }
 }

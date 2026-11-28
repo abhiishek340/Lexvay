@@ -31,8 +31,9 @@ runs, sandbox, authorized real data or production.
 |---|---|---|---|---|---|
 | RG-1 | Legal time and status model; fix fetch-date-as-effective-date (P0); keep every observed change (A→B→C) | — | Sonnet 5.5 | V025 | merged (#55) |
 | MODE-1 | Persisted tenant data mode (DEMO/LIVE) and the spend gate for paid providers | — | Sonnet 5.5 | V022 | merged (#51) |
-| RG-2 | Source registry governance: allowed hosts and paths, authority class, rights and access state, owner, expected identifiers, conditional GET, per-host throttle, robots, block-page detection | RG-1 | Sonnet 5.5 | V023 | queued |
-| RG-3 | Utah official-source adapter (DOPL, R156-60e, Utah Code 58-60-405, State Bulletin), with archived-version replay and an observed-change test | RG-2 | Sonnet 5.5 | — | queued |
+| RG-2 | Source registry governance: allowed hosts and paths, authority class, rights and access state, owner, expected identifiers, conditional GET, per-host throttle, robots, block-page detection | RG-1 | Sonnet 5.5 | V027 | merged (#65) |
+| RG-3 | Utah official-source adapter (DOPL, R156-60e, Utah Code 58-60-405, State Bulletin): source profiles, proposed dates with verified quotes, registry import, fixture replay and an observed-change test | RG-2 | Sonnet 5.5 | next free | in progress |
+| RG-3b | Live replay of the Utah sources and their archived versions | RG-3, DOM-1 | Sonnet 5.5 | — | **blocked: needs founder approval for live fetches** |
 | AC-1 | Academic pathway model: catalog version, credits, choice groups, substitutions, and "every valid graduation path" evaluated with three-valued logic | — | Sonnet 5.5 | V026 | merged (#61) |
 | AC-2 | Governed export ingestion: manifest v1, local drop folder and read-only SFTP (Apache MINA SSHD), full and delta, tombstones, checkpoints | AC-1 | Sonnet 5.5 | V025 | queued |
 | AC-3 | Public catalog feasibility adapter (University of Utah CMHC program requirements and handbooks): proposed facts with citations and a missing-evidence manifest; no university text committed | RG-2, AC-1 | Sonnet 5.5 | — | queued |
@@ -348,6 +349,104 @@ from legal status. This item extends F12, FIX-4 and RG-1; it adds no new service
    - Rule 9 and the input-table rows for the new endpoint and actions.
 6. **Docs:** OPERATIONS gets a "Monitoring etiquette" section: User-Agent, contact, throttle, robots, the access
    review step, and no circumvention. Decisions go in `docs/decisions/RG-2.md`, progress in `docs/progress/RG-2.md`.
+
+### RG-3 — Utah official-source adapter (backend; slot 6; Sonnet 5.5; next free migration at merge; D-576 to D-585)
+Master prompt M3 step 3: turn the governed registry (RG-2) into the first real pathway's sources, so each source yields
+operative text, identifiers and *proposed* legal dates that a reviewer can accept, without anyone fetching Utah's servers
+before the founder approves it. The orchestrator located the sources by web search on 2026-11-28; they are facts about
+where the law is published, not regulatory content. **Nobody fetches a Utah host in this item**: not the agent, not a
+test, not CI. Every test runs on a loopback server serving synthetic fixtures.
+
+Context found on 2026-11-28 (for D-576; DOM-1 must confirm before any source is `PERMITTED`):
+- The Utah Code is published at `le.utah.gov/xcode/...`. Each section also has versioned files whose name carries a
+  date pair, for example `C58-60-S405_2026050620260701.html`. The meaning of the two dates is **not** asserted here.
+- R156-60e, the Mental Health Professional Practice Act Rule, replaced R156-60a to R156-60d (R156-60c was the CMHC
+  rule; SB 26, 2024). It is published on `adminrules.utah.gov`, with copies on `dopl.utah.gov` and proposed-rule
+  filings on `commerce.utah.gov`.
+- Filings appear in the Utah State Bulletin at `rules.utah.gov/publicat/bulletin/<year>/<yyyymmdd>/<file no>.htm`, with
+  a DAR file number and a notice type.
+
+1. **Source profiles**, in package `com.lexvay.rule.source.profile`:
+   - `SourceProfile` is an interface: `boolean handles(URI)` and `Profiled profile(URI, List<ExtractedPage>)`.
+   - `Profiled` holds:
+     - the operative text, with page furniture, navigation and footers removed;
+     - the identifiers found, such as `58-60-405`, `R156-60e-302` and `DAR File No. 57656`;
+     - a `versionKey`, the source's own version label stored verbatim (the le.utah.gov file suffix, a rule's "Date of
+       Last Change" line, or a bulletin file number);
+     - a list of `DateHint`s.
+   - A `DateHint` is a kind (`EFFECTIVE`, `PUBLISHED`, `ADOPTED`, `REPEALED`), an ISO date, the exact quote it was read
+     from, and that quote's character offsets in the stored page text.
+   - Every hint's quote is re-verified against the stored text by the existing quote verifier (rule 2). A hint that
+     fails verification is dropped and logged.
+   - Hints are read only from words on the page ("Effective 7/1/2026", "Effective Date:", "Notice of Effective Date",
+     "Repealed"). They are never read from a URL or file name, and never from the fetch date.
+   - Profiles:
+     - `UtahCodeSectionProfile`: `le.utah.gov` xcode HTML and its PDF twin.
+     - `UtahAdminRuleProfile`: R156 rule text, its section headings and KEY / authorizing lines, on `adminrules.utah.gov`
+       and `dopl.utah.gov` PDFs.
+     - `UtahBulletinFilingProfile`: `rules.utah.gov` bulletin filings and `commerce.utah.gov` proposed-rule PDFs. It maps
+       the notice type to a `suggestedStatus`: "Proposed Rule" and "Change in Proposed Rule" give `PROPOSED`; "Notice of
+       Effective Date" gives `FINAL_NOT_EFFECTIVE`, or `IN_FORCE` when the stated date is on or before the observation
+       date. A five-year review or anything unrecognised gives none.
+     - `GenericPageProfile` is the fallback, and is the current behaviour unchanged.
+   - `SourceProfiles` picks the first profile whose `handles` matches the host and path, in a fixed order. There is no
+     per-source column: the URL decides. Write this in D-577.
+   - `CheckRuleSourceHandler` runs the profile after RG-2's content validation and before hashing, so page furniture
+     changes no longer count as a change. The baseline hash becomes the hash of the operative text; existing sources
+     re-baseline on their next check with outcome `UNCHANGED` and the detail "re-baselined (RG-3)". They never get a
+     new draft for it.
+2. **Storage.** The migration adds `source_observation_hint`:
+   - Columns: `tenant_id`, `rule_source_check_id`, `kind`, `hint_date`, `quote`, `start_offset`, `end_offset`,
+     `suggested_status` (nullable), and `version_key`.
+   - It is append-only with `forbid_change()`, has RLS like `rule_source_check`, and is indexed on
+     `rule_source_check_id`.
+   - The rule-version view returns the hints of the observation that created the draft, and of each queued observation,
+     as "Dates proposed by the source text". The reviewer accepts them through RG-1's existing
+     `POST /rule-versions/{id}/status`, with `dates_basis` pre-filled as the quote and URL. Nothing is applied
+     automatically.
+   - Hints are never `effective_from`, and a draft from a profiled source stays `legal_status UNKNOWN` (RG-1).
+3. **The Utah registry**, in `seed/real/utah-cmhc/sources.json`, kept separate from the fictional demo seed (D-550):
+   - The four sources are:
+     - Utah Code 58-60-405 (`STATUTE`);
+     - R156-60e (`ADMIN_RULE`);
+     - the State Bulletin filings index for R156-60e (`REGISTER`);
+     - the DOPL CMHC licensing page (`BOARD_GUIDANCE`).
+   - Each source carries:
+     - `allowed_hosts`;
+     - `allowed_path_prefixes`;
+     - `expected_identifiers`;
+     - `access_status: "UNREVIEWED"`;
+     - an `access_note` that says it was located by search on 2026-11-28 and is not reviewed for terms or robots;
+     - a `provenance` field with the search date.
+   - It holds no rule text.
+   - `POST /rule-sources/import` (ADMIN) takes that JSON. It is idempotent on (`jurisdiction`, `url`) and refused with
+     409 for a tenant in `DEMO` mode (MODE-1). It is audited as `RULE_SOURCES_IMPORTED`, with the count and the file's
+     SHA-256. Add it to Rule 9, `InputValidationTableTest` and `audit-sentence.ts`.
+   - Imported sources stay `UNREVIEWED`, so the scheduler never fetches them (RG-2). This item adds no "Check now" run
+     against them.
+4. **Fixtures and replay.** Fixtures go in `backend/src/test/resources/sources/utah/`:
+   - Each file is a synthetic page that reproduces the **structure** of its source: element layout, headings,
+     identifier formats, date phrasing and the furniture to strip. Its body text is fictional and opens with
+     "SYNTHETIC FIXTURE: not the text of any Utah law".
+   - A `SourceReplay` test harness serves a scripted sequence from the loopback server and drives the real job through
+     `JobRepository`, with no shortcuts. Each step is a version, a 304, a block page or a 503 with `Retry-After`.
+   - The tests are:
+     - **Observed change:** A → B (one subsection's hour figure changed) → C (a "Notice of Effective Date" filing).
+       Assert one draft and two queued observations in order (RG-1), all `UNKNOWN`. Assert that the hints are
+       verified quotes and the bulletin suggests `FINAL_NOT_EFFECTIVE`, and that nothing became effective.
+     - **Furniture-only change:** a navigation or footer edit gives `UNCHANGED`.
+     - **The wrong page:** a page served at the R156-60e path without `R156-60e` gives `SUSPECT_CONTENT` (RG-2).
+     - **Profile selection** for each host, and the fallback.
+     - **No hint from the URL:** a versioned file name with a date pair and no date in its text gives zero hints.
+     - **The import:** importing into a `DEMO` tenant is refused, a second import changes nothing, and the scheduler
+       skips the imported sources.
+     - RLS on `source_observation_hint`; Rule 9 and the input-table rows.
+5. **Not in this item:** fetching any real page, a live replay of le.utah.gov's archived versions, or any committed
+   Utah text. These need the founder's approval and DOM-1. Record them as RG-3b, **blocked: needs founder approval
+   for live fetches**.
+6. **Docs:** OPERATIONS covers "Importing a real-data source registry". Decisions go in `docs/decisions/RG-3.md`,
+   progress in `docs/progress/RG-3.md`. The PR carries the no-cost declaration and states its evidence class:
+   "fixtures, local runs".
 
 ### EV-2 — Evaluation lab (backend and tooling; slot 8; Sonnet 5.5; no migration; D-621 to D-630)
 Master prompt §5.5 and M7. Accuracy claims need independent labels, frozen held-out cases, denominators, uncertainty and

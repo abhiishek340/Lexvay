@@ -97,6 +97,9 @@ All configuration is `LEXVAY_*` environment variables; `.env.example` lists ever
 | `LEXVAY_FORWARD_HEADERS` | `native` behind a reverse proxy or load balancer, so client address and scheme come from the proxy headers; leave `none` when the container is reached directly | none |
 | `LEXVAY_RATELIMIT_LOGIN_PER_MINUTE`, `LEXVAY_RATELIMIT_API_PER_MINUTE`, `LEXVAY_RATELIMIT_UPLOAD_PER_MINUTE`, `LEXVAY_UPLOAD_MAX_MB` | Rate limits and upload size (WS-SEC) | 10, 600, 30, 25 |
 | `LEXVAY_PACKAGE_MAX_BYTES` | Largest evidence package, in bytes; a larger one fails its job with a message and nothing is stored (F15) | 536870912 (512 MB) |
+| `LEXVAY_RULE_SOURCES_ENABLED`, `LEXVAY_RULE_SOURCES_POLL_INTERVAL_MS` | Whether the service queues checks of permitted rule sources on a schedule, and how often it looks for due ones (F12). Off by default. See "Monitoring etiquette" | `false`, 300000 |
+| `LEXVAY_MONITOR_CONTACT_URL` | An http(s) page where a board's webmaster can reach whoever runs this service. It is part of every request's User-Agent, and without it nothing is fetched (RG-2, D-566) | empty |
+| `LEXVAY_SOURCE_MIN_HOST_INTERVAL_SECONDS` | The least time between two requests to one host, across all instances and tenants (RG-2, D-569) | 30 |
 | `LEXVAY_PASSWORD_HASH_CONCURRENCY` | How many password hashes (sign-in, choosing a password) may run at once, 32 MiB of heap each; a caller that waits 2 seconds gets 503 with `Retry-After: 2` (D-407) | processors, at least 2 |
 | `LEXVAY_AUDIT_SEAL_INTERVAL_MS` | How often the sealer chains new audit entries into the tamper-evident trail (SEC-3, D-533); an entry is sealed within about this time of being written | 2000 |
 
@@ -447,6 +450,53 @@ SHA-256 of the ZIP, and `GET /api/v1/packages/{id}/file` streams it. Requesting,
   `JOB_FAILED`. Request a new package after fixing the cause; a finished package is never changed.
 - A package is deterministic for the same inputs: entries in a fixed order with the time of generation as their one
   timestamp. Anyone can verify one with `unzip` and `sha256sum` against `manifest.json`.
+
+## Monitoring etiquette
+
+The monitor reads the pages where licensing boards publish their rules (F12, RG-2). A rule source is a governed object:
+it is fetched only where a person has said it may be, politely, and what comes back is checked before it can become a
+change candidate. Source health is kept apart from legal status: a source that cannot be read says the rules may be out
+of date, never that they did not change. Nothing here fetches a real site until an administrator sets
+`LEXVAY_RULE_SOURCES_ENABLED=true`, and the demo and the tests never do.
+
+- **Who we are.** Every request carries `User-Agent: LexvayMonitor/<version> (+<LEXVAY_MONITOR_CONTACT_URL>)`. Set the
+  contact URL to a page that says who runs this installation and how to write to them. Without
+  one nothing is fetched at all: the service does not start with monitoring enabled, "Check now" and registering a source
+  answer 409 "Set LEXVAY_MONITOR_CONTACT_URL before fetching", and a check job that was queued earlier fails before any
+  request is made. No request is ever anonymous.
+- **One request at a time per host.** `LEXVAY_SOURCE_MIN_HOST_INTERVAL_SECONDS` (default 30) is the least time between two
+  requests to one host, counted across every instance and tenant in `source_host_fetch`, under a row lock. A check that
+  would come sooner is not slept on: its job goes back to the queue and is claimed again when its time has come
+  (`job.run_after`), and the check is recorded only when it runs. A server that answers 429 or 503 with `Retry-After`
+  holds every source on its host for that long (at most 7 days).
+- **robots.txt.** It is read once a day per host and cached in `source_host_fetch`. A rule that disallows the path for
+  `LexvayMonitor` (or, when it names no such agent, for `*`) ends the check as `BLOCKED_BY_ROBOTS` and nothing else is
+  requested. Only `User-agent`, `Disallow` and `Allow` are read, with the longest match winning. A robots.txt that
+  answers 4xx means everything is allowed; one that answers 5xx or 429, or cannot be reached, fails the check with a
+  reason and the usual backoff (15 minutes, doubling), and nothing is fetched from that host until it can be read.
+- **Conditional requests.** After a page has been read the monitor sends `If-None-Match` and `If-Modified-Since`; a 304
+  is the outcome `NOT_MODIFIED`, a success that stores nothing. Changing a source's governance forgets its validators.
+- **Where it may go.** A source's `allowedHosts` must include its own host; every redirect hop and the final address
+  must be in them, and, when `allowedPathPrefixes` is not empty, under one of the prefixes (end each with `/`). An
+  address that leaves is a failed check naming the reason, and the private-network refusal of D-182 still applies on
+  every hop.
+- **The access review.** A new source is `UNREVIEWED`. Before it is fetched on a schedule an administrator reads the
+  board's terms of use and robots.txt and records the finding with `PUT /api/v1/rule-sources/{id}/governance`:
+  `PERMITTED` (scheduled), `RESTRICTED` or `BLOCKED` (never fetched, not even by hand), or leaves it `UNREVIEWED`
+  (a person can still ask for a check, and the check records that it was not reviewed). `accessNote` says what was read
+  and decided; who wrote it and when is in the audit entry `RULE_SOURCE_GOVERNANCE_CHANGED`, which carries the
+  governance before and after. Name an `ownerUserId` who looks after the source, and list `expectedIdentifiers`, strings
+  the rule text must contain (for example a rule number).
+- **Content that is not the rule.** After extraction a text without every expected identifier, a page with a form and no
+  expected identifier, a short page worded like a challenge or block page, and an address that ends in `.pdf` that
+  answers with HTML are `SUSPECT_CONTENT`: no draft is made and the baseline does not move.
+- **No circumvention.** The monitor never solves a CAPTCHA, signs in, rotates addresses or changes its identity to get
+  past a refusal. A source that blocks it is marked `RESTRICTED` or `BLOCKED` and found another way: write to the board
+  and ask, or have a person enter the rule by hand.
+- **Health.** `GET /api/v1/rule-sources` shows each source's `health`: `BLOCKED` (access or robots), `UNREVIEWED`,
+  `SUSPECT` (the last check), `FAILING` (three or more failed fetches in a row), `STALE` (no successful read within twice
+  its interval) or `HEALTHY`. It is computed on every read from the checks. A program's overview shows a state's rules
+  with `sourceNotice` "Source stale" while any active source of that state is not `HEALTHY`.
 
 ## Health
 

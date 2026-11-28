@@ -15,13 +15,15 @@ public class FakeHostResolver implements HostResolver {
 
     /** A name that resolves to a public address. */
     public static final String PUBLIC_HOST = "rules.example.test";
+    /** A second name that resolves to a public address, for tests that need two hosts. */
+    public static final String OTHER_PUBLIC_HOST = "other.example.test";
     /** A name that resolves to a private (RFC 1918) address. */
     public static final String PRIVATE_HOST = "internal.example.test";
     /** A name that resolves to the cloud metadata address. */
     public static final String METADATA_HOST = "metadata.example.test";
 
     private final Map<String, String> names = new ConcurrentHashMap<>(Map.of(
-            PUBLIC_HOST, "203.0.113.10", PRIVATE_HOST, "10.0.0.5", METADATA_HOST, "169.254.169.254"));
+            PUBLIC_HOST, "203.0.113.10", OTHER_PUBLIC_HOST, "203.0.113.11", PRIVATE_HOST, "10.0.0.5", METADATA_HOST, "169.254.169.254"));
 
     @Override
     public InetAddress[] resolve(String host) throws UnknownHostException {

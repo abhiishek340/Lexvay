@@ -12,14 +12,18 @@ import com.lexvay.job.JobRepository;
 import com.lexvay.job.JobStatus;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 
 /** Fixtures for rule source tests: a tenant, the scripted fetcher, and helpers that read the tables the API hides. */
@@ -31,10 +35,61 @@ abstract class AbstractRuleSourceTest extends AbstractAssessmentTest {
     @Autowired protected JdbcClient jdbc;
     @Autowired protected JobRepository jobs;
     @Autowired protected AuditRepository audit;
+    @Autowired protected TransactionTemplate transaction;
+
+    /** The fetcher and the hosts are shared by every test of the database, so what one test scripted, asked, cached or reserved must not reach the next. */
+    @BeforeEach
+    void forgetEverythingAboutHosts() {
+        fetcher.reset();
+        forgetHostRows();
+    }
+
+    /** Empties what is remembered about hosts: when each was last asked and its cached robots.txt. */
+    protected void forgetHostRows() {
+        transaction.executeWithoutResult(status -> {
+            jdbc.sql("SELECT set_config('lexvay.worker', 'on', true)").query().singleRow();
+            jdbc.sql("DELETE FROM source_host_fetch").update();
+        });
+    }
 
     /** A URL no other test uses, because the fetcher is shared. */
     protected static String newUrl(String extension) {
         return "https://" + FakeHostResolver.PUBLIC_HOST + "/" + UUID.randomUUID() + "." + extension;
+    }
+
+    /** Records that a person reviewed the source's terms and robots.txt and allowed it to be fetched on a schedule. */
+    protected void permit(UUID sourceId) {
+        setAccess(sourceId, "PERMITTED");
+    }
+
+    protected void setAccess(UUID sourceId, String status) {
+        inTenant(() -> jdbc.sql("UPDATE rule_source SET access_status = :status WHERE id = :id").param("status", status)
+                .param("id", sourceId).update());
+    }
+
+    /** The governance a test starts from, for a source on {@link FakeHostResolver#PUBLIC_HOST}: permitted, nothing else restricted. */
+    protected static Map<String, Object> governanceBody() {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("authorityClass", "ADMIN_RULE");
+        body.put("allowedHosts", List.of(FakeHostResolver.PUBLIC_HOST));
+        body.put("allowedPathPrefixes", List.of());
+        body.put("expectedIdentifiers", List.of());
+        body.put("accessStatus", "PERMITTED");
+        body.put("accessNote", "Terms and robots.txt read; fetching is allowed.");
+        body.put("ownerUserId", null);
+        return body;
+    }
+
+    protected MvcTestResult putGovernance(UUID sourceId, Map<String, Object> body) {
+        return mvc.put().uri("/api/v1/rule-sources/" + sourceId + "/governance").with(user(t.admin())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)).exchange();
+    }
+
+    /** Changes the governance of a source through the API, starting from {@link #governanceBody()}. */
+    protected void govern(UUID sourceId, Consumer<Map<String, Object>> change) {
+        Map<String, Object> body = governanceBody();
+        change.accept(body);
+        assertThat(putGovernance(sourceId, body)).hasStatus(200);
     }
 
     protected static String today() {
