@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { JORDAN, PRIYA, SCREENSHOTS, expect, expectAccessible, goTo, nav, shoot, signIn, test } from './support';
+import { JORDAN, PRIYA, SCREENSHOTS, allowConsoleErrors, expect, expectAccessible, goTo, nav, shoot, signIn, test } from './support';
 
 /*
  * The rule workspace against the seeded Northfield data. The tests share one database and run in order:
@@ -274,7 +274,8 @@ test('a reviewer enters the list by hand, corrects it, saves, reloads and approv
   await expectAccessible(page, 'Edit grid');
   await expectNoSidewaysScroll(page, [1024, 1280, 1440]);
 
-  // The server rejects a blank title; its message appears under that row.
+  // The server rejects a blank title; its message appears under that row. Chromium logs the 400 it answers with.
+  allowConsoleErrors(page, /status of 400.*\/api\/v1\/rule-versions\/[^/]+\/requirements/);
   await page.getByRole('button', { name: 'Save list' }).click();
   await expect(grid.getByTestId('row-problems')).toHaveText('OR-2: Title must not be blank.');
   await expect(grid.getByRole('textbox', { name: 'OR-2 title' })).toHaveAttribute('aria-describedby', /problems-/);

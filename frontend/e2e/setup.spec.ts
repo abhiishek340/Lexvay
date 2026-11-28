@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { JORDAN, PASSWORD, PRIYA, SCREENSHOTS, expect, expectAccessible, goTo, nav, programIdFromUrl, shoot, test } from './support';
+import { JORDAN, PASSWORD, PRIYA, SCREENSHOTS, allowConsoleErrors, expect, expectAccessible, goTo, nav, programIdFromUrl, shoot, test } from './support';
 
 /*
  * Program setup (F2) against the seeded Northfield tenant: a contributor creates a fictional program for two states
@@ -145,6 +145,8 @@ test('a contributor sets up a program from nothing to its first assessment', asy
   await capture(page, 'setup-documents');
 
   // The same file again is refused as a copy, with a way to the document the program already holds.
+  // Chromium logs the 409 that refuses the copy.
+  allowConsoleErrors(page, /status of 409.*\/api\/v1\/programs\/[^/]+\/documents\?kind=SYLLABUS/);
   await files.setInputFiles('e2e/fixtures/schc520-syllabus.docx');
   await page.getByRole('button', { name: 'Upload 1 file' }).click();
   await expect(queue.locator('li[data-state="DUPLICATE"]')).toContainText('Already uploaded');
