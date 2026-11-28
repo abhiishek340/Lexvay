@@ -17,6 +17,8 @@ import com.lexvay.rule.Jurisdiction;
 import com.lexvay.rule.JurisdictionRepository;
 import com.lexvay.rule.RuleVersion;
 import com.lexvay.rule.RuleVersionRepository;
+import com.lexvay.tenant.DataMode;
+import com.lexvay.tenant.TenantRepository;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,10 +43,11 @@ public class ReportService {
     private final FileStore files;
     private final JobRepository jobs;
     private final AuditService audit;
+    private final TenantRepository tenants;
 
     public ReportService(ReportRepository reports, DeterminationRepository determinations, MappingRepository mappings,
                          ProgramRepository programs, RuleVersionRepository ruleVersions, JurisdictionRepository jurisdictions,
-                         FileStore files, JobRepository jobs, AuditService audit) {
+                         FileStore files, JobRepository jobs, AuditService audit, TenantRepository tenants) {
         this.reports = reports;
         this.determinations = determinations;
         this.mappings = mappings;
@@ -54,6 +57,7 @@ public class ReportService {
         this.files = files;
         this.jobs = jobs;
         this.audit = audit;
+        this.tenants = tenants;
     }
 
     @Transactional
@@ -81,6 +85,9 @@ public class ReportService {
         Jurisdiction jurisdiction = jurisdictions.findByCodes(List.of(d.jurisdiction())).get(0);
         List<Mapping> list = mappings.findByAssessmentAndJurisdiction(d.assessmentId(), d.jurisdiction());
         List<String[]> header = new ArrayList<>();
+        if (tenants.currentDataMode() == DataMode.DEMO) {
+            header.add(new String[] {"Data", DataMode.DEMO_NOTICE});
+        }
         header.add(new String[] {"Program", program.name() + ", catalog year " + program.catalogYear()});
         header.add(new String[] {"Jurisdiction", jurisdiction.name() + " (" + jurisdiction.code() + ")"});
         header.add(new String[] {"Outcome", d.outcome().label()});

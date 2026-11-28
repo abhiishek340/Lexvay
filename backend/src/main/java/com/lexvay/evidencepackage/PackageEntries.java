@@ -3,6 +3,8 @@ package com.lexvay.evidencepackage;
 import com.lexvay.assessment.Mapping;
 import com.lexvay.common.CsvWriter;
 import com.lexvay.evidencepackage.PackageSourceRepository.Quote;
+import com.lexvay.tenant.DataMode;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,8 +54,20 @@ final class PackageEntries {
     record CourseVersionJson(UUID id, String code, String title, String catalogYear) {
     }
 
-    record ManifestJson(UUID packageId, UUID determinationId, Instant generatedAt, String lexvayVersion, String hashAlgorithm,
+    record ManifestJson(UUID packageId, UUID determinationId, DataMode dataMode, Instant generatedAt, String lexvayVersion, String hashAlgorithm,
                         List<PackageZip.Entry> entries) {
+    }
+
+    /** The README of a DEMO tenant's package says in its first line that the data is fictional; a LIVE tenant's is the text as it is. */
+    static byte[] readme(byte[] text, DataMode mode) {
+        if (mode != DataMode.DEMO) {
+            return text;
+        }
+        byte[] notice = (DataMode.DEMO_NOTICE + ".\n").getBytes(StandardCharsets.UTF_8);
+        byte[] marked = new byte[notice.length + text.length];
+        System.arraycopy(notice, 0, marked, 0, notice.length);
+        System.arraycopy(text, 0, marked, notice.length, text.length);
+        return marked;
     }
 
     static DeterminationJson determination(PackageSnapshot s) {

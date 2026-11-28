@@ -56,6 +56,15 @@ const CHECK_RESULT: Record<string, string> = {
   FETCH_FAILED: 'it could not be fetched',
 };
 
+const REFUSAL_REASON: Record<string, string> = {
+  NO_MODEL_FOR_REAL_DATA: 'no model is configured for real data',
+  PAID_CALLS_NOT_APPROVED: 'paid model calls are not approved',
+  COST_UNKNOWN: 'its cost is unknown',
+  OVER_BUDGET: 'it would pass the monthly budget',
+};
+
+const MODE_WORD: Record<string, string> = { DEMO: 'demo', LIVE: 'real' };
+
 /**
  * One sentence per audited action, starting with who acted: "Dana Whitfield accepted CA-3". Every action the backend
  * records has an entry (audit-sentence.spec.ts reads the backend's sources to prove it). A sentence never prints a raw
@@ -167,6 +176,15 @@ export const AUDIT_SENTENCES: Record<string, Sentence> = {
   PACKAGE_READY: ({ actor }) => `${actor} built an evidence package`,
   PACKAGE_DOWNLOADED: ({ actor }) => `${actor} downloaded an evidence package`,
   REPORT_CHECKED: ({ actor, detail }) => `${actor} checked a report file: ${detail['match'] === true ? 'it matches' : 'no match'}`,
+  LLM_CALL_REFUSED: ({ actor, detail }) => {
+    const reason = REFUSAL_REASON[String(detail['reason'])];
+    return reason ? `${actor} did not make a model call: ${reason}` : `${actor} did not make a model call`;
+  },
+  TENANT_DATA_MODE_CHANGED: ({ actor, detail }) => {
+    const from = MODE_WORD[String(detail['from'])];
+    const to = MODE_WORD[String(detail['to'])];
+    return from && to ? `${actor} changed the organization's data from ${from} to ${to}` : `${actor} changed the organization's data mode`;
+  },
   JOB_FAILED: ({ actor, detail }) => `${actor} could not finish ${JOB_NOUN[String(detail['type'])] ?? 'a background job'}`,
 };
 
@@ -215,6 +233,8 @@ export const ACTION_LABEL: Record<string, string> = {
   PACKAGE_READY: 'Evidence package built',
   PACKAGE_DOWNLOADED: 'Evidence package downloaded',
   REPORT_CHECKED: 'Report file checked',
+  LLM_CALL_REFUSED: 'Model call refused',
+  TENANT_DATA_MODE_CHANGED: 'Data mode changed',
   JOB_FAILED: 'Background job failed',
 };
 

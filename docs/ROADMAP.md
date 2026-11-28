@@ -30,7 +30,7 @@ runs, sandbox, authorized real data or production.
 | ID | Work package | Depends on | Model | Migration | Status |
 |---|---|---|---|---|---|
 | RG-1 | Legal time and status model; fix fetch-date-as-effective-date (P0); keep every observed change (A→B→C) | — | Sonnet 5.5 | V021 | in progress |
-| MODE-1 | Persisted tenant data mode (DEMO/LIVE) and the spend gate for paid providers | — | Sonnet 5.5 | V022 | in progress |
+| MODE-1 | Persisted tenant data mode (DEMO/LIVE) and the spend gate for paid providers | — | Sonnet 5.5 | V022 | merged (#51) |
 | RG-2 | Source registry governance: allowed hosts and paths, authority class, rights and access state, owner, expected identifiers, conditional GET, per-host throttle, robots, block-page detection | RG-1 | Sonnet 5.5 | V023 | queued |
 | RG-3 | Utah official-source adapter (DOPL, R156-60e, Utah Code 58-60-405, State Bulletin), with archived-version replay and an observed-change test | RG-2 | Sonnet 5.5 | — | queued |
 | AC-1 | Academic pathway model: catalog version, credits, choice groups, substitutions, and "every valid graduation path" evaluated with three-valued logic | — | Sonnet 5.5 | V024 | in progress |
@@ -185,6 +185,77 @@ cannot be cross-checked against the plan. Decided model:
      is one statement).
 
    Decisions go in `docs/decisions/AC-1.md`, progress in `docs/progress/AC-1.md`.
+
+### OPS-2 — Cap concurrent local test stacks (tooling; slot 5; Sonnet 5.5; no migration; D-641 to D-643)
+Several agents run `make test` at once on one machine (load average up to 55). End-to-end specs then fail on timing:
+keyboard focus races and 15 s request timeouts, each in a different spec, and they pass when rerun alone. Decided
+fix: a machine-wide semaphore over isolated stacks, in `scripts/lib/stack.sh` only.
+1. **Acquiring a token:** `stack_init` acquires one of `LEXVAY_STACK_CONCURRENCY` tokens (default 2) before it
+   starts anything.
+   - A token is a directory `${TMPDIR:-/tmp}/lexvay-stack-tokens/<n>`, created atomically with `mkdir` (macOS has
+     no `flock` command), holding a `pid` file and the slot.
+   - A token whose pid is no longer alive is reclaimed.
+   - While waiting, print `"<name>: waiting for a free test stack (n of N in use: slots …)"` every 30 s.
+   - Give up after `LEXVAY_STACK_WAIT_MINUTES` (default 60) with a clear error.
+2. **Releasing:** `stack_cleanup` releases the token on every exit path; the existing `trap` covers EXIT, so add
+   INT and TERM.
+3. **CI:** unchanged in behaviour (one stack). `LEXVAY_STACK_CONCURRENCY=0` disables the semaphore.
+4. **Test:** `scripts/lib/stack-lock-test.sh`, run by a new `make test-scripts` target that the CI test job runs
+   before `make test`. It covers:
+   - two tokens taken: the third waits, then gets one when a holder exits;
+   - a stale token with a dead pid is reclaimed;
+   - a killed holder (TERM) releases its token;
+   - concurrency 0 skips the lock.
+
+   Use short timeouts and a temporary `TMPDIR`; it must finish in under 20 s.
+5. **Docs:** a sentence in CLAUDE.md's "Local environment" section, the README or OPERATIONS where `make e2e` is
+   described, and `docs/decisions/OPS-2.md` and `docs/progress/OPS-2.md`.
+
+### EV-1 — Local inference adapter and labelled evaluation runs (backend; slot 8; Sonnet 5.5; no migration; D-616 to D-620)
+The master prompt (M5) asks for evaluation on authorized, no-incremental-fee inference, with no untested model
+hard-coded. Llama.cpp's `llama-server`, Ollama, vLLM and LM Studio all expose the OpenAI-compatible
+`/v1/chat/completions` API, so one adapter covers them. Which model to run is the founder's choice, and the agent
+downloads no model.
+1. **Client:** `OpenAiCompatibleLlmClient implements LlmClient` (provider `openai-compatible`).
+   - It uses the JDK `HttpClient`; no new dependency.
+   - Configuration: `LEXVAY_LLM_BASE_URL` (required), `LEXVAY_LLM_MODEL` (required, **no default**),
+     `LEXVAY_LLM_API_KEY` (optional), and `LEXVAY_LLM_TIMEOUT_SECONDS` (default 120).
+   - `LEXVAY_LLM_ALLOWED_HOSTS` (default `localhost,127.0.0.1,::1`): a base URL host outside it fails startup.
+     Remote endpoints need an explicit entry, and the startup line names the host.
+   - `metered()` is false, because local inference has no per-call fee. `scripted()` is false, so LIVE tenants may
+     use it.
+2. **Structured output:** send `response_format: {type: "json_schema", json_schema: {name, schema, strict: true}}`.
+   - If the server rejects it (HTTP 400 naming `response_format`), retry once without it, with the schema in the
+     system message.
+   - Either way, validate with the existing `JsonSchemaValidator`; an invalid answer is the same failure as
+     Anthropic's.
+   - Record `usage.prompt_tokens` and `usage.completion_tokens` when present, and estimate them as the fake
+     provider does when absent, marking the estimate in `llm_call` (reuse the existing field if one exists; check
+     first).
+3. **Evaluation labels:** `EvalReport.Mode` becomes `SCRIPTED` (fake), `LOCAL_LIVE` (openai-compatible) and
+   `PAID_LIVE` (anthropic).
+   - The report header states the mode, model, base URL host and date.
+   - `make eval-live` accepts either live provider.
+   - `eval/thresholds.yml` keeps separate limits for scripted and live. Live limits stay "unmeasured first values"
+     until a measured run sets them; never copy the scripted ones.
+   - A local run's report is written to `eval/runs/<date>-<model-slug>.txt` (gitignored) for the founder to keep.
+4. **Tests**, against an in-process `com.sun.net.httpserver.HttpServer` on loopback (no network):
+   - success with `json_schema`;
+   - the 400 fallback;
+   - an invalid JSON answer;
+   - a timeout;
+   - missing usage (estimated and marked);
+   - a disallowed host failing startup;
+   - a LIVE tenant accepted, and the spend gate not consulted;
+   - the eval header for each mode.
+5. **Docs:** "Local inference" in OPERATIONS, covering:
+   - how to point Lexvay at a local server (with `llama-server --port 8089` and `ollama serve` as examples of
+     servers, not model recommendations);
+   - that a model's licence must be vetted before use;
+   - the memory and latency to measure;
+   - that results from a model nobody has vetted are labelled as such.
+
+   Decisions go in `docs/decisions/EV-1.md`, progress in `docs/progress/EV-1.md`.
 
 ## Design system v3 "Ledger" (owner directive 2026-11-27: "not AI slop", professional, human craft)
 The owner reviewed v2 on the running app and rejected it: yellow and orange accents, icon-heavy pills and cards, a
@@ -383,12 +454,14 @@ F2 (program setup) directly in v2 as specified in the F2 section with the v2 com
 | UI3-1 Review and Coverage in v3 | `ui3-review-coverage` | 2 | Opus 5.5 | queued (after UI3-0) |
 | UI3-2 Changes, audit, report, register, people in v3 | `ui3-records` | 3 | Opus 5.5 | queued (after UI3-0, F14) |
 | UI3-3 Rules, requests, setup in v3 | `ui3-rules-requests-setup` | 4 | Opus 5.5 | queued (after UI3-0, UI2-4) |
-| SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | in progress |
+| SEC-3 Tamper-evident audit trail | `sec-audit-seal` | 6 | Sonnet 5.5 | PR #53, renumbering to V023 |
 | F15 Evidence package | `feat-evidence-package` | 5 | Sonnet 5.5 | merged (#49) |
 | RG-1 Legal time and status model (P0) | `rg-legal-time` | 2 | Sonnet 5.5 | in progress |
-| MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | in progress |
+| MODE-1 Data mode and spend gate | `mode-data-spend` | 8 | Sonnet 5.5 | merged (#51) |
 | AC-1 Academic pathway model | `ac-pathway` | 3 | Sonnet 5.5 | in progress |
-| RG-2, RG-3, AC-2, AC-3, EV-1, EV-2, UX-1 | see Real-data validation track | — | — | queued |
+| OPS-2 Cap concurrent local test stacks | `ops-stack-cap` | 5 | Sonnet 5.5 | in progress |
+| EV-1 Local inference adapter, labelled eval runs | `ev-local-inference` | 8 | Sonnet 5.5 | in progress |
+| RG-2, RG-3, AC-2, AC-3, EV-2, UX-1 | see Real-data validation track | — | — | queued |
 | SP-1 SharePoint spike, DOM-1 expert review | — | — | — | blocked (founder) |
 | F12 Rule source monitoring (fetch, detect change, draft version) | `feat-rule-sources` | 8 | Sonnet 5.5 | merged (PR #19) |
 | F13 Work queue API | `feat-work-queue` | 9 | Sonnet 5.5 | merged (PR #23) |
